@@ -369,3 +369,28 @@ export function clearAllRateLimits(): void {
 export function isRedisRateLimitingEnabled(): boolean {
   return isUpstashConfigured && redis !== null;
 }
+
+/**
+ * Simple rate limit function for API routes.
+ * Takes a rate limit config and identifier string, returns success/failure.
+ */
+export async function rateLimit(
+  config: RateLimitConfig,
+  identifier: string
+): Promise<{ success: boolean; retryAfter?: number }> {
+  const useRedis = isUpstashConfigured && redis !== null;
+
+  if (useRedis) {
+    const result = await checkRateLimitUpstash(identifier, config);
+    return {
+      success: result.success,
+      retryAfter: result.retryAfterMs ? Math.ceil(result.retryAfterMs / 1000) : undefined,
+    };
+  }
+
+  const result = checkRateLimitInMemory(identifier, config);
+  return {
+    success: result.success,
+    retryAfter: result.retryAfterMs ? Math.ceil(result.retryAfterMs / 1000) : undefined,
+  };
+}

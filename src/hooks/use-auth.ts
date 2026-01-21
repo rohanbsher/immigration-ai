@@ -1,0 +1,228 @@
+'use client';
+
+import { useCallback, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { User, Session } from '@supabase/supabase-js';
+import { createClient } from '@/lib/supabase/client';
+import type { UserRole } from '@/types';
+
+interface AuthState {
+  user: User | null;
+  session: Session | null;
+  isLoading: boolean;
+  error: Error | null;
+}
+
+interface SignUpData {
+  email: string;
+  password: string;
+  role: UserRole;
+  firstName: string;
+  lastName: string;
+  barNumber?: string;
+  firmName?: string;
+}
+
+interface SignInData {
+  email: string;
+  password: string;
+}
+
+export function useAuth() {
+  const [state, setState] = useState<AuthState>({
+    user: null,
+    session: null,
+    isLoading: true,
+    error: null,
+  });
+  const router = useRouter();
+  const supabase = createClient();
+
+  useEffect(() => {
+    // Get initial session
+    const getInitialSession = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) throw error;
+
+        setState({
+          user: session?.user ?? null,
+          session,
+          isLoading: false,
+          error: null,
+        });
+      } catch (error) {
+        setState(prev => ({
+          ...prev,
+          isLoading: false,
+          error: error as Error,
+        }));
+      }
+    };
+
+    getInitialSession();
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        setState({
+          user: session?.user ?? null,
+          session,
+          isLoading: false,
+          error: null,
+        });
+
+        if (event === 'SIGNED_OUT') {
+          router.push('/login');
+        }
+      }
+    );
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [supabase, router]);
+
+  const signUp = useCallback(async (data: SignUpData) => {
+    setState(prev => ({ ...prev, isLoading: true, error: null }));
+
+    try {
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Registration failed');
+      }
+
+      if (result.requiresConfirmation) {
+        return { requiresConfirmation: true, message: result.message };
+      }
+
+      router.push('/dashboard');
+      router.refresh();
+      return { success: true };
+    } catch (error) {
+      setState(prev => ({ ...prev, error: error as Error, isLoading: false }));
+      throw error;
+    }
+  }, [router]);
+
+  const signIn = useCallback(async (data: SignInData) => {
+    setState(prev => ({ ...prev, isLoading: true, error: null }));
+
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Login failed');
+      }
+
+      router.push('/dashboard');
+      router.refresh();
+      return { success: true };
+    } catch (error) {
+      setState(prev => ({ ...prev, error: error as Error, isLoading: false }));
+      throw error;
+    }
+  }, [router]);
+
+  const signInWithOAuth = useCallback(async (provider: 'google' | 'azure') => {
+    setState(prev => ({ ...prev, isLoading: true, error: null }));
+
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: provider === 'azure' ? 'azure' : 'google',
+        options: {
+          redirectTo: `${window.location.origin}/api/auth/callback`,
+        },
+      });
+
+      if (error) throw error;
+    } catch (error) {
+      setState(prev => ({ ...prev, error: error as Error, isLoading: false }));
+      throw error;
+    }
+  }, [supabase]);
+
+  const signOut = useCallback(async () => {
+    setState(prev => ({ ...prev, isLoading: true, error: null }));
+
+    try {
+      const response = await fetch('/api/auth/logout', {
+        method: 'POST',
+      });
+
+      if (!response.ok) {
+        const result = await response.json();
+        throw new Error(result.error || 'Logout failed');
+      }
+
+      router.push('/login');
+      router.refresh();
+    } catch (error) {
+      setState(prev => ({ ...prev, error: error as Error, isLoading: false }));
+      throw error;
+    }
+  }, [router]);
+
+  const resetPassword = useCallback(async (email: string) => {
+    setState(prev => ({ ...prev, isLoading: true, error: null }));
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+
+      if (error) throw error;
+
+      setState(prev => ({ ...prev, isLoading: false }));
+      return { success: true };
+    } catch (error) {
+      setState(prev => ({ ...prev, error: error as Error, isLoading: false }));
+      throw error;
+    }
+  }, [supabase]);
+
+  const updatePassword = useCallback(async (newPassword: string) => {
+    setState(prev => ({ ...prev, isLoading: true, error: null }));
+
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+
+      if (error) throw error;
+
+      setState(prev => ({ ...prev, isLoading: false }));
+      return { success: true };
+    } catch (error) {
+      setState(prev => ({ ...prev, error: error as Error, isLoading: false }));
+      throw error;
+    }
+  }, [supabase]);
+
+  return {
+    user: state.user,
+    session: state.session,
+    isLoading: state.isLoading,
+    isAuthenticated: !!state.user,
+    error: state.error,
+    signUp,
+    signIn,
+    signInWithOAuth,
+    signOut,
+    resetPassword,
+    updatePassword,
+  };
+}

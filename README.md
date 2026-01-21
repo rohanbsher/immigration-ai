@@ -1,36 +1,135 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Immigration AI
+
+A modern, AI-powered immigration case management platform for attorneys that provides secure document management, intelligent document processing, and automated form filling.
+
+## Features
+
+- **Secure Document Vault**: Bank-level encryption with multi-factor authentication
+- **AI Document Analysis**: Automatically extract data from passports, I-94s, and more
+- **Smart Form Auto-Fill**: Pre-populate USCIS forms with extracted data
+- **Case Management**: Track cases, deadlines, and document requirements
+- **Attorney Review Workflow**: Review AI suggestions with confidence scores
+- **Client Portal**: Secure access for clients to upload documents and track progress
+
+## Tech Stack
+
+- **Framework**: Next.js 14+ with App Router
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS + shadcn/ui
+- **Database**: PostgreSQL (via Supabase)
+- **Authentication**: Supabase Auth with MFA support
+- **AI/ML**: OpenAI GPT-4 Vision / Claude API
+- **Storage**: Supabase Storage (encrypted at rest)
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
 
+- Node.js 18+
+- npm or yarn
+- Supabase account
+
+### Installation
+
+1. Clone the repository:
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone https://github.com/yourusername/immigration-ai.git
+cd immigration-ai
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. Install dependencies:
+```bash
+npm install
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+3. Copy the environment variables:
+```bash
+cp .env.example .env.local
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+4. Update `.env.local` with your Supabase credentials:
+```
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+```
 
-## Learn More
+5. Run the database migrations in Supabase SQL editor (files in `supabase/migrations/`)
 
-To learn more about Next.js, take a look at the following resources:
+6. Start the development server:
+```bash
+npm run dev
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+7. Open [http://localhost:3000](http://localhost:3000) in your browser
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Project Structure
+
+```
+immigration-ai/
+├── src/
+│   ├── app/                    # Next.js App Router pages
+│   │   ├── (auth)/            # Authentication pages
+│   │   ├── dashboard/         # Protected dashboard routes
+│   │   └── api/               # API routes
+│   ├── components/
+│   │   ├── ui/                # shadcn/ui components
+│   │   ├── layout/            # Layout components
+│   │   └── ...                # Feature components
+│   ├── lib/
+│   │   ├── supabase/          # Supabase client utilities
+│   │   ├── ai/                # AI integration
+│   │   └── utils/             # General utilities
+│   ├── hooks/                 # Custom React hooks
+│   └── types/                 # TypeScript types
+├── supabase/
+│   └── migrations/            # Database migrations
+└── public/                    # Static assets
+```
+
+## Supported Visa Types
+
+- Family-based: I-130, I-485, I-765, I-131
+- Employment-based: H1B, H4, L1, O1, EB1, EB2, EB3, EB5
+- Naturalization: N-400
+- And more...
+
+## Development
+
+```bash
+# Start development server
+npm run dev
+
+# Build for production
+npm run build
+
+# Run linting
+npm run lint
+
+# Type check
+npm run type-check
+```
+
+## Security
+
+- All documents encrypted at rest (AES-256)
+- TLS 1.3 for data in transit
+- Row-level security in PostgreSQL
+- Multi-factor authentication support
+- Audit logging for all document access
 
 ## Deploy on Vercel
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+The easiest way to deploy this app is using the [Vercel Platform](https://vercel.com/new):
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. Push your code to GitHub
+2. Import the repository in Vercel
+3. Add your environment variables
+4. Deploy!
+
+## License
+
+MIT
+
+## Contributing
+
+Contributions are welcome! Please read our contributing guidelines before submitting a pull request.

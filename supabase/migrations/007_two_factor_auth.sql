@@ -117,7 +117,7 @@ CREATE POLICY "System can insert backup code usage"
 
 CREATE TRIGGER update_two_factor_auth_updated_at
   BEFORE UPDATE ON two_factor_auth
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
 -- ============================================================================
 -- FUNCTIONS

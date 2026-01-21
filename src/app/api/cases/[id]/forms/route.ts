@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { formsService } from '@/lib/db';
+import { formsService, casesService } from '@/lib/db';
 import { createClient } from '@/lib/supabase/server';
 import { z } from 'zod';
 
@@ -7,6 +7,15 @@ const createFormSchema = z.object({
   form_type: z.string(),
   form_data: z.record(z.string(), z.unknown()).optional(),
 });
+
+/**
+ * Verify user has access to this case (is attorney or client)
+ */
+async function verifyCaseAccess(userId: string, caseId: string): Promise<boolean> {
+  const caseData = await casesService.getCase(caseId);
+  if (!caseData) return false;
+  return caseData.attorney_id === userId || caseData.client_id === userId;
+}
 
 export async function GET(
   request: NextRequest,
@@ -19,6 +28,12 @@ export async function GET(
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Verify user has access to this case
+    const hasAccess = await verifyCaseAccess(user.id, caseId);
+    if (!hasAccess) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const forms = await formsService.getFormsByCase(caseId);
@@ -44,6 +59,12 @@ export async function POST(
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Verify user has access to this case
+    const hasAccess = await verifyCaseAccess(user.id, caseId);
+    if (!hasAccess) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const body = await request.json();

@@ -112,10 +112,11 @@ export async function POST(
       });
     } catch (aiError) {
       console.error('AI autofill error:', aiError);
+      // Don't expose internal AI error details to client
       return NextResponse.json(
         {
           error: 'AI autofill failed',
-          details: aiError instanceof Error ? aiError.message : 'Unknown error'
+          message: 'The AI service encountered an issue. Please try again later.',
         },
         { status: 500 }
       );

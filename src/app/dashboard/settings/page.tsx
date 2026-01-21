@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -49,7 +49,7 @@ export default function SettingsPage() {
   });
 
   // Initialize profile data when loaded
-  useState(() => {
+  useEffect(() => {
     if (profile) {
       setProfileData({
         first_name: profile.first_name || '',
@@ -59,7 +59,7 @@ export default function SettingsPage() {
         bar_number: profile.bar_number || '',
       });
     }
-  });
+  }, [profile]);
 
   const handleProfileSave = async () => {
     setIsSaving(true);

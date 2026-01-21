@@ -15,7 +15,7 @@ export default function TermsOfServicePage() {
         <section className="mb-8">
           <h2 className="text-2xl font-semibold mb-4">1. Acceptance of Terms</h2>
           <p>
-            By accessing or using Immigration AI ("Service"), you agree to be bound by these
+            By accessing or using Immigration AI (&ldquo;Service&rdquo;), you agree to be bound by these
             Terms of Service. If you do not agree to these terms, you may not use the Service.
           </p>
         </section>
@@ -111,7 +111,7 @@ export default function TermsOfServicePage() {
           <p>
             We reserve the right to modify these Terms at any time. We will notify you of
             any material changes by posting the new Terms on this page and updating the
-            "Last updated" date.
+            &ldquo;Last updated&rdquo; date.
           </p>
         </section>
 

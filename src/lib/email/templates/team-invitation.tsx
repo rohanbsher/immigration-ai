@@ -86,7 +86,7 @@ export function TeamInvitationEmail({
 
   return (
     <BaseEmail previewText={previewText}>
-      <Heading style={heading}>You're Invited!</Heading>
+      <Heading style={heading}>You&apos;re Invited!</Heading>
 
       <Text style={paragraph}>
         <strong>{inviterName}</strong> has invited you to join their team on Immigration AI.
@@ -98,7 +98,7 @@ export function TeamInvitationEmail({
       </div>
 
       <Text style={paragraph}>
-        As a team member, you'll be able to collaborate on immigration cases, share
+        As a team member, you&apos;ll be able to collaborate on immigration cases, share
         documents, and work together more efficiently.
       </Text>
 
@@ -107,12 +107,12 @@ export function TeamInvitationEmail({
       </Button>
 
       <Text style={expiryStyle}>
-        This invitation will expire on {expiresAt}. If you don't have an account yet, you'll
+        This invitation will expire on {expiresAt}. If you don&apos;t have an account yet, you&apos;ll
         be prompted to create one when you accept.
       </Text>
 
       <Text style={paragraph}>
-        If you weren't expecting this invitation, you can safely ignore this email.
+        If you weren&apos;t expecting this invitation, you can safely ignore this email.
       </Text>
 
       <Text style={paragraph}>

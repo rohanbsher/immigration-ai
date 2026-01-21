@@ -256,27 +256,27 @@ CREATE POLICY "Service role can manage invoices"
 -- Auto-update updated_at timestamp
 CREATE TRIGGER update_customers_updated_at
   BEFORE UPDATE ON customers
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
 CREATE TRIGGER update_subscriptions_updated_at
   BEFORE UPDATE ON subscriptions
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
 CREATE TRIGGER update_plan_limits_updated_at
   BEFORE UPDATE ON plan_limits
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
 CREATE TRIGGER update_usage_records_updated_at
   BEFORE UPDATE ON usage_records
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
 CREATE TRIGGER update_payments_updated_at
   BEFORE UPDATE ON payments
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
 CREATE TRIGGER update_invoices_updated_at
   BEFORE UPDATE ON invoices
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
 -- ============================================================================
 -- SEED DATA: Default plan limits

@@ -149,11 +149,11 @@ CREATE POLICY "System can manage scheduled emails"
 
 CREATE TRIGGER update_notification_preferences_updated_at
   BEFORE UPDATE ON notification_preferences
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
 CREATE TRIGGER update_email_log_updated_at
   BEFORE UPDATE ON email_log
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
 -- ============================================================================
 -- FUNCTIONS

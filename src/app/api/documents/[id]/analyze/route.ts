@@ -78,10 +78,11 @@ export async function POST(
       await documentsService.updateDocument(id, { status: 'uploaded' });
 
       console.error('AI analysis error:', aiError);
+      // Don't expose internal AI error details to client
       return NextResponse.json(
         {
           error: 'AI analysis failed',
-          details: aiError instanceof Error ? aiError.message : 'Unknown error'
+          message: 'The AI service encountered an issue. Please try again later.',
         },
         { status: 500 }
       );

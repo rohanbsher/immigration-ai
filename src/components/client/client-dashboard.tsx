@@ -97,7 +97,7 @@ export function ClientDashboard() {
             <FileText className="h-12 w-12 text-muted-foreground mb-4" />
             <h3 className="text-lg font-medium">No active cases</h3>
             <p className="text-muted-foreground">
-              You don't have any immigration cases yet.
+              You don&apos;t have any immigration cases yet.
             </p>
           </CardContent>
         </Card>

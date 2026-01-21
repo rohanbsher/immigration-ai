@@ -262,19 +262,19 @@ CREATE POLICY "Attorneys can manage case assignments"
 
 CREATE TRIGGER update_firms_updated_at
   BEFORE UPDATE ON firms
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
 CREATE TRIGGER update_firm_members_updated_at
   BEFORE UPDATE ON firm_members
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
 CREATE TRIGGER update_firm_invitations_updated_at
   BEFORE UPDATE ON firm_invitations
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
 CREATE TRIGGER update_case_assignments_updated_at
   BEFORE UPDATE ON case_assignments
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
 -- ============================================================================
 -- FUNCTIONS

@@ -58,11 +58,11 @@ export function WelcomeEmail({ userName, loginUrl }: WelcomeEmailProps) {
       <Text style={paragraph}>Hi {userName},</Text>
 
       <Text style={paragraph}>
-        Thank you for joining Immigration AI. We're excited to help you streamline your
+        Thank you for joining Immigration AI. We&apos;re excited to help you streamline your
         immigration case management with the power of artificial intelligence.
       </Text>
 
-      <Text style={paragraph}>Here's what you can do with Immigration AI:</Text>
+      <Text style={paragraph}>Here&apos;s what you can do with Immigration AI:</Text>
 
       <ul style={list}>
         <li style={listItem}>AI-powered document analysis and data extraction</li>
@@ -76,7 +76,7 @@ export function WelcomeEmail({ userName, loginUrl }: WelcomeEmailProps) {
       </Button>
 
       <Text style={paragraph}>
-        If you have any questions or need assistance, don't hesitate to reach out to our
+        If you have any questions or need assistance, don&apos;t hesitate to reach out to our
         support team.
       </Text>
 

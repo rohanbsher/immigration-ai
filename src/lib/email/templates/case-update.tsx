@@ -86,7 +86,7 @@ export function CaseUpdateEmail({
       <Text style={paragraph}>Hi {userName},</Text>
 
       <Text style={paragraph}>
-        There's been an update to your case: <strong>{caseTitle}</strong>
+        There&apos;s been an update to your case: <strong>{caseTitle}</strong>
       </Text>
 
       <div style={updateBox}>

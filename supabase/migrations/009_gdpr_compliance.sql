@@ -186,15 +186,15 @@ CREATE POLICY "System can insert data retention log"
 
 CREATE TRIGGER update_user_consents_updated_at
   BEFORE UPDATE ON user_consents
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
 CREATE TRIGGER update_gdpr_export_jobs_updated_at
   BEFORE UPDATE ON gdpr_export_jobs
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
 CREATE TRIGGER update_gdpr_deletion_requests_updated_at
   BEFORE UPDATE ON gdpr_deletion_requests
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
 -- ============================================================================
 -- FUNCTIONS
@@ -355,7 +355,7 @@ BEGIN
     avatar_url = NULL,
     date_of_birth = NULL,
     country_of_birth = NULL,
-    current_nationality = NULL,
+    nationality = NULL,
     alien_number = NULL,
     bar_number = NULL,
     firm_name = NULL,

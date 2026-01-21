@@ -1,7 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { documentsService } from '@/lib/db';
+import { documentsService, casesService } from '@/lib/db';
 import { createClient } from '@/lib/supabase/server';
 import { sensitiveRateLimiter } from '@/lib/rate-limit';
+
+// File validation constants
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const ALLOWED_MIME_TYPES = [
+  'application/pdf',
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'image/webp',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+];
+
+/**
+ * Verify user has access to this case (is attorney or client)
+ */
+async function verifyCaseAccess(userId: string, caseId: string): Promise<boolean> {
+  const caseData = await casesService.getCase(caseId);
+  if (!caseData) return false;
+  return caseData.attorney_id === userId || caseData.client_id === userId;
+}
 
 export async function GET(
   request: NextRequest,
@@ -14,6 +35,12 @@ export async function GET(
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Verify user has access to this case
+    const hasAccess = await verifyCaseAccess(user.id, caseId);
+    if (!hasAccess) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const documents = await documentsService.getDocumentsByCase(caseId);
@@ -41,6 +68,12 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Verify user has access to this case
+    const hasAccess = await verifyCaseAccess(user.id, caseId);
+    if (!hasAccess) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     // Rate limiting: 20 uploads per minute (prevent storage abuse)
     const rateLimitResult = await sensitiveRateLimiter.limit(request, user.id);
     if (!rateLimitResult.allowed) {
@@ -60,6 +93,22 @@ export async function POST(
     if (!documentType) {
       return NextResponse.json(
         { error: 'Document type is required' },
+        { status: 400 }
+      );
+    }
+
+    // File size validation
+    if (file.size > MAX_FILE_SIZE) {
+      return NextResponse.json(
+        { error: `File size exceeds maximum allowed size of ${MAX_FILE_SIZE / (1024 * 1024)}MB` },
+        { status: 400 }
+      );
+    }
+
+    // File type validation
+    if (!ALLOWED_MIME_TYPES.includes(file.type)) {
+      return NextResponse.json(
+        { error: 'File type not allowed. Accepted types: PDF, JPEG, PNG, GIF, WebP, DOC, DOCX' },
         { status: 400 }
       );
     }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { documentsService, casesService } from '@/lib/db';
 import { createClient } from '@/lib/supabase/server';
+import { sensitiveRateLimiter } from '@/lib/rate-limit';
 
 export async function POST(
   request: NextRequest,
@@ -13,6 +14,12 @@ export async function POST(
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Rate limiting for sensitive operations
+    const rateLimitResult = await sensitiveRateLimiter.limit(request, user.id);
+    if (!rateLimitResult.allowed) {
+      return rateLimitResult.response;
     }
 
     // Get the document

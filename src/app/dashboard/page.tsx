@@ -11,14 +11,12 @@ import {
   Clock,
   Plus,
   ArrowRight,
-  CheckCircle2,
-  AlertCircle,
   FileUp,
   Loader2,
 } from 'lucide-react';
 import { useCases, useCaseStats } from '@/hooks/use-cases';
 import { useUser } from '@/hooks/use-user';
-import type { CaseStatus, VisaType } from '@/types';
+import type { CaseStatus } from '@/types';
 
 export default function DashboardPage() {
   const { profile, isLoading: profileLoading } = useUser();

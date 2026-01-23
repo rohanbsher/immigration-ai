@@ -2,7 +2,6 @@
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactNode, useState } from 'react';
-import { toast } from 'sonner';
 
 // Custom error handler for mutations
 const handleMutationError = (error: unknown) => {

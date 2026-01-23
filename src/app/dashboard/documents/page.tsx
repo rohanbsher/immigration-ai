@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { FileText, Upload, Loader2 } from 'lucide-react';
+import { FileText, Loader2 } from 'lucide-react';
 import { useCases } from '@/hooks/use-cases';
 
 export default function DocumentsPage() {

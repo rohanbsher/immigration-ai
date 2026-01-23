@@ -200,7 +200,7 @@ export function FieldVerification({
               Verified Fields ({verifiedCount})
             </p>
             <div className="flex flex-wrap gap-2">
-              {Object.entries(verifiedFields).map(([fieldId, value]) => {
+              {Object.entries(verifiedFields).map(([fieldId]) => {
                 const field = fields.find((f) => f.field_id === fieldId);
                 return (
                   <Badge

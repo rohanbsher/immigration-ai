@@ -158,7 +158,7 @@ export async function validateAutofill(
  */
 export function getRequiredDocuments(
   formType: string,
-  visaType?: string
+  _visaType?: string
 ): string[] {
   const baseDocuments: Record<string, string[]> = {
     'I-130': [

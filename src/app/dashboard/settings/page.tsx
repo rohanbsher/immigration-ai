@@ -12,7 +12,6 @@ import {
   User,
   Lock,
   Bell,
-  CreditCard,
   Building2,
   Save,
   Loader2,
@@ -76,7 +75,7 @@ export default function SettingsPage() {
 
       toast.success('Profile updated successfully');
       refetch(); // Refresh user data
-    } catch (error) {
+    } catch {
       toast.error('Failed to update profile');
     } finally {
       setIsSaving(false);
@@ -103,7 +102,7 @@ export default function SettingsPage() {
         new_password: '',
         confirm_password: '',
       });
-    } catch (error) {
+    } catch {
       toast.error('Failed to update password');
     } finally {
       setIsSaving(false);

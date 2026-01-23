@@ -3,7 +3,7 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Bell, Check, Loader2, Trash2 } from 'lucide-react';
+import { Bell, Check, Loader2 } from 'lucide-react';
 import { useNotifications, useMarkAsRead, useMarkAllAsRead } from '@/hooks/use-notifications';
 import { formatDistanceToNow } from 'date-fns';
 import Link from 'next/link';

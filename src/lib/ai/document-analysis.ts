@@ -252,7 +252,7 @@ export async function compareDocuments(
  */
 export async function validateDocumentForVisa(
   analysisResult: DocumentAnalysisResult,
-  visaType: string
+  _visaType: string
 ): Promise<{
   isAcceptable: boolean;
   issues: string[];

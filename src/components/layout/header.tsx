@@ -37,7 +37,7 @@ export function Header({ title, onMenuClick, user }: HeaderProps) {
     try {
       await signOut();
       toast.success('Logged out successfully');
-    } catch (error) {
+    } catch {
       toast.error('Failed to log out');
     }
   };

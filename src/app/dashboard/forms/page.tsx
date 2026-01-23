@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Dialog,
   DialogContent,
@@ -19,35 +18,19 @@ import {
   FileText,
   Plus,
   Loader2,
-  Search,
-  Filter,
   Clock,
   DollarSign,
-  CheckCircle2,
-  AlertCircle,
   Sparkles,
 } from 'lucide-react';
-import { Input } from '@/components/ui/input';
 import { useCases } from '@/hooks/use-cases';
-import { useCreateForm, useForms } from '@/hooks/use-forms';
+import { useCreateForm } from '@/hooks/use-forms';
 import { getFormSummaries } from '@/lib/forms/definitions';
 import { toast } from 'sonner';
-import type { FormStatus, FormType } from '@/types';
+import type { FormType } from '@/types';
 
 const formSummaries = getFormSummaries();
 
-const statusColors: Record<FormStatus, string> = {
-  draft: 'bg-slate-100 text-slate-700',
-  ai_filled: 'bg-purple-100 text-purple-700',
-  in_review: 'bg-yellow-100 text-yellow-700',
-  approved: 'bg-green-100 text-green-700',
-  filed: 'bg-blue-100 text-blue-700',
-  rejected: 'bg-red-100 text-red-700',
-};
-
 export default function FormsPage() {
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'draft' | 'review' | 'filed'>('all');
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [selectedFormType, setSelectedFormType] = useState<string | null>(null);
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
@@ -55,19 +38,6 @@ export default function FormsPage() {
   const { data: casesData, isLoading: casesLoading } = useCases({}, { limit: 100 });
   const { mutate: createForm, isPending: isCreating } = useCreateForm();
 
-  // Get all forms across all cases
-  const allForms: Array<{
-    form: { id: string; form_type: string; status: FormStatus; created_at: string };
-    caseName: string;
-    caseId: string;
-  }> = [];
-
-  if (casesData?.cases) {
-    for (const caseItem of casesData.cases) {
-      // We'd need to fetch forms for each case, but for now we'll use the case-level data
-      // The actual implementation would use a dedicated "all forms" query
-    }
-  }
 
   const handleCreateForm = () => {
     if (!selectedFormType || !selectedCaseId) {

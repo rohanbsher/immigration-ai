@@ -40,12 +40,6 @@ export function ConfidenceIndicator({
     low: 'text-red-600 bg-red-50',
   };
 
-  const barColorClasses = {
-    high: 'bg-green-500',
-    medium: 'bg-yellow-500',
-    low: 'bg-red-500',
-  };
-
   const sizeClasses = {
     sm: 'text-xs',
     md: 'text-sm',

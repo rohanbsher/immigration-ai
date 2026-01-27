@@ -35,7 +35,7 @@ CREATE TYPE deletion_status AS ENUM (
 
 -- User consent tracking
 CREATE TABLE user_consents (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   consent_type consent_type NOT NULL,
   version TEXT NOT NULL,
@@ -51,7 +51,7 @@ CREATE TABLE user_consents (
 
 -- GDPR data export jobs
 CREATE TABLE gdpr_export_jobs (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   status export_status NOT NULL DEFAULT 'pending',
   file_path TEXT,
@@ -68,7 +68,7 @@ CREATE TABLE gdpr_export_jobs (
 
 -- GDPR deletion requests
 CREATE TABLE gdpr_deletion_requests (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE SET NULL,
   user_email TEXT NOT NULL,
   status deletion_status NOT NULL DEFAULT 'pending',
@@ -84,7 +84,7 @@ CREATE TABLE gdpr_deletion_requests (
 
 -- Data retention policy log
 CREATE TABLE data_retention_log (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   table_name TEXT NOT NULL,
   record_id UUID,
   action TEXT NOT NULL CHECK (action IN ('anonymize', 'delete', 'archive')),

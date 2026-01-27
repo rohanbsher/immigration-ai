@@ -1,8 +1,8 @@
 -- Immigration AI Database Schema
 -- This migration creates the initial database structure
 
--- Enable required extensions
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+-- Note: Using gen_random_uuid() which is built into PostgreSQL 13+
+-- No extension required
 
 -- Enum Types
 CREATE TYPE user_role AS ENUM ('attorney', 'client', 'admin');
@@ -75,7 +75,7 @@ CREATE TABLE profiles (
 
 -- Cases Table
 CREATE TABLE cases (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   attorney_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   client_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   visa_type visa_type NOT NULL,
@@ -91,7 +91,7 @@ CREATE TABLE cases (
 
 -- Documents Table
 CREATE TABLE documents (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   case_id UUID NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
   uploaded_by UUID NOT NULL REFERENCES profiles(id),
   document_type document_type NOT NULL DEFAULT 'other',
@@ -112,7 +112,7 @@ CREATE TABLE documents (
 
 -- Forms Table
 CREATE TABLE forms (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   case_id UUID NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
   form_type form_type NOT NULL,
   status form_status NOT NULL DEFAULT 'draft',
@@ -129,7 +129,7 @@ CREATE TABLE forms (
 
 -- Activity Log Table
 CREATE TABLE activities (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   case_id UUID NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
   user_id UUID NOT NULL REFERENCES profiles(id),
   activity_type activity_type NOT NULL,
@@ -140,7 +140,7 @@ CREATE TABLE activities (
 
 -- Notifications Table
 CREATE TABLE notifications (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   title TEXT NOT NULL,
   message TEXT NOT NULL,
@@ -152,7 +152,7 @@ CREATE TABLE notifications (
 
 -- Document Checklist Templates
 CREATE TABLE document_checklists (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   visa_type visa_type NOT NULL,
   document_type document_type NOT NULL,
   required BOOLEAN DEFAULT TRUE,

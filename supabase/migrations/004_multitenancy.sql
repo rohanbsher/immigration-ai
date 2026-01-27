@@ -15,7 +15,7 @@ CREATE TYPE invitation_status AS ENUM ('pending', 'accepted', 'expired', 'revoke
 
 -- Firms table: Represents a law firm or organization
 CREATE TABLE firms (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   slug TEXT NOT NULL UNIQUE,
   owner_id UUID NOT NULL REFERENCES profiles(id) ON DELETE RESTRICT,
@@ -32,7 +32,7 @@ CREATE TABLE firms (
 
 -- Firm members table: Links users to firms with roles
 CREATE TABLE firm_members (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   firm_id UUID NOT NULL REFERENCES firms(id) ON DELETE CASCADE,
   user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   role firm_role NOT NULL DEFAULT 'attorney',
@@ -47,7 +47,7 @@ CREATE TABLE firm_members (
 
 -- Firm invitations table: Manages team invitations
 CREATE TABLE firm_invitations (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   firm_id UUID NOT NULL REFERENCES firms(id) ON DELETE CASCADE,
   email TEXT NOT NULL,
   role firm_role NOT NULL DEFAULT 'attorney',
@@ -65,7 +65,7 @@ CREATE TABLE firm_invitations (
 
 -- Case assignments table: Links cases to specific team members
 CREATE TABLE case_assignments (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   case_id UUID NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
   user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   role TEXT NOT NULL DEFAULT 'assigned',

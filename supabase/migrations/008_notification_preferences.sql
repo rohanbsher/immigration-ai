@@ -15,7 +15,7 @@ CREATE TYPE email_status AS ENUM ('pending', 'sent', 'delivered', 'bounced', 'fa
 
 -- Notification preferences per user
 CREATE TABLE notification_preferences (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL UNIQUE REFERENCES profiles(id) ON DELETE CASCADE,
   email_enabled BOOLEAN DEFAULT TRUE,
   email_case_updates BOOLEAN DEFAULT TRUE,
@@ -35,7 +35,7 @@ CREATE TABLE notification_preferences (
 
 -- Email delivery log for tracking and debugging
 CREATE TABLE email_log (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
   email_to TEXT NOT NULL,
   email_from TEXT NOT NULL,
@@ -56,7 +56,7 @@ CREATE TABLE email_log (
 
 -- Scheduled emails (for deadline reminders, etc.)
 CREATE TABLE scheduled_emails (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   case_id UUID REFERENCES cases(id) ON DELETE CASCADE,
   email_type TEXT NOT NULL,

@@ -41,7 +41,7 @@ CREATE TYPE payment_status AS ENUM (
 
 -- Customers table: Links Supabase users to Stripe customers
 CREATE TABLE customers (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL UNIQUE REFERENCES profiles(id) ON DELETE CASCADE,
   stripe_customer_id TEXT UNIQUE,
   email TEXT NOT NULL,
@@ -52,7 +52,7 @@ CREATE TABLE customers (
 
 -- Subscriptions table: Tracks active subscriptions
 CREATE TABLE subscriptions (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
   stripe_subscription_id TEXT UNIQUE,
   stripe_price_id TEXT,
@@ -72,7 +72,7 @@ CREATE TABLE subscriptions (
 
 -- Plan limits: Defines limits for each plan
 CREATE TABLE plan_limits (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   plan_type plan_type NOT NULL UNIQUE,
   max_cases INTEGER NOT NULL,
   max_documents_per_case INTEGER NOT NULL,
@@ -86,7 +86,7 @@ CREATE TABLE plan_limits (
 
 -- Usage records: Tracks resource usage for billing
 CREATE TABLE usage_records (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   subscription_id UUID NOT NULL REFERENCES subscriptions(id) ON DELETE CASCADE,
   metric_name TEXT NOT NULL,
   quantity INTEGER NOT NULL DEFAULT 0,
@@ -99,7 +99,7 @@ CREATE TABLE usage_records (
 
 -- Payments table: Records payment history
 CREATE TABLE payments (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
   subscription_id UUID REFERENCES subscriptions(id) ON DELETE SET NULL,
   stripe_payment_intent_id TEXT UNIQUE,
@@ -117,7 +117,7 @@ CREATE TABLE payments (
 
 -- Invoices table: Stores invoice data
 CREATE TABLE invoices (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
   subscription_id UUID REFERENCES subscriptions(id) ON DELETE SET NULL,
   stripe_invoice_id TEXT UNIQUE,

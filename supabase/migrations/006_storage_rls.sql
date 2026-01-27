@@ -137,7 +137,7 @@ $$ LANGUAGE plpgsql IMMUTABLE;
 -- ============================================================================
 
 CREATE TABLE IF NOT EXISTS document_access_log (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   document_id UUID REFERENCES documents(id) ON DELETE SET NULL,
   user_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
   action TEXT NOT NULL CHECK (action IN ('view', 'download', 'upload', 'delete')),

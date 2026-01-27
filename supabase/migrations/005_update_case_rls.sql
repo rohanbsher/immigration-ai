@@ -119,6 +119,8 @@ DROP POLICY IF EXISTS "Users can view their own documents" ON documents;
 DROP POLICY IF EXISTS "Users can upload documents" ON documents;
 DROP POLICY IF EXISTS "Document uploaders can update" ON documents;
 DROP POLICY IF EXISTS "Document uploaders can delete" ON documents;
+DROP POLICY IF EXISTS "Case participants can view documents" ON documents;
+DROP POLICY IF EXISTS "Case participants can upload documents" ON documents;
 
 -- Documents: Users can view documents for cases they have access to
 CREATE POLICY "Users can view accessible documents"

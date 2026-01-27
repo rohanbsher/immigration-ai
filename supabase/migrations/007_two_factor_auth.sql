@@ -8,7 +8,7 @@
 
 -- Two-factor authentication settings
 CREATE TABLE two_factor_auth (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL UNIQUE REFERENCES profiles(id) ON DELETE CASCADE,
   secret_encrypted TEXT NOT NULL,
   backup_codes_hash TEXT[] DEFAULT ARRAY[]::TEXT[],
@@ -21,7 +21,7 @@ CREATE TABLE two_factor_auth (
 
 -- Two-factor auth attempts (for rate limiting and auditing)
 CREATE TABLE two_factor_attempts (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   attempt_type TEXT NOT NULL CHECK (attempt_type IN ('totp', 'backup_code', 'recovery')),
   success BOOLEAN NOT NULL,
@@ -32,7 +32,7 @@ CREATE TABLE two_factor_attempts (
 
 -- Recovery codes usage tracking
 CREATE TABLE backup_code_usage (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   two_factor_id UUID NOT NULL REFERENCES two_factor_auth(id) ON DELETE CASCADE,
   code_hash TEXT NOT NULL,
   used_at TIMESTAMPTZ DEFAULT NOW(),

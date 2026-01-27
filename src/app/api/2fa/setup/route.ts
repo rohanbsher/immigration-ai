@@ -26,7 +26,9 @@ export async function POST(request: NextRequest) {
       success: true,
       data: {
         qrCodeDataUrl: setup.qrCodeDataUrl,
-        secret: setup.secret,
+        // Note: Secret is intentionally NOT returned for security reasons.
+        // The TOTP secret is embedded in the QR code URI for authenticator apps.
+        // Exposing it separately creates unnecessary security risk (logging, interception).
         backupCodes: setup.backupCodes,
       },
     });

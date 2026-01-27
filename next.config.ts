@@ -41,9 +41,9 @@ const securityHeaders = [
     key: "Content-Security-Policy",
     value: [
       "default-src 'self'",
-      // Allow inline scripts and styles for Next.js (required for development)
-      // In production, consider using nonces or hashes
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+      // Allow inline scripts for Next.js hydration
+      // Note: unsafe-inline is required for Next.js; unsafe-eval is removed for security
+      "script-src 'self' 'unsafe-inline'",
       "style-src 'self' 'unsafe-inline'",
       // Allow images from self, data URIs, and Supabase storage
       "img-src 'self' data: blob: https://*.supabase.co",

@@ -1,0 +1,902 @@
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { NextRequest } from 'next/server';
+
+// Mock Supabase server client
+vi.mock('@/lib/supabase/server', () => ({
+  createClient: vi.fn(),
+}));
+
+// Mock rate limiter
+vi.mock('@/lib/rate-limit', () => ({
+  authRateLimiter: {
+    limit: vi.fn(),
+  },
+}));
+
+// Import route handlers after mocking
+import { POST as loginHandler } from './login/route';
+import { POST as registerHandler } from './register/route';
+import { POST as logoutHandler } from './logout/route';
+import { GET as callbackHandler } from './callback/route';
+import { createClient } from '@/lib/supabase/server';
+import { authRateLimiter } from '@/lib/rate-limit';
+
+// Helper to create mock NextRequest
+function createMockRequest(
+  options: {
+    method?: string;
+    body?: Record<string, unknown>;
+    url?: string;
+    headers?: Record<string, string>;
+  } = {}
+): NextRequest {
+  const { method = 'POST', body, url = 'http://localhost:3000/api/auth/login', headers = {} } = options;
+
+  const requestInit: RequestInit = {
+    method,
+    headers: new Headers({
+      'Content-Type': 'application/json',
+      'x-forwarded-for': '127.0.0.1',
+      ...headers,
+    }),
+  };
+
+  if (body) {
+    requestInit.body = JSON.stringify(body);
+  }
+
+  return new NextRequest(url, requestInit);
+}
+
+// Mock user and session data
+const mockUser = {
+  id: 'user-123',
+  email: 'test@example.com',
+  user_metadata: {
+    first_name: 'John',
+    last_name: 'Doe',
+    role: 'attorney',
+  },
+};
+
+const mockSession = {
+  access_token: 'mock-access-token',
+  refresh_token: 'mock-refresh-token',
+  expires_at: Date.now() + 3600000,
+  user: mockUser,
+};
+
+const mockProfile = {
+  id: 'user-123',
+  first_name: 'John',
+  last_name: 'Doe',
+  role: 'attorney',
+  bar_number: 'BAR123',
+  firm_name: 'Test Law Firm',
+};
+
+// Type the mocked functions
+const mockedCreateClient = vi.mocked(createClient);
+const mockedAuthRateLimiter = vi.mocked(authRateLimiter);
+
+describe('Auth API Routes', () => {
+  let mockSignInWithPassword: ReturnType<typeof vi.fn>;
+  let mockSignUp: ReturnType<typeof vi.fn>;
+  let mockSignOut: ReturnType<typeof vi.fn>;
+  let mockExchangeCodeForSession: ReturnType<typeof vi.fn>;
+  let mockFromSelect: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+
+    // Create fresh mocks for each test
+    mockSignInWithPassword = vi.fn();
+    mockSignUp = vi.fn();
+    mockSignOut = vi.fn();
+    mockExchangeCodeForSession = vi.fn();
+    mockFromSelect = vi.fn();
+
+    // Setup createClient mock
+    mockedCreateClient.mockResolvedValue({
+      auth: {
+        signInWithPassword: mockSignInWithPassword,
+        signUp: mockSignUp,
+        signOut: mockSignOut,
+        exchangeCodeForSession: mockExchangeCodeForSession,
+      },
+      from: vi.fn(() => ({
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            single: mockFromSelect,
+          })),
+        })),
+      })),
+    } as unknown as Awaited<ReturnType<typeof createClient>>);
+
+    // Default: rate limiting allows requests
+    mockedAuthRateLimiter.limit.mockResolvedValue({ allowed: true } as { allowed: true });
+  });
+
+  afterEach(() => {
+    vi.resetAllMocks();
+  });
+
+  describe('POST /api/auth/login', () => {
+    it('should successfully log in a user with valid credentials', async () => {
+      mockSignInWithPassword.mockResolvedValue({
+        data: { user: mockUser, session: mockSession },
+        error: null,
+      });
+      mockFromSelect.mockResolvedValue({ data: mockProfile, error: null });
+
+      const request = createMockRequest({
+        body: {
+          email: 'test@example.com',
+          password: 'validPassword123',
+        },
+      });
+
+      const response = await loginHandler(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.message).toBe('Login successful');
+      expect(data.user).toEqual(mockUser);
+      expect(data.session).toEqual(mockSession);
+      expect(data.profile).toEqual(mockProfile);
+      expect(mockSignInWithPassword).toHaveBeenCalledWith({
+        email: 'test@example.com',
+        password: 'validPassword123',
+      });
+    });
+
+    it('should return 400 for invalid email format', async () => {
+      const request = createMockRequest({
+        body: {
+          email: 'invalid-email',
+          password: 'validPassword123',
+        },
+      });
+
+      const response = await loginHandler(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.error).toBe('Invalid email address');
+    });
+
+    it('should return 400 for missing password', async () => {
+      const request = createMockRequest({
+        body: {
+          email: 'test@example.com',
+          password: '',
+        },
+      });
+
+      const response = await loginHandler(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.error).toBe('Password is required');
+    });
+
+    it('should return 401 for invalid credentials', async () => {
+      mockSignInWithPassword.mockResolvedValue({
+        data: { user: null, session: null },
+        error: { message: 'Invalid login credentials' },
+      });
+
+      const request = createMockRequest({
+        body: {
+          email: 'test@example.com',
+          password: 'wrongPassword',
+        },
+      });
+
+      const response = await loginHandler(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(401);
+      expect(data.error).toBe('Invalid login credentials');
+    });
+
+    it('should return 429 when rate limit is exceeded', async () => {
+      const rateLimitResponse = new Response(
+        JSON.stringify({ error: 'Too Many Requests', message: 'Rate limit exceeded' }),
+        { status: 429 }
+      );
+      mockedAuthRateLimiter.limit.mockResolvedValue({
+        allowed: false,
+        response: rateLimitResponse,
+      } as { allowed: false; response: Response });
+
+      const request = createMockRequest({
+        body: {
+          email: 'test@example.com',
+          password: 'validPassword123',
+        },
+      });
+
+      const response = await loginHandler(request);
+
+      expect(response.status).toBe(429);
+    });
+
+    it('should return 500 for unexpected errors', async () => {
+      mockSignInWithPassword.mockRejectedValue(new Error('Database connection failed'));
+
+      const request = createMockRequest({
+        body: {
+          email: 'test@example.com',
+          password: 'validPassword123',
+        },
+      });
+
+      const response = await loginHandler(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(500);
+      expect(data.error).toBe('An unexpected error occurred');
+    });
+
+    it('should handle login without profile gracefully', async () => {
+      mockSignInWithPassword.mockResolvedValue({
+        data: { user: mockUser, session: mockSession },
+        error: null,
+      });
+      mockFromSelect.mockResolvedValue({ data: null, error: null });
+
+      const request = createMockRequest({
+        body: {
+          email: 'test@example.com',
+          password: 'validPassword123',
+        },
+      });
+
+      const response = await loginHandler(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.message).toBe('Login successful');
+      expect(data.profile).toBeNull();
+    });
+  });
+
+  describe('POST /api/auth/register', () => {
+    it('should successfully register a new attorney', async () => {
+      mockSignUp.mockResolvedValue({
+        data: { user: mockUser, session: mockSession },
+        error: null,
+      });
+
+      const request = createMockRequest({
+        url: 'http://localhost:3000/api/auth/register',
+        body: {
+          email: 'attorney@example.com',
+          password: 'securePassword123',
+          firstName: 'John',
+          lastName: 'Doe',
+          role: 'attorney',
+          barNumber: 'BAR123456',
+          firmName: 'Doe & Associates',
+        },
+      });
+
+      const response = await registerHandler(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.message).toBe('Account created successfully');
+      expect(data.user).toEqual(mockUser);
+      expect(data.session).toEqual(mockSession);
+      expect(mockSignUp).toHaveBeenCalledWith({
+        email: 'attorney@example.com',
+        password: 'securePassword123',
+        options: {
+          data: {
+            first_name: 'John',
+            last_name: 'Doe',
+            role: 'attorney',
+            bar_number: 'BAR123456',
+            firm_name: 'Doe & Associates',
+          },
+        },
+      });
+    });
+
+    it('should successfully register a new client', async () => {
+      mockSignUp.mockResolvedValue({
+        data: { user: { ...mockUser, user_metadata: { ...mockUser.user_metadata, role: 'client' } }, session: mockSession },
+        error: null,
+      });
+
+      const request = createMockRequest({
+        url: 'http://localhost:3000/api/auth/register',
+        body: {
+          email: 'client@example.com',
+          password: 'securePassword123',
+          firstName: 'Jane',
+          lastName: 'Smith',
+          role: 'client',
+        },
+      });
+
+      const response = await registerHandler(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.message).toBe('Account created successfully');
+    });
+
+    it('should return 400 for invalid email format', async () => {
+      const request = createMockRequest({
+        url: 'http://localhost:3000/api/auth/register',
+        body: {
+          email: 'not-an-email',
+          password: 'securePassword123',
+          firstName: 'John',
+          lastName: 'Doe',
+          role: 'attorney',
+          barNumber: 'BAR123',
+        },
+      });
+
+      const response = await registerHandler(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.error).toBe('Invalid email address');
+    });
+
+    it('should return 400 for password less than 8 characters', async () => {
+      const request = createMockRequest({
+        url: 'http://localhost:3000/api/auth/register',
+        body: {
+          email: 'test@example.com',
+          password: 'short',
+          firstName: 'John',
+          lastName: 'Doe',
+          role: 'attorney',
+          barNumber: 'BAR123',
+        },
+      });
+
+      const response = await registerHandler(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.error).toBe('Password must be at least 8 characters');
+    });
+
+    it('should return 400 for missing first name', async () => {
+      const request = createMockRequest({
+        url: 'http://localhost:3000/api/auth/register',
+        body: {
+          email: 'test@example.com',
+          password: 'securePassword123',
+          firstName: '',
+          lastName: 'Doe',
+          role: 'attorney',
+          barNumber: 'BAR123',
+        },
+      });
+
+      const response = await registerHandler(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.error).toBe('First name is required');
+    });
+
+    it('should return 400 for missing last name', async () => {
+      const request = createMockRequest({
+        url: 'http://localhost:3000/api/auth/register',
+        body: {
+          email: 'test@example.com',
+          password: 'securePassword123',
+          firstName: 'John',
+          lastName: '',
+          role: 'attorney',
+          barNumber: 'BAR123',
+        },
+      });
+
+      const response = await registerHandler(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.error).toBe('Last name is required');
+    });
+
+    it('should return 400 for invalid role', async () => {
+      const request = createMockRequest({
+        url: 'http://localhost:3000/api/auth/register',
+        body: {
+          email: 'test@example.com',
+          password: 'securePassword123',
+          firstName: 'John',
+          lastName: 'Doe',
+          role: 'admin',
+          barNumber: 'BAR123',
+        },
+      });
+
+      const response = await registerHandler(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.error).toBeDefined();
+    });
+
+    it('should return 400 for attorney without bar number', async () => {
+      const request = createMockRequest({
+        url: 'http://localhost:3000/api/auth/register',
+        body: {
+          email: 'attorney@example.com',
+          password: 'securePassword123',
+          firstName: 'John',
+          lastName: 'Doe',
+          role: 'attorney',
+        },
+      });
+
+      const response = await registerHandler(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.error).toBe('Bar number is required for attorneys');
+    });
+
+    it('should handle email confirmation required response', async () => {
+      mockSignUp.mockResolvedValue({
+        data: { user: mockUser, session: null },
+        error: null,
+      });
+
+      const request = createMockRequest({
+        url: 'http://localhost:3000/api/auth/register',
+        body: {
+          email: 'attorney@example.com',
+          password: 'securePassword123',
+          firstName: 'John',
+          lastName: 'Doe',
+          role: 'attorney',
+          barNumber: 'BAR123456',
+        },
+      });
+
+      const response = await registerHandler(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.message).toBe('Please check your email to confirm your account');
+      expect(data.requiresConfirmation).toBe(true);
+    });
+
+    it('should return 400 for Supabase registration errors', async () => {
+      mockSignUp.mockResolvedValue({
+        data: { user: null, session: null },
+        error: { message: 'User already registered' },
+      });
+
+      const request = createMockRequest({
+        url: 'http://localhost:3000/api/auth/register',
+        body: {
+          email: 'existing@example.com',
+          password: 'securePassword123',
+          firstName: 'John',
+          lastName: 'Doe',
+          role: 'attorney',
+          barNumber: 'BAR123456',
+        },
+      });
+
+      const response = await registerHandler(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.error).toBe('User already registered');
+    });
+
+    it('should return 429 when rate limit is exceeded', async () => {
+      const rateLimitResponse = new Response(
+        JSON.stringify({ error: 'Too Many Requests' }),
+        { status: 429 }
+      );
+      mockedAuthRateLimiter.limit.mockResolvedValue({
+        allowed: false,
+        response: rateLimitResponse,
+      } as { allowed: false; response: Response });
+
+      const request = createMockRequest({
+        url: 'http://localhost:3000/api/auth/register',
+        body: {
+          email: 'test@example.com',
+          password: 'securePassword123',
+          firstName: 'John',
+          lastName: 'Doe',
+          role: 'client',
+        },
+      });
+
+      const response = await registerHandler(request);
+
+      expect(response.status).toBe(429);
+    });
+
+    it('should return 500 for unexpected errors', async () => {
+      mockSignUp.mockRejectedValue(new Error('Network error'));
+
+      const request = createMockRequest({
+        url: 'http://localhost:3000/api/auth/register',
+        body: {
+          email: 'test@example.com',
+          password: 'securePassword123',
+          firstName: 'John',
+          lastName: 'Doe',
+          role: 'client',
+        },
+      });
+
+      const response = await registerHandler(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(500);
+      expect(data.error).toBe('An unexpected error occurred');
+    });
+  });
+
+  describe('POST /api/auth/logout', () => {
+    it('should successfully log out a user', async () => {
+      mockSignOut.mockResolvedValue({ error: null });
+
+      const response = await logoutHandler();
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.message).toBe('Logged out successfully');
+      expect(mockSignOut).toHaveBeenCalled();
+    });
+
+    it('should return 400 for Supabase sign out errors', async () => {
+      mockSignOut.mockResolvedValue({
+        error: { message: 'Session not found' },
+      });
+
+      const response = await logoutHandler();
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.error).toBe('Session not found');
+    });
+
+    it('should return 500 for unexpected errors', async () => {
+      mockSignOut.mockRejectedValue(new Error('Connection reset'));
+
+      const response = await logoutHandler();
+      const data = await response.json();
+
+      expect(response.status).toBe(500);
+      expect(data.error).toBe('An unexpected error occurred');
+    });
+  });
+
+  describe('GET /api/auth/callback', () => {
+    it('should redirect to dashboard on successful code exchange', async () => {
+      mockExchangeCodeForSession.mockResolvedValue({ error: null });
+
+      const request = createMockRequest({
+        method: 'GET',
+        url: 'http://localhost:3000/api/auth/callback?code=valid-auth-code',
+      });
+
+      const response = await callbackHandler(request);
+
+      expect(response.status).toBe(307);
+      expect(response.headers.get('Location')).toBe('http://localhost:3000/dashboard');
+    });
+
+    it('should redirect to custom next path when provided', async () => {
+      mockExchangeCodeForSession.mockResolvedValue({ error: null });
+
+      const request = createMockRequest({
+        method: 'GET',
+        url: 'http://localhost:3000/api/auth/callback?code=valid-auth-code&next=/cases',
+      });
+
+      const response = await callbackHandler(request);
+
+      expect(response.status).toBe(307);
+      expect(response.headers.get('Location')).toBe('http://localhost:3000/cases');
+    });
+
+    it('should redirect to login with error on failed code exchange', async () => {
+      mockExchangeCodeForSession.mockResolvedValue({
+        error: { message: 'Invalid code' },
+      });
+
+      const request = createMockRequest({
+        method: 'GET',
+        url: 'http://localhost:3000/api/auth/callback?code=invalid-code',
+      });
+
+      const response = await callbackHandler(request);
+
+      expect(response.status).toBe(307);
+      expect(response.headers.get('Location')).toBe('http://localhost:3000/login?error=auth_callback_error');
+    });
+
+    it('should redirect to login with error when no code provided', async () => {
+      const request = createMockRequest({
+        method: 'GET',
+        url: 'http://localhost:3000/api/auth/callback',
+      });
+
+      const response = await callbackHandler(request);
+
+      expect(response.status).toBe(307);
+      expect(response.headers.get('Location')).toBe('http://localhost:3000/login?error=auth_callback_error');
+    });
+
+    it('should sanitize next path to prevent open redirect - absolute URL', async () => {
+      mockExchangeCodeForSession.mockResolvedValue({ error: null });
+
+      const request = createMockRequest({
+        method: 'GET',
+        url: 'http://localhost:3000/api/auth/callback?code=valid-code&next=https://evil.com',
+      });
+
+      const response = await callbackHandler(request);
+
+      expect(response.status).toBe(307);
+      expect(response.headers.get('Location')).toBe('http://localhost:3000/dashboard');
+    });
+
+    it('should sanitize next path to prevent open redirect - protocol-relative URL', async () => {
+      mockExchangeCodeForSession.mockResolvedValue({ error: null });
+
+      const request = createMockRequest({
+        method: 'GET',
+        url: 'http://localhost:3000/api/auth/callback?code=valid-code&next=//evil.com',
+      });
+
+      const response = await callbackHandler(request);
+
+      expect(response.status).toBe(307);
+      expect(response.headers.get('Location')).toBe('http://localhost:3000/dashboard');
+    });
+
+    it('should sanitize next path with encoded characters', async () => {
+      mockExchangeCodeForSession.mockResolvedValue({ error: null });
+
+      const request = createMockRequest({
+        method: 'GET',
+        url: 'http://localhost:3000/api/auth/callback?code=valid-code&next=/%2f/evil.com',
+      });
+
+      const response = await callbackHandler(request);
+
+      expect(response.status).toBe(307);
+      expect(response.headers.get('Location')).toBe('http://localhost:3000/dashboard');
+    });
+
+    it('should reject paths not in allowed list', async () => {
+      mockExchangeCodeForSession.mockResolvedValue({ error: null });
+
+      const request = createMockRequest({
+        method: 'GET',
+        url: 'http://localhost:3000/api/auth/callback?code=valid-code&next=/admin',
+      });
+
+      const response = await callbackHandler(request);
+
+      expect(response.status).toBe(307);
+      expect(response.headers.get('Location')).toBe('http://localhost:3000/dashboard');
+    });
+
+    it('should allow valid nested paths', async () => {
+      mockExchangeCodeForSession.mockResolvedValue({ error: null });
+
+      const request = createMockRequest({
+        method: 'GET',
+        url: 'http://localhost:3000/api/auth/callback?code=valid-code&next=/cases/123',
+      });
+
+      const response = await callbackHandler(request);
+
+      expect(response.status).toBe(307);
+      expect(response.headers.get('Location')).toBe('http://localhost:3000/cases/123');
+    });
+
+    it('should handle forwarded host in non-development environment', async () => {
+      const originalNodeEnv = process.env.NODE_ENV;
+      process.env.NODE_ENV = 'production';
+
+      mockExchangeCodeForSession.mockResolvedValue({ error: null });
+
+      const request = createMockRequest({
+        method: 'GET',
+        url: 'http://localhost:3000/api/auth/callback?code=valid-code',
+        headers: {
+          'x-forwarded-host': 'app.example.com',
+        },
+      });
+
+      const response = await callbackHandler(request);
+
+      expect(response.status).toBe(307);
+      expect(response.headers.get('Location')).toBe('https://app.example.com/dashboard');
+
+      process.env.NODE_ENV = originalNodeEnv;
+    });
+
+    it('should reject invalid forwarded host', async () => {
+      const originalNodeEnv = process.env.NODE_ENV;
+      process.env.NODE_ENV = 'production';
+
+      mockExchangeCodeForSession.mockResolvedValue({ error: null });
+
+      const request = createMockRequest({
+        method: 'GET',
+        url: 'http://localhost:3000/api/auth/callback?code=valid-code',
+        headers: {
+          'x-forwarded-host': 'invalid host with spaces',
+        },
+      });
+
+      const response = await callbackHandler(request);
+
+      expect(response.status).toBe(307);
+      expect(response.headers.get('Location')).toBe('http://localhost:3000/dashboard');
+
+      process.env.NODE_ENV = originalNodeEnv;
+    });
+  });
+});
+
+describe('Auth API Validation Edge Cases', () => {
+  let mockSignInWithPassword: ReturnType<typeof vi.fn>;
+  let mockSignUp: ReturnType<typeof vi.fn>;
+  let mockFromSelect: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+
+    mockSignInWithPassword = vi.fn();
+    mockSignUp = vi.fn();
+    mockFromSelect = vi.fn();
+
+    mockedCreateClient.mockResolvedValue({
+      auth: {
+        signInWithPassword: mockSignInWithPassword,
+        signUp: mockSignUp,
+        signOut: vi.fn(),
+        exchangeCodeForSession: vi.fn(),
+      },
+      from: vi.fn(() => ({
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            single: mockFromSelect,
+          })),
+        })),
+      })),
+    } as unknown as Awaited<ReturnType<typeof createClient>>);
+
+    mockedAuthRateLimiter.limit.mockResolvedValue({ allowed: true } as { allowed: true });
+  });
+
+  describe('Login validation', () => {
+    it('should handle empty request body', async () => {
+      const request = new NextRequest('http://localhost:3000/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+
+      const response = await loginHandler(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.error).toBeDefined();
+    });
+
+    it('should handle malformed JSON', async () => {
+      const request = new NextRequest('http://localhost:3000/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: 'not valid json',
+      });
+
+      const response = await loginHandler(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(500);
+      expect(data.error).toBe('An unexpected error occurred');
+    });
+
+    it('should reject email with leading/trailing whitespace as invalid', async () => {
+      const request = createMockRequest({
+        body: {
+          email: '  test@example.com  ',
+          password: 'validPassword123',
+        },
+      });
+
+      const response = await loginHandler(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.error).toBe('Invalid email address');
+    });
+  });
+
+  describe('Register validation', () => {
+    it('should handle empty request body', async () => {
+      const request = new NextRequest('http://localhost:3000/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+
+      const response = await registerHandler(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.error).toBeDefined();
+    });
+
+    it('should handle special characters in names', async () => {
+      mockSignUp.mockResolvedValue({
+        data: { user: { id: 'user-123' }, session: { access_token: 'token' } },
+        error: null,
+      });
+
+      const request = createMockRequest({
+        url: 'http://localhost:3000/api/auth/register',
+        body: {
+          email: 'test@example.com',
+          password: 'securePassword123',
+          firstName: "O'Brien",
+          lastName: 'Van der Berg',
+          role: 'client',
+        },
+      });
+
+      const response = await registerHandler(request);
+
+      expect(response.status).toBe(200);
+      expect(mockSignUp).toHaveBeenCalledWith(
+        expect.objectContaining({
+          options: expect.objectContaining({
+            data: expect.objectContaining({
+              first_name: "O'Brien",
+              last_name: 'Van der Berg',
+            }),
+          }),
+        })
+      );
+    });
+
+    it('should accept exactly 8 character password', async () => {
+      mockSignUp.mockResolvedValue({
+        data: { user: { id: 'user-123' }, session: { access_token: 'token' } },
+        error: null,
+      });
+
+      const request = createMockRequest({
+        url: 'http://localhost:3000/api/auth/register',
+        body: {
+          email: 'test@example.com',
+          password: '12345678',
+          firstName: 'John',
+          lastName: 'Doe',
+          role: 'client',
+        },
+      });
+
+      const response = await registerHandler(request);
+
+      expect(response.status).toBe(200);
+    });
+  });
+});

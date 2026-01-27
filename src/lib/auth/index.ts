@@ -2,6 +2,36 @@ import { createClient } from '@/lib/supabase/client';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import type { UserRole } from '@/types';
 
+// Re-export API helpers for server-side use
+export {
+  authenticate,
+  requireAuth,
+  requireAttorney,
+  requireAdmin,
+  requireAttorneyOrAdmin,
+  verifyCaseAccess,
+  verifyDocumentAccess,
+  verifyFormAccess,
+  withAuth,
+  withAttorneyAuth,
+  withAdminAuth,
+  getClientIp,
+  errorResponse,
+  successResponse,
+} from './api-helpers';
+
+export type {
+  AuthResult,
+  AuthSuccess,
+  AuthError,
+  AuthOptions,
+  Profile,
+  ResourceAccess,
+  CaseAccessResult,
+  DocumentAccessResult,
+  FormAccessResult,
+} from './api-helpers';
+
 export interface SignUpData {
   email: string;
   password: string;

@@ -17,18 +17,37 @@ const IV_LENGTH = 12; // 96 bits for GCM
 const AUTH_TAG_LENGTH = 16; // 128 bits
 // Key length is 32 bytes (256 bits) - enforced in getEncryptionKey()
 
+// Development fallback key - DO NOT use in production
+// This is a deterministic key for local development only
+const DEV_FALLBACK_KEY = '0'.repeat(64); // 32 bytes of zeros
+let devKeyWarningShown = false;
+
 /**
  * Get the encryption key from environment.
  * Key should be a 64-character hex string (32 bytes).
+ * In development mode, falls back to a deterministic key with a warning.
  */
 function getEncryptionKey(): Buffer {
-  const keyHex = process.env.ENCRYPTION_KEY;
+  let keyHex = process.env.ENCRYPTION_KEY;
+  const isDevelopment = process.env.NODE_ENV === 'development';
 
   if (!keyHex) {
-    throw new Error(
-      'ENCRYPTION_KEY environment variable is not set. ' +
-      'Generate one with: openssl rand -hex 32'
-    );
+    if (isDevelopment) {
+      if (!devKeyWarningShown) {
+        console.warn(
+          '[Crypto] WARNING: ENCRYPTION_KEY not set. Using development fallback key. ' +
+          'This is NOT SECURE and should only be used in development. ' +
+          'Generate a production key with: openssl rand -hex 32'
+        );
+        devKeyWarningShown = true;
+      }
+      keyHex = DEV_FALLBACK_KEY;
+    } else {
+      throw new Error(
+        'ENCRYPTION_KEY environment variable is required in production. ' +
+        'Generate one with: openssl rand -hex 32'
+      );
+    }
   }
 
   if (keyHex.length !== 64) {

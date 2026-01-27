@@ -1,7 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { casesService } from '@/lib/db';
-import { createClient } from '@/lib/supabase/server';
 import { z } from 'zod';
+import {
+  requireAuth,
+  requireAttorney,
+  errorResponse,
+  successResponse,
+} from '@/lib/auth/api-helpers';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('api:cases');
 
 const createCaseSchema = z.object({
   client_id: z.string().uuid('Invalid client ID'),
@@ -15,12 +23,8 @@ const createCaseSchema = z.object({
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const auth = await requireAuth(request);
+    if (!auth.success) return auth.response;
 
     const { searchParams } = new URL(request.url);
 
@@ -45,55 +49,28 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(result);
   } catch (error) {
-    console.error('Error fetching cases:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch cases' },
-      { status: 500 }
-    );
+    log.logError('Failed to fetch cases', error);
+    return errorResponse('Failed to fetch cases', 500);
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Check if user is an attorney
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-
-    if (profile?.role !== 'attorney') {
-      return NextResponse.json(
-        { error: 'Only attorneys can create cases' },
-        { status: 403 }
-      );
-    }
+    const auth = await requireAttorney(request);
+    if (!auth.success) return auth.response;
 
     const body = await request.json();
     const validatedData = createCaseSchema.parse(body);
 
     const newCase = await casesService.createCase(validatedData as Parameters<typeof casesService.createCase>[0]);
 
-    return NextResponse.json(newCase, { status: 201 });
+    return successResponse(newCase, 201);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: error.issues[0].message },
-        { status: 400 }
-      );
+      return errorResponse(error.issues[0].message, 400);
     }
 
-    console.error('Error creating case:', error);
-    return NextResponse.json(
-      { error: 'Failed to create case' },
-      { status: 500 }
-    );
+    log.logError('Failed to create case', error);
+    return errorResponse('Failed to create case', 500);
   }
 }

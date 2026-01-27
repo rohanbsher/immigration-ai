@@ -51,7 +51,7 @@ export function Header({ title, onMenuClick, user }: HeaderProps) {
   const recentNotifications = notifications?.slice(0, 3) || [];
 
   return (
-    <header className="h-16 border-b bg-white flex items-center justify-between px-4 lg:px-6">
+    <header className="h-16 border-b border-border bg-card flex items-center justify-between px-4 lg:px-6">
       <div className="flex items-center gap-4">
         {/* Mobile menu button */}
         <Button
@@ -66,7 +66,7 @@ export function Header({ title, onMenuClick, user }: HeaderProps) {
 
         {/* Page title */}
         {title && (
-          <h1 className="text-xl font-semibold text-slate-900">{title}</h1>
+          <h1 className="text-xl font-semibold text-foreground">{title}</h1>
         )}
       </div>
 
@@ -75,11 +75,11 @@ export function Header({ title, onMenuClick, user }: HeaderProps) {
         <div className="hidden md:flex relative">
           <Search
             size={18}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
           />
           <Input
             placeholder="Search cases, documents..."
-            className="pl-10 w-64 bg-slate-50 border-slate-200"
+            className="pl-10 w-64 bg-muted border-border"
           />
         </div>
 
@@ -113,7 +113,7 @@ export function Header({ title, onMenuClick, user }: HeaderProps) {
                   >
                     <Link href={notification.action_url || '/dashboard/notifications'}>
                       <span className="font-medium">{notification.title}</span>
-                      <span className="text-xs text-slate-500">
+                      <span className="text-xs text-muted-foreground">
                         {notification.message}
                       </span>
                     </Link>
@@ -122,11 +122,11 @@ export function Header({ title, onMenuClick, user }: HeaderProps) {
                 <DropdownMenuSeparator />
               </>
             ) : (
-              <div className="py-4 text-center text-sm text-slate-500">
+              <div className="py-4 text-center text-sm text-muted-foreground">
                 No notifications
               </div>
             )}
-            <DropdownMenuItem className="text-center text-blue-600" asChild>
+            <DropdownMenuItem className="text-center text-primary" asChild>
               <Link href="/dashboard/notifications">View all notifications</Link>
             </DropdownMenuItem>
           </DropdownMenuContent>
@@ -138,7 +138,7 @@ export function Header({ title, onMenuClick, user }: HeaderProps) {
             <Button variant="ghost" className="flex items-center gap-2">
               <Avatar className="h-8 w-8">
                 <AvatarImage src={user?.avatarUrl} />
-                <AvatarFallback>{initials}</AvatarFallback>
+                <AvatarFallback className="bg-primary text-primary-foreground">{initials}</AvatarFallback>
               </Avatar>
               <span className="hidden md:inline text-sm font-medium">
                 {user?.name || 'User'}
@@ -158,7 +158,7 @@ export function Header({ title, onMenuClick, user }: HeaderProps) {
             <DropdownMenuItem
               onClick={handleLogout}
               disabled={isLoading}
-              className="text-red-600"
+              className="text-destructive"
             >
               Log out
             </DropdownMenuItem>

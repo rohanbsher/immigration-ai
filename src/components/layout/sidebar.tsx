@@ -79,15 +79,15 @@ export function Sidebar({ user }: SidebarProps) {
   return (
     <aside
       className={cn(
-        'flex flex-col h-screen bg-slate-900 text-white transition-all duration-300',
+        'flex flex-col h-screen bg-sidebar text-sidebar-foreground transition-all duration-300',
         collapsed ? 'w-16' : 'w-64'
       )}
     >
       {/* Logo */}
-      <div className="flex items-center justify-between h-16 px-4 border-b border-slate-800">
+      <div className="flex items-center justify-between h-16 px-4 border-b border-sidebar-border">
         {!collapsed && (
           <Link href="/dashboard" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center font-bold">
+            <div className="w-8 h-8 rounded-lg bg-sidebar-primary flex items-center justify-center font-bold text-sidebar-primary-foreground">
               IA
             </div>
             <span className="font-semibold">Immigration AI</span>
@@ -97,7 +97,7 @@ export function Sidebar({ user }: SidebarProps) {
           variant="ghost"
           size="icon"
           onClick={() => setCollapsed(!collapsed)}
-          className="text-slate-400 hover:text-white hover:bg-slate-800"
+          className="text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent"
         >
           {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
         </Button>
@@ -115,8 +115,8 @@ export function Sidebar({ user }: SidebarProps) {
               className={cn(
                 'flex items-center gap-3 px-3 py-2 rounded-lg transition-colors',
                 active
-                  ? 'bg-blue-600 text-white'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                  ? 'bg-sidebar-primary text-sidebar-primary-foreground'
+                  : 'text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent'
               )}
             >
               <Icon size={20} />
@@ -127,7 +127,7 @@ export function Sidebar({ user }: SidebarProps) {
       </nav>
 
       {/* Bottom Navigation */}
-      <div className="py-4 px-2 border-t border-slate-800 space-y-1">
+      <div className="py-4 px-2 border-t border-sidebar-border space-y-1">
         {bottomNavItems.map((item) => {
           const Icon = item.icon;
           const active = isActive(item.href);
@@ -138,8 +138,8 @@ export function Sidebar({ user }: SidebarProps) {
               className={cn(
                 'flex items-center gap-3 px-3 py-2 rounded-lg transition-colors',
                 active
-                  ? 'bg-blue-600 text-white'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                  ? 'bg-sidebar-primary text-sidebar-primary-foreground'
+                  : 'text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent'
               )}
             >
               <Icon size={20} />
@@ -150,16 +150,16 @@ export function Sidebar({ user }: SidebarProps) {
       </div>
 
       {/* User Profile */}
-      <div className="p-4 border-t border-slate-800">
+      <div className="p-4 border-t border-sidebar-border">
         <div className={cn('flex items-center gap-3', collapsed && 'justify-center')}>
           <Avatar className="h-9 w-9">
             <AvatarImage src={user?.avatarUrl} />
-            <AvatarFallback className="bg-blue-600">{initials}</AvatarFallback>
+            <AvatarFallback className="bg-sidebar-primary text-sidebar-primary-foreground">{initials}</AvatarFallback>
           </Avatar>
           {!collapsed && (
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium truncate">{user?.name || 'User'}</p>
-              <p className="text-xs text-slate-400 truncate capitalize">
+              <p className="text-xs text-sidebar-foreground/60 truncate capitalize">
                 {user?.role || 'Attorney'}
               </p>
             </div>
@@ -170,7 +170,7 @@ export function Sidebar({ user }: SidebarProps) {
               size="icon"
               onClick={handleLogout}
               disabled={isLoading}
-              className="text-slate-400 hover:text-white hover:bg-slate-800"
+              className="text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent"
             >
               <LogOut size={18} />
             </Button>

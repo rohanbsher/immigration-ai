@@ -82,7 +82,14 @@ ${input.existingFormData ? JSON.stringify(input.existingFormData, null, 2) : 'No
     }
 
     const jsonStr = jsonMatch[1] || jsonMatch[0];
-    const parsed = JSON.parse(jsonStr) as FormAutofillResult;
+    let parsed: FormAutofillResult;
+    try {
+      parsed = JSON.parse(jsonStr) as FormAutofillResult;
+    } catch (parseError) {
+      throw new Error(
+        `Failed to parse Claude response as JSON: ${parseError instanceof Error ? parseError.message : 'unknown error'}`
+      );
+    }
 
     return {
       ...parsed,
@@ -171,7 +178,16 @@ Respond with JSON:
   }
 
   const jsonStr = jsonMatch[1] || jsonMatch[0];
-  return JSON.parse(jsonStr);
+  try {
+    return JSON.parse(jsonStr);
+  } catch {
+    return {
+      isValid: true,
+      errors: [],
+      warnings: ['Failed to parse validation response'],
+      suggestions: [],
+    };
+  }
 }
 
 /**
@@ -274,7 +290,14 @@ Respond with JSON:
   }
 
   const jsonStr = jsonMatch[1] || jsonMatch[0];
-  return JSON.parse(jsonStr);
+  try {
+    return JSON.parse(jsonStr);
+  } catch {
+    return {
+      consistencyScore: 1,
+      discrepancies: [],
+    };
+  }
 }
 
 /**
@@ -336,7 +359,11 @@ Respond with JSON:
   }
 
   const jsonStr = jsonMatch[1] || jsonMatch[0];
-  return JSON.parse(jsonStr);
+  try {
+    return JSON.parse(jsonStr);
+  } catch {
+    return { nextSteps: [] };
+  }
 }
 
 export const anthropicClient = getAnthropicClient;

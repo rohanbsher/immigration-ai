@@ -11,16 +11,16 @@ import {
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
+    <div className="min-h-screen bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/5 via-background to-background">
       {/* Navigation */}
-      <nav className="border-b bg-white/80 backdrop-blur-sm sticky top-0 z-50">
+      <nav className="border-b border-border/50 bg-background/80 backdrop-blur-sm sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold">
+              <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold">
                 IA
               </div>
-              <span className="font-semibold text-xl">Immigration AI</span>
+              <span className="font-semibold text-xl text-foreground">Immigration AI</span>
             </div>
             <div className="flex items-center gap-4">
               <Link href="/login">
@@ -37,12 +37,12 @@ export default function Home() {
       {/* Hero Section */}
       <section className="py-20 px-4">
         <div className="max-w-7xl mx-auto text-center">
-          <h1 className="text-5xl md:text-6xl font-bold text-slate-900 mb-6">
+          <h1 className="text-5xl md:text-6xl font-bold text-foreground mb-6">
             Immigration Case Management
             <br />
-            <span className="text-blue-600">Powered by AI</span>
+            <span className="text-primary">Powered by AI</span>
           </h1>
-          <p className="text-xl text-slate-600 max-w-3xl mx-auto mb-8">
+          <p className="text-xl text-muted-foreground max-w-3xl mx-auto mb-8">
             Streamline your immigration practice with intelligent document
             processing, automated form filling, and secure client collaboration.
             Spend less time on paperwork, more time on what matters.
@@ -63,9 +63,9 @@ export default function Home() {
       </section>
 
       {/* Features Section */}
-      <section className="py-20 px-4 bg-slate-50">
+      <section className="py-20 px-4 bg-muted/50">
         <div className="max-w-7xl mx-auto">
-          <h2 className="text-3xl font-bold text-center text-slate-900 mb-12">
+          <h2 className="text-3xl font-bold text-center text-foreground mb-12">
             Everything you need to manage immigration cases
           </h2>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -106,10 +106,10 @@ export default function Home() {
       {/* CTA Section */}
       <section className="py-20 px-4">
         <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-3xl font-bold text-slate-900 mb-4">
+          <h2 className="text-3xl font-bold text-foreground mb-4">
             Ready to modernize your practice?
           </h2>
-          <p className="text-lg text-slate-600 mb-8">
+          <p className="text-lg text-muted-foreground mb-8">
             Join immigration attorneys who are saving hours each week with
             Immigration AI.
           </p>
@@ -122,16 +122,16 @@ export default function Home() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t py-12 px-4">
+      <footer className="border-t border-border/50 py-12 px-4">
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded bg-blue-600 flex items-center justify-center text-white font-bold text-sm">
+              <div className="w-6 h-6 rounded bg-primary flex items-center justify-center text-primary-foreground font-bold text-sm">
                 IA
               </div>
-              <span className="font-medium">Immigration AI</span>
+              <span className="font-medium text-foreground">Immigration AI</span>
             </div>
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-muted-foreground">
               &copy; {new Date().getFullYear()} Immigration AI. All rights
               reserved.
             </p>
@@ -152,12 +152,12 @@ function FeatureCard({
   description: string;
 }) {
   return (
-    <div className="bg-white rounded-xl p-6 shadow-sm border">
-      <div className="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center mb-4">
-        <Icon className="text-blue-600" size={24} />
+    <div className="bg-card rounded-xl p-6 shadow-md shadow-primary/5 border border-border/50 hover:shadow-lg hover:shadow-primary/10 transition-all duration-300 hover:-translate-y-1">
+      <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4">
+        <Icon className="text-primary" size={24} />
       </div>
-      <h3 className="text-lg font-semibold text-slate-900 mb-2">{title}</h3>
-      <p className="text-slate-600">{description}</p>
+      <h3 className="text-lg font-semibold text-foreground mb-2">{title}</h3>
+      <p className="text-muted-foreground">{description}</p>
     </div>
   );
 }

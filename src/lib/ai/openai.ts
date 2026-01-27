@@ -95,7 +95,14 @@ export async function analyzeDocumentWithVision(
     }
 
     // Parse the JSON response
-    const parsed = JSON.parse(content) as DocumentAnalysisResult;
+    let parsed: DocumentAnalysisResult;
+    try {
+      parsed = JSON.parse(content) as DocumentAnalysisResult;
+    } catch (parseError) {
+      throw new Error(
+        `Failed to parse OpenAI response as JSON: ${parseError instanceof Error ? parseError.message : 'unknown error'}`
+      );
+    }
 
     return {
       ...parsed,
@@ -213,11 +220,15 @@ Respond with JSON: { "type": "document_type", "confidence": 0.95 }`,
     return { type: 'other', confidence: 0 };
   }
 
-  const parsed = JSON.parse(content);
-  return {
-    type: parsed.type || 'other',
-    confidence: parsed.confidence || 0,
-  };
+  try {
+    const parsed = JSON.parse(content);
+    return {
+      type: parsed.type || 'other',
+      confidence: parsed.confidence || 0,
+    };
+  } catch {
+    return { type: 'other', confidence: 0 };
+  }
 }
 
 /**
@@ -275,7 +286,11 @@ Respond with JSON:
     return { isValid: false, reason: 'Unable to analyze image' };
   }
 
-  return JSON.parse(content);
+  try {
+    return JSON.parse(content);
+  } catch {
+    return { isValid: false, reason: 'Failed to parse validation response' };
+  }
 }
 
 export const openaiClient = getOpenAIClient;

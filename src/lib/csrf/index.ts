@@ -75,14 +75,29 @@ export function validateCsrf(request: NextRequest): {
   const requestOrigin = origin || normalizeOrigin(referer);
 
   // If neither Origin nor Referer is set, it could be:
-  // 1. A same-origin request where the browser didn't send headers
+  // 1. A same-origin request where the browser didn't send headers (rare in modern browsers)
   // 2. A cross-origin request from an old browser
   // 3. A direct API call (like from curl or a service)
   if (!requestOrigin) {
-    // For API routes, we could be stricter and reject these
-    // But for compatibility, we'll allow them if the request has auth
-    // The auth check happens separately in the route handlers
-    return { valid: true };
+    // For security, require an explicit API client header for requests without Origin/Referer.
+    // Legitimate API clients should set: X-API-Client: true
+    // Modern browsers always send Origin/Referer for cross-origin state-changing requests.
+    const isApiClient = request.headers.get('x-api-client') === 'true';
+
+    // Allow webhook endpoints that verify their own signatures (e.g., Stripe webhooks)
+    const pathname = request.nextUrl?.pathname || '';
+    const isWebhookPath = pathname.includes('/webhooks') || pathname.includes('/webhook');
+
+    if (isApiClient || isWebhookPath) {
+      return { valid: true, reason: 'api-client-or-webhook' };
+    }
+
+    // Reject requests without Origin/Referer and without API client header
+    // This prevents CSRF attacks via old browsers or header-stripping proxies
+    return {
+      valid: false,
+      reason: 'Missing Origin/Referer header. For API clients, include X-API-Client: true header.',
+    };
   }
 
   // Get allowed origins

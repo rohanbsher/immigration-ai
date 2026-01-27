@@ -3,6 +3,24 @@ import { serverAuth } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 
+/**
+ * Sanitize search input for use in Supabase ILIKE patterns.
+ * Escapes special characters and limits length to prevent injection and DoS.
+ */
+function sanitizeSearchInput(input: string): string {
+  // Limit length to prevent DoS
+  const truncated = input.slice(0, 100);
+
+  // Escape SQL LIKE wildcards (% and _) so they're treated as literals
+  // Remove PostgREST filter special characters that could manipulate the query
+  const sanitized = truncated
+    .replace(/[%_]/g, '\\$&') // Escape SQL LIKE wildcards
+    .replace(/[,.'"\(\)]/g, '') // Remove PostgREST special chars
+    .trim();
+
+  return sanitized;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const ip = request.headers.get('x-forwarded-for') || 'unknown';
@@ -21,9 +39,9 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const search = searchParams.get('search') || '';
-    const page = parseInt(searchParams.get('page') || '1');
-    const pageSize = parseInt(searchParams.get('pageSize') || '20');
+    const rawSearch = searchParams.get('search') || '';
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1'));
+    const pageSize = Math.min(Math.max(1, parseInt(searchParams.get('pageSize') || '20')), 100); // Cap at 100
 
     const supabase = await createClient();
 
@@ -31,8 +49,12 @@ export async function GET(request: NextRequest) {
       .from('profiles')
       .select('*', { count: 'exact' });
 
-    if (search) {
-      query = query.or(`email.ilike.%${search}%,first_name.ilike.%${search}%,last_name.ilike.%${search}%`);
+    if (rawSearch) {
+      // Sanitize search input to prevent filter injection
+      const search = sanitizeSearchInput(rawSearch);
+      if (search.length > 0) {
+        query = query.or(`email.ilike.%${search}%,first_name.ilike.%${search}%,last_name.ilike.%${search}%`);
+      }
     }
 
     const { data: users, count, error } = await query

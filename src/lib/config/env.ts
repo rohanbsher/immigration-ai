@@ -1,0 +1,242 @@
+/**
+ * Environment variable validation and type-safe configuration.
+ *
+ * This module uses Zod to validate all environment variables at startup
+ * and provides a centralized, type-safe way to access configuration.
+ *
+ * Usage:
+ *   import { env, serverEnv, features } from '@/lib/config/env';
+ *
+ *   // Public vars (available in client and server)
+ *   const url = env.NEXT_PUBLIC_SUPABASE_URL;
+ *
+ *   // Server-only vars (only available in server components/API routes)
+ *   const apiKey = serverEnv.OPENAI_API_KEY;
+ *
+ *   // Feature flags
+ *   if (features.billing) { ... }
+ */
+
+import { z } from 'zod';
+
+// =============================================================================
+// Schema Definitions
+// =============================================================================
+
+/**
+ * Public environment variables (exposed to the client via NEXT_PUBLIC_ prefix)
+ */
+const publicEnvSchema = z.object({
+  // Supabase
+  NEXT_PUBLIC_SUPABASE_URL: z.string().url('Invalid Supabase URL'),
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1, 'Supabase anon key is required'),
+
+  // App Configuration
+  NEXT_PUBLIC_APP_URL: z
+    .string()
+    .url('Invalid app URL')
+    .default('http://localhost:3000'),
+  NEXT_PUBLIC_SITE_URL: z.string().url().optional(),
+
+  // Stripe (client-side)
+  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: z.string().optional(),
+
+  // Analytics (optional)
+  NEXT_PUBLIC_POSTHOG_KEY: z.string().optional(),
+  NEXT_PUBLIC_POSTHOG_HOST: z.string().url().optional(),
+});
+
+/**
+ * Server-only environment variables (never exposed to client)
+ */
+const serverEnvSchema = z.object({
+  // Node environment
+  NODE_ENV: z
+    .enum(['development', 'production', 'test'])
+    .default('development'),
+
+  // AI Configuration
+  OPENAI_API_KEY: z.string().optional(),
+  ANTHROPIC_API_KEY: z.string().optional(),
+
+  // Security - Required for production, optional in development
+  ENCRYPTION_KEY: z
+    .string()
+    .length(
+      64,
+      'ENCRYPTION_KEY must be a 64-character hex string. Generate with: openssl rand -hex 32'
+    )
+    .optional(),
+
+  // Stripe (server-side)
+  STRIPE_SECRET_KEY: z.string().optional(),
+  STRIPE_WEBHOOK_SECRET: z.string().optional(),
+  STRIPE_PRICE_PRO_MONTHLY: z.string().optional(),
+  STRIPE_PRICE_PRO_YEARLY: z.string().optional(),
+  STRIPE_PRICE_ENTERPRISE_MONTHLY: z.string().optional(),
+  STRIPE_PRICE_ENTERPRISE_YEARLY: z.string().optional(),
+
+  // Email
+  RESEND_API_KEY: z.string().optional(),
+  EMAIL_FROM: z.string().email().optional(),
+  EMAIL_REPLY_TO: z.string().email().optional(),
+
+  // Rate Limiting (optional - falls back to in-memory)
+  UPSTASH_REDIS_REST_URL: z.string().url().optional(),
+  UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
+
+  // Vercel (auto-set)
+  VERCEL_URL: z.string().optional(),
+});
+
+// =============================================================================
+// Validation Functions
+// =============================================================================
+
+/**
+ * Format Zod errors into readable messages
+ */
+function formatErrors(errors: z.ZodError): string {
+  return errors.issues
+    .map((issue) => `  - ${issue.path.join('.')}: ${issue.message}`)
+    .join('\n');
+}
+
+/**
+ * Validate public environment variables
+ */
+function validatePublicEnv() {
+  const result = publicEnvSchema.safeParse({
+    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+    NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
+    NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:
+      process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,
+    NEXT_PUBLIC_POSTHOG_KEY: process.env.NEXT_PUBLIC_POSTHOG_KEY,
+    NEXT_PUBLIC_POSTHOG_HOST: process.env.NEXT_PUBLIC_POSTHOG_HOST,
+  });
+
+  if (!result.success) {
+    console.error(
+      '[Config] Invalid public environment variables:\n' +
+        formatErrors(result.error)
+    );
+    throw new Error('Invalid public environment configuration');
+  }
+
+  return result.data;
+}
+
+/**
+ * Validate server environment variables
+ */
+function validateServerEnv() {
+  // Skip validation on client
+  if (typeof window !== 'undefined') {
+    return null;
+  }
+
+  const result = serverEnvSchema.safeParse({
+    NODE_ENV: process.env.NODE_ENV,
+    OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+    ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
+    ENCRYPTION_KEY: process.env.ENCRYPTION_KEY,
+    STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
+    STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
+    STRIPE_PRICE_PRO_MONTHLY: process.env.STRIPE_PRICE_PRO_MONTHLY,
+    STRIPE_PRICE_PRO_YEARLY: process.env.STRIPE_PRICE_PRO_YEARLY,
+    STRIPE_PRICE_ENTERPRISE_MONTHLY: process.env.STRIPE_PRICE_ENTERPRISE_MONTHLY,
+    STRIPE_PRICE_ENTERPRISE_YEARLY: process.env.STRIPE_PRICE_ENTERPRISE_YEARLY,
+    RESEND_API_KEY: process.env.RESEND_API_KEY,
+    EMAIL_FROM: process.env.EMAIL_FROM,
+    EMAIL_REPLY_TO: process.env.EMAIL_REPLY_TO,
+    UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL,
+    UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN,
+    VERCEL_URL: process.env.VERCEL_URL,
+  });
+
+  if (!result.success) {
+    console.error(
+      '[Config] Invalid server environment variables:\n' +
+        formatErrors(result.error)
+    );
+    throw new Error('Invalid server environment configuration');
+  }
+
+  return result.data;
+}
+
+// =============================================================================
+// Exports
+// =============================================================================
+
+/**
+ * Public environment variables - safe to use in client components
+ */
+export const env = validatePublicEnv();
+
+/**
+ * Server-only environment variables - throws if accessed on client
+ */
+export const serverEnv = (() => {
+  const validated = validateServerEnv();
+
+  // Return a proxy that throws on client access
+  if (!validated) {
+    return new Proxy({} as NonNullable<ReturnType<typeof validateServerEnv>>, {
+      get(_, prop) {
+        throw new Error(
+          `Attempted to access server environment variable "${String(prop)}" on the client. ` +
+            'Server environment variables are only available in Server Components and API routes.'
+        );
+      },
+    });
+  }
+
+  return validated;
+})();
+
+// Type exports for use elsewhere
+export type PublicEnv = z.infer<typeof publicEnvSchema>;
+export type ServerEnv = z.infer<typeof serverEnvSchema>;
+
+// =============================================================================
+// Feature Flags (derived from env)
+// =============================================================================
+
+/**
+ * Feature availability flags based on environment configuration
+ */
+export const features = {
+  /** Whether AI document analysis is configured (OpenAI) */
+  documentAnalysis: !!process.env.OPENAI_API_KEY,
+
+  /** Whether AI form autofill is configured (Anthropic) */
+  formAutofill: !!process.env.ANTHROPIC_API_KEY,
+
+  /** Whether Stripe billing is configured */
+  billing:
+    !!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY &&
+    !!process.env.STRIPE_SECRET_KEY,
+
+  /** Whether email sending is configured */
+  email: !!process.env.RESEND_API_KEY,
+
+  /** Whether Redis rate limiting is configured (vs in-memory fallback) */
+  redisRateLimiting:
+    !!process.env.UPSTASH_REDIS_REST_URL &&
+    !!process.env.UPSTASH_REDIS_REST_TOKEN,
+
+  /** Whether analytics is configured */
+  analytics: !!process.env.NEXT_PUBLIC_POSTHOG_KEY,
+
+  /** Whether encryption is configured for PII */
+  encryption: !!process.env.ENCRYPTION_KEY,
+
+  /** Whether running in development mode */
+  isDevelopment: process.env.NODE_ENV === 'development',
+
+  /** Whether running in production mode */
+  isProduction: process.env.NODE_ENV === 'production',
+} as const;

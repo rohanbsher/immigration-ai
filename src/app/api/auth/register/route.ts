@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { authRateLimiter } from '@/lib/rate-limit';
+import { sendWelcomeEmail } from '@/lib/email/notifications';
 
 const registerSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -53,6 +54,17 @@ export async function POST(request: NextRequest) {
         { error: error.message },
         { status: 400 }
       );
+    }
+
+    // Send welcome email (fire and forget - don't block registration)
+    if (data.user) {
+      sendWelcomeEmail(
+        data.user.id,
+        validatedData.email,
+        validatedData.firstName
+      ).catch((err) => {
+        console.error('Failed to send welcome email:', err);
+      });
     }
 
     // Check if email confirmation is required

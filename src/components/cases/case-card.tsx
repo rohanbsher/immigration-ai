@@ -11,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { CaseStatusBadge } from './case-status-badge';
+import { SuccessScoreBadge } from '@/components/ai/success-score-badge';
 import { MoreVertical, Calendar, FileText, User } from 'lucide-react';
 import type { CaseStatus, VisaType } from '@/types';
 
@@ -89,6 +90,7 @@ export function CaseCard({
 
           {/* Right: Status and Actions */}
           <div className="flex items-center gap-3">
+            <SuccessScoreBadge caseId={id} size="sm" />
             <CaseStatusBadge status={status} />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

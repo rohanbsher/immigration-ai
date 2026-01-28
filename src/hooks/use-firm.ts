@@ -2,13 +2,14 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { Firm, FirmRole, CreateFirmInput, UpdateFirmInput } from '@/types/firms';
+import { fetchWithTimeout } from '@/lib/api/fetch-with-timeout';
 
 interface FirmWithRole extends Firm {
   userRole: FirmRole;
 }
 
 async function fetchFirms(): Promise<Firm[]> {
-  const response = await fetch('/api/firms');
+  const response = await fetchWithTimeout('/api/firms');
 
   if (!response.ok) {
     throw new Error('Failed to fetch firms');
@@ -19,7 +20,7 @@ async function fetchFirms(): Promise<Firm[]> {
 }
 
 async function fetchFirm(firmId: string): Promise<FirmWithRole> {
-  const response = await fetch(`/api/firms/${firmId}`);
+  const response = await fetchWithTimeout(`/api/firms/${firmId}`);
 
   if (!response.ok) {
     throw new Error('Failed to fetch firm');
@@ -30,7 +31,7 @@ async function fetchFirm(firmId: string): Promise<FirmWithRole> {
 }
 
 async function createFirm(input: CreateFirmInput): Promise<Firm> {
-  const response = await fetch('/api/firms', {
+  const response = await fetchWithTimeout('/api/firms', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
@@ -52,7 +53,7 @@ async function updateFirm({
   firmId: string;
   input: UpdateFirmInput;
 }): Promise<Firm> {
-  const response = await fetch(`/api/firms/${firmId}`, {
+  const response = await fetchWithTimeout(`/api/firms/${firmId}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
@@ -68,7 +69,7 @@ async function updateFirm({
 }
 
 async function deleteFirm(firmId: string): Promise<void> {
-  const response = await fetch(`/api/firms/${firmId}`, {
+  const response = await fetchWithTimeout(`/api/firms/${firmId}`, {
     method: 'DELETE',
   });
 

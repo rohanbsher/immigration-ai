@@ -2,10 +2,11 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { ClientWithCases, Client, UpdateClientData } from '@/lib/db/clients';
+import { fetchWithTimeout } from '@/lib/api/fetch-with-timeout';
 
 // Fetch all clients
 async function fetchClients(): Promise<ClientWithCases[]> {
-  const response = await fetch('/api/clients');
+  const response = await fetchWithTimeout('/api/clients');
   if (!response.ok) {
     const error = await response.json();
     throw new Error(error.error || 'Failed to fetch clients');
@@ -15,7 +16,7 @@ async function fetchClients(): Promise<ClientWithCases[]> {
 
 // Fetch single client
 async function fetchClient(id: string): Promise<ClientWithCases> {
-  const response = await fetch(`/api/clients/${id}`);
+  const response = await fetchWithTimeout(`/api/clients/${id}`);
   if (!response.ok) {
     const error = await response.json();
     throw new Error(error.error || 'Failed to fetch client');
@@ -25,7 +26,7 @@ async function fetchClient(id: string): Promise<ClientWithCases> {
 
 // Fetch client cases
 async function fetchClientCases(clientId: string) {
-  const response = await fetch(`/api/clients/${clientId}/cases`);
+  const response = await fetchWithTimeout(`/api/clients/${clientId}/cases`);
   if (!response.ok) {
     const error = await response.json();
     throw new Error(error.error || 'Failed to fetch client cases');
@@ -41,7 +42,7 @@ async function updateClient({
   id: string;
   data: UpdateClientData;
 }): Promise<Client> {
-  const response = await fetch(`/api/clients/${id}`, {
+  const response = await fetchWithTimeout(`/api/clients/${id}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
@@ -55,7 +56,10 @@ async function updateClient({
 
 // Search clients
 async function searchClients(query: string): Promise<Client[]> {
-  const response = await fetch(`/api/clients/search?q=${encodeURIComponent(query)}`);
+  const response = await fetchWithTimeout(
+    `/api/clients/search?q=${encodeURIComponent(query)}`,
+    { timeout: 'QUICK' }
+  );
   if (!response.ok) {
     const error = await response.json();
     throw new Error(error.error || 'Failed to search clients');

@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { withSentryConfig } from "@sentry/nextjs";
 
 /**
  * Security headers for the application.
@@ -49,8 +50,8 @@ const securityHeaders = [
       "img-src 'self' data: blob: https://*.supabase.co",
       // Allow fonts from self and common CDNs
       "font-src 'self' data:",
-      // Allow connections to self, Supabase, and AI APIs
-      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.openai.com https://api.anthropic.com",
+      // Allow connections to self, Supabase, AI APIs, and Sentry
+      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.openai.com https://api.anthropic.com https://*.sentry.io https://*.ingest.sentry.io",
       // Prevent framing
       "frame-ancestors 'none'",
       // Form submissions only to self
@@ -102,4 +103,28 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+// Sentry configuration options
+const sentryWebpackPluginOptions = {
+  // Suppresses source map uploading logs during build
+  silent: true,
+
+  // Organization and project for Sentry
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+
+  // Auth token for uploading source maps
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+
+  // Upload source maps in production only
+  hideSourceMaps: process.env.NODE_ENV === "production",
+
+  // Disable Sentry telemetry
+  telemetry: false,
+};
+
+// Wrap with Sentry only if DSN is configured
+const exportedConfig = process.env.SENTRY_DSN || process.env.NEXT_PUBLIC_SENTRY_DSN
+  ? withSentryConfig(nextConfig, sentryWebpackPluginOptions)
+  : nextConfig;
+
+export default exportedConfig;

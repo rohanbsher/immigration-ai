@@ -8,6 +8,7 @@ import {
   successResponse,
 } from '@/lib/auth/api-helpers';
 import { createLogger } from '@/lib/logger';
+import { enforceQuota, QuotaExceededError } from '@/lib/billing/quota';
 
 const log = createLogger('api:cases');
 
@@ -59,6 +60,9 @@ export async function POST(request: NextRequest) {
     const auth = await requireAttorney(request);
     if (!auth.success) return auth.response;
 
+    // Enforce case quota
+    await enforceQuota(auth.user.id, 'cases');
+
     const body = await request.json();
     const validatedData = createCaseSchema.parse(body);
 
@@ -66,6 +70,13 @@ export async function POST(request: NextRequest) {
 
     return successResponse(newCase, 201);
   } catch (error) {
+    if (error instanceof QuotaExceededError) {
+      return errorResponse(
+        'You have reached your case limit. Please upgrade your plan to create more cases.',
+        403
+      );
+    }
+
     if (error instanceof z.ZodError) {
       return errorResponse(error.issues[0].message, 400);
     }

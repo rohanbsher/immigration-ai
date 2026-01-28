@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
+import { getDetailedRedisHealth } from '@/lib/rate-limit/health';
 
 interface HealthCheckResult {
   status: 'healthy' | 'degraded' | 'unhealthy';
@@ -19,6 +20,7 @@ interface HealthCheck {
   message: string;
   responseTime?: number;
   details?: Record<string, unknown>;
+  recommendations?: string[];
 }
 
 // Track server start time for uptime calculation
@@ -157,63 +159,41 @@ function checkEnvironment(): HealthCheck {
 }
 
 async function checkRedis(): Promise<HealthCheck> {
-  const redisUrl = process.env.UPSTASH_REDIS_REST_URL;
-  const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN;
-
-  // Redis is optional - if not configured, that's okay
-  if (!redisUrl || !redisToken) {
-    return {
-      status: 'warn',
-      message: 'Redis not configured (using in-memory rate limiting)',
-      details: {
-        note: 'Rate limiting will not persist across server restarts or scale correctly with multiple instances',
-      },
-    };
-  }
-
   const startTime = Date.now();
 
   try {
-    // Simple ping to verify Redis connectivity
-    const response = await fetch(`${redisUrl}/ping`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${redisToken}`,
-      },
-      signal: AbortSignal.timeout(3000), // 3 second timeout
-    });
-
+    const detailedHealth = await getDetailedRedisHealth();
     const responseTime = Date.now() - startTime;
 
-    if (!response.ok) {
-      return {
-        status: 'fail',
-        message: 'Redis connection failed',
-        responseTime,
-        details: { statusCode: response.status },
-      };
-    }
-
-    if (responseTime > 500) {
-      return {
-        status: 'warn',
-        message: 'Redis responding slowly',
-        responseTime,
-      };
-    }
+    // Map detailed status to health check status
+    const statusMap: Record<string, 'pass' | 'warn' | 'fail'> = {
+      healthy: 'pass',
+      degraded: 'warn',
+      unhealthy: 'fail',
+    };
 
     return {
-      status: 'pass',
-      message: 'Redis connection healthy',
-      responseTime,
+      status: statusMap[detailedHealth.status],
+      message: detailedHealth.metrics.connected
+        ? `Redis connection healthy (${detailedHealth.metrics.provider})`
+        : detailedHealth.metrics.error || 'Redis not available',
+      responseTime: detailedHealth.metrics.latency || responseTime,
+      details: {
+        provider: detailedHealth.metrics.provider,
+        configured: detailedHealth.rateLimitInfo.configured,
+        keyCount: detailedHealth.rateLimitInfo.totalKeys,
+      },
+      recommendations: detailedHealth.recommendations.length > 0
+        ? detailedHealth.recommendations
+        : undefined,
     };
   } catch (error) {
     return {
       status: 'fail',
-      message: 'Redis connection failed',
+      message: 'Redis health check failed',
       responseTime: Date.now() - startTime,
       details: {
-        error: error instanceof Error ? error.message : 'Connection timeout or error',
+        error: error instanceof Error ? error.message : 'Unknown error',
       },
     };
   }

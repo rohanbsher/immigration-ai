@@ -6,6 +6,8 @@ import { Header } from './header';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { useUser } from '@/hooks/use-user';
 import { Loader2 } from 'lucide-react';
+import { ChatButton } from '@/components/chat/chat-button';
+import { ChatPanel } from '@/components/chat/chat-panel';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -56,6 +58,10 @@ export function DashboardLayout({ children, title }: DashboardLayoutProps) {
         />
         <main className="flex-1 overflow-auto p-4 lg:p-6">{children}</main>
       </div>
+
+      {/* AI Chat Assistant */}
+      <ChatButton />
+      <ChatPanel />
     </div>
   );
 }

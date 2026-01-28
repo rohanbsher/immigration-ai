@@ -1,6 +1,7 @@
 'use client';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { fetchWithTimeout } from '@/lib/api/fetch-with-timeout';
 
 type NotificationType = 'info' | 'warning' | 'success' | 'error';
 
@@ -19,7 +20,7 @@ async function fetchNotifications(unreadOnly: boolean = false): Promise<Notifica
   const params = new URLSearchParams();
   if (unreadOnly) params.set('unread', 'true');
 
-  const response = await fetch(`/api/notifications?${params.toString()}`);
+  const response = await fetchWithTimeout(`/api/notifications?${params.toString()}`);
   if (!response.ok) {
     throw new Error('Failed to fetch notifications');
   }
@@ -27,7 +28,9 @@ async function fetchNotifications(unreadOnly: boolean = false): Promise<Notifica
 }
 
 async function fetchUnreadCount(): Promise<number> {
-  const response = await fetch('/api/notifications/count');
+  const response = await fetchWithTimeout('/api/notifications/count', {
+    timeout: 'QUICK',
+  });
   if (!response.ok) {
     throw new Error('Failed to fetch unread count');
   }
@@ -36,7 +39,7 @@ async function fetchUnreadCount(): Promise<number> {
 }
 
 async function markAsRead(id: string): Promise<void> {
-  const response = await fetch(`/api/notifications/${id}`, {
+  const response = await fetchWithTimeout(`/api/notifications/${id}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ read: true }),
@@ -47,7 +50,7 @@ async function markAsRead(id: string): Promise<void> {
 }
 
 async function markAllAsRead(): Promise<void> {
-  const response = await fetch('/api/notifications/mark-all-read', {
+  const response = await fetchWithTimeout('/api/notifications/mark-all-read', {
     method: 'POST',
   });
   if (!response.ok) {
@@ -56,7 +59,7 @@ async function markAllAsRead(): Promise<void> {
 }
 
 async function deleteNotification(id: string): Promise<void> {
-  const response = await fetch(`/api/notifications/${id}`, {
+  const response = await fetchWithTimeout(`/api/notifications/${id}`, {
     method: 'DELETE',
   });
   if (!response.ok) {

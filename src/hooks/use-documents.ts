@@ -2,6 +2,12 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { DocumentType, DocumentStatus } from '@/types';
+import {
+  fetchWithTimeout,
+  uploadWithTimeout,
+  fetchAI,
+  TimeoutError,
+} from '@/lib/api/fetch-with-timeout';
 
 interface Document {
   id: string;
@@ -49,7 +55,7 @@ interface UpdateDocumentData {
 }
 
 async function fetchDocuments(caseId: string): Promise<Document[]> {
-  const response = await fetch(`/api/cases/${caseId}/documents`);
+  const response = await fetchWithTimeout(`/api/cases/${caseId}/documents`);
   if (!response.ok) {
     throw new Error('Failed to fetch documents');
   }
@@ -57,7 +63,7 @@ async function fetchDocuments(caseId: string): Promise<Document[]> {
 }
 
 async function fetchDocument(id: string): Promise<Document> {
-  const response = await fetch(`/api/documents/${id}`);
+  const response = await fetchWithTimeout(`/api/documents/${id}`);
   if (!response.ok) {
     throw new Error('Failed to fetch document');
   }
@@ -71,10 +77,10 @@ async function uploadDocument(data: UploadDocumentData): Promise<Document> {
   if (data.expiration_date) formData.append('expiration_date', data.expiration_date);
   if (data.notes) formData.append('notes', data.notes);
 
-  const response = await fetch(`/api/cases/${data.case_id}/documents`, {
-    method: 'POST',
-    body: formData,
-  });
+  const response = await uploadWithTimeout(
+    `/api/cases/${data.case_id}/documents`,
+    formData
+  );
 
   if (!response.ok) {
     const error = await response.json();
@@ -84,7 +90,7 @@ async function uploadDocument(data: UploadDocumentData): Promise<Document> {
 }
 
 async function updateDocument(id: string, data: UpdateDocumentData): Promise<Document> {
-  const response = await fetch(`/api/documents/${id}`, {
+  const response = await fetchWithTimeout(`/api/documents/${id}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
@@ -97,7 +103,7 @@ async function updateDocument(id: string, data: UpdateDocumentData): Promise<Doc
 }
 
 async function verifyDocument(id: string): Promise<Document> {
-  const response = await fetch(`/api/documents/${id}/verify`, {
+  const response = await fetchWithTimeout(`/api/documents/${id}/verify`, {
     method: 'POST',
   });
   if (!response.ok) {
@@ -108,7 +114,8 @@ async function verifyDocument(id: string): Promise<Document> {
 }
 
 async function analyzeDocument(id: string): Promise<Document> {
-  const response = await fetch(`/api/documents/${id}/analyze`, {
+  // Document analysis uses AI, so use longer timeout
+  const response = await fetchAI(`/api/documents/${id}/analyze`, {
     method: 'POST',
   });
   if (!response.ok) {
@@ -119,7 +126,7 @@ async function analyzeDocument(id: string): Promise<Document> {
 }
 
 async function deleteDocument(id: string): Promise<void> {
-  const response = await fetch(`/api/documents/${id}`, {
+  const response = await fetchWithTimeout(`/api/documents/${id}`, {
     method: 'DELETE',
   });
   if (!response.ok) {
@@ -208,7 +215,7 @@ export function useDocumentChecklist(visaType: string | undefined) {
   return useQuery({
     queryKey: ['documentChecklist', visaType],
     queryFn: async () => {
-      const response = await fetch(`/api/document-checklists/${visaType}`);
+      const response = await fetchWithTimeout(`/api/document-checklists/${visaType}`);
       if (!response.ok) {
         throw new Error('Failed to fetch document checklist');
       }
@@ -217,3 +224,6 @@ export function useDocumentChecklist(visaType: string | undefined) {
     enabled: !!visaType,
   });
 }
+
+// Re-export TimeoutError for consumers who need to handle it
+export { TimeoutError };

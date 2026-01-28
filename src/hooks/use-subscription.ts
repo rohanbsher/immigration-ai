@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { PlanType, BillingPeriod, PlanLimits } from '@/lib/db/subscriptions';
+import { fetchWithTimeout } from '@/lib/api/fetch-with-timeout';
 
 interface Subscription {
   id: string;
@@ -33,7 +34,7 @@ interface CheckoutParams {
 }
 
 async function fetchSubscription(): Promise<SubscriptionData> {
-  const response = await fetch('/api/billing/subscription');
+  const response = await fetchWithTimeout('/api/billing/subscription');
 
   if (!response.ok) {
     throw new Error('Failed to fetch subscription');
@@ -44,7 +45,7 @@ async function fetchSubscription(): Promise<SubscriptionData> {
 }
 
 async function createCheckout(params: CheckoutParams): Promise<{ url: string }> {
-  const response = await fetch('/api/billing/checkout', {
+  const response = await fetchWithTimeout('/api/billing/checkout', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(params),
@@ -60,7 +61,7 @@ async function createCheckout(params: CheckoutParams): Promise<{ url: string }> 
 }
 
 async function createPortalSession(): Promise<{ url: string }> {
-  const response = await fetch('/api/billing/portal', {
+  const response = await fetchWithTimeout('/api/billing/portal', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
   });
@@ -75,7 +76,7 @@ async function createPortalSession(): Promise<{ url: string }> {
 }
 
 async function cancelSubscription(immediately = false): Promise<void> {
-  const response = await fetch('/api/billing/cancel', {
+  const response = await fetchWithTimeout('/api/billing/cancel', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ immediately }),
@@ -88,7 +89,7 @@ async function cancelSubscription(immediately = false): Promise<void> {
 }
 
 async function resumeSubscription(): Promise<void> {
-  const response = await fetch('/api/billing/resume', {
+  const response = await fetchWithTimeout('/api/billing/resume', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
   });

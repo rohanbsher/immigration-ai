@@ -69,14 +69,19 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   // Define protected routes
-  const protectedPaths = ['/dashboard', '/cases', '/documents', '/forms', '/settings'];
+  const protectedPaths = ['/dashboard', '/cases', '/documents', '/forms', '/settings', '/admin'];
   const authPaths = ['/login', '/register', '/forgot-password'];
+  const adminPaths = ['/admin'];
 
   const isProtectedPath = protectedPaths.some((path) =>
     request.nextUrl.pathname.startsWith(path)
   );
 
   const isAuthPath = authPaths.some((path) =>
+    request.nextUrl.pathname.startsWith(path)
+  );
+
+  const isAdminPath = adminPaths.some((path) =>
     request.nextUrl.pathname.startsWith(path)
   );
 
@@ -97,6 +102,49 @@ export async function updateSession(request: NextRequest) {
     const redirectResponse = NextResponse.redirect(url);
     redirectResponse.headers.set('x-request-id', requestId);
     return redirectResponse;
+  }
+
+  // Fetch user profile for role-based routing
+  const { data: profile } = user
+    ? await supabase.from('profiles').select('role').eq('id', user.id).single()
+    : { data: null };
+
+  // Admin route protection - check user role
+  if (isAdminPath && user) {
+    // Redirect non-admins to dashboard
+    if (!profile || profile.role !== 'admin') {
+      console.warn(`[${requestId}] Non-admin user attempted to access admin route: ${request.nextUrl.pathname}`);
+      const url = request.nextUrl.clone();
+      url.pathname = profile?.role === 'client' ? '/dashboard/client' : '/dashboard';
+      const redirectResponse = NextResponse.redirect(url);
+      redirectResponse.headers.set('x-request-id', requestId);
+      return redirectResponse;
+    }
+  }
+
+  // Client portal routing
+  const isClientPortalPath = request.nextUrl.pathname.startsWith('/dashboard/client');
+  const isMainDashboardPath = request.nextUrl.pathname === '/dashboard';
+
+  if (user && profile) {
+    // Redirect clients from main dashboard to client portal
+    if (profile.role === 'client' && isMainDashboardPath) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/dashboard/client';
+      const redirectResponse = NextResponse.redirect(url);
+      redirectResponse.headers.set('x-request-id', requestId);
+      return redirectResponse;
+    }
+
+    // Prevent non-clients from accessing client portal
+    if (profile.role !== 'client' && isClientPortalPath) {
+      console.warn(`[${requestId}] Non-client user attempted to access client portal: ${request.nextUrl.pathname}`);
+      const url = request.nextUrl.clone();
+      url.pathname = '/dashboard';
+      const redirectResponse = NextResponse.redirect(url);
+      redirectResponse.headers.set('x-request-id', requestId);
+      return redirectResponse;
+    }
   }
 
   // Add server timing header for performance monitoring

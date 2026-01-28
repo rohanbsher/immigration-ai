@@ -1,0 +1,196 @@
+'use client';
+
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useCallback, useRef } from 'react';
+import { createBrowserClient } from '@supabase/ssr';
+import { fetchWithTimeout } from '@/lib/api/fetch-with-timeout';
+
+interface MessageSender {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  role: string;
+  avatar_url: string | null;
+}
+
+interface MessageAttachment {
+  id: string;
+  message_id: string;
+  file_name: string;
+  file_path: string;
+  file_size: number;
+  mime_type: string;
+  created_at: string;
+}
+
+export interface CaseMessage {
+  id: string;
+  case_id: string;
+  sender_id: string;
+  content: string;
+  read_at: string | null;
+  created_at: string;
+  deleted_at: string | null;
+  sender?: MessageSender;
+  attachments?: MessageAttachment[];
+}
+
+interface MessagesResponse {
+  data: CaseMessage[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+async function fetchMessages(
+  caseId: string,
+  options: { limit?: number; offset?: number } = {}
+): Promise<MessagesResponse> {
+  const params = new URLSearchParams();
+  if (options.limit) params.set('limit', options.limit.toString());
+  if (options.offset) params.set('offset', options.offset.toString());
+
+  const response = await fetchWithTimeout(
+    `/api/cases/${caseId}/messages?${params.toString()}`
+  );
+  if (!response.ok) {
+    throw new Error('Failed to fetch messages');
+  }
+  return response.json();
+}
+
+async function sendMessage(caseId: string, content: string): Promise<CaseMessage> {
+  const response = await fetchWithTimeout(`/api/cases/${caseId}/messages`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ content }),
+  });
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to send message');
+  }
+  return response.json();
+}
+
+/**
+ * Hook for managing case messages with real-time updates
+ */
+export function useCaseMessages(caseId: string | undefined) {
+  const queryClient = useQueryClient();
+  const channelRef = useRef<ReturnType<ReturnType<typeof createBrowserClient>['channel']> | null>(null);
+
+  const query = useQuery({
+    queryKey: ['case-messages', caseId],
+    queryFn: () => fetchMessages(caseId!),
+    enabled: !!caseId,
+    refetchInterval: 30000, // Polling fallback every 30 seconds
+  });
+
+  // Set up Supabase Realtime subscription
+  useEffect(() => {
+    if (!caseId) return;
+
+    const supabase = createBrowserClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
+
+    const channel = supabase
+      .channel(`case-messages:${caseId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'case_messages',
+          filter: `case_id=eq.${caseId}`,
+        },
+        (payload) => {
+          // Optimistically add the new message to the cache
+          queryClient.setQueryData<MessagesResponse>(
+            ['case-messages', caseId],
+            (oldData) => {
+              if (!oldData) return oldData;
+
+              // Check if message already exists (to avoid duplicates)
+              const exists = oldData.data.some((msg) => msg.id === payload.new.id);
+              if (exists) return oldData;
+
+              return {
+                ...oldData,
+                data: [...oldData.data, payload.new as CaseMessage],
+                total: oldData.total + 1,
+              };
+            }
+          );
+
+          // Refetch to get full message with sender info
+          queryClient.invalidateQueries({ queryKey: ['case-messages', caseId] });
+        }
+      )
+      .subscribe();
+
+    channelRef.current = channel;
+
+    return () => {
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
+    };
+  }, [caseId, queryClient]);
+
+  return query;
+}
+
+/**
+ * Hook for sending messages
+ */
+export function useSendMessage(caseId: string | undefined) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (content: string) => {
+      if (!caseId) throw new Error('Case ID is required');
+      return sendMessage(caseId, content);
+    },
+    onSuccess: (newMessage) => {
+      // Optimistically add the message to the cache
+      queryClient.setQueryData<MessagesResponse>(
+        ['case-messages', caseId],
+        (oldData) => {
+          if (!oldData) return oldData;
+          return {
+            ...oldData,
+            data: [...oldData.data, newMessage],
+            total: oldData.total + 1,
+          };
+        }
+      );
+    },
+    onError: () => {
+      // Refetch on error to ensure consistent state
+      queryClient.invalidateQueries({ queryKey: ['case-messages', caseId] });
+    },
+  });
+}
+
+/**
+ * Hook for getting unread message count
+ */
+export function useUnreadMessageCount() {
+  return useQuery({
+    queryKey: ['unread-message-count'],
+    queryFn: async () => {
+      const response = await fetchWithTimeout('/api/messages/unread-count');
+      if (!response.ok) {
+        // Return 0 if endpoint doesn't exist yet
+        return 0;
+      }
+      const data = await response.json();
+      return data.count || 0;
+    },
+    refetchInterval: 60000, // Refresh every minute
+  });
+}

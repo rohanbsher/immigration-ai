@@ -1,6 +1,7 @@
 'use client';
 
 import { Component, ReactNode } from 'react';
+import * as Sentry from '@sentry/nextjs';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -23,6 +24,7 @@ interface ErrorBoundaryState {
   hasError: boolean;
   error: Error | null;
   errorInfo: React.ErrorInfo | null;
+  eventId: string | null;
 }
 
 export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
@@ -32,6 +34,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       hasError: false,
       error: null,
       errorInfo: null,
+      eventId: null,
     };
   }
 
@@ -40,45 +43,23 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo): void {
-    this.setState({ errorInfo });
-
     // Log error to console in development
     console.error('ErrorBoundary caught an error:', error, errorInfo);
 
+    // Report to Sentry
+    const eventId = Sentry.captureException(error, {
+      extra: {
+        componentStack: errorInfo.componentStack,
+      },
+      tags: {
+        type: 'react_error_boundary',
+      },
+    });
+
+    this.setState({ errorInfo, eventId });
+
     // Call custom error handler if provided
     this.props.onError?.(error, errorInfo);
-
-    // Log to server for monitoring (prepare for production logging)
-    this.logErrorToServer(error, errorInfo);
-  }
-
-  private async logErrorToServer(
-    error: Error,
-    errorInfo: React.ErrorInfo
-  ): Promise<void> {
-    try {
-      // Prepare structured error payload for monitoring
-      const errorPayload = {
-        message: error.message,
-        stack: error.stack,
-        componentStack: errorInfo.componentStack,
-        url: typeof window !== 'undefined' ? window.location.href : '',
-        timestamp: new Date().toISOString(),
-        userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : '',
-      };
-
-      // Log structured error for observability
-      console.error('[Error Boundary] Structured error log:', errorPayload);
-
-      // Future: Integrate with Sentry or error tracking service
-      // if (typeof window !== 'undefined' && window.Sentry) {
-      //   window.Sentry.captureException(error, {
-      //     contexts: { react: { componentStack: errorInfo.componentStack } },
-      //   });
-      // }
-    } catch {
-      // Silently fail - don't cause more errors while handling an error
-    }
   }
 
   private handleReset = (): void => {
@@ -86,6 +67,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       hasError: false,
       error: null,
       errorInfo: null,
+      eventId: null,
     });
   };
 
@@ -104,6 +86,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       return (
         <ErrorFallbackUI
           error={this.state.error}
+          eventId={this.state.eventId}
           onReset={this.handleReset}
           onReload={this.handleReload}
         />
@@ -116,11 +99,12 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
 interface ErrorFallbackUIProps {
   error: Error | null;
+  eventId: string | null;
   onReset: () => void;
   onReload: () => void;
 }
 
-function ErrorFallbackUI({ error, onReset, onReload }: ErrorFallbackUIProps) {
+function ErrorFallbackUI({ error, eventId, onReset, onReload }: ErrorFallbackUIProps) {
   const isDev = process.env.NODE_ENV === 'development';
 
   return (
@@ -136,6 +120,11 @@ function ErrorFallbackUI({ error, onReset, onReload }: ErrorFallbackUIProps) {
           <CardDescription className="text-slate-600">
             We encountered an unexpected error. Our team has been notified.
           </CardDescription>
+          {eventId && (
+            <p className="text-xs text-slate-400 mt-2 font-mono">
+              Error ID: {eventId}
+            </p>
+          )}
         </CardHeader>
         <CardContent className="space-y-4">
           {isDev && error && (

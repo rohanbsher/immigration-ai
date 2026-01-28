@@ -2,18 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { documentsService, casesService } from '@/lib/db';
 import { createClient } from '@/lib/supabase/server';
 import { sensitiveRateLimiter } from '@/lib/rate-limit';
+import { validateFile } from '@/lib/file-validation';
+import { sendDocumentUploadedEmail } from '@/lib/email/notifications';
+import { enforceQuota, QuotaExceededError } from '@/lib/billing/quota';
 
 // File validation constants
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-const ALLOWED_MIME_TYPES = [
-  'application/pdf',
-  'image/jpeg',
-  'image/png',
-  'image/gif',
-  'image/webp',
-  'application/msword',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-];
 
 /**
  * Verify user has access to this case (is attorney or client)
@@ -80,6 +74,19 @@ export async function POST(
       return rateLimitResult.response;
     }
 
+    // Enforce storage quota
+    try {
+      await enforceQuota(user.id, 'storage');
+    } catch (error) {
+      if (error instanceof QuotaExceededError) {
+        return NextResponse.json(
+          { error: 'You have reached your storage limit. Please upgrade your plan.' },
+          { status: 403 }
+        );
+      }
+      throw error;
+    }
+
     const formData = await request.formData();
     const file = formData.get('file') as File;
     const documentType = formData.get('document_type') as string;
@@ -105,12 +112,42 @@ export async function POST(
       );
     }
 
-    // File type validation
-    if (!ALLOWED_MIME_TYPES.includes(file.type)) {
+    // Comprehensive file validation: magic bytes + virus scan
+    const validationResult = await validateFile(file);
+
+    if (!validationResult.isValid) {
+      console.error('File validation failed:', {
+        fileName: file.name,
+        claimedType: file.type,
+        error: validationResult.error,
+        typeValidation: validationResult.typeValidation,
+        virusScan: validationResult.virusScan,
+      });
+
+      // Return appropriate status code based on validation failure type
+      const statusCode = validationResult.virusScan && !validationResult.virusScan.isClean
+        ? 422 // Unprocessable Entity for malware
+        : 400; // Bad Request for invalid file type
+
       return NextResponse.json(
-        { error: 'File type not allowed. Accepted types: PDF, JPEG, PNG, GIF, WebP, DOC, DOCX' },
-        { status: 400 }
+        {
+          error: validationResult.error || 'File validation failed',
+          details: {
+            typeValid: validationResult.typeValidation.isValid,
+            scanClean: validationResult.virusScan?.isClean ?? null,
+            warnings: validationResult.typeValidation.warnings,
+          },
+        },
+        { status: statusCode }
       );
+    }
+
+    // Log any warnings from validation
+    if (validationResult.typeValidation.warnings.length > 0) {
+      console.warn('File validation warnings:', {
+        fileName: file.name,
+        warnings: validationResult.typeValidation.warnings,
+      });
     }
 
     // Upload file to Supabase Storage
@@ -144,6 +181,16 @@ export async function POST(
       mime_type: file.type,
       expiration_date: expirationDate || undefined,
       notes: notes || undefined,
+    });
+
+    // Send email notification (fire and forget)
+    sendDocumentUploadedEmail(
+      caseId,
+      file.name,
+      documentType,
+      user.id
+    ).catch((err) => {
+      console.error('Failed to send document upload email:', err);
     });
 
     return NextResponse.json(document, { status: 201 });

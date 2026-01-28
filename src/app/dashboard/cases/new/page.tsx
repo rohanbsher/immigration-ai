@@ -17,6 +17,9 @@ import {
 } from 'lucide-react';
 import { useCreateCase } from '@/hooks/use-cases';
 import { useSearchClients } from '@/hooks/use-clients';
+import { useRoleGuard } from '@/hooks/use-role-guard';
+import { useQuota } from '@/hooks/use-quota';
+import { UpgradePromptBanner, UpgradePromptDialog } from '@/components/billing/upgrade-prompt';
 import { toast } from 'sonner';
 import type { VisaType } from '@/types';
 
@@ -69,9 +72,30 @@ export default function NewCasePage() {
   const router = useRouter();
   const { mutate: createCase, isPending } = useCreateCase();
 
+  // Protect this page - only attorneys and admins can create cases
+  const { isLoading: isAuthLoading, hasAccess } = useRoleGuard({
+    requiredRoles: ['attorney', 'admin'],
+  });
+
+  // Check case quota
+  const { data: caseQuota, isLoading: isQuotaLoading } = useQuota('cases');
+  const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
+
   const [step, setStep] = useState<Step>('client');
   const [clientSearch, setClientSearch] = useState('');
   const { data: searchResults, isLoading: isSearching } = useSearchClients(clientSearch);
+
+  // If still checking access or redirecting, show loading
+  if (isAuthLoading || !hasAccess || isQuotaLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+      </div>
+    );
+  }
+
+  // Check if user has reached their case limit
+  const isAtLimit = caseQuota && !caseQuota.isUnlimited && !caseQuota.allowed;
 
   // Form state
   const [formData, setFormData] = useState({
@@ -112,6 +136,12 @@ export default function NewCasePage() {
   };
 
   const handleSubmit = async () => {
+    // Check quota before creating
+    if (isAtLimit) {
+      setShowUpgradeDialog(true);
+      return;
+    }
+
     if (!formData.visa_type || !formData.title) {
       toast.error('Please complete all required fields');
       return;
@@ -186,6 +216,21 @@ export default function NewCasePage() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
+      {/* Upgrade Prompt Dialog */}
+      {caseQuota && (
+        <UpgradePromptDialog
+          open={showUpgradeDialog}
+          onOpenChange={setShowUpgradeDialog}
+          metric="cases"
+          quota={caseQuota}
+        />
+      )}
+
+      {/* Quota Warning Banner */}
+      {caseQuota && !caseQuota.isUnlimited && (
+        <UpgradePromptBanner metric="cases" quota={caseQuota} />
+      )}
+
       {/* Header */}
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" onClick={goBack}>

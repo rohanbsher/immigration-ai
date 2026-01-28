@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { casesService } from '@/lib/db';
 import { createClient } from '@/lib/supabase/server';
 import { z } from 'zod';
+import { sendCaseUpdateEmail } from '@/lib/email/notifications';
 
 const updateCaseSchema = z.object({
   visa_type: z.string().optional(),
@@ -97,7 +98,24 @@ export async function PATCH(
     const body = await request.json();
     const validatedData = updateCaseSchema.parse(body);
 
+    // Track if status changed for email notification
+    const caseData = accessResult.case;
+    const previousStatus = caseData?.status;
+    const statusChanged = validatedData.status && validatedData.status !== previousStatus;
+
     const updatedCase = await casesService.updateCase(id, validatedData as Parameters<typeof casesService.updateCase>[1]);
+
+    // Send email notification on status change (fire and forget)
+    if (statusChanged && validatedData.status) {
+      sendCaseUpdateEmail(
+        id,
+        'status_change',
+        `Case status changed from "${previousStatus}" to "${validatedData.status}"`,
+        user.id
+      ).catch((err) => {
+        console.error('Failed to send case update email:', err);
+      });
+    }
 
     return NextResponse.json(updatedCase);
   } catch (error) {

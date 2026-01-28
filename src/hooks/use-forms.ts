@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { FormType, FormStatus } from '@/types';
+import { fetchWithTimeout, fetchAI, TimeoutError } from '@/lib/api/fetch-with-timeout';
 
 interface Form {
   id: string;
@@ -37,7 +38,7 @@ interface UpdateFormData {
 }
 
 async function fetchForms(caseId: string): Promise<Form[]> {
-  const response = await fetch(`/api/cases/${caseId}/forms`);
+  const response = await fetchWithTimeout(`/api/cases/${caseId}/forms`);
   if (!response.ok) {
     throw new Error('Failed to fetch forms');
   }
@@ -45,7 +46,7 @@ async function fetchForms(caseId: string): Promise<Form[]> {
 }
 
 async function fetchForm(id: string): Promise<Form> {
-  const response = await fetch(`/api/forms/${id}`);
+  const response = await fetchWithTimeout(`/api/forms/${id}`);
   if (!response.ok) {
     throw new Error('Failed to fetch form');
   }
@@ -53,7 +54,7 @@ async function fetchForm(id: string): Promise<Form> {
 }
 
 async function createForm(data: CreateFormData): Promise<Form> {
-  const response = await fetch(`/api/cases/${data.case_id}/forms`, {
+  const response = await fetchWithTimeout(`/api/cases/${data.case_id}/forms`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
@@ -66,7 +67,7 @@ async function createForm(data: CreateFormData): Promise<Form> {
 }
 
 async function updateForm(id: string, data: UpdateFormData): Promise<Form> {
-  const response = await fetch(`/api/forms/${id}`, {
+  const response = await fetchWithTimeout(`/api/forms/${id}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
@@ -79,7 +80,8 @@ async function updateForm(id: string, data: UpdateFormData): Promise<Form> {
 }
 
 async function autofillForm(id: string): Promise<Form> {
-  const response = await fetch(`/api/forms/${id}/autofill`, {
+  // AI autofill uses longer timeout (2 minutes)
+  const response = await fetchAI(`/api/forms/${id}/autofill`, {
     method: 'POST',
   });
   if (!response.ok) {
@@ -90,7 +92,7 @@ async function autofillForm(id: string): Promise<Form> {
 }
 
 async function reviewForm(id: string, notes: string): Promise<Form> {
-  const response = await fetch(`/api/forms/${id}/review`, {
+  const response = await fetchWithTimeout(`/api/forms/${id}/review`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ notes }),
@@ -103,7 +105,7 @@ async function reviewForm(id: string, notes: string): Promise<Form> {
 }
 
 async function fileForm(id: string): Promise<Form> {
-  const response = await fetch(`/api/forms/${id}/file`, {
+  const response = await fetchWithTimeout(`/api/forms/${id}/file`, {
     method: 'POST',
   });
   if (!response.ok) {
@@ -114,7 +116,7 @@ async function fileForm(id: string): Promise<Form> {
 }
 
 async function deleteForm(id: string): Promise<void> {
-  const response = await fetch(`/api/forms/${id}`, {
+  const response = await fetchWithTimeout(`/api/forms/${id}`, {
     method: 'DELETE',
   });
   if (!response.ok) {
@@ -211,3 +213,6 @@ export function useDeleteForm() {
     },
   });
 }
+
+// Re-export TimeoutError for consumers who need to handle it
+export { TimeoutError };

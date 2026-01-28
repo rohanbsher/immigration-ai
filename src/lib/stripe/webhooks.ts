@@ -1,6 +1,7 @@
 import { stripe, STRIPE_CONFIG } from './client';
 import { syncSubscriptionFromStripe } from './subscriptions';
 import { createClient } from '@/lib/supabase/server';
+import { sendBillingUpdateEmail } from '@/lib/email/notifications';
 import type Stripe from 'stripe';
 
 export type WebhookEvent =
@@ -65,8 +66,44 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session): Promis
   const subscriptionId = session.subscription as string;
   if (!subscriptionId) return;
 
-  const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+  const subscription = await stripe.subscriptions.retrieve(subscriptionId) as Stripe.Subscription;
   await syncSubscriptionFromStripe(subscription);
+
+  // Send welcome email for new subscription
+  const supabase = await createClient();
+  const customerId = typeof session.customer === 'string'
+    ? session.customer
+    : session.customer?.id;
+
+  if (customerId) {
+    const { data: customer } = await supabase
+      .from('customers')
+      .select('user_id')
+      .eq('stripe_customer_id', customerId)
+      .single();
+
+    if (customer?.user_id) {
+      const planName = subscription.items.data[0]?.price?.nickname || 'Pro';
+      const periodEnd = (subscription as Stripe.Subscription & { current_period_end?: number }).current_period_end;
+      const nextBillingDate = periodEnd
+        ? new Date(periodEnd * 1000).toLocaleDateString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+          })
+        : undefined;
+
+      sendBillingUpdateEmail(customer.user_id, 'subscription_created', {
+        planName,
+        amount: subscription.items.data[0]?.price?.unit_amount || undefined,
+        currency: subscription.currency,
+        nextBillingDate,
+      }).catch((err) => {
+        console.error('Failed to send billing email:', err);
+      });
+    }
+  }
 }
 
 async function handleSubscriptionChange(subscription: Stripe.Subscription): Promise<void> {
@@ -87,6 +124,37 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription): Pro
   if (error) {
     console.error('Failed to update canceled subscription:', error);
     throw error;
+  }
+
+  // Send cancellation email
+  const customerId = typeof subscription.customer === 'string'
+    ? subscription.customer
+    : subscription.customer?.id;
+
+  if (customerId) {
+    const { data: customer } = await supabase
+      .from('customers')
+      .select('user_id')
+      .eq('stripe_customer_id', customerId)
+      .single();
+
+    if (customer?.user_id) {
+      const periodEnd = (subscription as Stripe.Subscription & { current_period_end?: number }).current_period_end;
+      const accessUntil = periodEnd
+        ? new Date(periodEnd * 1000).toLocaleDateString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+          })
+        : undefined;
+
+      sendBillingUpdateEmail(customer.user_id, 'subscription_cancelled', {
+        nextBillingDate: accessUntil,
+      }).catch((err) => {
+        console.error('Failed to send cancellation email:', err);
+      });
+    }
   }
 }
 
@@ -168,6 +236,32 @@ async function handleInvoicePaid(invoice: Stripe.Invoice): Promise<void> {
       onConflict: 'stripe_payment_intent_id',
     });
   }
+
+  // Send payment success email
+  const { data: customerData } = await supabase
+    .from('customers')
+    .select('user_id')
+    .eq('id', customer.id)
+    .single();
+
+  if (customerData?.user_id) {
+    const nextBillingDate = inv.period_end
+      ? new Date(inv.period_end * 1000).toLocaleDateString('en-US', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+        })
+      : undefined;
+
+    sendBillingUpdateEmail(customerData.user_id, 'payment_succeeded', {
+      amount: invoice.amount_paid,
+      currency: invoice.currency,
+      nextBillingDate,
+    }).catch((err) => {
+      console.error('Failed to send payment success email:', err);
+    });
+  }
 }
 
 async function handleInvoicePaymentFailed(invoice: Stripe.Invoice): Promise<void> {
@@ -229,6 +323,22 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice): Promise<void
       metadata: {},
     }, {
       onConflict: 'stripe_payment_intent_id',
+    });
+  }
+
+  // Send payment failed email
+  const { data: customerData } = await supabase
+    .from('customers')
+    .select('user_id')
+    .eq('id', customer.id)
+    .single();
+
+  if (customerData?.user_id) {
+    sendBillingUpdateEmail(customerData.user_id, 'payment_failed', {
+      amount: invoice.amount_due,
+      currency: invoice.currency,
+    }).catch((err) => {
+      console.error('Failed to send payment failed email:', err);
     });
   }
 }

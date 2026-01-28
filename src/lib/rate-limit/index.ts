@@ -2,7 +2,11 @@
  * Rate limiting utility for API endpoints.
  *
  * Uses Upstash Redis in production for distributed rate limiting.
- * Falls back to in-memory storage in development when Redis is not configured.
+ * Falls back to in-memory storage in development ONLY.
+ *
+ * SECURITY: In production, Redis is REQUIRED. The in-memory fallback
+ * does not work with multiple server instances and is only suitable
+ * for local development.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -32,6 +36,34 @@ const isUpstashConfigured = !!(
   process.env.UPSTASH_REDIS_REST_URL &&
   process.env.UPSTASH_REDIS_REST_TOKEN
 );
+
+// CRITICAL: Validate Redis configuration at startup for production
+const isProduction = process.env.NODE_ENV === 'production';
+const ALLOW_IN_MEMORY_FALLBACK = process.env.ALLOW_IN_MEMORY_RATE_LIMIT === 'true';
+
+if (isProduction && !isUpstashConfigured && !ALLOW_IN_MEMORY_FALLBACK) {
+  console.error(
+    '\n' +
+    '╔═══════════════════════════════════════════════════════════════════╗\n' +
+    '║ CRITICAL SECURITY ERROR: Rate limiting not properly configured   ║\n' +
+    '╠═══════════════════════════════════════════════════════════════════╣\n' +
+    '║ Upstash Redis is REQUIRED for production deployments.            ║\n' +
+    '║ In-memory rate limiting does NOT work with multiple instances.   ║\n' +
+    '║                                                                   ║\n' +
+    '║ To fix:                                                          ║\n' +
+    '║ 1. Set UPSTASH_REDIS_REST_URL environment variable              ║\n' +
+    '║ 2. Set UPSTASH_REDIS_REST_TOKEN environment variable            ║\n' +
+    '║                                                                   ║\n' +
+    '║ To bypass (NOT RECOMMENDED):                                     ║\n' +
+    '║ Set ALLOW_IN_MEMORY_RATE_LIMIT=true (single-instance only)       ║\n' +
+    '╚═══════════════════════════════════════════════════════════════════╝\n'
+  );
+  // In production, we don't throw to avoid breaking deployments,
+  // but we log prominently and will fail-closed on rate limit checks
+}
+
+// Track if we've warned about missing Redis config
+let hasWarnedAboutMissingRedis = false;
 
 // Initialize Redis client if configured
 let redis: Redis | null = null;
@@ -212,22 +244,50 @@ export const RATE_LIMITS = {
     windowMs: 60 * 1000, // 1 minute
     keyPrefix: 'sensitive',
   },
+  /** AI Completeness analysis: 30 requests per hour */
+  AI_COMPLETENESS: {
+    maxRequests: 30,
+    windowMs: 60 * 60 * 1000, // 1 hour
+    keyPrefix: 'ai:completeness',
+  },
+  /** AI Recommendations: 20 requests per hour */
+  AI_RECOMMENDATIONS: {
+    maxRequests: 20,
+    windowMs: 60 * 60 * 1000, // 1 hour
+    keyPrefix: 'ai:recommendations',
+  },
+  /** AI Success Score: 20 requests per hour */
+  AI_SUCCESS_SCORE: {
+    maxRequests: 20,
+    windowMs: 60 * 60 * 1000, // 1 hour
+    keyPrefix: 'ai:success-score',
+  },
+  /** AI Search: 30 requests per minute */
+  AI_SEARCH: {
+    maxRequests: 30,
+    windowMs: 60 * 1000, // 1 minute
+    keyPrefix: 'ai:search',
+  },
+  /** AI Chat: 50 requests per hour */
+  AI_CHAT: {
+    maxRequests: 50,
+    windowMs: 60 * 60 * 1000, // 1 hour
+    keyPrefix: 'ai:chat',
+  },
 } as const;
 
 /**
  * Create a rate limiter with the specified configuration.
- * Uses Upstash Redis when configured, falls back to in-memory for development.
+ * Uses Upstash Redis when configured.
+ *
+ * In production without Redis:
+ * - If ALLOW_IN_MEMORY_RATE_LIMIT is set, falls back to in-memory (single-instance only)
+ * - Otherwise, fails closed (rejects all requests) to prevent bypass
+ *
+ * In development: Falls back to in-memory storage.
  */
 export function createRateLimiter(config: RateLimitConfig) {
   const useRedis = isUpstashConfigured && redis !== null;
-
-  if (!useRedis && process.env.NODE_ENV === 'production') {
-    console.warn(
-      '[Rate Limit] Upstash Redis not configured. Using in-memory rate limiting. ' +
-      'This will not work correctly with multiple server instances. ' +
-      'Set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN for production.'
-    );
-  }
 
   return {
     /**
@@ -241,6 +301,35 @@ export function createRateLimiter(config: RateLimitConfig) {
       if (useRedis) {
         return checkRateLimitUpstash(key, config);
       }
+
+      // In production without Redis and without explicit bypass, fail closed
+      if (isProduction && !ALLOW_IN_MEMORY_FALLBACK) {
+        if (!hasWarnedAboutMissingRedis) {
+          console.error(
+            '[SECURITY] Rate limiting disabled - Redis not configured. ' +
+            'All rate-limited requests will be rejected.'
+          );
+          hasWarnedAboutMissingRedis = true;
+        }
+
+        // Fail closed: treat as rate limited to prevent abuse
+        return {
+          success: false,
+          remaining: 0,
+          resetAt: new Date(Date.now() + 60000),
+          retryAfterMs: 60000,
+        };
+      }
+
+      // Development or explicitly allowed in-memory fallback
+      if (!hasWarnedAboutMissingRedis && isProduction) {
+        console.warn(
+          '[Rate Limit] Using in-memory fallback in production. ' +
+          'This only works for single-instance deployments!'
+        );
+        hasWarnedAboutMissingRedis = true;
+      }
+
       return checkRateLimitInMemory(key, config);
     },
 
@@ -373,6 +462,8 @@ export function isRedisRateLimitingEnabled(): boolean {
 /**
  * Simple rate limit function for API routes.
  * Takes a rate limit config and identifier string, returns success/failure.
+ *
+ * In production without Redis (and without explicit bypass), fails closed.
  */
 export async function rateLimit(
   config: RateLimitConfig,
@@ -385,6 +476,14 @@ export async function rateLimit(
     return {
       success: result.success,
       retryAfter: result.retryAfterMs ? Math.ceil(result.retryAfterMs / 1000) : undefined,
+    };
+  }
+
+  // In production without Redis and without explicit bypass, fail closed
+  if (isProduction && !ALLOW_IN_MEMORY_FALLBACK) {
+    return {
+      success: false,
+      retryAfter: 60,
     };
   }
 

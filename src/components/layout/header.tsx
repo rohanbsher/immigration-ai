@@ -1,9 +1,9 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
-import { Bell, Search, Menu } from 'lucide-react';
+import { Bell, Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,6 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/use-auth';
 import { useUnreadCount, useNotifications } from '@/hooks/use-notifications';
 import { toast } from 'sonner';
+import { AISearchInput } from '@/components/search/ai-search-input';
 
 interface HeaderProps {
   title?: string;
@@ -71,15 +72,13 @@ export function Header({ title, onMenuClick, user }: HeaderProps) {
       </div>
 
       <div className="flex items-center gap-4">
-        {/* Search */}
-        <div className="hidden md:flex relative">
-          <Search
-            size={18}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-          />
-          <Input
-            placeholder="Search cases, documents..."
-            className="pl-10 w-64 bg-muted border-border"
+        {/* AI-Enhanced Search */}
+        <div className="hidden md:block">
+          <AISearchInput
+            placeholder="Search cases..."
+            className="w-72"
+            showToggle={true}
+            defaultAIMode={true}
           />
         </div>
 

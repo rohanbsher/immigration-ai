@@ -14,12 +14,17 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
+  CreditCard,
+  Building2,
+  ListTodo,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { toast } from 'sonner';
+import { getNavItemsForRole, MAIN_NAV_ITEMS, BOTTOM_NAV_ITEMS } from '@/lib/rbac';
+import type { UserRole } from '@/types';
 
 interface NavItem {
   label: string;
@@ -27,18 +32,19 @@ interface NavItem {
   icon: React.ElementType;
 }
 
-const navItems: NavItem[] = [
-  { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { label: 'Cases', href: '/dashboard/cases', icon: FolderOpen },
-  { label: 'Documents', href: '/dashboard/documents', icon: Files },
-  { label: 'Forms', href: '/dashboard/forms', icon: FileText },
-  { label: 'Clients', href: '/dashboard/clients', icon: Users },
-];
-
-const bottomNavItems: NavItem[] = [
-  { label: 'Notifications', href: '/dashboard/notifications', icon: Bell },
-  { label: 'Settings', href: '/dashboard/settings', icon: Settings },
-];
+// Map of nav item labels to their icons
+const navIcons: Record<string, React.ElementType> = {
+  Dashboard: LayoutDashboard,
+  Cases: FolderOpen,
+  Documents: Files,
+  Forms: FileText,
+  Tasks: ListTodo,
+  Clients: Users,
+  Firm: Building2,
+  Billing: CreditCard,
+  Notifications: Bell,
+  Settings: Settings,
+};
 
 interface SidebarProps {
   user?: {
@@ -53,6 +59,25 @@ export function Sidebar({ user }: SidebarProps) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const { signOut, isLoading } = useAuth();
+
+  // Filter nav items based on user role
+  const filteredMainNavItems: NavItem[] = useMemo(() => {
+    const roleItems = getNavItemsForRole(user?.role as UserRole | undefined, MAIN_NAV_ITEMS);
+    return roleItems.map((item) => ({
+      label: item.label,
+      href: item.href,
+      icon: navIcons[item.label] || LayoutDashboard,
+    }));
+  }, [user?.role]);
+
+  const filteredBottomNavItems: NavItem[] = useMemo(() => {
+    const roleItems = getNavItemsForRole(user?.role as UserRole | undefined, BOTTOM_NAV_ITEMS);
+    return roleItems.map((item) => ({
+      label: item.label,
+      href: item.href,
+      icon: navIcons[item.label] || Settings,
+    }));
+  }, [user?.role]);
 
   const isActive = (href: string) => {
     if (href === '/dashboard') {
@@ -105,7 +130,7 @@ export function Sidebar({ user }: SidebarProps) {
 
       {/* Main Navigation */}
       <nav className="flex-1 py-4 px-2 space-y-1">
-        {navItems.map((item) => {
+        {filteredMainNavItems.map((item) => {
           const Icon = item.icon;
           const active = isActive(item.href);
           return (
@@ -128,7 +153,7 @@ export function Sidebar({ user }: SidebarProps) {
 
       {/* Bottom Navigation */}
       <div className="py-4 px-2 border-t border-sidebar-border space-y-1">
-        {bottomNavItems.map((item) => {
+        {filteredBottomNavItems.map((item) => {
           const Icon = item.icon;
           const active = isActive(item.href);
           return (

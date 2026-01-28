@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { FirmMember, FirmInvitation, FirmRole } from '@/types/firms';
+import { fetchWithTimeout } from '@/lib/api/fetch-with-timeout';
 
 interface UpdateMemberInput {
   userId: string;
@@ -16,7 +17,7 @@ interface InviteMemberInput {
 }
 
 async function fetchMembers(firmId: string): Promise<FirmMember[]> {
-  const response = await fetch(`/api/firms/${firmId}/members`);
+  const response = await fetchWithTimeout(`/api/firms/${firmId}/members`);
 
   if (!response.ok) {
     throw new Error('Failed to fetch members');
@@ -33,7 +34,7 @@ async function updateMember({
   firmId: string;
   input: UpdateMemberInput;
 }): Promise<FirmMember> {
-  const response = await fetch(`/api/firms/${firmId}/members`, {
+  const response = await fetchWithTimeout(`/api/firms/${firmId}/members`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
@@ -55,7 +56,7 @@ async function removeMember({
   firmId: string;
   userId: string;
 }): Promise<void> {
-  const response = await fetch(`/api/firms/${firmId}/members`, {
+  const response = await fetchWithTimeout(`/api/firms/${firmId}/members`, {
     method: 'DELETE',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ userId }),
@@ -68,7 +69,7 @@ async function removeMember({
 }
 
 async function fetchInvitations(firmId: string): Promise<FirmInvitation[]> {
-  const response = await fetch(`/api/firms/${firmId}/invitations`);
+  const response = await fetchWithTimeout(`/api/firms/${firmId}/invitations`);
 
   if (!response.ok) {
     throw new Error('Failed to fetch invitations');
@@ -85,7 +86,7 @@ async function createInvitation({
   firmId: string;
   input: InviteMemberInput;
 }): Promise<FirmInvitation> {
-  const response = await fetch(`/api/firms/${firmId}/invitations`, {
+  const response = await fetchWithTimeout(`/api/firms/${firmId}/invitations`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
@@ -107,7 +108,7 @@ async function revokeInvitation({
   firmId: string;
   invitationId: string;
 }): Promise<void> {
-  const response = await fetch(`/api/firms/${firmId}/invitations`, {
+  const response = await fetchWithTimeout(`/api/firms/${firmId}/invitations`, {
     method: 'DELETE',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ invitationId }),
@@ -127,7 +128,7 @@ async function fetchInvitation(token: string): Promise<{
   firm: { id: string; name: string; slug: string };
   inviter: { id: string; firstName: string | null; lastName: string | null; email: string };
 }> {
-  const response = await fetch(`/api/firms/invitations/${token}`);
+  const response = await fetchWithTimeout(`/api/firms/invitations/${token}`);
 
   if (!response.ok) {
     const error = await response.json();
@@ -139,7 +140,7 @@ async function fetchInvitation(token: string): Promise<{
 }
 
 async function acceptInvitation(token: string): Promise<FirmMember> {
-  const response = await fetch(`/api/firms/invitations/${token}`, {
+  const response = await fetchWithTimeout(`/api/firms/invitations/${token}`, {
     method: 'POST',
   });
 

@@ -18,10 +18,27 @@ import {
   Plus,
 } from 'lucide-react';
 import { useClients } from '@/hooks/use-clients';
+import { useRoleGuard } from '@/hooks/use-role-guard';
 
 export default function ClientsPage() {
   const [search, setSearch] = useState('');
-  const { data: clients, isLoading, error } = useClients();
+  const { data: clients, isLoading: isClientsLoading, error } = useClients();
+
+  // Protect this page - only attorneys and admins can access
+  const { isLoading: isAuthLoading, hasAccess } = useRoleGuard({
+    requiredRoles: ['attorney', 'admin'],
+  });
+
+  const isLoading = isAuthLoading || isClientsLoading;
+
+  // If still checking access or redirecting, show loading
+  if (isAuthLoading || !hasAccess) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+      </div>
+    );
+  }
 
   const filteredClients = clients?.filter((client) => {
     if (!search) return true;
@@ -33,7 +50,7 @@ export default function ClientsPage() {
     );
   });
 
-  if (isLoading) {
+  if (isClientsLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <Loader2 className="h-8 w-8 animate-spin text-blue-600" />

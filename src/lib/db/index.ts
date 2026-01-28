@@ -44,3 +44,31 @@ export type {
   NotificationType,
   CreateNotificationData,
 } from './notifications';
+
+export { caseMessagesService } from './case-messages';
+export type {
+  CaseMessage,
+  MessageAttachment,
+  CreateMessageData,
+  CreateAttachmentData,
+} from './case-messages';
+
+export { documentRequestsService } from './document-requests';
+export type {
+  DocumentRequest,
+  DocumentRequestStatus,
+  RequestPriority,
+  CreateDocumentRequestData,
+  UpdateDocumentRequestData,
+} from './document-requests';
+
+export { tasksService } from './tasks';
+export type {
+  Task,
+  TaskComment,
+  TaskStatus,
+  TaskPriority,
+  CreateTaskData,
+  UpdateTaskData,
+  TaskFilters,
+} from './tasks';

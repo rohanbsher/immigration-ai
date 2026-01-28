@@ -1,0 +1,228 @@
+'use client';
+
+import { useRoleGuard } from '@/hooks/use-role-guard';
+import { Loader2 } from 'lucide-react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import {
+  LayoutDashboard,
+  FolderOpen,
+  Bell,
+  Settings,
+  LogOut,
+  ChevronLeft,
+  ChevronRight,
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useState } from 'react';
+import { useAuth } from '@/hooks/use-auth';
+import { useUser } from '@/hooks/use-user';
+import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
+import { Sheet, SheetContent } from '@/components/ui/sheet';
+import { Header } from '@/components/layout/header';
+
+interface NavItem {
+  label: string;
+  href: string;
+  icon: React.ElementType;
+}
+
+const clientNavItems: NavItem[] = [
+  { label: 'My Cases', href: '/dashboard/client', icon: LayoutDashboard },
+  { label: 'Documents', href: '/dashboard/client/documents', icon: FolderOpen },
+];
+
+const bottomNavItems: NavItem[] = [
+  { label: 'Notifications', href: '/dashboard/notifications', icon: Bell },
+  { label: 'Settings', href: '/dashboard/settings', icon: Settings },
+];
+
+function ClientSidebar({ user }: { user?: { name: string; email: string; role: string; avatarUrl?: string } }) {
+  const pathname = usePathname();
+  const [collapsed, setCollapsed] = useState(false);
+  const { signOut, isLoading } = useAuth();
+
+  const isActive = (href: string) => {
+    if (href === '/dashboard/client') {
+      return pathname === '/dashboard/client';
+    }
+    return pathname.startsWith(href);
+  };
+
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      toast.success('Logged out successfully');
+    } catch {
+      toast.error('Failed to log out');
+    }
+  };
+
+  const initials = user?.name
+    ?.split(' ')
+    .map((n) => n[0])
+    .join('')
+    .toUpperCase() || 'U';
+
+  return (
+    <aside
+      className={cn(
+        'flex flex-col h-screen bg-sidebar text-sidebar-foreground transition-all duration-300',
+        collapsed ? 'w-16' : 'w-64'
+      )}
+    >
+      {/* Logo */}
+      <div className="flex items-center justify-between h-16 px-4 border-b border-sidebar-border">
+        {!collapsed && (
+          <Link href="/dashboard/client" className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-sidebar-primary flex items-center justify-center font-bold text-sidebar-primary-foreground">
+              IA
+            </div>
+            <span className="font-semibold">Immigration AI</span>
+          </Link>
+        )}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setCollapsed(!collapsed)}
+          className="text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+        >
+          {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+        </Button>
+      </div>
+
+      {/* Main Navigation */}
+      <nav className="flex-1 py-4 px-2 space-y-1">
+        {clientNavItems.map((item) => {
+          const Icon = item.icon;
+          const active = isActive(item.href);
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={cn(
+                'flex items-center gap-3 px-3 py-2 rounded-lg transition-colors',
+                active
+                  ? 'bg-sidebar-primary text-sidebar-primary-foreground'
+                  : 'text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent'
+              )}
+            >
+              <Icon size={20} />
+              {!collapsed && <span>{item.label}</span>}
+            </Link>
+          );
+        })}
+      </nav>
+
+      {/* Bottom Navigation */}
+      <div className="py-4 px-2 border-t border-sidebar-border space-y-1">
+        {bottomNavItems.map((item) => {
+          const Icon = item.icon;
+          const active = isActive(item.href);
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={cn(
+                'flex items-center gap-3 px-3 py-2 rounded-lg transition-colors',
+                active
+                  ? 'bg-sidebar-primary text-sidebar-primary-foreground'
+                  : 'text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent'
+              )}
+            >
+              <Icon size={20} />
+              {!collapsed && <span>{item.label}</span>}
+            </Link>
+          );
+        })}
+      </div>
+
+      {/* User Profile */}
+      <div className="p-4 border-t border-sidebar-border">
+        <div className={cn('flex items-center gap-3', collapsed && 'justify-center')}>
+          <Avatar className="h-9 w-9">
+            <AvatarImage src={user?.avatarUrl} />
+            <AvatarFallback className="bg-sidebar-primary text-sidebar-primary-foreground">{initials}</AvatarFallback>
+          </Avatar>
+          {!collapsed && (
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium truncate">{user?.name || 'User'}</p>
+              <p className="text-xs text-sidebar-foreground/60 truncate capitalize">
+                Client
+              </p>
+            </div>
+          )}
+          {!collapsed && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleLogout}
+              disabled={isLoading}
+              className="text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+            >
+              <LogOut size={18} />
+            </Button>
+          )}
+        </div>
+      </div>
+    </aside>
+  );
+}
+
+export default function ClientPortalLayout({ children }: { children: React.ReactNode }) {
+  const { isLoading, hasAccess } = useRoleGuard({
+    requiredRoles: ['client'],
+    redirectTo: '/dashboard',
+  });
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { profile } = useUser();
+
+  const user = profile
+    ? {
+        name: `${profile.first_name} ${profile.last_name}`,
+        email: profile.email,
+        role: profile.role,
+        avatarUrl: profile.avatar_url || undefined,
+      }
+    : undefined;
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-slate-50">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+      </div>
+    );
+  }
+
+  if (!hasAccess) {
+    return null;
+  }
+
+  return (
+    <div className="flex h-screen bg-slate-50">
+      {/* Desktop Sidebar */}
+      <div className="hidden lg:block">
+        <ClientSidebar user={user} />
+      </div>
+
+      {/* Mobile Sidebar */}
+      <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+        <SheetContent side="left" className="p-0 w-64">
+          <ClientSidebar user={user} />
+        </SheetContent>
+      </Sheet>
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <Header
+          title="Client Portal"
+          user={user}
+          onMenuClick={() => setMobileMenuOpen(true)}
+        />
+        <main className="flex-1 overflow-auto p-4 lg:p-6">{children}</main>
+      </div>
+    </div>
+  );
+}

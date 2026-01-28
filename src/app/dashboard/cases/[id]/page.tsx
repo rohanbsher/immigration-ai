@@ -30,6 +30,12 @@ import {
 import { useCase, useUpdateCase } from '@/hooks/use-cases';
 import { useForms, useCreateForm } from '@/hooks/use-forms';
 import { toast } from 'sonner';
+import { DocumentCompletenessPanel } from '@/components/ai/document-completeness-panel';
+import { SuccessScoreBreakdown } from '@/components/ai/success-score-breakdown';
+import { NextStepsPanel } from '@/components/ai/next-steps-panel';
+import { CaseChatButton } from '@/components/chat/chat-button';
+import { CaseMessagesPanel } from '@/components/messaging';
+import { TaskList } from '@/components/tasks';
 import type { CaseStatus, FormType } from '@/types';
 
 const statusOptions: { value: CaseStatus; label: string }[] = [
@@ -168,7 +174,8 @@ function CaseDetailContent({
             )}
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-3">
+          <CaseChatButton caseId={id} />
           <select
             value={caseData.status}
             onChange={(e) => handleStatusChange(e.target.value as CaseStatus)}
@@ -195,66 +202,87 @@ function CaseDetailContent({
             Documents ({caseData.documents_count})
           </TabsTrigger>
           <TabsTrigger value="forms">Forms ({caseData.forms_count})</TabsTrigger>
+          <TabsTrigger value="messages">Messages</TabsTrigger>
+          <TabsTrigger value="tasks">Tasks</TabsTrigger>
           <TabsTrigger value="activity">Activity</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6 mt-6">
-          <div className="grid md:grid-cols-2 gap-6">
-            {/* Case Details */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Case Details</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <p className="text-sm text-slate-500">Visa Type</p>
-                  <p className="font-medium">{caseData.visa_type}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-slate-500">Status</p>
-                  <CaseStatusBadge status={caseData.status} />
-                </div>
-                {caseData.priority_date && (
-                  <div>
-                    <p className="text-sm text-slate-500">Priority Date</p>
-                    <p className="font-medium">
-                      {new Date(caseData.priority_date).toLocaleDateString()}
-                    </p>
-                  </div>
-                )}
-                {caseData.deadline && (
-                  <div>
-                    <p className="text-sm text-slate-500">Deadline</p>
-                    <p className="font-medium">
-                      {new Date(caseData.deadline).toLocaleDateString()}
-                    </p>
-                  </div>
-                )}
-                <div>
-                  <p className="text-sm text-slate-500">Created</p>
-                  <p className="font-medium">
-                    {new Date(caseData.created_at).toLocaleDateString()}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
+          {/* AI Success Score Breakdown */}
+          <SuccessScoreBreakdown caseId={id} variant="compact" />
 
-            {/* Client Info */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Client Information</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <p className="text-sm text-slate-500">Name</p>
-                  <p className="font-medium">{clientName}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-slate-500">Email</p>
-                  <p className="font-medium">{caseData.client.email}</p>
-                </div>
-              </CardContent>
-            </Card>
+          <div className="grid md:grid-cols-2 gap-6">
+            {/* Left Column: Case Details + Client Info */}
+            <div className="space-y-6">
+              {/* Case Details */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Case Details</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <p className="text-sm text-slate-500">Visa Type</p>
+                    <p className="font-medium">{caseData.visa_type}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-slate-500">Status</p>
+                    <CaseStatusBadge status={caseData.status} />
+                  </div>
+                  {caseData.priority_date && (
+                    <div>
+                      <p className="text-sm text-slate-500">Priority Date</p>
+                      <p className="font-medium">
+                        {new Date(caseData.priority_date).toLocaleDateString()}
+                      </p>
+                    </div>
+                  )}
+                  {caseData.deadline && (
+                    <div>
+                      <p className="text-sm text-slate-500">Deadline</p>
+                      <p className="font-medium">
+                        {new Date(caseData.deadline).toLocaleDateString()}
+                      </p>
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-sm text-slate-500">Created</p>
+                    <p className="font-medium">
+                      {new Date(caseData.created_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Client Info */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Client Information</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <p className="text-sm text-slate-500">Name</p>
+                    <p className="font-medium">{clientName}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-slate-500">Email</p>
+                    <p className="font-medium">{caseData.client.email}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Right Column: AI Panels */}
+            <div className="space-y-6">
+              {/* Document Completeness */}
+              <DocumentCompletenessPanel
+                caseId={id}
+                variant="full"
+                onUploadClick={() => setIsUploadDialogOpen(true)}
+              />
+
+              {/* Next Steps / Recommendations */}
+              <NextStepsPanel caseId={id} variant="full" maxItems={5} />
+            </div>
           </div>
 
           {/* Description */}
@@ -355,6 +383,14 @@ function CaseDetailContent({
               </CardContent>
             </Card>
           )}
+        </TabsContent>
+
+        <TabsContent value="messages" className="mt-6">
+          <CaseMessagesPanel caseId={id} />
+        </TabsContent>
+
+        <TabsContent value="tasks" className="mt-6">
+          <TaskList caseId={id} showCase={false} />
         </TabsContent>
 
         <TabsContent value="activity" className="mt-6">

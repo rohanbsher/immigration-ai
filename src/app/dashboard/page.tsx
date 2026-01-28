@@ -19,6 +19,8 @@ import {
 } from 'lucide-react';
 import { useCases, useCaseStats } from '@/hooks/use-cases';
 import { useUser } from '@/hooks/use-user';
+import { DeadlineWidget } from '@/components/dashboard/deadline-widget';
+import { SuccessScoreBadge } from '@/components/ai/success-score-badge';
 import type { CaseStatus } from '@/types';
 
 const STATUS_COLORS: Record<string, string> = {
@@ -165,6 +167,7 @@ export default function DashboardPage() {
                           </div>
                         </div>
                         <div className="flex items-center gap-4">
+                          <SuccessScoreBadge caseId={caseItem.id} size="sm" />
                           <CaseStatusBadge status={caseItem.status as CaseStatus} />
                           <span className="text-sm text-muted-foreground hidden sm:block">
                             {new Date(caseItem.updated_at).toLocaleDateString()}
@@ -191,20 +194,27 @@ export default function DashboardPage() {
         </MotionCard>
 
         {/* Status Overview */}
-        <MotionCard delay={0.4}>
-          <Card>
-            <CardHeader>
-              <CardTitle>Status Overview</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {statusChartData.length > 0 ? (
-                <StatusChart data={statusChartData} />
-              ) : (
-                <p className="text-muted-foreground text-center py-4">No data available</p>
-              )}
-            </CardContent>
-          </Card>
-        </MotionCard>
+        <div className="space-y-6">
+          <MotionCard delay={0.4}>
+            <Card>
+              <CardHeader>
+                <CardTitle>Status Overview</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {statusChartData.length > 0 ? (
+                  <StatusChart data={statusChartData} />
+                ) : (
+                  <p className="text-muted-foreground text-center py-4">No data available</p>
+                )}
+              </CardContent>
+            </Card>
+          </MotionCard>
+
+          {/* Deadline Widget */}
+          <MotionCard delay={0.5}>
+            <DeadlineWidget maxItems={4} />
+          </MotionCard>
+        </div>
       </div>
 
       {/* Quick Actions */}

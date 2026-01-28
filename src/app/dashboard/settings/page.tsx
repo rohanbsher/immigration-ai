@@ -12,17 +12,16 @@ import {
   User,
   Lock,
   Bell,
-  CreditCard,
   Building2,
   Save,
   Loader2,
   Eye,
   EyeOff,
-  Shield,
 } from 'lucide-react';
 import { useUser } from '@/hooks/use-user';
 import { useAuth } from '@/hooks/use-auth';
 import { toast } from 'sonner';
+import { TwoFactorSetup } from '@/components/settings/two-factor-setup';
 
 export default function SettingsPage() {
   const { profile, isLoading, refetch } = useUser();
@@ -372,28 +371,7 @@ export default function SettingsPage() {
           </Card>
 
           {/* Two-Factor Authentication */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Shield size={20} />
-                Two-Factor Authentication
-              </CardTitle>
-              <CardDescription>
-                Add an extra layer of security to your account.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Authenticator App</p>
-                  <p className="text-sm text-slate-500">
-                    Use an authenticator app to generate one-time codes.
-                  </p>
-                </div>
-                <Button variant="outline">Enable</Button>
-              </div>
-            </CardContent>
-          </Card>
+          <TwoFactorSetup />
 
           {/* Active Sessions */}
           <Card>

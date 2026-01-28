@@ -130,3 +130,87 @@ When building/fixing features:
 - Don't put API keys in client components
 - Don't bypass RLS policies
 - Don't use `any` type - define proper interfaces
+
+---
+
+## Architecture Documentation
+
+**For comprehensive architecture details, see `/ARCHITECTURE.md`**
+
+This document covers:
+- High-level system overview with diagrams
+- Database schema and relationships
+- API routes catalog
+- Authentication/authorization layers
+- AI integration patterns
+- Security model
+- Deployment architecture
+
+---
+
+## Shared Agent Context System
+
+**IMPORTANT:** This project uses a shared context system for Claude agents working across multiple sessions.
+
+### Quick Start for New Agents
+
+```bash
+1. Read: /ARCHITECTURE.md              # Understand the system
+2. Read: /.claude/agents/TODO.md       # Find available work streams
+3. Claim a work stream                 # Edit "Assigned Agent" field
+4. Work ONLY on your files             # See "File Ownership" in TODO
+5. Run: npm run build                  # Verify after changes
+6. Update TODO.md                      # Mark tasks complete
+7. Write session summary               # In sessions/ folder
+```
+
+### Folder Structure
+
+```
+.claude/
+└── agents/
+    ├── TODO.md              # Master task list (Work Streams)
+    ├── README.md            # Quick start for agents
+    └── sessions/            # Session summaries from each agent
+```
+
+### Current Project Status
+
+| Work Stream | Status |
+|-------------|--------|
+| Phase 1-2 (Security, Hardening) | COMPLETE |
+| Phase 3 (Testing) | COMPLETE (86%+ coverage) |
+| **WS-1: Billing** | READY - Can start |
+| **WS-2: Multi-Tenancy** | READY - Can start |
+| WS-3: Email | BLOCKED (needs WS-1) |
+
+**WS-1 and WS-2 can run in parallel** - they own different files.
+
+See `.claude/agents/TODO.md` for detailed task breakdown.
+
+### Key Services Added
+
+| Service | Location | Purpose |
+|---------|----------|---------|
+| File Validation | `/src/lib/file-validation/` | Magic bytes + virus scanning |
+| Form Validation | `/src/lib/form-validation/` | AI confidence thresholds |
+| Rate Limiting | `/src/lib/rate-limit/` | Fail-closed in production |
+| Request Timeouts | `/src/lib/api/fetch-with-timeout.ts` | Prevent hanging requests |
+| RBAC | `/src/lib/rbac/` | Frontend route permissions |
+| Sentry | `/src/lib/sentry/` | Error tracking utilities |
+| PDF Generation | `/src/lib/pdf/` | USCIS form PDF generation |
+
+### New API Endpoints
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/forms/[id]/review-status` | GET | Check AI field review status |
+| `/api/forms/[id]/review-field` | POST | Mark field as attorney-reviewed |
+| `/api/forms/[id]/pdf` | GET | Download filled PDF form |
+
+### Hooks for Common Patterns
+
+| Hook | Location | Purpose |
+|------|----------|---------|
+| `useRoleGuard` | `/src/hooks/use-role-guard.ts` | Page-level role protection |
+| `useCanPerform` | `/src/hooks/use-role-guard.ts` | Permission checking without redirect |

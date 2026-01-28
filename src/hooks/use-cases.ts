@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { CaseStatus, VisaType } from '@/types';
+import { fetchWithTimeout, TimeoutError } from '@/lib/api/fetch-with-timeout';
 
 interface Case {
   id: string;
@@ -93,7 +94,7 @@ async function fetchCases(
   if (pagination.sortBy) params.set('sortBy', pagination.sortBy);
   if (pagination.sortOrder) params.set('sortOrder', pagination.sortOrder);
 
-  const response = await fetch(`/api/cases?${params.toString()}`);
+  const response = await fetchWithTimeout(`/api/cases?${params.toString()}`);
   if (!response.ok) {
     throw new Error('Failed to fetch cases');
   }
@@ -101,7 +102,7 @@ async function fetchCases(
 }
 
 async function fetchCase(id: string): Promise<Case> {
-  const response = await fetch(`/api/cases/${id}`);
+  const response = await fetchWithTimeout(`/api/cases/${id}`);
   if (!response.ok) {
     throw new Error('Failed to fetch case');
   }
@@ -109,7 +110,7 @@ async function fetchCase(id: string): Promise<Case> {
 }
 
 async function createCase(data: CreateCaseData): Promise<Case> {
-  const response = await fetch('/api/cases', {
+  const response = await fetchWithTimeout('/api/cases', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
@@ -122,7 +123,7 @@ async function createCase(data: CreateCaseData): Promise<Case> {
 }
 
 async function updateCase(id: string, data: UpdateCaseData): Promise<Case> {
-  const response = await fetch(`/api/cases/${id}`, {
+  const response = await fetchWithTimeout(`/api/cases/${id}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
@@ -135,7 +136,7 @@ async function updateCase(id: string, data: UpdateCaseData): Promise<Case> {
 }
 
 async function deleteCase(id: string): Promise<void> {
-  const response = await fetch(`/api/cases/${id}`, {
+  const response = await fetchWithTimeout(`/api/cases/${id}`, {
     method: 'DELETE',
   });
   if (!response.ok) {
@@ -201,7 +202,9 @@ export function useCaseStats() {
   return useQuery({
     queryKey: ['caseStats'],
     queryFn: async () => {
-      const response = await fetch('/api/cases/stats');
+      const response = await fetchWithTimeout('/api/cases/stats', {
+        timeout: 'QUICK',
+      });
       if (!response.ok) {
         throw new Error('Failed to fetch case stats');
       }
@@ -209,3 +212,6 @@ export function useCaseStats() {
     },
   });
 }
+
+// Re-export TimeoutError for consumers who need to handle it
+export { TimeoutError };

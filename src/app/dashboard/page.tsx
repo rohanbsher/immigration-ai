@@ -15,12 +15,13 @@ import {
   Plus,
   ArrowRight,
   FileUp,
-  Loader2,
 } from 'lucide-react';
 import { useCases, useCaseStats } from '@/hooks/use-cases';
 import { useUser } from '@/hooks/use-user';
 import { DeadlineWidget } from '@/components/dashboard/deadline-widget';
 import { SuccessScoreBadge } from '@/components/ai/success-score-badge';
+import { CasesEmptyState } from '@/components/ui/empty-state';
+import { Skeleton, StatsCardSkeleton, GridSkeleton, CaseCardSkeleton, ListSkeleton } from '@/components/ui/skeletons';
 import type { CaseStatus } from '@/types';
 
 const STATUS_COLORS: Record<string, string> = {
@@ -76,8 +77,75 @@ export default function DashboardPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="space-y-6">
+        {/* Header skeleton */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-48" />
+            <Skeleton className="h-4 w-72" />
+          </div>
+          <Skeleton className="h-10 w-28" />
+        </div>
+
+        {/* Stats Grid skeleton */}
+        <GridSkeleton count={4} ItemSkeleton={StatsCardSkeleton} columns={4} />
+
+        {/* Main Content Grid skeleton */}
+        <div className="grid lg:grid-cols-3 gap-6">
+          {/* Recent Cases skeleton */}
+          <div className="lg:col-span-2">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <Skeleton className="h-6 w-32" />
+                <Skeleton className="h-8 w-20" />
+              </CardHeader>
+              <CardContent>
+                <ListSkeleton count={4} ItemSkeleton={CaseCardSkeleton} />
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Status Overview skeleton */}
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <Skeleton className="h-6 w-32" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-40 w-full rounded-lg" />
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <Skeleton className="h-6 w-40" />
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <div key={i} className="flex items-center justify-between">
+                      <Skeleton className="h-4 w-32" />
+                      <Skeleton className="h-4 w-20" />
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
+        {/* Quick Actions skeleton */}
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-6 w-28" />
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton key={i} className="h-24 rounded-lg" />
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -178,16 +246,7 @@ export default function DashboardPage() {
                   ))}
                 </MotionList>
               ) : (
-                <div className="text-center py-8">
-                  <FolderOpen className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
-                  <p className="text-muted-foreground">No cases yet.</p>
-                  <Link href="/dashboard/cases/new">
-                    <Button className="mt-4 gap-2">
-                      <Plus size={16} />
-                      Create First Case
-                    </Button>
-                  </Link>
-                </div>
+                <CasesEmptyState onCreateCase={() => window.location.href = '/dashboard/cases/new'} />
               )}
             </CardContent>
           </Card>

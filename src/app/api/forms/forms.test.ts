@@ -124,12 +124,41 @@ vi.mock('@/lib/ai', () => ({
 
 // Mock rate limiter
 vi.mock('@/lib/rate-limit', () => ({
+  rateLimit: vi.fn().mockResolvedValue({ success: true }),
+  RATE_LIMITS: {
+    STANDARD: { maxRequests: 100, windowMs: 60000, keyPrefix: 'standard' },
+    AUTH: { maxRequests: 5, windowMs: 60000, keyPrefix: 'auth' },
+    AI: { maxRequests: 10, windowMs: 3600000, keyPrefix: 'ai' },
+    SENSITIVE: { maxRequests: 20, windowMs: 60000, keyPrefix: 'sensitive' },
+  },
+  standardRateLimiter: {
+    limit: vi.fn().mockResolvedValue({ allowed: true }),
+    check: vi.fn().mockResolvedValue({ success: true, remaining: 99, resetAt: new Date() }),
+    getHeaders: vi.fn().mockReturnValue({}),
+  },
   aiRateLimiter: {
     limit: vi.fn().mockResolvedValue({ allowed: true }),
+    check: vi.fn().mockResolvedValue({ success: true, remaining: 9, resetAt: new Date() }),
+    getHeaders: vi.fn().mockReturnValue({}),
+  },
+  authRateLimiter: {
+    limit: vi.fn().mockResolvedValue({ allowed: true }),
+    check: vi.fn().mockResolvedValue({ success: true, remaining: 4, resetAt: new Date() }),
+    getHeaders: vi.fn().mockReturnValue({}),
   },
   sensitiveRateLimiter: {
     limit: vi.fn().mockResolvedValue({ allowed: true }),
+    check: vi.fn().mockResolvedValue({ success: true, remaining: 19, resetAt: new Date() }),
+    getHeaders: vi.fn().mockReturnValue({}),
   },
+  createRateLimiter: vi.fn().mockReturnValue({
+    limit: vi.fn().mockResolvedValue({ allowed: true }),
+    check: vi.fn().mockResolvedValue({ success: true, remaining: 99, resetAt: new Date() }),
+    getHeaders: vi.fn().mockReturnValue({}),
+  }),
+  resetRateLimit: vi.fn(),
+  clearAllRateLimits: vi.fn(),
+  isRedisRateLimitingEnabled: vi.fn().mockReturnValue(false),
 }));
 
 // Import handlers after mocks are set up
@@ -160,7 +189,14 @@ function createMockRequest(
     requestInit.body = JSON.stringify(body);
   }
 
-  return new NextRequest(url, requestInit);
+  const request = new NextRequest(url, requestInit);
+
+  // Override json() method to properly return the body in jsdom environment
+  if (body) {
+    request.json = async () => body;
+  }
+
+  return request;
 }
 
 // Helper to create mock params

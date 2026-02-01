@@ -6,6 +6,7 @@ import {
   deleteConversation,
   updateConversationTitle,
 } from '@/lib/db/conversations';
+import { standardRateLimiter, sensitiveRateLimiter } from '@/lib/rate-limit';
 
 interface RouteParams {
   params: Promise<{ conversationId: string }>;
@@ -35,6 +36,12 @@ export async function GET(
         { error: 'Unauthorized', message: 'Please log in to continue' },
         { status: 401 }
       );
+    }
+
+    // Rate limit check
+    const rateLimitResult = await standardRateLimiter.limit(request, user.id);
+    if (!rateLimitResult.allowed) {
+      return rateLimitResult.response;
     }
 
     // Get conversation
@@ -100,6 +107,12 @@ export async function PATCH(
       );
     }
 
+    // Rate limit check
+    const rateLimitResult = await standardRateLimiter.limit(request, user.id);
+    if (!rateLimitResult.allowed) {
+      return rateLimitResult.response;
+    }
+
     const body = await request.json();
     const { title } = body as { title?: string };
 
@@ -152,6 +165,12 @@ export async function DELETE(
         { error: 'Unauthorized', message: 'Please log in to continue' },
         { status: 401 }
       );
+    }
+
+    // Rate limit check (using sensitive for destructive actions)
+    const rateLimitResult = await sensitiveRateLimiter.limit(request, user.id);
+    if (!rateLimitResult.allowed) {
+      return rateLimitResult.response;
     }
 
     await deleteConversation(conversationId, user.id);

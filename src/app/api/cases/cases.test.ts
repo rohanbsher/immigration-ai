@@ -196,10 +196,34 @@ vi.mock('@/lib/rate-limit', () => ({
     AI: { maxRequests: 10, windowMs: 3600000, keyPrefix: 'ai' },
     SENSITIVE: { maxRequests: 20, windowMs: 60000, keyPrefix: 'sensitive' },
   },
+  standardRateLimiter: {
+    limit: vi.fn().mockResolvedValue({ allowed: true }),
+    check: vi.fn().mockResolvedValue({ success: true, remaining: 99, resetAt: new Date() }),
+    getHeaders: vi.fn().mockReturnValue({}),
+  },
+  aiRateLimiter: {
+    limit: vi.fn().mockResolvedValue({ allowed: true }),
+    check: vi.fn().mockResolvedValue({ success: true, remaining: 9, resetAt: new Date() }),
+    getHeaders: vi.fn().mockReturnValue({}),
+  },
+  authRateLimiter: {
+    limit: vi.fn().mockResolvedValue({ allowed: true }),
+    check: vi.fn().mockResolvedValue({ success: true, remaining: 4, resetAt: new Date() }),
+    getHeaders: vi.fn().mockReturnValue({}),
+  },
   sensitiveRateLimiter: {
     limit: vi.fn().mockResolvedValue({ allowed: true }),
+    check: vi.fn().mockResolvedValue({ success: true, remaining: 19, resetAt: new Date() }),
+    getHeaders: vi.fn().mockReturnValue({}),
   },
+  createRateLimiter: vi.fn().mockReturnValue({
+    limit: vi.fn().mockResolvedValue({ allowed: true }),
+    check: vi.fn().mockResolvedValue({ success: true, remaining: 99, resetAt: new Date() }),
+    getHeaders: vi.fn().mockReturnValue({}),
+  }),
+  resetRateLimit: vi.fn(),
   clearAllRateLimits: vi.fn(),
+  isRedisRateLimitingEnabled: vi.fn().mockReturnValue(false),
 }));
 
 // Mock logger
@@ -209,6 +233,33 @@ vi.mock('@/lib/logger', () => ({
     logError: vi.fn(),
     logDebug: vi.fn(),
   }),
+}));
+
+// Mock billing quota enforcement
+vi.mock('@/lib/billing/quota', () => ({
+  enforceQuota: vi.fn().mockResolvedValue(undefined),
+  QuotaExceededError: class QuotaExceededError extends Error {
+    constructor(message: string) {
+      super(message);
+      this.name = 'QuotaExceededError';
+    }
+  },
+}));
+
+// Mock file validation
+vi.mock('@/lib/file-validation', () => ({
+  validateFile: vi.fn().mockResolvedValue({
+    isValid: true,
+    typeValidation: { isValid: true, warnings: [] },
+    virusScan: { isClean: true },
+  }),
+}));
+
+// Mock email notifications
+vi.mock('@/lib/email/notifications', () => ({
+  sendDocumentUploadedEmail: vi.fn().mockResolvedValue(undefined),
+  sendCaseUpdateEmail: vi.fn().mockResolvedValue(undefined),
+  sendCaseCreatedEmail: vi.fn().mockResolvedValue(undefined),
 }));
 
 // Helper to create mock NextRequest
@@ -234,7 +285,29 @@ function createMockRequest(
     requestInit.body = JSON.stringify(body);
   }
 
-  return new NextRequest(new URL(url, 'http://localhost:3000'), requestInit);
+  const request = new NextRequest(new URL(url, 'http://localhost:3000'), requestInit);
+
+  // Override json() method to properly return the body in jsdom environment
+  if (body) {
+    request.json = async () => body;
+  }
+
+  return request;
+}
+
+// Helper to create mock NextRequest with FormData for jsdom environment
+function createMockFormDataRequest(
+  url: string,
+  formData: FormData
+): NextRequest {
+  const request = new NextRequest(new URL(url, 'http://localhost:3000'), {
+    method: 'POST',
+  });
+
+  // Override formData() method to properly return FormData in jsdom environment
+  request.formData = async () => formData;
+
+  return request;
 }
 
 // Helper to set the current user for tests
@@ -635,10 +708,10 @@ describe('Cases API Routes', () => {
       formData.append('file', new Blob(['test'], { type: 'application/pdf' }), 'test.pdf');
       formData.append('document_type', 'passport');
 
-      const request = new NextRequest(`http://localhost:3000/api/cases/${CASE_ID}/documents`, {
-        method: 'POST',
-        body: formData,
-      });
+      const request = createMockFormDataRequest(
+        `http://localhost:3000/api/cases/${CASE_ID}/documents`,
+        formData
+      );
 
       const response = await POST(request, { params: Promise.resolve({ id: CASE_ID }) });
 
@@ -654,10 +727,10 @@ describe('Cases API Routes', () => {
       formData.append('file', new Blob(['test'], { type: 'application/pdf' }), 'test.pdf');
       formData.append('document_type', 'passport');
 
-      const request = new NextRequest(`http://localhost:3000/api/cases/${CASE_ID}/documents`, {
-        method: 'POST',
-        body: formData,
-      });
+      const request = createMockFormDataRequest(
+        `http://localhost:3000/api/cases/${CASE_ID}/documents`,
+        formData
+      );
 
       const response = await POST(request, { params: Promise.resolve({ id: CASE_ID }) });
 
@@ -670,10 +743,10 @@ describe('Cases API Routes', () => {
       const formData = new FormData();
       formData.append('document_type', 'passport');
 
-      const request = new NextRequest(`http://localhost:3000/api/cases/${CASE_ID}/documents`, {
-        method: 'POST',
-        body: formData,
-      });
+      const request = createMockFormDataRequest(
+        `http://localhost:3000/api/cases/${CASE_ID}/documents`,
+        formData
+      );
 
       const response = await POST(request, { params: Promise.resolve({ id: CASE_ID }) });
       const data = await response.json();
@@ -688,10 +761,10 @@ describe('Cases API Routes', () => {
       const formData = new FormData();
       formData.append('file', new Blob(['test'], { type: 'application/pdf' }), 'test.pdf');
 
-      const request = new NextRequest(`http://localhost:3000/api/cases/${CASE_ID}/documents`, {
-        method: 'POST',
-        body: formData,
-      });
+      const request = createMockFormDataRequest(
+        `http://localhost:3000/api/cases/${CASE_ID}/documents`,
+        formData
+      );
 
       const response = await POST(request, { params: Promise.resolve({ id: CASE_ID }) });
       const data = await response.json();

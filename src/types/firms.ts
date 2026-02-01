@@ -80,18 +80,6 @@ export interface FirmInvitation {
   };
 }
 
-export interface CaseAssignment {
-  id: string;
-  caseId: string;
-  userId: string;
-  role: string;
-  assignedBy: string | null;
-  assignedAt: string;
-  notes: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
 export interface CreateFirmInput {
   name: string;
   logoUrl?: string;
@@ -118,11 +106,6 @@ export interface UpdateMemberInput {
   role?: FirmRole;
   title?: string;
   permissions?: Record<string, boolean>;
-}
-
-export interface FirmWithMembers extends Firm {
-  members: FirmMember[];
-  memberCount: number;
 }
 
 export const FIRM_ROLE_LABELS: Record<FirmRole, string> = {

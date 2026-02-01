@@ -52,11 +52,14 @@ export const mockAuth = {
 // Mock query builder for chaining
 export const createMockQueryBuilder = <T = unknown>(data: T[] = [], count?: number) => {
   const builder = {
+    // Basic operations
     select: vi.fn().mockReturnThis(),
     insert: vi.fn().mockReturnThis(),
     update: vi.fn().mockReturnThis(),
     upsert: vi.fn().mockReturnThis(),
     delete: vi.fn().mockReturnThis(),
+
+    // Comparison filters
     eq: vi.fn().mockReturnThis(),
     neq: vi.fn().mockReturnThis(),
     gt: vi.fn().mockReturnThis(),
@@ -71,13 +74,41 @@ export const createMockQueryBuilder = <T = unknown>(data: T[] = [], count?: numb
     not: vi.fn().mockReturnThis(),
     filter: vi.fn().mockReturnThis(),
     match: vi.fn().mockReturnThis(),
+
+    // Array/JSON operations
     contains: vi.fn().mockReturnThis(),
     containedBy: vi.fn().mockReturnThis(),
+
+    // Range operations
     range: vi.fn().mockReturnThis(),
+    rangeGt: vi.fn().mockReturnThis(),
+    rangeLt: vi.fn().mockReturnThis(),
+    rangeGte: vi.fn().mockReturnThis(),
+    rangeLte: vi.fn().mockReturnThis(),
+    rangeAdjacent: vi.fn().mockReturnThis(),
+
+    // Full-text search
+    textSearch: vi.fn().mockReturnThis(),
+
+    // Array overlaps
+    overlaps: vi.fn().mockReturnThis(),
+    adjacent: vi.fn().mockReturnThis(),
+
+    // Ordering and pagination
     order: vi.fn().mockReturnThis(),
     limit: vi.fn().mockReturnThis(),
+    offset: vi.fn().mockReturnThis(),
+
+    // Result modifiers
     single: vi.fn().mockResolvedValue({ data: data[0] || null, error: null }),
     maybeSingle: vi.fn().mockResolvedValue({ data: data[0] || null, error: null }),
+    csv: vi.fn().mockReturnThis(),
+    geojson: vi.fn().mockReturnThis(),
+    explain: vi.fn().mockReturnThis(),
+    rollback: vi.fn().mockReturnThis(),
+    returns: vi.fn().mockReturnThis(),
+
+    // Thenable
     then: (resolve: (value: { data: T[]; error: null; count: number | null }) => void) =>
       Promise.resolve({ data, error: null, count: count ?? data.length }).then(resolve),
   };

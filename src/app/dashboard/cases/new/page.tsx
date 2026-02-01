@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -85,19 +85,7 @@ export default function NewCasePage() {
   const [clientSearch, setClientSearch] = useState('');
   const { data: searchResults, isLoading: isSearching } = useSearchClients(clientSearch);
 
-  // If still checking access or redirecting, show loading
-  if (isAuthLoading || !hasAccess || isQuotaLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-      </div>
-    );
-  }
-
-  // Check if user has reached their case limit
-  const isAtLimit = caseQuota && !caseQuota.isUnlimited && !caseQuota.allowed;
-
-  // Form state
+  // Form state - must be declared before any early returns to satisfy Rules of Hooks
   const [formData, setFormData] = useState({
     // Client info (for new client)
     client_id: '',
@@ -113,6 +101,18 @@ export default function NewCasePage() {
     deadline: '',
     notes: '',
   });
+
+  // If still checking access or redirecting, show loading
+  if (isAuthLoading || !hasAccess || isQuotaLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+      </div>
+    );
+  }
+
+  // Check if user has reached their case limit
+  const isAtLimit = caseQuota && !caseQuota.isUnlimited && !caseQuota.allowed;
 
   const handleClientSelect = (clientId: string, clientName: string) => {
     setFormData((prev) => ({

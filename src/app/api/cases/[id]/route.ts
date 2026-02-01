@@ -3,6 +3,7 @@ import { casesService } from '@/lib/db';
 import { createClient } from '@/lib/supabase/server';
 import { z } from 'zod';
 import { sendCaseUpdateEmail } from '@/lib/email/notifications';
+import { standardRateLimiter } from '@/lib/rate-limit';
 
 const updateCaseSchema = z.object({
   visa_type: z.string().optional(),
@@ -56,6 +57,12 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Rate limit check
+    const rateLimitResult = await standardRateLimiter.limit(request, user.id);
+    if (!rateLimitResult.allowed) {
+      return rateLimitResult.response;
+    }
+
     const accessResult = await getCaseWithAccess(user.id, id);
 
     if (!accessResult) {
@@ -83,6 +90,12 @@ export async function PATCH(
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Rate limit check
+    const rateLimitResult = await standardRateLimiter.limit(request, user.id);
+    if (!rateLimitResult.allowed) {
+      return rateLimitResult.response;
     }
 
     const accessResult = await getCaseWithAccess(user.id, id);
@@ -145,6 +158,13 @@ export async function DELETE(
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Rate limit check (using sensitive for destructive actions)
+    const { sensitiveRateLimiter } = await import('@/lib/rate-limit');
+    const rateLimitResult = await sensitiveRateLimiter.limit(request, user.id);
+    if (!rateLimitResult.allowed) {
+      return rateLimitResult.response;
     }
 
     const accessResult = await getCaseWithAccess(user.id, id);

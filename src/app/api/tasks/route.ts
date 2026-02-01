@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { tasksService } from '@/lib/db';
-import { createClient } from '@/lib/supabase/server';
 import { z } from 'zod';
 import { createLogger } from '@/lib/logger';
 import {
@@ -9,6 +8,7 @@ import {
   errorResponse,
   successResponse,
 } from '@/lib/auth/api-helpers';
+import { standardRateLimiter } from '@/lib/rate-limit';
 
 const log = createLogger('api:tasks');
 
@@ -30,6 +30,12 @@ export async function GET(request: NextRequest) {
   try {
     const auth = await requireAuth(request);
     if (!auth.success) return auth.response;
+
+    // Rate limit check
+    const rateLimitResult = await standardRateLimiter.limit(request, auth.user.id);
+    if (!rateLimitResult.allowed) {
+      return rateLimitResult.response;
+    }
 
     const { searchParams } = new URL(request.url);
 
@@ -57,6 +63,12 @@ export async function POST(request: NextRequest) {
   try {
     const auth = await requireAttorney(request);
     if (!auth.success) return auth.response;
+
+    // Rate limit check
+    const rateLimitResult = await standardRateLimiter.limit(request, auth.user.id);
+    if (!rateLimitResult.allowed) {
+      return rateLimitResult.response;
+    }
 
     const body = await request.json();
     const validatedData = createTaskSchema.parse(body);

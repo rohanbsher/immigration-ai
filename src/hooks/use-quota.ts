@@ -1,4 +1,7 @@
+'use client';
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { fetchWithTimeout } from '@/lib/api/fetch-with-timeout';
 
 export type QuotaMetric = 'cases' | 'documents' | 'ai_requests' | 'storage' | 'team_members';
 
@@ -12,7 +15,7 @@ export interface QuotaCheck {
 }
 
 async function fetchQuota(metric: QuotaMetric): Promise<QuotaCheck> {
-  const response = await fetch(`/api/billing/quota?metric=${metric}`);
+  const response = await fetchWithTimeout(`/api/billing/quota?metric=${metric}`);
   const data = await response.json();
 
   if (!response.ok) {
@@ -36,7 +39,7 @@ export function useQuotaCheck() {
 
   return useMutation({
     mutationFn: async (metric: QuotaMetric) => {
-      const response = await fetch(`/api/billing/quota?metric=${metric}`);
+      const response = await fetchWithTimeout(`/api/billing/quota?metric=${metric}`);
       const data = await response.json();
 
       if (!response.ok) {

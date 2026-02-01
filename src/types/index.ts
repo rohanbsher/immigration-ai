@@ -214,39 +214,3 @@ export interface ApiResponse<T> {
   message?: string;
 }
 
-export interface PaginatedResponse<T> {
-  data: T[];
-  total: number;
-  page: number;
-  pageSize: number;
-  totalPages: number;
-}
-
-// AI Types
-export interface AIExtractionResult {
-  documentType: DocumentType;
-  confidence: number;
-  extractedFields: Record<string, {
-    value: string | number | Date | null;
-    confidence: number;
-    boundingBox?: {
-      x: number;
-      y: number;
-      width: number;
-      height: number;
-    };
-  }>;
-  warnings?: string[];
-  errors?: string[];
-}
-
-export interface AIFormFillResult {
-  formType: FormType;
-  filledFields: Record<string, {
-    value: string | number | boolean | null;
-    confidence: number;
-    sourceDocuments: string[];
-  }>;
-  missingFields: string[];
-  warnings?: string[];
-}

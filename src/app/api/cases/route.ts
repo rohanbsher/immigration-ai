@@ -9,6 +9,7 @@ import {
 } from '@/lib/auth/api-helpers';
 import { createLogger } from '@/lib/logger';
 import { enforceQuota, QuotaExceededError } from '@/lib/billing/quota';
+import { standardRateLimiter } from '@/lib/rate-limit';
 
 const log = createLogger('api:cases');
 
@@ -26,6 +27,12 @@ export async function GET(request: NextRequest) {
   try {
     const auth = await requireAuth(request);
     if (!auth.success) return auth.response;
+
+    // Rate limit check
+    const rateLimitResult = await standardRateLimiter.limit(request, auth.user.id);
+    if (!rateLimitResult.allowed) {
+      return rateLimitResult.response;
+    }
 
     const { searchParams } = new URL(request.url);
 
@@ -59,6 +66,12 @@ export async function POST(request: NextRequest) {
   try {
     const auth = await requireAttorney(request);
     if (!auth.success) return auth.response;
+
+    // Rate limit check
+    const rateLimitResult = await standardRateLimiter.limit(request, auth.user.id);
+    if (!rateLimitResult.allowed) {
+      return rateLimitResult.response;
+    }
 
     // Enforce case quota
     await enforceQuota(auth.user.id, 'cases');

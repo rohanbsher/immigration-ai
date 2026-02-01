@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { serverAuth } from '@/lib/auth';
 import { checkQuota, QuotaMetric } from '@/lib/billing/quota';
 import { z } from 'zod';
+import { standardRateLimiter } from '@/lib/rate-limit';
 
 const querySchema = z.object({
   metric: z.enum(['cases', 'documents', 'ai_requests', 'storage', 'team_members']),
@@ -12,6 +13,12 @@ export async function GET(request: NextRequest) {
     const user = await serverAuth.getUser();
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Rate limit check
+    const rateLimitResult = await standardRateLimiter.limit(request, user.id);
+    if (!rateLimitResult.allowed) {
+      return rateLimitResult.response;
     }
 
     const { searchParams } = new URL(request.url);

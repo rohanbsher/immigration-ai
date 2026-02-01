@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { notificationsService } from '@/lib/db';
 import { createClient } from '@/lib/supabase/server';
 import { z } from 'zod';
+import { standardRateLimiter, sensitiveRateLimiter } from '@/lib/rate-limit';
 
 const updateNotificationSchema = z.object({
   read: z.boolean(),
@@ -18,6 +19,12 @@ export async function PATCH(
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Rate limit check
+    const rateLimitResult = await standardRateLimiter.limit(request, user.id);
+    if (!rateLimitResult.allowed) {
+      return rateLimitResult.response;
     }
 
     // Ownership check: verify notification belongs to current user
@@ -73,6 +80,12 @@ export async function DELETE(
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Rate limit check (using sensitive for destructive actions)
+    const rateLimitResult = await sensitiveRateLimiter.limit(request, user.id);
+    if (!rateLimitResult.allowed) {
+      return rateLimitResult.response;
     }
 
     // Ownership check: verify notification belongs to current user

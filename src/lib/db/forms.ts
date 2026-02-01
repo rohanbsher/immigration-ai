@@ -1,5 +1,8 @@
 import { createClient } from '@/lib/supabase/server';
+import { createLogger } from '@/lib/logger';
 import type { FormType, FormStatus } from '@/types';
+
+const logger = createLogger('db:forms');
 
 export interface Form {
   id: string;
@@ -54,7 +57,7 @@ export const formsService = {
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('Error fetching forms:', error);
+      logger.logError('Error fetching forms', error, { caseId });
       throw error;
     }
 
@@ -75,7 +78,7 @@ export const formsService = {
       .single();
 
     if (error) {
-      console.error('Error fetching form:', error);
+      logger.logError('Error fetching form', error, { formId: id });
       return null;
     }
 
@@ -96,7 +99,7 @@ export const formsService = {
       .single();
 
     if (error) {
-      console.error('Error creating form:', error);
+      logger.logError('Error creating form', error, { caseId: data.case_id, formType: data.form_type });
       throw error;
     }
 
@@ -114,7 +117,7 @@ export const formsService = {
       .single();
 
     if (error) {
-      console.error('Error updating form:', error);
+      logger.logError('Error updating form', error, { formId: id });
       throw error;
     }
 
@@ -143,7 +146,7 @@ export const formsService = {
       .single();
 
     if (error) {
-      console.error('Error reviewing form:', error);
+      logger.logError('Error reviewing form', error, { formId: id });
       throw error;
     }
 
@@ -164,7 +167,7 @@ export const formsService = {
       .single();
 
     if (error) {
-      console.error('Error marking form as filed:', error);
+      logger.logError('Error marking form as filed', error, { formId: id });
       throw error;
     }
 
@@ -184,7 +187,7 @@ export const formsService = {
       .eq('id', id);
 
     if (error) {
-      console.error('Error deleting form:', error);
+      logger.logError('Error deleting form', error, { formId: id });
       throw error;
     }
   },
@@ -203,7 +206,7 @@ export const formsService = {
       .single();
 
     if (error) {
-      console.error('Error restoring form:', error);
+      logger.logError('Error restoring form', error, { formId: id });
       throw error;
     }
 

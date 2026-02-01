@@ -107,6 +107,9 @@ interface AISkeletonProps {
   className?: string;
 }
 
+// Pre-computed widths for skeleton lines to avoid impure renders
+const SKELETON_WIDTHS = ['85%', '72%', '90%', '65%', '78%', '95%', '68%', '82%', '76%', '88%'];
+
 /**
  * AI Skeleton - Placeholder skeleton for AI content loading.
  */
@@ -129,7 +132,7 @@ export function AISkeleton({ lines = 3, className }: AISkeletonProps) {
           key={i}
           className="h-4 rounded bg-purple-100 animate-pulse"
           style={{
-            width: `${Math.random() * 40 + 60}%`,
+            width: SKELETON_WIDTHS[i % SKELETON_WIDTHS.length],
             animationDelay: `${i * 0.1}s`,
           }}
         />

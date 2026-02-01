@@ -6,6 +6,9 @@
  */
 
 import { Redis } from '@upstash/redis';
+import { createLogger } from '@/lib/logger';
+
+const logger = createLogger('db:recommendations');
 
 /**
  * Recommendation item structure.
@@ -88,7 +91,7 @@ export async function getCachedRecommendations(
 
     return { ...cached, source: 'cache' };
   } catch (error) {
-    console.error('Error fetching cached recommendations:', error);
+    logger.logError('Error fetching cached recommendations', error, { caseId });
     return null;
   }
 }
@@ -121,7 +124,7 @@ export async function cacheRecommendations(
   try {
     await redis.setex(getCacheKey(caseId), CACHE_TTL_SECONDS, cached);
   } catch (error) {
-    console.error('Error caching recommendations:', error);
+    logger.logError('Error caching recommendations', error, { caseId });
   }
 }
 
@@ -140,7 +143,7 @@ export async function invalidateCachedRecommendations(
   try {
     await redis.del(getCacheKey(caseId));
   } catch (error) {
-    console.error('Error invalidating cached recommendations:', error);
+    logger.logError('Error invalidating cached recommendations', error, { caseId });
   }
 }
 
@@ -174,7 +177,7 @@ export async function markRecommendationComplete(
     await cacheRecommendations(caseId, updatedRecommendations);
     return true;
   } catch (error) {
-    console.error('Error marking recommendation complete:', error);
+    logger.logError('Error marking recommendation complete', error, { caseId, recommendationId });
     return false;
   }
 }
@@ -209,7 +212,7 @@ export async function dismissRecommendation(
     await cacheRecommendations(caseId, updatedRecommendations);
     return true;
   } catch (error) {
-    console.error('Error dismissing recommendation:', error);
+    logger.logError('Error dismissing recommendation', error, { caseId, recommendationId });
     return false;
   }
 }

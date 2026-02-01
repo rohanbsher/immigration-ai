@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { DeadlineAlert } from '@/lib/deadline';
+import { fetchWithTimeout } from '@/lib/api/fetch-with-timeout';
 
 /**
  * Response from the deadlines API.
@@ -27,7 +28,7 @@ interface DeadlinesResponse {
  * Fetch deadlines for the current user.
  */
 async function fetchDeadlines(days: number = 60): Promise<DeadlinesResponse> {
-  const response = await fetch(`/api/cases/deadlines?days=${days}`, {
+  const response = await fetchWithTimeout(`/api/cases/deadlines?days=${days}`, {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
@@ -50,7 +51,7 @@ async function updateAlert(
   action: 'acknowledge' | 'snooze',
   snoozeDays?: number
 ): Promise<{ success: boolean }> {
-  const response = await fetch(`/api/cases/deadlines/${alertId}`, {
+  const response = await fetchWithTimeout(`/api/cases/deadlines/${alertId}`, {
     method: 'PATCH',
     headers: {
       'Content-Type': 'application/json',

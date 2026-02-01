@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { CachedRecommendations, Recommendation } from '@/lib/db/recommendations';
+import { fetchWithTimeout } from '@/lib/api/fetch-with-timeout';
 
 /**
  * Fetch recommendations for a case.
@@ -14,7 +15,7 @@ async function fetchRecommendations(
     ? `/api/cases/${caseId}/recommendations?refresh=true`
     : `/api/cases/${caseId}/recommendations`;
 
-  const response = await fetch(url, {
+  const response = await fetchWithTimeout(url, {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
@@ -37,7 +38,7 @@ async function updateRecommendation(
   recommendationId: string,
   action: 'complete' | 'dismiss'
 ): Promise<{ success: boolean }> {
-  const response = await fetch(`/api/cases/${caseId}/recommendations`, {
+  const response = await fetchWithTimeout(`/api/cases/${caseId}/recommendations`, {
     method: 'PATCH',
     headers: {
       'Content-Type': 'application/json',

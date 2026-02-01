@@ -34,19 +34,15 @@ export function AISearchInput({
 }: AISearchInputProps) {
   const [query, setQuery] = useState('');
   const [isAIMode, setIsAIMode] = useState(defaultAIMode);
-  const [recentSearches, setRecentSearches] = useState<string[]>([]);
+  const [recentSearches, setRecentSearches] = useState<string[]>(() => {
+    if (typeof window === 'undefined') return [];
+    const stored = localStorage.getItem('recentSearches');
+    return stored ? JSON.parse(stored).slice(0, 5) : [];
+  });
   const [showSuggestions, setShowSuggestions] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const { search, data, isSearching, error, reset } = useNaturalSearch();
-
-  // Load recent searches from localStorage
-  useEffect(() => {
-    const stored = localStorage.getItem('recentSearches');
-    if (stored) {
-      setRecentSearches(JSON.parse(stored).slice(0, 5));
-    }
-  }, []);
 
   // Notify parent of results
   useEffect(() => {

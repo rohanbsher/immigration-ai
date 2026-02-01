@@ -3,10 +3,12 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Bell, Check, Loader2, Trash2 } from 'lucide-react';
+import { Check, Loader2 } from 'lucide-react';
 import { useNotifications, useMarkAsRead, useMarkAllAsRead } from '@/hooks/use-notifications';
 import { formatDistanceToNow } from 'date-fns';
 import Link from 'next/link';
+import { NotificationsEmptyState } from '@/components/ui/empty-state';
+import { Skeleton, NotificationSkeleton, ListSkeleton } from '@/components/ui/skeletons';
 
 const typeConfig: Record<string, { className: string; label: string }> = {
   info: { className: 'bg-blue-100 text-blue-700', label: 'Info' },
@@ -30,8 +32,20 @@ export default function NotificationsPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+      <div className="space-y-6">
+        {/* Header skeleton */}
+        <div className="flex items-center justify-between">
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-36" />
+            <Skeleton className="h-4 w-72" />
+          </div>
+          <Skeleton className="h-10 w-36" />
+        </div>
+        {/* Notifications skeleton */}
+        <div className="space-y-4">
+          <Skeleton className="h-6 w-24" />
+          <ListSkeleton count={4} ItemSkeleton={NotificationSkeleton} />
+        </div>
       </div>
     );
   }
@@ -54,8 +68,8 @@ export default function NotificationsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Notifications</h1>
-          <p className="text-slate-600 mt-1">
+          <h1 className="text-2xl font-bold text-foreground">Notifications</h1>
+          <p className="text-muted-foreground mt-1">
             Stay updated on your cases, documents, and deadlines
           </p>
         </div>
@@ -78,7 +92,7 @@ export default function NotificationsPage() {
       {/* Unread Notifications */}
       {unreadNotifications.length > 0 && (
         <div className="space-y-4">
-          <h2 className="text-lg font-semibold text-slate-900">
+          <h2 className="text-lg font-semibold text-foreground">
             Unread ({unreadNotifications.length})
           </h2>
           <div className="space-y-3">
@@ -93,12 +107,12 @@ export default function NotificationsPage() {
                           <Badge variant="secondary" className={typeInfo.className}>
                             {typeInfo.label}
                           </Badge>
-                          <span className="text-xs text-slate-500">
+                          <span className="text-xs text-muted-foreground">
                             {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
                           </span>
                         </div>
-                        <h3 className="font-medium text-slate-900">{notification.title}</h3>
-                        <p className="text-sm text-slate-600 mt-1">{notification.message}</p>
+                        <h3 className="font-medium text-foreground">{notification.title}</h3>
+                        <p className="text-sm text-muted-foreground mt-1">{notification.message}</p>
                         {notification.action_url && (
                           <Link
                             href={notification.action_url}
@@ -129,7 +143,7 @@ export default function NotificationsPage() {
       {/* Read Notifications */}
       {readNotifications.length > 0 && (
         <div className="space-y-4">
-          <h2 className="text-lg font-semibold text-slate-500">
+          <h2 className="text-lg font-semibold text-muted-foreground">
             Earlier
           </h2>
           <div className="space-y-3">
@@ -144,12 +158,12 @@ export default function NotificationsPage() {
                           <Badge variant="secondary" className={typeInfo.className}>
                             {typeInfo.label}
                           </Badge>
-                          <span className="text-xs text-slate-500">
+                          <span className="text-xs text-muted-foreground">
                             {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
                           </span>
                         </div>
-                        <h3 className="font-medium text-slate-700">{notification.title}</h3>
-                        <p className="text-sm text-slate-500 mt-1">{notification.message}</p>
+                        <h3 className="font-medium text-foreground/80">{notification.title}</h3>
+                        <p className="text-sm text-muted-foreground mt-1">{notification.message}</p>
                         {notification.action_url && (
                           <Link
                             href={notification.action_url}
@@ -171,12 +185,8 @@ export default function NotificationsPage() {
       {/* Empty State */}
       {notifications?.length === 0 && (
         <Card>
-          <CardContent className="p-12 text-center">
-            <Bell className="h-12 w-12 mx-auto text-slate-300 mb-4" />
-            <h3 className="text-lg font-medium text-slate-900 mb-2">No notifications yet</h3>
-            <p className="text-slate-600">
-              You&apos;ll see updates about your cases, documents, and deadlines here.
-            </p>
+          <CardContent className="p-6">
+            <NotificationsEmptyState />
           </CardContent>
         </Card>
       )}

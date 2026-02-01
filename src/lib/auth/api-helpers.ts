@@ -20,6 +20,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { getProfileAsAdmin } from '@/lib/supabase/admin';
 import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 import type { UserRole } from '@/types';
 import { User } from '@supabase/supabase-js';
@@ -219,6 +220,14 @@ export async function authenticate(
   } = await supabase.auth.getUser();
 
   if (!user) {
+    // Debug logging for 401 errors
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('[Auth] 401 Unauthorized:', {
+        hasCookieHeader: !!request.headers.get('cookie'),
+        url: request.url,
+        method: request.method,
+      });
+    }
     return {
       success: false,
       error: 'Unauthorized',
@@ -226,18 +235,19 @@ export async function authenticate(
     };
   }
 
-  // Get user profile
-  const { data: profile, error: profileError } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', user.id)
-    .single();
+  // Get user profile using admin client (bypasses RLS since user is already authenticated)
+  const { profile, error: profileError } = await getProfileAsAdmin(user.id);
 
   if (profileError || !profile) {
+    console.error('Profile lookup failed for user:', user.id, profileError?.message || 'No profile row');
     return {
       success: false,
       error: 'Profile not found',
-      response: errorResponse('Profile not found', 401),
+      response: errorResponse(
+        'Profile not found. User authenticated but profile record is missing.',
+        401,
+        { userId: user.id, hint: 'Ensure profile row exists in profiles table' }
+      ),
     };
   }
 

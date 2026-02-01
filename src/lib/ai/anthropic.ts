@@ -3,6 +3,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { FormAutofillResult, ExtractedField, FormField } from './types';
 import { FORM_AUTOFILL_SYSTEM_PROMPT, getAutofillPrompt } from './prompts';
+import { parseClaudeJSON, extractTextContent } from './utils';
 
 // Lazy-initialize Anthropic client to avoid errors during build
 let anthropicInstance: Anthropic | null = null;
@@ -65,31 +66,14 @@ ${input.existingFormData ? JSON.stringify(input.existingFormData, null, 2) : 'No
       ],
     });
 
-    // Extract text content from the response
-    const textContent = message.content.find((block) => block.type === 'text');
-    const content = textContent?.type === 'text' ? textContent.text : '';
+    // Extract text content and parse JSON from the response
+    const content = extractTextContent(message.content);
 
     if (!content) {
       throw new Error('No response content from Claude');
     }
 
-    // Parse JSON from the response (may be wrapped in markdown code blocks)
-    const jsonMatch = content.match(/```json\n?([\s\S]*?)\n?```/) ||
-      content.match(/\{[\s\S]*\}/);
-
-    if (!jsonMatch) {
-      throw new Error('Could not parse JSON response from Claude');
-    }
-
-    const jsonStr = jsonMatch[1] || jsonMatch[0];
-    let parsed: FormAutofillResult;
-    try {
-      parsed = JSON.parse(jsonStr) as FormAutofillResult;
-    } catch (parseError) {
-      throw new Error(
-        `Failed to parse Claude response as JSON: ${parseError instanceof Error ? parseError.message : 'unknown error'}`
-      );
-    }
+    const parsed = parseClaudeJSON<FormAutofillResult>(content);
 
     return {
       ...parsed,
@@ -153,8 +137,7 @@ Respond with JSON:
     ],
   });
 
-  const textContent = message.content.find((block) => block.type === 'text');
-  const content = textContent?.type === 'text' ? textContent.text : '';
+  const content = extractTextContent(message.content);
 
   if (!content) {
     return {
@@ -165,26 +148,18 @@ Respond with JSON:
     };
   }
 
-  const jsonMatch = content.match(/```json\n?([\s\S]*?)\n?```/) ||
-    content.match(/\{[\s\S]*\}/);
-
-  if (!jsonMatch) {
-    return {
-      isValid: true,
-      errors: [],
-      warnings: ['Unable to parse validation response'],
-      suggestions: [],
-    };
-  }
-
-  const jsonStr = jsonMatch[1] || jsonMatch[0];
   try {
-    return JSON.parse(jsonStr);
+    return parseClaudeJSON<{
+      isValid: boolean;
+      errors: string[];
+      warnings: string[];
+      suggestions: string[];
+    }>(content);
   } catch {
     return {
       isValid: true,
       errors: [],
-      warnings: ['Failed to parse validation response'],
+      warnings: ['Unable to parse validation response'],
       suggestions: [],
     };
   }
@@ -218,8 +193,7 @@ Keep the explanation clear and concise, suitable for an attorney reviewing with 
     ],
   });
 
-  const textContent = message.content.find((block) => block.type === 'text');
-  return textContent?.type === 'text' ? textContent.text : '';
+  return extractTextContent(message.content);
 }
 
 /**
@@ -269,8 +243,7 @@ Respond with JSON:
     ],
   });
 
-  const textContent = message.content.find((block) => block.type === 'text');
-  const content = textContent?.type === 'text' ? textContent.text : '';
+  const content = extractTextContent(message.content);
 
   if (!content) {
     return {
@@ -279,19 +252,15 @@ Respond with JSON:
     };
   }
 
-  const jsonMatch = content.match(/```json\n?([\s\S]*?)\n?```/) ||
-    content.match(/\{[\s\S]*\}/);
-
-  if (!jsonMatch) {
-    return {
-      consistencyScore: 1,
-      discrepancies: [],
-    };
-  }
-
-  const jsonStr = jsonMatch[1] || jsonMatch[0];
   try {
-    return JSON.parse(jsonStr);
+    return parseClaudeJSON<{
+      consistencyScore: number;
+      discrepancies: Array<{
+        field: string;
+        values: Array<{ document: string; value: string }>;
+        recommendation: string;
+      }>;
+    }>(content);
   } catch {
     return {
       consistencyScore: 1,
@@ -344,23 +313,20 @@ Respond with JSON:
     ],
   });
 
-  const textContent = message.content.find((block) => block.type === 'text');
-  const content = textContent?.type === 'text' ? textContent.text : '';
+  const content = extractTextContent(message.content);
 
   if (!content) {
     return { nextSteps: [] };
   }
 
-  const jsonMatch = content.match(/```json\n?([\s\S]*?)\n?```/) ||
-    content.match(/\{[\s\S]*\}/);
-
-  if (!jsonMatch) {
-    return { nextSteps: [] };
-  }
-
-  const jsonStr = jsonMatch[1] || jsonMatch[0];
   try {
-    return JSON.parse(jsonStr);
+    return parseClaudeJSON<{
+      nextSteps: Array<{
+        priority: 'high' | 'medium' | 'low';
+        action: string;
+        reason: string;
+      }>;
+    }>(content);
   } catch {
     return { nextSteps: [] };
   }

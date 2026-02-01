@@ -4,8 +4,10 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { FileText, Upload, Loader2 } from 'lucide-react';
+import { FileText } from 'lucide-react';
 import { useCases } from '@/hooks/use-cases';
+import { DocumentsEmptyState } from '@/components/ui/empty-state';
+import { Skeleton, StatsCardSkeleton } from '@/components/ui/skeletons';
 
 export default function DocumentsPage() {
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
@@ -13,8 +15,32 @@ export default function DocumentsPage() {
 
   if (casesLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+      <div className="space-y-6">
+        {/* Header skeleton */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-40" />
+            <Skeleton className="h-4 w-64" />
+          </div>
+        </div>
+        {/* Content skeleton */}
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-6 w-32" />
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-2 mb-6">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Skeleton key={i} className="h-9 w-32 rounded-md" />
+              ))}
+            </div>
+            <div className="space-y-4">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <StatsCardSkeleton key={i} />
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -24,8 +50,8 @@ export default function DocumentsPage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Documents</h1>
-          <p className="text-slate-600">View and manage all case documents</p>
+          <h1 className="text-2xl font-bold text-foreground">Documents</h1>
+          <p className="text-muted-foreground">View and manage all case documents</p>
         </div>
       </div>
 
@@ -80,17 +106,8 @@ export default function DocumentsPage() {
         </Tabs>
       ) : (
         <Card>
-          <CardContent className="p-12 text-center">
-            <FileText className="h-12 w-12 mx-auto text-slate-300 mb-4" />
-            <h3 className="text-lg font-semibold text-slate-900 mb-2">
-              No cases yet
-            </h3>
-            <p className="text-slate-600 mb-4">
-              Create a case first to start uploading documents.
-            </p>
-            <Button onClick={() => (window.location.href = '/dashboard/cases')}>
-              Go to Cases
-            </Button>
+          <CardContent className="p-6">
+            <DocumentsEmptyState />
           </CardContent>
         </Card>
       )}

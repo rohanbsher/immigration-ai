@@ -1,9 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { User, Session } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/client';
+import { fetchWithTimeout, TimeoutError } from '@/lib/api/fetch-with-timeout';
 import type { UserRole } from '@/types';
 
 interface AuthState {
@@ -26,6 +27,7 @@ interface SignUpData {
 interface SignInData {
   email: string;
   password: string;
+  returnUrl?: string;
 }
 
 export function useAuth() {
@@ -36,27 +38,35 @@ export function useAuth() {
     error: null,
   });
   const router = useRouter();
-  const supabase = createClient();
+  // Memoize Supabase client to prevent recreation on every render
+  const supabase = useMemo(() => createClient(), []);
 
   useEffect(() => {
+    // Track if component is mounted to prevent state updates after unmount
+    let isMounted = true;
+
     // Get initial session
     const getInitialSession = async () => {
       try {
         const { data: { session }, error } = await supabase.auth.getSession();
         if (error) throw error;
 
-        setState({
-          user: session?.user ?? null,
-          session,
-          isLoading: false,
-          error: null,
-        });
+        if (isMounted) {
+          setState({
+            user: session?.user ?? null,
+            session,
+            isLoading: false,
+            error: null,
+          });
+        }
       } catch (error) {
-        setState(prev => ({
-          ...prev,
-          isLoading: false,
-          error: error as Error,
-        }));
+        if (isMounted) {
+          setState(prev => ({
+            ...prev,
+            isLoading: false,
+            error: error as Error,
+          }));
+        }
       }
     };
 
@@ -65,20 +75,23 @@ export function useAuth() {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        setState({
-          user: session?.user ?? null,
-          session,
-          isLoading: false,
-          error: null,
-        });
+        if (isMounted) {
+          setState({
+            user: session?.user ?? null,
+            session,
+            isLoading: false,
+            error: null,
+          });
 
-        if (event === 'SIGNED_OUT') {
-          router.push('/login');
+          if (event === 'SIGNED_OUT') {
+            router.push('/login');
+          }
         }
       }
     );
 
     return () => {
+      isMounted = false;
       subscription.unsubscribe();
     };
   }, [supabase, router]);
@@ -87,10 +100,11 @@ export function useAuth() {
     setState(prev => ({ ...prev, isLoading: true, error: null }));
 
     try {
-      const response = await fetch('/api/auth/register', {
+      const response = await fetchWithTimeout('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
+        timeout: 'STANDARD',
       });
 
       const result = await response.json();
@@ -107,6 +121,11 @@ export function useAuth() {
       router.refresh();
       return { success: true };
     } catch (error) {
+      if (error instanceof TimeoutError) {
+        const timeoutError = new Error('Registration timed out. Please try again.');
+        setState(prev => ({ ...prev, error: timeoutError, isLoading: false }));
+        throw timeoutError;
+      }
       setState(prev => ({ ...prev, error: error as Error, isLoading: false }));
       throw error;
     }
@@ -116,10 +135,11 @@ export function useAuth() {
     setState(prev => ({ ...prev, isLoading: true, error: null }));
 
     try {
-      const response = await fetch('/api/auth/login', {
+      const response = await fetchWithTimeout('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+        body: JSON.stringify({ email: data.email, password: data.password }),
+        timeout: 'STANDARD',
       });
 
       const result = await response.json();
@@ -128,10 +148,17 @@ export function useAuth() {
         throw new Error(result.error || 'Login failed');
       }
 
-      router.push('/dashboard');
+      // Redirect to returnUrl if provided, otherwise dashboard
+      const redirectTo = data.returnUrl || '/dashboard';
+      router.push(redirectTo);
       router.refresh();
       return { success: true };
     } catch (error) {
+      if (error instanceof TimeoutError) {
+        const timeoutError = new Error('Login timed out. Please try again.');
+        setState(prev => ({ ...prev, error: timeoutError, isLoading: false }));
+        throw timeoutError;
+      }
       setState(prev => ({ ...prev, error: error as Error, isLoading: false }));
       throw error;
     }
@@ -159,8 +186,9 @@ export function useAuth() {
     setState(prev => ({ ...prev, isLoading: true, error: null }));
 
     try {
-      const response = await fetch('/api/auth/logout', {
+      const response = await fetchWithTimeout('/api/auth/logout', {
         method: 'POST',
+        timeout: 'QUICK',
       });
 
       if (!response.ok) {
@@ -171,6 +199,11 @@ export function useAuth() {
       router.push('/login');
       router.refresh();
     } catch (error) {
+      if (error instanceof TimeoutError) {
+        router.push('/login');
+        router.refresh();
+        return;
+      }
       setState(prev => ({ ...prev, error: error as Error, isLoading: false }));
       throw error;
     }

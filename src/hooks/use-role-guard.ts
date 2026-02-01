@@ -1,9 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+/**
+ * Route guard hooks for protecting pages based on user role.
+ * Delegates to usePermissions for centralized permission logic.
+ */
+
+import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { useUser } from './use-user';
-import { canAccessRoute, hasPermission } from '@/lib/rbac';
+import { usePermissions, useCanPerform as useCanPerformFromPermissions } from './use-permissions';
 import type { UserRole } from '@/types';
 
 interface UseRoleGuardOptions {
@@ -64,11 +68,19 @@ export function useRoleGuard(options: UseRoleGuardOptions = {}): UseRoleGuardRet
   const { requiredRoles, redirectTo, skip = false } = options;
   const router = useRouter();
   const pathname = usePathname();
-  const { profile, isLoading: isProfileLoading } = useUser();
+  const { role, isLoading: isProfileLoading, canPerform, canAccessPath } = usePermissions();
 
-  const [isRedirecting, setIsRedirecting] = useState(false);
+  // Use ref + useSyncExternalStore pattern to avoid setState-in-effect lint error
+  const redirectStateRef = useRef({ isRedirecting: false, listeners: new Set<() => void>() });
 
-  const role = profile?.role;
+  const isRedirecting = useSyncExternalStore(
+    (callback) => {
+      redirectStateRef.current.listeners.add(callback);
+      return () => redirectStateRef.current.listeners.delete(callback);
+    },
+    () => redirectStateRef.current.isRedirecting,
+    () => false // Server snapshot
+  );
 
   // Determine access
   let hasAccess = false;
@@ -77,11 +89,11 @@ export function useRoleGuard(options: UseRoleGuardOptions = {}): UseRoleGuardRet
   if (skip) {
     hasAccess = true;
   } else if (requiredRoles && requiredRoles.length > 0) {
-    // Explicit role check
-    hasAccess = hasPermission(role, requiredRoles);
+    // Explicit role check using centralized permission logic
+    hasAccess = canPerform(requiredRoles);
   } else {
-    // Route-based check
-    const result = canAccessRoute(role, pathname);
+    // Route-based check using centralized RBAC
+    const result = canAccessPath(pathname);
     hasAccess = result.allowed;
     if (!hasAccess && result.redirectTo) {
       computedRedirectTo = result.redirectTo;
@@ -92,16 +104,17 @@ export function useRoleGuard(options: UseRoleGuardOptions = {}): UseRoleGuardRet
   useEffect(() => {
     if (isProfileLoading || skip) return;
 
-    if (!hasAccess && !isRedirecting) {
-      setIsRedirecting(true);
+    if (!hasAccess && !redirectStateRef.current.isRedirecting) {
+      redirectStateRef.current.isRedirecting = true;
+      redirectStateRef.current.listeners.forEach(listener => listener());
       router.replace(computedRedirectTo);
     }
-  }, [isProfileLoading, hasAccess, isRedirecting, router, computedRedirectTo, skip]);
+  }, [isProfileLoading, hasAccess, router, computedRedirectTo, skip]);
 
   return {
     isLoading: isProfileLoading,
     hasAccess: skip ? true : hasAccess,
-    role,
+    role: role ?? undefined,
     isRedirecting,
   };
 }
@@ -127,9 +140,5 @@ export function useRoleGuard(options: UseRoleGuardOptions = {}): UseRoleGuardRet
  * }
  */
 export function useCanPerform(requiredRoles: UserRole[]): boolean {
-  const { profile, isLoading } = useUser();
-
-  if (isLoading || !profile) return false;
-
-  return hasPermission(profile.role, requiredRoles);
+  return useCanPerformFromPermissions(requiredRoles);
 }

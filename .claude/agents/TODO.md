@@ -1,491 +1,312 @@
-# Immigration AI - Production Implementation TODO
+# Immigration AI - Agent Task List
 
-> Master TODO list organized for **parallel agent execution**.
-> **Last Updated:** 2026-01-28
-> **Timeline:** 1 Week Sprint
-> **Priority:** Multi-tenancy + Billing
+> Last updated: 2026-01-30 17:30 (Production Readiness Plan Created)
 
----
+## Current Execution Plan: Production Readiness
 
-## How to Use This File
+**Goal:** Achieve production-ready state with all tests passing and clean codebase
+**Total Estimated Time:** 12-18 hours across 7 phases
+**Detailed Plan:** See `.claude/agents/EXECUTION_PLAN.md` for line-by-line implementation details
 
-### For Agents
-1. **Read `.claude/CONTEXT.md` first** for current state
-2. **Claim a work stream** by adding your agent ID to the "Assigned" field
-3. **Only work on files in your work stream** to avoid conflicts
-4. **Update status** as you complete tasks
-5. **Write session summary** when done
-6. **Update `.claude/CONTEXT.md`** with any state changes
+### Progress Tracker
 
-### Work Stream Rules
-- Each work stream has **exclusive file ownership**
-- Agents can run in parallel on different work streams
-- **DO NOT** modify files outside your work stream
-- If you need a change in another stream's files, note it in "Cross-Stream Dependencies"
+| Phase | Description | Status | Tests | Console Stmts |
+|-------|-------------|--------|-------|---------------|
+| 1 | Fix 20 test failures | NOT STARTED | 954/977 | - |
+| 2 | Console migration - Jobs/Cron | NOT STARTED | - | 16 remaining |
+| 3 | Console migration - Stripe | NOT STARTED | - | 6 remaining |
+| 4 | Console migration - File Validation | NOT STARTED | - | 6 remaining |
+| 5 | Console migration - API Routes | NOT STARTED | - | ~150 remaining |
+| 6 | Console migration - Lib/Components | NOT STARTED | - | ~55 remaining |
+| 7 | ESLint cleanup | NOT STARTED | - | - |
 
 ---
 
-## Current Status Overview
+## Phase 1: Fix Test Failures (PRIORITY: CRITICAL)
 
-| Work Stream | Status | Assigned | Files Owned |
-|-------------|--------|----------|-------------|
-| WS-1: Billing | **COMPLETE** (Code + UI) | - | `/src/lib/stripe/`, `/src/app/api/billing/` |
-| WS-2: Multi-Tenancy | **COMPLETE** (Code + UI) | - | `/src/lib/organizations/`, `/src/app/api/organizations/` |
-| WS-3: Email | **READY** | - | `/src/lib/email/` |
-| Phase 1-2 | COMPLETE | - | - |
-| Phase 3 | COMPLETE (86%+ coverage) | - | - |
-
----
-
-## WORK STREAM 1: Billing & Payments
-
-**Status:** COMPLETE (Code & UI built, needs manual testing)
-**Priority:** CRITICAL
-**Estimated Effort:** 40-60 hours
-**Completed:** 2026-01-27
-
-### File Ownership (Only modify these)
-```
-/src/lib/stripe/                    # NEW - Create this folder
-/src/app/api/billing/               # NEW - Create this folder
-/src/app/dashboard/billing/         # MODIFY existing
-/src/hooks/use-subscription.ts      # MODIFY existing
-/supabase/migrations/XXX_billing.sql # NEW migration
-```
-
-### DO NOT MODIFY (owned by other streams)
-```
-/src/lib/organizations/             # WS-2 owns this
-/src/app/api/firms/                 # WS-2 owns this
-```
+**Estimated Time:** 2-3 hours
+**Files:** 3
+**Blocking:** All other phases should wait for tests to pass
 
 ### Tasks
 
-#### 1.1 Database Schema (4h)
-- [ ] Create migration: `subscriptions` table
-- [ ] Create migration: `payments` table
-- [ ] Create migration: `invoices` table
-- [ ] Add `subscription_id` FK to `profiles` table
-- [ ] Add RLS policies for billing tables
+- [ ] **1.1** Fix AI error message in `src/lib/ai/utils.ts:68`
+  - Change: `'No JSON found in response'` → `'Could not parse JSON response from Claude'`
+  - Verification: `npm run test:run -- src/lib/ai/index.test.ts`
 
-**Schema:**
-```sql
--- subscriptions
-CREATE TABLE subscriptions (
-  id UUID PRIMARY KEY,
-  user_id UUID REFERENCES profiles(id),
-  stripe_customer_id TEXT,
-  stripe_subscription_id TEXT,
-  plan TEXT CHECK (plan IN ('free', 'pro', 'enterprise')),
-  status TEXT CHECK (status IN ('active', 'canceled', 'past_due', 'trialing')),
-  current_period_start TIMESTAMPTZ,
-  current_period_end TIMESTAMPTZ,
-  cancel_at_period_end BOOLEAN DEFAULT false,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
+- [ ] **1.2** Fix auth tests in `src/lib/auth/index.test.ts`
+  - Add import: `import { getProfileAsAdmin } from '@/lib/supabase/admin';`
+  - Add `mockResolvedValueOnce` for each role-based test (~9 tests)
+  - Tests at lines: ~756, ~774, ~812, ~830, ~629, ~651, ~1175, ~1247, ~1269
+  - Verification: `npm run test:run -- src/lib/auth/index.test.ts`
 
--- payments
-CREATE TABLE payments (
-  id UUID PRIMARY KEY,
-  subscription_id UUID REFERENCES subscriptions(id),
-  stripe_payment_intent_id TEXT,
-  amount INTEGER, -- cents
-  currency TEXT DEFAULT 'usd',
-  status TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
+- [ ] **1.3** Fix cases API tests in `src/app/api/cases/cases.test.ts`
+  - Add mock: `vi.mock('@/lib/supabase/admin', () => ({ getProfileAsAdmin: vi.fn()... }))`
+  - Add after existing mocks (~line 263)
+  - Verification: `npm run test:run -- src/app/api/cases/cases.test.ts`
+
+### Phase 1 Checkpoint
+```bash
+npm run test:run  # Expected: 974/977 passing
+npm run build     # Expected: Success
 ```
 
-#### 1.2 Stripe Client Setup (4h)
-- [ ] Install `stripe` package
-- [ ] Create `/src/lib/stripe/client.ts` - Server-side Stripe client
-- [ ] Create `/src/lib/stripe/config.ts` - Plan definitions, prices
-- [ ] Create `/src/lib/stripe/helpers.ts` - Common operations
+---
 
-**Plan Configuration:**
+## Phase 2: Console Migration - Jobs & Cron (16 statements)
+
+**Estimated Time:** 1-2 hours
+**Files:** 2
+**Can run parallel with Phase 3**
+
+### Tasks
+
+- [ ] **2.1** Migrate `src/lib/jobs/cleanup.ts` (12 statements)
+  - Add: `import { createLogger } from '@/lib/logger'; const log = createLogger('jobs:cleanup');`
+  - Replace 12 console.* calls with log.* calls
+  - See EXECUTION_PLAN.md for line-by-line details
+
+- [ ] **2.2** Migrate `src/app/api/cron/deadline-alerts/route.ts` (4 statements)
+  - Add: `import { createLogger } from '@/lib/logger'; const log = createLogger('cron:deadline-alerts');`
+  - Replace 4 console.* calls with log.* calls
+
+### Phase 2 Checkpoint
+```bash
+npm run build
+npm run test:run
+```
+
+---
+
+## Phase 3: Console Migration - Stripe (6 statements)
+
+**Estimated Time:** 30 minutes
+**Files:** 1
+**Can run parallel with Phase 2**
+
+### Tasks
+
+- [ ] **3.1** Migrate `src/lib/stripe/webhooks.ts` (6 statements)
+  - Add: `import { createLogger } from '@/lib/logger'; const log = createLogger('stripe:webhooks');`
+  - Replace 6 console.* calls with log.* calls
+  - Lines: 59, 103, 125, 155, 262, 341
+
+---
+
+## Phase 4: Console Migration - File Validation (6 statements)
+
+**Estimated Time:** 30 minutes
+**Files:** 1
+
+### Tasks
+
+- [ ] **4.1** Migrate `src/lib/file-validation/index.ts` (6 statements)
+  - Add: `import { createLogger } from '@/lib/logger'; const log = createLogger('security:file-validation');`
+  - Replace 6 console.* calls with log.* calls
+  - Lines: 263, 284, 303, 324, 400, 417-420
+
+---
+
+## Phase 5: Console Migration - API Routes (~150 statements)
+
+**Estimated Time:** 4-6 hours
+**Files:** 47
+
+### Pattern
 ```typescript
-export const PLANS = {
-  free: {
-    name: 'Free',
-    priceId: null,
-    limits: { cases: 1, documents: 10, aiCalls: 5 }
-  },
-  pro: {
-    name: 'Pro',
-    priceId: 'price_xxx',
-    limits: { cases: -1, documents: -1, aiCalls: 100 }
-  },
-  enterprise: {
-    name: 'Enterprise',
-    priceId: 'price_yyy',
-    limits: { cases: -1, documents: -1, aiCalls: -1 }
-  }
-};
+import { createLogger } from '@/lib/logger';
+const log = createLogger('api:route-name');
+
+// console.error('Error:', error) → log.logError('Error', error)
+// console.log('message', data) → log.info('message', { data })
 ```
 
-#### 1.3 Checkout Flow (8h)
-- [ ] Create `/src/app/api/billing/checkout/route.ts`
-  - POST: Create Stripe checkout session
-- [ ] Create `/src/app/api/billing/portal/route.ts`
-  - POST: Create Stripe customer portal session
-- [ ] Update `/src/app/dashboard/billing/page.tsx`
-  - Show current plan
-  - Upgrade/downgrade buttons
-  - Billing history
+### Tasks (Tier 1 - Auth/Security)
+- [ ] **5.1** `src/app/api/auth/login/route.ts`
+- [ ] **5.2** `src/app/api/auth/register/route.ts`
+- [ ] **5.3** `src/app/api/2fa/setup/route.ts`
+- [ ] **5.4** `src/app/api/2fa/verify/route.ts`
 
-#### 1.4 Webhook Handler (8h)
-- [ ] Create `/src/app/api/billing/webhook/route.ts`
-- [ ] Handle events:
-  - `checkout.session.completed` - Create subscription
-  - `customer.subscription.updated` - Update status
-  - `customer.subscription.deleted` - Cancel subscription
-  - `invoice.payment_succeeded` - Record payment
-  - `invoice.payment_failed` - Handle failure
-- [ ] Verify webhook signature
+### Tasks (Tier 2 - Billing)
+- [ ] **5.5** `src/app/api/billing/checkout/route.ts`
+- [ ] **5.6** `src/app/api/billing/subscription/route.ts`
+- [ ] **5.7** `src/app/api/billing/webhooks/route.ts`
+- [ ] **5.8** `src/app/api/billing/portal/route.ts`
+- [ ] **5.9** `src/app/api/billing/quota/route.ts`
 
-#### 1.5 Usage Tracking & Limits (8h)
-- [ ] Create `/src/lib/stripe/usage.ts`
-  - `checkQuota(userId, resource)` - Check if under limit
-  - `incrementUsage(userId, resource)` - Increment counter
-  - `getUsage(userId)` - Get current usage
-- [ ] Add usage checks to:
-  - Case creation (check case limit)
-  - Document upload (check document limit)
-  - AI operations (check AI call limit)
+### Tasks (Tier 3 - Cases/Documents)
+- [ ] **5.10** `src/app/api/cases/[id]/route.ts`
+- [ ] **5.11** `src/app/api/cases/[id]/documents/route.ts`
+- [ ] **5.12** `src/app/api/documents/[id]/route.ts`
+- [ ] **5.13** `src/app/api/documents/[id]/analyze/route.ts`
+- [ ] **5.14** `src/app/api/forms/[id]/route.ts`
+- [ ] **5.15** `src/app/api/forms/[id]/autofill/route.ts`
 
-#### 1.6 Update Hooks (4h)
-- [ ] Update `/src/hooks/use-subscription.ts`
-  - Add `createCheckoutSession()`
-  - Add `openBillingPortal()`
-  - Add `getUsage()`
-  - Add `canUseFeature(feature)`
+### Tasks (Tier 4 - Remaining)
+- [ ] **5.16** All other API routes with console statements
+  - Use grep to find: `grep -r "console\." src/app/api --include="*.ts"`
 
-### Environment Variables Needed
+### Phase 5 Checkpoint
 ```bash
-STRIPE_SECRET_KEY=sk_live_...
-STRIPE_WEBHOOK_SECRET=whsec_...
-NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_...
+npm run build
+grep -r "console\." src/app/api --include="*.ts" | wc -l  # Should be 0
 ```
-
-### Verification Checklist
-- [ ] Can create checkout session
-- [ ] Webhook handles all events correctly
-- [ ] Subscription status syncs to database
-- [ ] Usage limits enforced
-- [ ] Billing portal accessible
-- [ ] Build passes
 
 ---
 
-## WORK STREAM 2: Multi-Tenancy (Organizations/Firms)
+## Phase 6: Console Migration - Lib/Components (~55 statements)
 
-**Status:** COMPLETE (Code & UI built, needs manual testing)
-**Priority:** CRITICAL
-**Estimated Effort:** 40-50 hours
-**Completed:** 2026-01-27
+**Estimated Time:** 2-3 hours
+**Files:** 23
 
-### File Ownership (Only modify these)
-```
-/src/lib/organizations/             # NEW - Create this folder
-/src/app/api/organizations/         # NEW - Create this folder
-/src/app/dashboard/firm/            # MODIFY existing
-/src/hooks/use-firm.ts              # MODIFY existing
-/src/hooks/use-firm-members.ts      # MODIFY existing
-/supabase/migrations/XXX_orgs.sql   # NEW migration
+### Tasks (Lib Files)
+- [ ] **6.1** `src/lib/auth/api-helpers.ts` (3 statements)
+- [ ] **6.2** `src/lib/supabase/middleware.ts` (3 statements)
+- [ ] **6.3** `src/lib/config/env.ts` (4 statements)
+- [ ] **6.4** `src/lib/rate-limit/index.ts` (3 statements)
+- [ ] **6.5** `src/lib/audit/index.ts` (6 statements)
+- [ ] **6.6** `src/lib/ai/natural-search.ts` (2 statements)
+- [ ] **6.7** `src/lib/ai/utils.ts` (1 statement)
+- [ ] **6.8** `src/lib/ai/document-completeness.ts` (2 statements)
+- [ ] **6.9** `src/lib/email/index.ts` (4 statements)
+- [ ] **6.10** `src/lib/email/client.ts` (1 statement)
+- [ ] **6.11** `src/lib/2fa/qr-code.ts` (2 statements)
+- [ ] **6.12** `src/lib/pdf/index.ts` (1 statement)
+- [ ] **6.13** `src/lib/crypto/index.ts` (1 statement)
+- [ ] **6.14** `src/lib/csrf/index.ts` (1 statement)
+- [ ] **6.15** `src/lib/scoring/success-probability.ts` (1 statement)
+
+### Tasks (Component/Provider Files)
+- [ ] **6.16** `src/providers/auth-provider.tsx` (1 statement)
+- [ ] **6.17** `src/providers/query-provider.tsx` (1 statement)
+- [ ] **6.18** `src/components/session/session-expiry-warning.tsx` (2 statements)
+- [ ] **6.19** `src/components/settings/two-factor-setup.tsx` (1 statement)
+- [ ] **6.20** `src/components/error/error-boundary.tsx` (1 statement)
+- [ ] **6.21** `src/app/error.tsx` (1 statement)
+- [ ] **6.22** `src/app/dashboard/error.tsx` (1 statement)
+
+### Phase 6 Checkpoint
+```bash
+npm run build
+grep -r "console\." src --include="*.ts" --include="*.tsx" | grep -v ".test." | grep -v "__mocks__" | wc -l
+# Expected: Near 0
 ```
 
-### DO NOT MODIFY (owned by other streams)
-```
-/src/lib/stripe/                    # WS-1 owns this
-/src/app/api/billing/               # WS-1 owns this
-```
+---
+
+## Phase 7: ESLint Cleanup
+
+**Estimated Time:** 2-3 hours
+**Files:** ~20
 
 ### Tasks
 
-#### 2.1 Database Schema (4h)
-- [ ] Create migration: `organizations` table (rename from firms)
-- [ ] Create migration: `organization_members` table
-- [ ] Create migration: `organization_invitations` table
-- [ ] Add `organization_id` to `cases` table
-- [ ] Add RLS policies for organization data isolation
+- [ ] **7.1** Fix anonymous default exports (7 files)
+  - `src/__mocks__/anthropic.ts:195`
+  - `src/__mocks__/openai.ts:91`
+  - `src/__mocks__/stripe.ts:164`
+  - `src/__mocks__/supabase.ts:152`
+  - `src/__mocks__/upstash.ts:93`
+  - `src/lib/api/handler.ts:180`
+  - `src/lib/validation/index.ts:164`
 
-**Schema:**
-```sql
--- organizations (firms)
-CREATE TABLE organizations (
-  id UUID PRIMARY KEY,
-  name TEXT NOT NULL,
-  slug TEXT UNIQUE NOT NULL,
-  owner_id UUID REFERENCES profiles(id),
-  logo_url TEXT,
-  settings JSONB DEFAULT '{}',
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
+- [ ] **7.2** Remove unused imports
+  - Run: `npm run lint -- --fix`
+  - Manually fix remaining warnings
 
--- organization_members
-CREATE TABLE organization_members (
-  id UUID PRIMARY KEY,
-  organization_id UUID REFERENCES organizations(id),
-  user_id UUID REFERENCES profiles(id),
-  role TEXT CHECK (role IN ('owner', 'admin', 'member')),
-  joined_at TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE(organization_id, user_id)
-);
+- [ ] **7.3** Fix `<img>` element in `src/components/settings/two-factor-setup.tsx`
+  - Replace with `<Image>` from next/image
 
--- organization_invitations
-CREATE TABLE organization_invitations (
-  id UUID PRIMARY KEY,
-  organization_id UUID REFERENCES organizations(id),
-  email TEXT NOT NULL,
-  role TEXT DEFAULT 'member',
-  token TEXT UNIQUE NOT NULL,
-  expires_at TIMESTAMPTZ NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-```
-
-#### 2.2 Organization Service (6h)
-- [ ] Create `/src/lib/organizations/index.ts`
-  - `createOrganization(name, ownerId)`
-  - `getOrganization(id)`
-  - `updateOrganization(id, data)`
-  - `deleteOrganization(id)`
-- [ ] Create `/src/lib/organizations/members.ts`
-  - `addMember(orgId, userId, role)`
-  - `removeMember(orgId, userId)`
-  - `updateMemberRole(orgId, userId, role)`
-  - `getMembers(orgId)`
-- [ ] Create `/src/lib/organizations/invitations.ts`
-  - `createInvitation(orgId, email, role)`
-  - `acceptInvitation(token)`
-  - `revokeInvitation(id)`
-  - `getInvitations(orgId)`
-
-#### 2.3 API Routes (8h)
-- [ ] Create `/src/app/api/organizations/route.ts`
-  - GET: List user's organizations
-  - POST: Create organization
-- [ ] Create `/src/app/api/organizations/[id]/route.ts`
-  - GET: Get organization
-  - PATCH: Update organization
-  - DELETE: Delete organization
-- [ ] Create `/src/app/api/organizations/[id]/members/route.ts`
-  - GET: List members
-  - POST: Add member
-  - DELETE: Remove member
-- [ ] Create `/src/app/api/organizations/[id]/invitations/route.ts`
-  - GET: List invitations
-  - POST: Create invitation
-  - DELETE: Revoke invitation
-- [ ] Create `/src/app/api/invitations/[token]/accept/route.ts`
-  - POST: Accept invitation
-
-#### 2.4 Update Hooks (4h)
-- [ ] Update `/src/hooks/use-firm.ts` → rename to `use-organization.ts`
-  - Add organization CRUD operations
-  - Add current organization context
-- [ ] Update `/src/hooks/use-firm-members.ts` → rename to `use-organization-members.ts`
-  - Add invitation operations
-  - Add member role management
-
-#### 2.5 Organization UI (8h)
-- [ ] Update `/src/app/dashboard/firm/page.tsx`
-  - Organization settings
-  - Member list
-  - Pending invitations
-- [ ] Create `/src/app/dashboard/firm/members/page.tsx`
-  - Member management
-  - Invite form
-- [ ] Create `/src/components/organization/organization-switcher.tsx`
-  - Switch between organizations (for users in multiple)
-
-#### 2.6 Data Isolation (4h)
-- [ ] Update case queries to filter by organization
-- [ ] Update document queries to filter by organization
-- [ ] Verify RLS policies work correctly
-- [ ] Add organization context to audit logs
-
-### Verification Checklist
-- [ ] Can create organization
-- [ ] Can invite members via email
-- [ ] Invitations can be accepted
-- [ ] Cases are isolated by organization
-- [ ] Members can only see their org's data
-- [ ] Owner can transfer ownership
-- [ ] Build passes
-
----
-
-## WORK STREAM 3: Email Notifications
-
-**Status:** READY TO START (WS-1 complete, unblocked)
-**Priority:** HIGH
-**Estimated Effort:** 20-30 hours
-**Assigned Agent:** _none_
-**Requires:** Resend API key configuration
-
-### File Ownership (Only modify these)
-```
-/src/lib/email/                     # NEW - Create this folder
-/src/app/api/notifications/         # MODIFY existing
-```
-
-### Tasks (Start after WS-1 is done)
-
-#### 3.1 Email Service Setup (4h)
-- [ ] Install `resend` package
-- [ ] Create `/src/lib/email/client.ts` - Resend client
-- [ ] Create `/src/lib/email/templates/` folder
-- [ ] Create base email template (HTML/React)
-
-#### 3.2 Email Templates (8h)
-- [ ] Welcome email template
-- [ ] Invitation email template
-- [ ] Password reset template
-- [ ] Deadline reminder template
-- [ ] Document uploaded notification
-- [ ] Case status change notification
-- [ ] Payment receipt template
-- [ ] Subscription canceled template
-
-#### 3.3 Email Triggers (8h)
-- [ ] Wire email sending to:
-  - User signup (welcome)
-  - Org invitation (invite link)
-  - Password reset (reset link)
-  - Deadline approaching (3 days, 1 day)
-  - Document uploaded (notify attorney)
-  - Case status change (notify client)
-  - Payment success (receipt)
-  - Payment failed (warning)
-
-### Environment Variables Needed
+### Phase 7 Checkpoint
 ```bash
-RESEND_API_KEY=re_...
-EMAIL_FROM=notifications@yourdomain.com
+npm run lint 2>&1 | grep -c "warning"  # Expected: <10
+npm run build
+npm run test:run
 ```
 
 ---
 
-## COMPLETED WORK
-
-### Phase 1: Critical Security (COMPLETE)
-**Completed:** 2026-01-26
-
-| Task | Files |
-|------|-------|
-| Virus/Malware Scanning | `/src/lib/file-validation/` |
-| Magic Byte Validation | `/src/lib/file-validation/` |
-| AI Confidence Thresholds | `/src/lib/form-validation/` |
-| Attorney Audit Trail | `/src/app/api/forms/` |
-| Rate Limiting Safety | `/src/lib/rate-limit/` |
-
-### Phase 2: Production Hardening (COMPLETE)
-**Completed:** 2026-01-27
-
-| Task | Files |
-|------|-------|
-| Redis Health Monitoring | `/src/lib/rate-limit/health.ts` |
-| Request Timeouts | `/src/lib/api/fetch-with-timeout.ts`, all hooks |
-| Sentry Error Tracking | `/src/lib/sentry/`, `sentry.*.config.ts` |
-| PDF Generation | `/src/lib/pdf/` |
-| Frontend RBAC | `/src/hooks/use-role.ts`, `/src/lib/rbac/` |
-
-### Phase 3: Testing (COMPLETE)
-**Completed:** 2026-01-27
-
-| Task | Files |
-|------|-------|
-| E2E Tests (Playwright) | `tests/e2e/*.spec.ts` |
-| Unit Test Coverage 86%+ | Vitest |
-
----
-
-## DEFERRED WORK (Not This Sprint)
-
-### Accessibility (WCAG 2.1)
-- Skip for this sprint per user request
-- Will revisit after core SaaS features
-
-### Internationalization (i18n)
-- Skip for this sprint
-- Will revisit when expanding to international markets
-
-### Upload Progress Indicators
-- Nice to have, not blocking
-
-### AI Prompt Versioning
-- Nice to have, not blocking
-
----
-
-## Cross-Stream Dependencies
-
-### WS-1 → WS-2
-When billing is done, WS-2 needs to:
-- Add organization-level billing (org pays for all members)
-- Link subscription to organization instead of individual
-
-### WS-1 → WS-3
-When billing is done, WS-3 needs to:
-- Send payment receipt emails
-- Send subscription status emails
-
-### WS-2 → WS-3
-When multi-tenancy is done, WS-3 needs to:
-- Send invitation emails
-- Support org-level notification preferences
-
----
-
-## Agent Session Log
-
-| Date | Agent | Work Stream | Summary |
-|------|-------|-------------|---------|
-| 2026-01-26 | Opus 4.5 | Phase 1 | File validation, AI confidence, audit trails |
-| 2026-01-27 | Opus 4.5 | Phase 2 | Redis, timeouts, Sentry, PDF, RBAC |
-| 2026-01-27 | Opus 4.5 | Phase 3 | E2E tests, coverage |
-| 2026-01-27 | Opus 4.5 | Planning | Created ARCHITECTURE.md, restructured TODO |
-| 2026-01-27 | Opus 4.5 | WS-1 + WS-2 | Built Billing UI + Firm Management UI |
-| 2026-01-28 | Opus 4.5 | Infrastructure | Applied DB migrations, created RUNNING_CONTEXT system |
-
----
-
-## How to Start a Work Stream
-
-1. **Read this TODO** thoroughly
-2. **Claim the work stream** by editing the "Assigned Agent" field
-3. **Read ARCHITECTURE.md** for context
-4. **Read recent session summaries** in `/sessions/`
-5. **Create your files** only in your owned directories
-6. **Run `npm run build`** after each major change
-7. **Update this TODO** with task completion status
-8. **Write session summary** when done
-
----
-
-## Environment Variables Reference
+## Final Verification
 
 ```bash
-# Existing (configured)
-NEXT_PUBLIC_SUPABASE_URL=...
-NEXT_PUBLIC_SUPABASE_ANON_KEY=...
-SUPABASE_SERVICE_ROLE_KEY=...
-ANTHROPIC_API_KEY=...
-OPENAI_API_KEY=...
-UPSTASH_REDIS_REST_URL=...
-UPSTASH_REDIS_REST_TOKEN=...
+# All tests passing
+npm run test:run
+# Expected: 974/977 passing (3 skipped)
 
-# Phase 2 (optional)
-SENTRY_DSN=...
-NEXT_PUBLIC_SENTRY_DSN=...
+# Build succeeds
+npm run build
 
-# WS-1: Billing (add when implementing)
-STRIPE_SECRET_KEY=sk_live_...
-STRIPE_WEBHOOK_SECRET=whsec_...
-NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_...
+# No console statements in production code
+grep -r "console\." src --include="*.ts" --include="*.tsx" | grep -v ".test." | grep -v "__mocks__" | wc -l
+# Expected: 0
 
-# WS-3: Email (add when implementing)
-RESEND_API_KEY=re_...
-EMAIL_FROM=notifications@yourdomain.com
+# Minimal ESLint warnings
+npm run lint 2>&1 | grep -c "warning"
+# Expected: <10
+```
+
+---
+
+## Success Criteria
+
+- [ ] All 974 tests passing (20 fixed, 3 skipped)
+- [ ] Build succeeds with no errors
+- [ ] 0 console statements in production code
+- [ ] <10 ESLint warnings (intentional only)
+- [ ] All changes committed with conventional commits
+
+---
+
+## Completed Work Streams (Reference)
+
+### WS-AUDIT: Production Readiness Audit
+- [x] Verify security (.gitignore, Next.js version)
+- [x] Verify auth timeouts (use-user.ts, use-auth.ts)
+- [x] Enhance env validation for production
+- [x] Fix React purity violation in ai-loading.tsx
+- [x] Migrate cases.ts to structured logger
+
+### WS-CRITICAL-BUGS: Production Critical Bug Fixes
+- [x] P0-1: Fix auth loading bug
+- [x] P0-2: Fix 401 errors
+- [x] P0-3: Add login timeout
+- [x] P0-4: Fix test mocks (89→20 failures)
+- [x] P0-5: Next.js upgrade
+
+### WS-REMEDIATION: Codebase Audit (Phases 1-3)
+- [x] 6/6 Critical issues fixed
+- [x] 8/8 High priority issues fixed
+- [x] Rate limiting added to 24+ routes
+- [x] Unified permissions system created
+
+---
+
+## Notes for Agents
+
+### Before Starting Work
+1. Read this TODO.md to find your next task
+2. Read `.claude/agents/EXECUTION_PLAN.md` for detailed implementation steps
+3. Check current phase status and pick up where previous agent left off
+4. Run `npm run build && npm run test:run` to verify starting state
+
+### During Work
+1. Mark task as started: Change `[ ]` to `[~]`
+2. Follow the exact code changes in EXECUTION_PLAN.md
+3. Run verification after each task
+
+### After Completing Work
+1. Mark task as done: Change `[~]` to `[x]`
+2. Update phase status in Progress Tracker table
+3. Create session log in `.claude/agents/sessions/`
+4. Run full verification before handing off
+
+### Key Commands
+```bash
+npm run dev          # Start dev server
+npm run build        # Production build (must pass)
+npm run test:run     # Run tests
+npm run lint         # Check for lint issues
+
+# Build requires this env var if Redis not configured:
+ALLOW_IN_MEMORY_RATE_LIMIT=true npm run build
 ```

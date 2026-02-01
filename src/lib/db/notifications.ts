@@ -1,4 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
+import { createLogger } from '@/lib/logger';
+
+const logger = createLogger('db:notifications');
 
 export type NotificationType = 'info' | 'warning' | 'success' | 'error';
 
@@ -43,7 +46,7 @@ export const notificationsService = {
     const { data, error } = await query;
 
     if (error) {
-      console.error('Error fetching notifications:', error);
+      logger.logError('Error fetching notifications', error, { userId });
       throw error;
     }
 
@@ -60,7 +63,7 @@ export const notificationsService = {
       .eq('read', false);
 
     if (error) {
-      console.error('Error fetching unread count:', error);
+      logger.logError('Error fetching unread count', error, { userId });
       return 0;
     }
 
@@ -81,7 +84,7 @@ export const notificationsService = {
       .single();
 
     if (error) {
-      console.error('Error creating notification:', error);
+      logger.logError('Error creating notification', error, { userId: data.user_id, title: data.title });
       throw error;
     }
 
@@ -97,7 +100,7 @@ export const notificationsService = {
       .eq('id', id);
 
     if (error) {
-      console.error('Error marking notification as read:', error);
+      logger.logError('Error marking notification as read', error, { notificationId: id });
       throw error;
     }
   },
@@ -112,7 +115,7 @@ export const notificationsService = {
       .eq('read', false);
 
     if (error) {
-      console.error('Error marking all notifications as read:', error);
+      logger.logError('Error marking all notifications as read', error, { userId });
       throw error;
     }
   },
@@ -126,7 +129,7 @@ export const notificationsService = {
       .eq('id', id);
 
     if (error) {
-      console.error('Error deleting notification:', error);
+      logger.logError('Error deleting notification', error, { notificationId: id });
       throw error;
     }
   },

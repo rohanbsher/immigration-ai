@@ -469,4 +469,72 @@ SENTRY_DSN=...
 
 ---
 
-*Last updated: 2026-01-27 after AI-Native Features Integration*
+## Bugs We Fixed and What We Learned (2026-01-30)
+
+### The Auth Loading Bug
+
+**Symptom**: Users would see an infinite spinner when navigating directly to dashboard pages (bookmarks, refresh, etc.)
+
+**Root Cause**: Multiple race conditions:
+1. `use-auth.ts` and `auth-provider.tsx` both called `getSession()` separately
+2. `use-user.ts` had a 10-second timeout but if auth failed silently, loading never resolved
+3. No fallback if auth took too long
+
+**Fix**: Added a master timeout in `dashboard-layout.tsx`:
+```typescript
+useEffect(() => {
+  if (!isLoading) return;
+
+  const timeout = setTimeout(() => {
+    setTimedOut(true);  // Show "try again" UI
+  }, 5000);
+
+  return () => {
+    clearTimeout(timeout);
+    setTimedOut(false);  // Reset on cleanup
+  };
+}, [isLoading]);
+```
+
+**Lesson**: Always have a timeout fallback for auth. Users would rather see "try again" than infinite spinner.
+
+### The 401 API Error Bug
+
+**Symptom**: After page refresh, API calls would fail with 401 even though user was logged in.
+
+**Root Cause**: `credentials: 'include'` was missing from fetch calls. Browser doesn't send cookies by default for fetch requests!
+
+**Fix**: One-liner in `fetch-with-timeout.ts`:
+```typescript
+const response = await fetch(url, {
+  ...options,
+  credentials: 'include',  // <-- This was missing!
+  signal: controller.signal,
+});
+```
+
+**Lesson**: If you're using cookies for auth and API calls fail after refresh, check `credentials: 'include'`.
+
+### The Test Mock Problem
+
+**Symptom**: 89 tests failing with "No 'standardRateLimiter' export defined on mock"
+
+**Root Cause**: When you `vi.mock('@/lib/rate-limit')`, you must export **everything** the module exports. If code imports `standardRateLimiter` and the mock doesn't have it, test fails.
+
+**Fix**: Complete the mock with all exports:
+```typescript
+vi.mock('@/lib/rate-limit', () => ({
+  rateLimit: vi.fn().mockResolvedValue({ success: true }),
+  RATE_LIMITS: { ... },
+  standardRateLimiter: { limit: vi.fn().mockResolvedValue({ allowed: true }) },
+  aiRateLimiter: { ... },
+  authRateLimiter: { ... },
+  // ... all other exports
+}));
+```
+
+**Lesson**: Incomplete mocks cause confusing runtime errors. Always check what the real module exports.
+
+---
+
+*Last updated: 2026-01-30 after Critical Bug Fixes*

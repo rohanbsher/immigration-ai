@@ -5,7 +5,6 @@ import {
   useRecommendations,
   useUpdateRecommendation,
   getPriorityColors,
-  getPriorityLabel,
 } from '@/hooks/use-recommendations';
 import { AIContentBox, AILoading, AIBadge } from '@/components/ai';
 import {
@@ -227,7 +226,6 @@ function RecommendationItem({
   isUpdating: boolean;
 }) {
   const colors = getPriorityColors(recommendation.priority);
-  const Icon = getCategoryIconComponent(recommendation.category);
 
   return (
     <li
@@ -244,7 +242,7 @@ function RecommendationItem({
         {/* Content */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
-            <Icon size={14} className={colors.text} />
+            <CategoryIcon category={recommendation.category} size={14} className={colors.text} />
             <span className={cn('text-sm font-medium', colors.text)}>
               {recommendation.action}
             </span>
@@ -320,7 +318,7 @@ function CompactRecommendationItem({
  * Empty state component.
  */
 function EmptyState({
-  caseId,
+  caseId: _caseId,
   onRefresh,
   className,
 }: {
@@ -351,20 +349,28 @@ function EmptyState({
 }
 
 /**
- * Get icon component for category.
+ * Icon component for category.
  */
-function getCategoryIconComponent(category: Recommendation['category']) {
+function CategoryIcon({
+  category,
+  size,
+  className,
+}: {
+  category: Recommendation['category'];
+  size: number;
+  className?: string;
+}) {
   switch (category) {
     case 'document':
-      return FileText;
+      return <FileText size={size} className={className} />;
     case 'form':
-      return ClipboardList;
+      return <ClipboardList size={size} className={className} />;
     case 'deadline':
-      return Clock;
+      return <Clock size={size} className={className} />;
     case 'review':
-      return Eye;
+      return <Eye size={size} className={className} />;
     default:
-      return Lightbulb;
+      return <Lightbulb size={size} className={className} />;
   }
 }
 

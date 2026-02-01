@@ -26,7 +26,6 @@ import {
   Mail,
   Phone,
   Calendar,
-  Globe,
   FolderOpen,
   FileText,
   Plus,

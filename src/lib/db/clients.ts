@@ -1,4 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
+import { createLogger } from '@/lib/logger';
+
+const logger = createLogger('db:clients');
 
 export interface Client {
   id: string;
@@ -57,7 +60,7 @@ export const clientsService = {
       .is('deleted_at', null);
 
     if (casesError) {
-      console.error('Error fetching cases:', casesError);
+      logger.logError('Error fetching cases', casesError, { userId: user.id });
       throw casesError;
     }
 
@@ -87,7 +90,7 @@ export const clientsService = {
       .order('first_name', { ascending: true });
 
     if (clientsError) {
-      console.error('Error fetching clients:', clientsError);
+      logger.logError('Error fetching clients', clientsError, { clientCount: clientIds.length });
       throw clientsError;
     }
 
@@ -108,7 +111,7 @@ export const clientsService = {
       .single();
 
     if (error) {
-      console.error('Error fetching client:', error);
+      logger.logError('Error fetching client', error, { clientId: id });
       return null;
     }
 
@@ -140,7 +143,7 @@ export const clientsService = {
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('Error fetching client cases:', error);
+      logger.logError('Error fetching client cases', error, { clientId });
       throw error;
     }
 
@@ -158,7 +161,7 @@ export const clientsService = {
       .single();
 
     if (error) {
-      console.error('Error updating client:', error);
+      logger.logError('Error updating client', error, { clientId: id });
       throw error;
     }
 
@@ -196,7 +199,7 @@ export const clientsService = {
       .limit(10);
 
     if (error) {
-      console.error('Error searching clients:', error);
+      logger.logError('Error searching clients', error, { query });
       throw error;
     }
 

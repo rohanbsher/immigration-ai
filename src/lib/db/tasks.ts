@@ -1,4 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
+import { createLogger } from '@/lib/logger';
+
+const logger = createLogger('db:tasks');
 
 export type TaskStatus = 'pending' | 'in_progress' | 'completed' | 'cancelled';
 export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
@@ -160,7 +163,7 @@ export const tasksService = {
     const { data, error } = await query;
 
     if (error) {
-      console.error('Error fetching tasks:', error);
+      logger.logError('Error fetching tasks', error, { userId, filters });
       throw error;
     }
 
@@ -215,7 +218,7 @@ export const tasksService = {
 
     if (error) {
       if (error.code === 'PGRST116') return null;
-      console.error('Error fetching task:', error);
+      logger.logError('Error fetching task', error, { taskId: id });
       throw error;
     }
 
@@ -258,7 +261,7 @@ export const tasksService = {
       .single();
 
     if (error) {
-      console.error('Error creating task:', error);
+      logger.logError('Error creating task', error, { title: data.title, caseId: data.case_id });
       throw error;
     }
 
@@ -298,7 +301,7 @@ export const tasksService = {
       .single();
 
     if (error) {
-      console.error('Error updating task:', error);
+      logger.logError('Error updating task', error, { taskId: id });
       throw error;
     }
 
@@ -328,7 +331,7 @@ export const tasksService = {
       .eq('id', id);
 
     if (error) {
-      console.error('Error deleting task:', error);
+      logger.logError('Error deleting task', error, { taskId: id });
       throw error;
     }
   },
@@ -355,7 +358,7 @@ export const tasksService = {
       .order('created_at', { ascending: true });
 
     if (error) {
-      console.error('Error fetching comments:', error);
+      logger.logError('Error fetching comments', error, { taskId });
       throw error;
     }
 
@@ -387,7 +390,7 @@ export const tasksService = {
       .single();
 
     if (error) {
-      console.error('Error adding comment:', error);
+      logger.logError('Error adding comment', error, { taskId, userId });
       throw error;
     }
 
@@ -408,7 +411,7 @@ export const tasksService = {
       .is('deleted_at', null);
 
     if (error) {
-      console.error('Error fetching pending count:', error);
+      logger.logError('Error fetching pending count', error, { userId });
       return 0;
     }
 

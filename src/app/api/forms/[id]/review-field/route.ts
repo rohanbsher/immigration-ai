@@ -3,6 +3,7 @@ import { formsService, casesService } from '@/lib/db';
 import { createClient } from '@/lib/supabase/server';
 import { auditService } from '@/lib/audit';
 import { z } from 'zod';
+import { standardRateLimiter } from '@/lib/rate-limit';
 
 const reviewFieldSchema = z.object({
   fieldName: z.string().min(1, 'Field name is required'),
@@ -27,6 +28,12 @@ export async function POST(
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Rate limit check
+    const rateLimitResult = await standardRateLimiter.limit(request, user.id);
+    if (!rateLimitResult.allowed) {
+      return rateLimitResult.response;
     }
 
     const form = await formsService.getForm(id);

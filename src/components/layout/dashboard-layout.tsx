@@ -1,13 +1,19 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Sidebar } from './sidebar';
 import { Header } from './header';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { useUser } from '@/hooks/use-user';
-import { Loader2 } from 'lucide-react';
+import { Loader2, AlertCircle, RefreshCw } from 'lucide-react';
 import { ChatButton } from '@/components/chat/chat-button';
 import { ChatPanel } from '@/components/chat/chat-panel';
+import { SessionExpiryWarning } from '@/components/session/session-expiry-warning';
+import { Button } from '@/components/ui/button';
+
+/** Master timeout to prevent infinite loading spinner (5 seconds) */
+const AUTH_LOADING_TIMEOUT_MS = 5_000;
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -16,7 +22,27 @@ interface DashboardLayoutProps {
 
 export function DashboardLayout({ children, title }: DashboardLayoutProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { profile, isLoading } = useUser();
+  const [timedOut, setTimedOut] = useState(false);
+  const { profile, isLoading, authError, refetch } = useUser();
+  const router = useRouter();
+
+  // Master timeout to prevent infinite loading state
+  useEffect(() => {
+    // Reset timedOut when loading completes (via cleanup)
+    if (!isLoading) {
+      return;
+    }
+
+    const timeout = setTimeout(() => {
+      setTimedOut(true);
+    }, AUTH_LOADING_TIMEOUT_MS);
+
+    return () => {
+      clearTimeout(timeout);
+      // Reset timedOut during cleanup when isLoading changes
+      setTimedOut(false);
+    };
+  }, [isLoading]);
 
   const user = profile
     ? {
@@ -27,10 +53,76 @@ export function DashboardLayout({ children, title }: DashboardLayoutProps) {
       }
     : undefined;
 
-  if (isLoading) {
+  if (isLoading && !timedOut) {
     return (
       <div className="flex items-center justify-center h-screen bg-slate-50">
         <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+      </div>
+    );
+  }
+
+  if (timedOut) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-slate-50">
+        <div className="text-center max-w-md p-6">
+          <AlertCircle className="h-12 w-12 text-amber-500 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-slate-900 mb-2">
+            Loading Taking Too Long
+          </h2>
+          <p className="text-slate-600 mb-6">
+            We&apos;re having trouble loading your session. This could be a connection issue.
+          </p>
+          <div className="space-y-3">
+            <Button
+              onClick={() => {
+                setTimedOut(false);
+                refetch();
+              }}
+              className="w-full"
+            >
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Try Again
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => router.push('/login')}
+              className="w-full"
+            >
+              Go to Login
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (authError) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-slate-50">
+        <div className="text-center max-w-md p-6">
+          <AlertCircle className="h-12 w-12 text-amber-500 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-slate-900 mb-2">
+            Session Expired
+          </h2>
+          <p className="text-slate-600 mb-6">
+            Your session has timed out or could not be verified. Please log in again to continue.
+          </p>
+          <div className="space-y-3">
+            <Button
+              onClick={() => router.push('/login')}
+              className="w-full"
+            >
+              Go to Login
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => window.location.reload()}
+              className="w-full"
+            >
+              Refresh Page
+            </Button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -62,6 +154,9 @@ export function DashboardLayout({ children, title }: DashboardLayoutProps) {
       {/* AI Chat Assistant */}
       <ChatButton />
       <ChatPanel />
+
+      {/* Session Expiry Warning */}
+      <SessionExpiryWarning />
     </div>
   );
 }

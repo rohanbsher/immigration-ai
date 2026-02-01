@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { profilesService } from '@/lib/db';
 import { createClient } from '@/lib/supabase/server';
 import { z } from 'zod';
+import { standardRateLimiter } from '@/lib/rate-limit';
 
 const updateProfileSchema = z.object({
   first_name: z.string().min(1).optional(),
@@ -17,13 +18,19 @@ const updateProfileSchema = z.object({
   alien_number: z.string().nullable().optional(),
 });
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Rate limit check
+    const rateLimitResult = await standardRateLimiter.limit(request, user.id);
+    if (!rateLimitResult.allowed) {
+      return rateLimitResult.response;
     }
 
     const profile = await profilesService.getProfile(user.id);
@@ -49,6 +56,12 @@ export async function PATCH(request: NextRequest) {
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Rate limit check
+    const rateLimitResult = await standardRateLimiter.limit(request, user.id);
+    if (!rateLimitResult.allowed) {
+      return rateLimitResult.response;
     }
 
     const body = await request.json();

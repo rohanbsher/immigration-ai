@@ -97,9 +97,16 @@ export async function POST(request: NextRequest, { params }: Params) {
 
     const { email, role } = validation.data;
 
-    const { data: profile } = await serverAuth.getProfile();
-    if (profile) {
-      const existingMember = await getFirmMember(id, profile.id);
+    // Check if invitee is already a member by looking up their profile by email
+    const supabase = await (await import('@/lib/supabase/server')).createClient();
+    const { data: inviteeProfile } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('email', email.toLowerCase())
+      .single();
+
+    if (inviteeProfile) {
+      const existingMember = await getFirmMember(id, inviteeProfile.id);
       if (existingMember) {
         return NextResponse.json(
           { error: 'User is already a member of this firm' },

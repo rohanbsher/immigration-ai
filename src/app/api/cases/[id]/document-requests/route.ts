@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { z } from 'zod';
 import { createLogger } from '@/lib/logger';
 import type { DocumentType } from '@/types';
+import { standardRateLimiter } from '@/lib/rate-limit';
 
 const log = createLogger('api:document-requests');
 
@@ -60,6 +61,12 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Rate limit check
+    const rateLimitResult = await standardRateLimiter.limit(request, user.id);
+    if (!rateLimitResult.allowed) {
+      return rateLimitResult.response;
+    }
+
     const { hasAccess } = await verifyCaseAccess(user.id, caseId);
     if (!hasAccess) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
@@ -96,6 +103,12 @@ export async function POST(
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Rate limit check
+    const rateLimitResult = await standardRateLimiter.limit(request, user.id);
+    if (!rateLimitResult.allowed) {
+      return rateLimitResult.response;
     }
 
     const { hasAccess, isAttorney } = await verifyCaseAccess(user.id, caseId);

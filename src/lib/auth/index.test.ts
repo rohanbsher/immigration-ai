@@ -28,6 +28,53 @@ vi.mock('@/lib/rate-limit', () => ({
     AUTH: { maxRequests: 5, windowMs: 60000, keyPrefix: 'auth' },
     SENSITIVE: { maxRequests: 20, windowMs: 60000, keyPrefix: 'sensitive' },
   },
+  standardRateLimiter: {
+    limit: vi.fn().mockResolvedValue({ allowed: true }),
+    check: vi.fn().mockResolvedValue({ success: true, remaining: 99, resetAt: new Date() }),
+    getHeaders: vi.fn().mockReturnValue({}),
+  },
+  aiRateLimiter: {
+    limit: vi.fn().mockResolvedValue({ allowed: true }),
+    check: vi.fn().mockResolvedValue({ success: true, remaining: 9, resetAt: new Date() }),
+    getHeaders: vi.fn().mockReturnValue({}),
+  },
+  authRateLimiter: {
+    limit: vi.fn().mockResolvedValue({ allowed: true }),
+    check: vi.fn().mockResolvedValue({ success: true, remaining: 4, resetAt: new Date() }),
+    getHeaders: vi.fn().mockReturnValue({}),
+  },
+  sensitiveRateLimiter: {
+    limit: vi.fn().mockResolvedValue({ allowed: true }),
+    check: vi.fn().mockResolvedValue({ success: true, remaining: 19, resetAt: new Date() }),
+    getHeaders: vi.fn().mockReturnValue({}),
+  },
+  createRateLimiter: vi.fn().mockReturnValue({
+    limit: vi.fn().mockResolvedValue({ allowed: true }),
+    check: vi.fn().mockResolvedValue({ success: true, remaining: 99, resetAt: new Date() }),
+    getHeaders: vi.fn().mockReturnValue({}),
+  }),
+  resetRateLimit: vi.fn(),
+  clearAllRateLimits: vi.fn(),
+  isRedisRateLimitingEnabled: vi.fn().mockReturnValue(false),
+}));
+
+// Mock getProfileAsAdmin from admin module
+vi.mock('@/lib/supabase/admin', () => ({
+  getProfileAsAdmin: vi.fn().mockResolvedValue({
+    profile: {
+      id: 'test-user-id',
+      email: 'test@example.com',
+      role: 'attorney',
+      first_name: 'Test',
+      last_name: 'User',
+      phone: null,
+      mfa_enabled: false,
+      created_at: '2024-01-01T00:00:00Z',
+      updated_at: '2024-01-01T00:00:00Z',
+    },
+    error: null,
+  }),
+  getAdminClient: vi.fn(),
 }));
 
 // Mock window.location for OAuth tests

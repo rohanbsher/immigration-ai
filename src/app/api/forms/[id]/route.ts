@@ -3,6 +3,7 @@ import { formsService, casesService } from '@/lib/db';
 import { createClient } from '@/lib/supabase/server';
 import { auditService } from '@/lib/audit';
 import { z } from 'zod';
+import { standardRateLimiter, sensitiveRateLimiter } from '@/lib/rate-limit';
 
 const updateFormSchema = z.object({
   status: z.string().optional(),
@@ -59,6 +60,12 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Rate limit check
+    const rateLimitResult = await standardRateLimiter.limit(request, user.id);
+    if (!rateLimitResult.allowed) {
+      return rateLimitResult.response;
+    }
+
     const accessResult = await getFormWithAccess(user.id, id);
 
     if (!accessResult) {
@@ -86,6 +93,12 @@ export async function PATCH(
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Rate limit check
+    const rateLimitResult = await standardRateLimiter.limit(request, user.id);
+    if (!rateLimitResult.allowed) {
+      return rateLimitResult.response;
     }
 
     const accessResult = await getFormWithAccess(user.id, id);
@@ -186,6 +199,12 @@ export async function DELETE(
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Rate limit check (using sensitive for destructive actions)
+    const rateLimitResult = await sensitiveRateLimiter.limit(request, user.id);
+    if (!rateLimitResult.allowed) {
+      return rateLimitResult.response;
     }
 
     const accessResult = await getFormWithAccess(user.id, id);

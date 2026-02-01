@@ -80,14 +80,58 @@ export const mockFormAutofillResponse = {
   },
 };
 
+// Mock streaming response generator
+async function* createMockStream(text: string = 'This is a mock response from Claude.') {
+  // Simulate content_block_start event
+  yield {
+    type: 'content_block_start',
+    index: 0,
+    content_block: { type: 'text', text: '' },
+  };
+
+  // Simulate content_block_delta events (word by word)
+  const words = text.split(' ');
+  for (const word of words) {
+    yield {
+      type: 'content_block_delta',
+      index: 0,
+      delta: { type: 'text_delta', text: word + ' ' },
+    };
+  }
+
+  // Simulate content_block_stop event
+  yield {
+    type: 'content_block_stop',
+    index: 0,
+  };
+
+  // Simulate message_stop event
+  yield {
+    type: 'message_stop',
+  };
+}
+
+// Mock stream object
+const createMockStreamObject = (text: string = 'This is a mock response from Claude.') => ({
+  [Symbol.asyncIterator]: () => createMockStream(text),
+  finalMessage: vi.fn().mockResolvedValue({
+    ...mockMessageResponse,
+    content: [{ type: 'text', text }],
+  }),
+  finalText: vi.fn().mockResolvedValue(text),
+  abort: vi.fn(),
+});
+
 // Mock Anthropic client
 export const mockAnthropicClient = {
   messages: {
     create: vi.fn().mockResolvedValue(mockMessageResponse),
+    stream: vi.fn().mockReturnValue(createMockStreamObject()),
   },
   beta: {
     messages: {
       create: vi.fn().mockResolvedValue(mockMessageResponse),
+      stream: vi.fn().mockReturnValue(createMockStreamObject()),
     },
   },
 };
@@ -126,6 +170,23 @@ export const simulateAnthropicError = (error: Error) => {
   mockAnthropicClient.messages.create.mockRejectedValueOnce(error);
 };
 
+// Helper to set custom streaming response
+export const setMockStreamingResponse = (text: string) => {
+  mockAnthropicClient.messages.stream.mockReturnValueOnce(createMockStreamObject(text));
+};
+
+// Helper to simulate streaming error
+export const simulateStreamingError = (error: Error) => {
+  mockAnthropicClient.messages.stream.mockImplementationOnce(() => ({
+    [Symbol.asyncIterator]: async function* () {
+      throw error;
+    },
+    finalMessage: vi.fn().mockRejectedValue(error),
+    finalText: vi.fn().mockRejectedValue(error),
+    abort: vi.fn(),
+  }));
+};
+
 // Reset all mocks
 export const resetMocks = () => {
   vi.clearAllMocks();
@@ -142,5 +203,7 @@ export default {
   setMockDocumentAnalysis,
   setMockFormAutofill,
   simulateAnthropicError,
+  setMockStreamingResponse,
+  simulateStreamingError,
   resetMocks,
 };

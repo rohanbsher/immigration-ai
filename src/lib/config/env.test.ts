@@ -282,13 +282,40 @@ describe('Config/Env Module', () => {
     });
   });
 
+  // Note: Production validation tests are skipped because they require
+  // server-side execution (typeof window === 'undefined'). The env module
+  // checks for window to determine if it's running on client vs server.
+  // In jsdom test environment, window is defined, so server validation is skipped.
+  // These validations are tested implicitly during actual production builds.
+  describe('production validation', () => {
+    it.skip('should throw in production without ENCRYPTION_KEY (server-only)', async () => {
+      // This test would need to run in a Node.js environment without jsdom
+    });
+
+    it.skip('should throw in production without any AI API key (server-only)', async () => {
+      // This test would need to run in a Node.js environment without jsdom
+    });
+
+    it('should detect production mode via features flag', async () => {
+      process.env.NODE_ENV = 'production';
+      vi.resetModules();
+
+      const { features } = await import('./env');
+      expect(features.isProduction).toBe(true);
+    });
+
+    it.skip('should warn about missing optional services in production (server-only)', async () => {
+      // This test would need to run in a Node.js environment without jsdom
+    });
+  });
+
   describe('type exports', () => {
     it('should export PublicEnv and ServerEnv types', async () => {
-      const module = await import('./env');
+      const envModule = await import('./env');
 
-      expect(module).toHaveProperty('env');
-      expect(module).toHaveProperty('serverEnv');
-      expect(module).toHaveProperty('features');
+      expect(envModule).toHaveProperty('env');
+      expect(envModule).toHaveProperty('serverEnv');
+      expect(envModule).toHaveProperty('features');
     });
   });
 });

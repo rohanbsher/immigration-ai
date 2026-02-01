@@ -3,6 +3,7 @@ import { clientsService } from '@/lib/db/clients';
 import { createClient } from '@/lib/supabase/server';
 import { profilesService } from '@/lib/db/profiles';
 import { z } from 'zod';
+import { standardRateLimiter } from '@/lib/rate-limit';
 
 const updateClientSchema = z.object({
   first_name: z.string().min(1).optional(),
@@ -51,6 +52,12 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Rate limit check
+    const rateLimitResult = await standardRateLimiter.limit(request, user.id);
+    if (!rateLimitResult.allowed) {
+      return rateLimitResult.response;
+    }
+
     // Authorization check
     const hasAccess = await canAccessClient(user.id, id);
     if (!hasAccess) {
@@ -84,6 +91,12 @@ export async function PATCH(
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Rate limit check
+    const rateLimitResult = await standardRateLimiter.limit(request, user.id);
+    if (!rateLimitResult.allowed) {
+      return rateLimitResult.response;
     }
 
     // Authorization check - only the client themselves or their attorney can update

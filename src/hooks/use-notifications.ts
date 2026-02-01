@@ -24,7 +24,8 @@ async function fetchNotifications(unreadOnly: boolean = false): Promise<Notifica
   if (!response.ok) {
     throw new Error('Failed to fetch notifications');
   }
-  return response.json();
+  const result = await response.json();
+  return result.data;
 }
 
 async function fetchUnreadCount(): Promise<number> {

@@ -2,12 +2,13 @@
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { SuccessScore } from '@/lib/scoring/success-probability';
+import { fetchWithTimeout } from '@/lib/api/fetch-with-timeout';
 
 /**
  * Fetch success probability score for a case.
  */
 async function fetchSuccessScore(caseId: string): Promise<SuccessScore> {
-  const response = await fetch(`/api/cases/${caseId}/success-score`, {
+  const response = await fetchWithTimeout(`/api/cases/${caseId}/success-score`, {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
@@ -132,6 +133,7 @@ export function getSuccessScoreColors(score: number): {
 
 /**
  * Get success score label.
+ * Note: Duplicated here to avoid importing server-side code from success-probability.ts
  */
 export function getSuccessScoreLabel(score: number): string {
   if (score >= 80) return 'Excellent';

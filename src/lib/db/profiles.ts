@@ -1,5 +1,8 @@
 import { createClient } from '@/lib/supabase/server';
+import { createLogger } from '@/lib/logger';
 import type { UserRole } from '@/types';
+
+const logger = createLogger('db:profiles');
 
 export interface Profile {
   id: string;
@@ -46,7 +49,7 @@ export const profilesService = {
       .single();
 
     if (error) {
-      console.error('Error fetching profile:', error);
+      logger.logError('Error fetching profile', error, { userId });
       return null;
     }
 
@@ -76,7 +79,7 @@ export const profilesService = {
       .single();
 
     if (error) {
-      console.error('Error updating profile:', error);
+      logger.logError('Error updating profile', error, { userId });
       throw error;
     }
 
@@ -103,7 +106,7 @@ export const profilesService = {
       .in('id', clientIds);
 
     if (error) {
-      console.error('Error fetching clients:', error);
+      logger.logError('Error fetching clients', error, { attorneyId });
       return [];
     }
 
@@ -125,7 +128,7 @@ export const profilesService = {
     const { data, error } = await queryBuilder.limit(20);
 
     if (error) {
-      console.error('Error searching profiles:', error);
+      logger.logError('Error searching profiles', error, { query, role });
       return [];
     }
 

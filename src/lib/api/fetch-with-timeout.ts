@@ -77,6 +77,7 @@ export async function fetchWithTimeout(
   try {
     const response = await fetch(url, {
       ...options,
+      credentials: 'include', // Ensure cookies are sent with requests
       signal: controller.signal,
     });
     return response;
@@ -125,6 +126,7 @@ export async function uploadWithTimeout(
     const response = await fetch(url, {
       method: 'POST',
       body: formData,
+      credentials: 'include', // Ensure cookies are sent with uploads
       signal: controller.signal,
     });
     return response;

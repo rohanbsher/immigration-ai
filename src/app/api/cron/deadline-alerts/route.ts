@@ -19,26 +19,25 @@ import { syncDeadlineAlerts } from '@/lib/deadline';
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
-    // Verify cron secret (for security)
+    // Verify cron secret (for security) - ALWAYS required
     const authHeader = request.headers.get('authorization');
     const cronSecret = process.env.CRON_SECRET;
 
-    // In production, require authorization
-    if (process.env.NODE_ENV === 'production') {
-      if (!cronSecret) {
-        console.error('CRON_SECRET not configured');
-        return NextResponse.json(
-          { error: 'Server configuration error' },
-          { status: 500 }
-        );
-      }
+    // Always require CRON_SECRET to be configured
+    if (!cronSecret) {
+      console.error('CRON_SECRET not configured');
+      return NextResponse.json(
+        { error: 'Server configuration error' },
+        { status: 500 }
+      );
+    }
 
-      if (authHeader !== `Bearer ${cronSecret}`) {
-        return NextResponse.json(
-          { error: 'Unauthorized' },
-          { status: 401 }
-        );
-      }
+    // Always verify authorization
+    if (authHeader !== `Bearer ${cronSecret}`) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
     }
 
     console.log('[Cron] Starting deadline alerts sync...');

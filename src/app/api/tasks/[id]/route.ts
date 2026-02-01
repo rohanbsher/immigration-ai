@@ -1,9 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { tasksService } from '@/lib/db';
 import { createClient } from '@/lib/supabase/server';
 import { z } from 'zod';
 import { createLogger } from '@/lib/logger';
 import { requireAuth, errorResponse, successResponse } from '@/lib/auth/api-helpers';
+import { standardRateLimiter, sensitiveRateLimiter } from '@/lib/rate-limit';
 
 const log = createLogger('api:task');
 
@@ -29,6 +30,12 @@ export async function GET(
     const auth = await requireAuth(request);
     if (!auth.success) return auth.response;
 
+    // Rate limit check
+    const rateLimitResult = await standardRateLimiter.limit(request, auth.user.id);
+    if (!rateLimitResult.allowed) {
+      return rateLimitResult.response;
+    }
+
     const task = await tasksService.getTask(id);
 
     if (!task) {
@@ -53,6 +60,12 @@ export async function PATCH(
     const { id } = await params;
     const auth = await requireAuth(request);
     if (!auth.success) return auth.response;
+
+    // Rate limit check
+    const rateLimitResult = await standardRateLimiter.limit(request, auth.user.id);
+    if (!rateLimitResult.allowed) {
+      return rateLimitResult.response;
+    }
 
     const task = await tasksService.getTask(id);
 
@@ -114,6 +127,12 @@ export async function DELETE(
     const { id } = await params;
     const auth = await requireAuth(request);
     if (!auth.success) return auth.response;
+
+    // Rate limit check (using sensitive for destructive actions)
+    const rateLimitResult = await sensitiveRateLimiter.limit(request, auth.user.id);
+    if (!rateLimitResult.allowed) {
+      return rateLimitResult.response;
+    }
 
     const task = await tasksService.getTask(id);
 

@@ -164,7 +164,68 @@ function validateServerEnv() {
     throw new Error('Invalid server environment configuration');
   }
 
+  // Production-specific validation
+  if (process.env.NODE_ENV === 'production') {
+    validateProductionRequirements(result.data);
+  }
+
   return result.data;
+}
+
+/**
+ * Validate production-specific requirements
+ * These are critical for production but optional in development
+ */
+function validateProductionRequirements(env: z.infer<typeof serverEnvSchema>) {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+
+  // Critical: Required for core functionality
+  if (!env.ENCRYPTION_KEY) {
+    errors.push('ENCRYPTION_KEY is required in production for PII protection');
+  }
+
+  // Critical: At least one AI service should be configured
+  if (!env.OPENAI_API_KEY && !env.ANTHROPIC_API_KEY) {
+    errors.push('At least one AI API key (OPENAI_API_KEY or ANTHROPIC_API_KEY) is required');
+  }
+
+  // Warning: Billing not configured
+  if (!env.STRIPE_SECRET_KEY) {
+    warnings.push('STRIPE_SECRET_KEY not set - billing features will be disabled');
+  }
+  if (!env.STRIPE_WEBHOOK_SECRET) {
+    warnings.push('STRIPE_WEBHOOK_SECRET not set - Stripe webhooks will fail');
+  }
+
+  // Warning: Email not configured
+  if (!env.RESEND_API_KEY) {
+    warnings.push('RESEND_API_KEY not set - email notifications will be disabled');
+  }
+
+  // Warning: Rate limiting fallback
+  if (!env.UPSTASH_REDIS_REST_URL || !env.UPSTASH_REDIS_REST_TOKEN) {
+    warnings.push('Upstash Redis not configured - using in-memory rate limiting (not suitable for multiple instances)');
+  }
+
+  // Log warnings
+  if (warnings.length > 0) {
+    console.warn(
+      '[Config] Production warnings:\n' +
+        warnings.map((w) => `  ⚠ ${w}`).join('\n')
+    );
+  }
+
+  // Throw on critical errors
+  if (errors.length > 0) {
+    console.error(
+      '[Config] Production requirements not met:\n' +
+        errors.map((e) => `  ✗ ${e}`).join('\n')
+    );
+    throw new Error(
+      `Production environment misconfigured: ${errors.length} critical issue(s) found. See logs for details.`
+    );
+  }
 }
 
 // =============================================================================

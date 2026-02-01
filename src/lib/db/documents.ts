@@ -1,10 +1,13 @@
 import { createClient } from '@/lib/supabase/server';
+import { createLogger } from '@/lib/logger';
 import type { DocumentType, DocumentStatus } from '@/types';
 import {
   encryptSensitiveFields,
   decryptSensitiveFields,
 } from '@/lib/crypto';
 import { auditService } from '@/lib/audit';
+
+const logger = createLogger('db:documents');
 
 export interface Document {
   id: string;
@@ -75,7 +78,7 @@ export const documentsService = {
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('Error fetching documents:', error);
+      logger.logError('Error fetching documents', error, { caseId });
       throw error;
     }
 
@@ -111,7 +114,7 @@ export const documentsService = {
       .single();
 
     if (error) {
-      console.error('Error fetching document:', error);
+      logger.logError('Error fetching document', error, { documentId: id });
       return null;
     }
 
@@ -149,7 +152,7 @@ export const documentsService = {
       .single();
 
     if (error) {
-      console.error('Error creating document:', error);
+      logger.logError('Error creating document', error, { caseId: data.case_id, fileName: data.file_name });
       throw error;
     }
 
@@ -167,7 +170,7 @@ export const documentsService = {
           updateData.ai_extracted_data as Record<string, unknown>
         );
       } catch (err) {
-        console.error('Error encrypting ai_extracted_data:', err);
+        logger.logError('Error encrypting ai_extracted_data', err, { documentId: id });
         // Continue without encryption if ENCRYPTION_KEY is not set
         // This allows development without encryption configured
       }
@@ -181,7 +184,7 @@ export const documentsService = {
       .single();
 
     if (error) {
-      console.error('Error updating document:', error);
+      logger.logError('Error updating document', error, { documentId: id });
       throw error;
     }
 
@@ -209,7 +212,7 @@ export const documentsService = {
       .single();
 
     if (error) {
-      console.error('Error verifying document:', error);
+      logger.logError('Error verifying document', error, { documentId: id });
       throw error;
     }
 
@@ -229,7 +232,7 @@ export const documentsService = {
       .eq('id', id);
 
     if (error) {
-      console.error('Error deleting document:', error);
+      logger.logError('Error deleting document', error, { documentId: id });
       throw error;
     }
   },
@@ -251,7 +254,7 @@ export const documentsService = {
       .single();
 
     if (fetchError) {
-      console.error('Error fetching document for audit:', fetchError);
+      logger.logError('Error fetching document for audit', fetchError, { documentId: id });
       throw fetchError;
     }
 
@@ -278,7 +281,7 @@ export const documentsService = {
       .eq('id', id);
 
     if (error) {
-      console.error('Error permanently deleting document:', error);
+      logger.logError('Error permanently deleting document', error, { documentId: id });
       throw error;
     }
   },
@@ -297,7 +300,7 @@ export const documentsService = {
       .single();
 
     if (error) {
-      console.error('Error restoring document:', error);
+      logger.logError('Error restoring document', error, { documentId: id });
       throw error;
     }
 
@@ -317,7 +320,7 @@ export const documentsService = {
       .eq('visa_type', visaType);
 
     if (error) {
-      console.error('Error fetching document checklist:', error);
+      logger.logError('Error fetching document checklist', error, { visaType });
       return [];
     }
 

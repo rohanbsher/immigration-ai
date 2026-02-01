@@ -3,6 +3,7 @@ import { formsService, casesService } from '@/lib/db';
 import { createClient } from '@/lib/supabase/server';
 import { generateFormPDF, isPDFGenerationSupported } from '@/lib/pdf';
 import { auditService } from '@/lib/audit';
+import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 import type { FormType } from '@/types';
 
 /**
@@ -15,6 +16,17 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+
+    // Rate limiting - PDF generation can be resource-intensive
+    const ip = request.headers.get('x-forwarded-for') || 'unknown';
+    const rateLimitResult = await rateLimit(RATE_LIMITS.STANDARD, ip);
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: 'Too many requests' },
+        { status: 429, headers: { 'Retry-After': rateLimitResult.retryAfter?.toString() || '60' } }
+      );
+    }
+
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 

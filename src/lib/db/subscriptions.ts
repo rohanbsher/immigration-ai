@@ -1,4 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
+import { createLogger } from '@/lib/logger';
+
+const logger = createLogger('db:subscriptions');
 
 export type SubscriptionStatus = 'trialing' | 'active' | 'past_due' | 'canceled' | 'paused' | 'incomplete' | 'incomplete_expired';
 export type PlanType = 'free' | 'pro' | 'enterprise';
@@ -175,7 +178,7 @@ export async function getCurrentUsage(userId: string): Promise<Record<string, nu
   });
 
   if (error) {
-    console.error('Failed to get usage:', error);
+    logger.logError('Failed to get usage', error, { userId });
     return {};
   }
 
@@ -206,7 +209,7 @@ export async function incrementUsage(
   });
 
   if (error) {
-    console.error('Failed to increment usage:', error);
+    logger.logError('Failed to increment usage', error, { userId, metricName, quantity });
   }
 }
 
@@ -224,7 +227,7 @@ export async function checkQuota(
   });
 
   if (error) {
-    console.error('Failed to check quota:', error);
+    logger.logError('Failed to check quota', error, { userId, metricName, requiredQuantity });
     return false;
   }
 

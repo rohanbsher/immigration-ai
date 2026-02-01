@@ -8,9 +8,41 @@ vi.mock('@/lib/supabase/server', () => ({
 
 // Mock rate limiter
 vi.mock('@/lib/rate-limit', () => ({
-  authRateLimiter: {
-    limit: vi.fn(),
+  rateLimit: vi.fn().mockResolvedValue({ success: true }),
+  RATE_LIMITS: {
+    STANDARD: { maxRequests: 100, windowMs: 60000, keyPrefix: 'standard' },
+    AUTH: { maxRequests: 5, windowMs: 60000, keyPrefix: 'auth' },
+    AI: { maxRequests: 10, windowMs: 3600000, keyPrefix: 'ai' },
+    SENSITIVE: { maxRequests: 20, windowMs: 60000, keyPrefix: 'sensitive' },
   },
+  standardRateLimiter: {
+    limit: vi.fn().mockResolvedValue({ allowed: true }),
+    check: vi.fn().mockResolvedValue({ success: true, remaining: 99, resetAt: new Date() }),
+    getHeaders: vi.fn().mockReturnValue({}),
+  },
+  aiRateLimiter: {
+    limit: vi.fn().mockResolvedValue({ allowed: true }),
+    check: vi.fn().mockResolvedValue({ success: true, remaining: 9, resetAt: new Date() }),
+    getHeaders: vi.fn().mockReturnValue({}),
+  },
+  authRateLimiter: {
+    limit: vi.fn().mockResolvedValue({ allowed: true }),
+    check: vi.fn().mockResolvedValue({ success: true, remaining: 4, resetAt: new Date() }),
+    getHeaders: vi.fn().mockReturnValue({}),
+  },
+  sensitiveRateLimiter: {
+    limit: vi.fn().mockResolvedValue({ allowed: true }),
+    check: vi.fn().mockResolvedValue({ success: true, remaining: 19, resetAt: new Date() }),
+    getHeaders: vi.fn().mockReturnValue({}),
+  },
+  createRateLimiter: vi.fn().mockReturnValue({
+    limit: vi.fn().mockResolvedValue({ allowed: true }),
+    check: vi.fn().mockResolvedValue({ success: true, remaining: 99, resetAt: new Date() }),
+    getHeaders: vi.fn().mockReturnValue({}),
+  }),
+  resetRateLimit: vi.fn(),
+  clearAllRateLimits: vi.fn(),
+  isRedisRateLimitingEnabled: vi.fn().mockReturnValue(false),
 }));
 
 // Import route handlers after mocking
@@ -45,7 +77,14 @@ function createMockRequest(
     requestInit.body = JSON.stringify(body);
   }
 
-  return new NextRequest(url, requestInit);
+  const request = new NextRequest(url, requestInit);
+
+  // Override json() method to properly return the body in jsdom environment
+  if (body) {
+    request.json = async () => body;
+  }
+
+  return request;
 }
 
 // Mock user and session data
@@ -84,6 +123,7 @@ describe('Auth API Routes', () => {
   let mockSignUp: ReturnType<typeof vi.fn>;
   let mockSignOut: ReturnType<typeof vi.fn>;
   let mockExchangeCodeForSession: ReturnType<typeof vi.fn>;
+  let mockGetSession: ReturnType<typeof vi.fn>;
   let mockFromSelect: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
@@ -94,6 +134,7 @@ describe('Auth API Routes', () => {
     mockSignUp = vi.fn();
     mockSignOut = vi.fn();
     mockExchangeCodeForSession = vi.fn();
+    mockGetSession = vi.fn();
     mockFromSelect = vi.fn();
 
     // Setup createClient mock
@@ -103,6 +144,7 @@ describe('Auth API Routes', () => {
         signUp: mockSignUp,
         signOut: mockSignOut,
         exchangeCodeForSession: mockExchangeCodeForSession,
+        getSession: mockGetSession,
       },
       from: vi.fn(() => ({
         select: vi.fn(() => ({
@@ -127,6 +169,7 @@ describe('Auth API Routes', () => {
         data: { user: mockUser, session: mockSession },
         error: null,
       });
+      mockGetSession.mockResolvedValue({ data: { session: mockSession }, error: null });
       mockFromSelect.mockResolvedValue({ data: mockProfile, error: null });
 
       const request = createMockRequest({
@@ -244,6 +287,7 @@ describe('Auth API Routes', () => {
         data: { user: mockUser, session: mockSession },
         error: null,
       });
+      mockGetSession.mockResolvedValue({ data: { session: mockSession }, error: null });
       mockFromSelect.mockResolvedValue({ data: null, error: null });
 
       const request = createMockRequest({

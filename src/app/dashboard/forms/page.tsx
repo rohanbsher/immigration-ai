@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Dialog,
   DialogContent,
@@ -19,24 +18,22 @@ import {
   FileText,
   Plus,
   Loader2,
-  Search,
-  Filter,
   Clock,
   DollarSign,
-  CheckCircle2,
-  AlertCircle,
   Sparkles,
 } from 'lucide-react';
-import { Input } from '@/components/ui/input';
 import { useCases } from '@/hooks/use-cases';
-import { useCreateForm, useForms } from '@/hooks/use-forms';
+import { useCreateForm } from '@/hooks/use-forms';
 import { getFormSummaries } from '@/lib/forms/definitions';
+import { FormsEmptyState } from '@/components/ui/empty-state';
+import { Skeleton, FormCardSkeleton, ListSkeleton } from '@/components/ui/skeletons';
 import { toast } from 'sonner';
 import type { FormStatus, FormType } from '@/types';
 
 const formSummaries = getFormSummaries();
 
-const statusColors: Record<FormStatus, string> = {
+// Status colors kept for future implementation
+const _statusColors: Record<FormStatus, string> = {
   draft: 'bg-slate-100 text-slate-700',
   ai_filled: 'bg-purple-100 text-purple-700',
   in_review: 'bg-yellow-100 text-yellow-700',
@@ -46,8 +43,8 @@ const statusColors: Record<FormStatus, string> = {
 };
 
 export default function FormsPage() {
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'draft' | 'review' | 'filed'>('all');
+  const [_search, _setSearch] = useState('');
+  const [_statusFilter, _setStatusFilter] = useState<'all' | 'draft' | 'review' | 'filed'>('all');
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [selectedFormType, setSelectedFormType] = useState<string | null>(null);
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
@@ -55,19 +52,16 @@ export default function FormsPage() {
   const { data: casesData, isLoading: casesLoading } = useCases({}, { limit: 100 });
   const { mutate: createForm, isPending: isCreating } = useCreateForm();
 
-  // Get all forms across all cases
-  const allForms: Array<{
+  // Get all forms across all cases - placeholder for future implementation
+  // The actual implementation would use a dedicated "all forms" query
+  const _allForms: Array<{
     form: { id: string; form_type: string; status: FormStatus; created_at: string };
     caseName: string;
     caseId: string;
   }> = [];
 
-  if (casesData?.cases) {
-    for (const caseItem of casesData.cases) {
-      // We'd need to fetch forms for each case, but for now we'll use the case-level data
-      // The actual implementation would use a dedicated "all forms" query
-    }
-  }
+  // Cases data is loaded but forms aggregation not yet implemented
+  const _cases = casesData?.cases;
 
   const handleCreateForm = () => {
     if (!selectedFormType || !selectedCaseId) {
@@ -95,8 +89,47 @@ export default function FormsPage() {
 
   if (casesLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+      <div className="space-y-6">
+        {/* Header skeleton */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-32" />
+            <Skeleton className="h-4 w-56" />
+          </div>
+          <Skeleton className="h-10 w-28" />
+        </div>
+        {/* Form templates skeleton */}
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-6 w-48" />
+          </CardHeader>
+          <CardContent>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="p-4 rounded-lg border">
+                  <div className="flex items-center gap-3 mb-2">
+                    <Skeleton className="w-10 h-10 rounded-lg" />
+                    <Skeleton className="h-5 w-16" />
+                  </div>
+                  <Skeleton className="h-4 w-full mb-3" />
+                  <div className="flex items-center gap-4">
+                    <Skeleton className="h-3 w-16" />
+                    <Skeleton className="h-3 w-12" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+        {/* Forms by case skeleton */}
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-6 w-32" />
+          </CardHeader>
+          <CardContent>
+            <ListSkeleton count={3} ItemSkeleton={FormCardSkeleton} />
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -106,8 +139,8 @@ export default function FormsPage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Forms</h1>
-          <p className="text-slate-600">Create and manage USCIS forms</p>
+          <h1 className="text-2xl font-bold text-foreground">Forms</h1>
+          <p className="text-muted-foreground">Create and manage USCIS forms</p>
         </div>
         <Button className="gap-2" onClick={() => setCreateDialogOpen(true)}>
           <Plus size={18} />
@@ -136,11 +169,11 @@ export default function FormsPage() {
                     <FileText className="text-blue-600" size={20} />
                   </div>
                   <div>
-                    <p className="font-semibold text-slate-900">{form.formType}</p>
+                    <p className="font-semibold text-foreground">{form.formType}</p>
                   </div>
                 </div>
-                <p className="text-sm text-slate-600 mb-3 line-clamp-2">{form.title}</p>
-                <div className="flex items-center gap-4 text-xs text-slate-500">
+                <p className="text-sm text-muted-foreground mb-3 line-clamp-2">{form.title}</p>
+                <div className="flex items-center gap-4 text-xs text-muted-foreground">
                   {form.estimatedTime && (
                     <span className="flex items-center gap-1">
                       <Clock size={12} />
@@ -168,16 +201,16 @@ export default function FormsPage() {
           {casesData?.cases && casesData.cases.length > 0 ? (
             <div className="space-y-4">
               {casesData.cases.map((caseItem) => (
-                <div key={caseItem.id} className="p-4 rounded-lg border">
+                <div key={caseItem.id} className="p-4 rounded-lg border hover:border-primary/30 transition-colors">
                   <div className="flex items-center justify-between mb-3">
                     <div>
                       <Link
                         href={`/dashboard/cases/${caseItem.id}`}
-                        className="font-medium text-slate-900 hover:text-blue-600"
+                        className="font-medium text-foreground hover:text-primary transition-colors"
                       >
                         {caseItem.title}
                       </Link>
-                      <p className="text-sm text-slate-500">
+                      <p className="text-sm text-muted-foreground">
                         {caseItem.client.first_name} {caseItem.client.last_name} -{' '}
                         {caseItem.visa_type}
                       </p>
@@ -199,25 +232,19 @@ export default function FormsPage() {
                       <Badge variant="secondary">{caseItem.forms_count} forms</Badge>
                       <Link
                         href={`/dashboard/cases/${caseItem.id}?tab=forms`}
-                        className="text-sm text-blue-600 hover:underline"
+                        className="text-sm text-primary hover:underline"
                       >
                         View all
                       </Link>
                     </div>
                   ) : (
-                    <p className="text-sm text-slate-500">No forms created yet</p>
+                    <p className="text-sm text-muted-foreground">No forms created yet</p>
                   )}
                 </div>
               ))}
             </div>
           ) : (
-            <div className="text-center py-8">
-              <FileText className="h-12 w-12 mx-auto text-slate-300 mb-4" />
-              <p className="text-slate-600 mb-4">No cases yet. Create a case first.</p>
-              <Link href="/dashboard/cases">
-                <Button>Go to Cases</Button>
-              </Link>
-            </div>
+            <FormsEmptyState onCreateForm={() => setCreateDialogOpen(true)} />
           )}
         </CardContent>
       </Card>
@@ -230,8 +257,8 @@ export default function FormsPage() {
               <Sparkles className="text-purple-600" size={24} />
             </div>
             <div>
-              <h3 className="font-semibold text-slate-900 mb-1">AI-Powered Form Filling</h3>
-              <p className="text-sm text-slate-600 mb-3">
+              <h3 className="font-semibold text-foreground mb-1">AI-Powered Form Filling</h3>
+              <p className="text-sm text-muted-foreground mb-3">
                 Upload documents and let our AI automatically extract information to fill out your
                 immigration forms. Supports passports, birth certificates, employment letters, and
                 more.
@@ -273,7 +300,7 @@ export default function FormsPage() {
                     onClick={() => setSelectedFormType(form.formType)}
                   >
                     <p className="font-medium">{form.formType}</p>
-                    <p className="text-xs text-slate-500 truncate">{form.title}</p>
+                    <p className="text-xs text-muted-foreground truncate">{form.title}</p>
                   </div>
                 ))}
               </div>
@@ -293,14 +320,14 @@ export default function FormsPage() {
                       onClick={() => setSelectedCaseId(caseItem.id)}
                     >
                       <p className="font-medium">{caseItem.title}</p>
-                      <p className="text-xs text-slate-500">
+                      <p className="text-xs text-muted-foreground">
                         {caseItem.client.first_name} {caseItem.client.last_name}
                       </p>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-slate-500">
+                <p className="text-sm text-muted-foreground">
                   No cases available. Create a case first.
                 </p>
               )}

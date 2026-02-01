@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { formsService, casesService } from '@/lib/db';
 import { createClient } from '@/lib/supabase/server';
 import { z } from 'zod';
+import { standardRateLimiter } from '@/lib/rate-limit';
 
 const createFormSchema = z.object({
   form_type: z.string(),
@@ -28,6 +29,12 @@ export async function GET(
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Rate limit check
+    const rateLimitResult = await standardRateLimiter.limit(request, user.id);
+    if (!rateLimitResult.allowed) {
+      return rateLimitResult.response;
     }
 
     // Verify user has access to this case
@@ -59,6 +66,12 @@ export async function POST(
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Rate limit check
+    const rateLimitResult = await standardRateLimiter.limit(request, user.id);
+    if (!rateLimitResult.allowed) {
+      return rateLimitResult.response;
     }
 
     // Verify user has access to this case

@@ -12,6 +12,11 @@ const mockSupabaseClient = {
   auth: {
     getUser: vi.fn().mockResolvedValue({ data: { user: mockUser }, error: null }),
   },
+  from: vi.fn().mockReturnValue({
+    select: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockReturnThis(),
+    single: vi.fn().mockResolvedValue({ data: { role: 'attorney' }, error: null }),
+  }),
 };
 
 vi.mock('@supabase/ssr', () => ({

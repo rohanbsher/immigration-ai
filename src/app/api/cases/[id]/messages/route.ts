@@ -3,6 +3,7 @@ import { caseMessagesService, casesService } from '@/lib/db';
 import { createClient } from '@/lib/supabase/server';
 import { z } from 'zod';
 import { createLogger } from '@/lib/logger';
+import { standardRateLimiter } from '@/lib/rate-limit';
 
 const log = createLogger('api:case-messages');
 
@@ -47,6 +48,12 @@ export async function GET(
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Rate limit check
+    const rateLimitResult = await standardRateLimiter.limit(request, user.id);
+    if (!rateLimitResult.allowed) {
+      return rateLimitResult.response;
     }
 
     // Verify user has access to this case
@@ -97,6 +104,12 @@ export async function POST(
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Rate limit check
+    const rateLimitResult = await standardRateLimiter.limit(request, user.id);
+    if (!rateLimitResult.allowed) {
+      return rateLimitResult.response;
     }
 
     // Verify user has access to this case

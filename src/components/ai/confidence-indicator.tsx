@@ -8,6 +8,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { getConfidenceLevel } from '@/lib/ai/utils';
 
 interface ConfidenceIndicatorProps {
   confidence: number;
@@ -25,14 +26,7 @@ export function ConfidenceIndicator({
   className,
 }: ConfidenceIndicatorProps) {
   const percentage = Math.round(confidence * 100);
-
-  const getConfidenceLevel = () => {
-    if (confidence >= 0.9) return 'high';
-    if (confidence >= 0.7) return 'medium';
-    return 'low';
-  };
-
-  const level = getConfidenceLevel();
+  const level = getConfidenceLevel(confidence);
 
   const colorClasses = {
     high: 'text-green-600 bg-green-50',
@@ -40,7 +34,8 @@ export function ConfidenceIndicator({
     low: 'text-red-600 bg-red-50',
   };
 
-  const barColorClasses = {
+  // Bar color classes kept for future progress bar implementation
+  const _barColorClasses = {
     high: 'bg-green-500',
     medium: 'bg-yellow-500',
     low: 'bg-red-500',

@@ -1,12 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, Loader2 } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { CaseCard, CaseFilters, getStatusesForFilter, CreateCaseDialog } from '@/components/cases';
 import { useCases, useDeleteCase } from '@/hooks/use-cases';
+import { CasesEmptyState } from '@/components/ui/empty-state';
+import { CaseCardSkeleton, ListSkeleton } from '@/components/ui/skeletons';
 import { toast } from 'sonner';
 import type { VisaType, CaseStatus } from '@/types';
 
@@ -45,8 +46,8 @@ export default function CasesPage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Cases</h1>
-          <p className="text-slate-600">Manage your immigration cases</p>
+          <h1 className="text-2xl font-bold text-foreground">Cases</h1>
+          <p className="text-muted-foreground">Manage your immigration cases</p>
         </div>
         <Button className="gap-2" onClick={() => setCreateDialogOpen(true)}>
           <Plus size={18} />
@@ -68,13 +69,11 @@ export default function CasesPage() {
 
       {/* Cases List */}
       {isLoading ? (
-        <div className="flex justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-        </div>
+        <ListSkeleton count={4} ItemSkeleton={CaseCardSkeleton} />
       ) : error ? (
         <Card>
           <CardContent className="p-8 text-center">
-            <p className="text-slate-600">Failed to load cases. Please try again.</p>
+            <p className="text-muted-foreground">Failed to load cases. Please try again.</p>
             <Button variant="outline" className="mt-4" onClick={() => window.location.reload()}>
               Retry
             </Button>
@@ -99,18 +98,8 @@ export default function CasesPage() {
         </div>
       ) : (
         <Card>
-          <CardContent className="p-12 text-center">
-            <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-4">
-              <Plus className="h-8 w-8 text-slate-400" />
-            </div>
-            <h3 className="text-lg font-semibold text-slate-900 mb-2">No cases yet</h3>
-            <p className="text-slate-600 mb-4">
-              Get started by creating your first immigration case.
-            </p>
-            <Button onClick={() => setCreateDialogOpen(true)} className="gap-2">
-              <Plus size={18} />
-              Create First Case
-            </Button>
+          <CardContent className="p-6">
+            <CasesEmptyState onCreateCase={() => setCreateDialogOpen(true)} />
           </CardContent>
         </Card>
       )}

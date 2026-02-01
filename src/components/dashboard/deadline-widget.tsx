@@ -8,15 +8,13 @@ import {
   formatDaysRemaining,
   getAlertTypeLabel,
 } from '@/hooks/use-deadlines';
-import { AILoading, AIBadge } from '@/components/ai';
+import { AILoading } from '@/components/ai';
 import {
   Calendar,
   Clock,
   AlertTriangle,
   AlertCircle,
-  Info,
   Check,
-  Bell,
   BellOff,
   ChevronRight,
   FileText,
@@ -184,7 +182,6 @@ function DeadlineItem({
   isUpdating: boolean;
 }) {
   const colors = getSeverityColors(deadline.severity);
-  const Icon = getAlertIcon(deadline.alertType);
 
   return (
     <div className={cn('px-4 py-3', colors.bg)}>
@@ -195,7 +192,7 @@ function DeadlineItem({
         {/* Content */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
-            <Icon size={14} className={colors.icon} />
+            <AlertTypeIcon alertType={deadline.alertType} size={14} className={colors.icon} />
             <span className={cn('text-sm font-medium', colors.text)}>
               {formatDaysRemaining(deadline.daysRemaining)}
             </span>
@@ -283,16 +280,24 @@ function EmptyState({ className }: { className?: string }) {
 }
 
 /**
- * Get icon for alert type.
+ * Icon component for alert type.
  */
-function getAlertIcon(alertType: DeadlineAlert['alertType']) {
+function AlertTypeIcon({
+  alertType,
+  size,
+  className,
+}: {
+  alertType: DeadlineAlert['alertType'];
+  size: number;
+  className?: string;
+}) {
   switch (alertType) {
     case 'case_deadline':
-      return Calendar;
+      return <Calendar size={size} className={className} />;
     case 'document_expiry':
-      return FileText;
+      return <FileText size={size} className={className} />;
     case 'processing_estimate':
-      return Clock;
+      return <Clock size={size} className={className} />;
   }
 }
 

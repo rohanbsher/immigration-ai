@@ -2,12 +2,13 @@
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { CompletenessResult } from '@/lib/ai/document-completeness';
+import { fetchWithTimeout } from '@/lib/api/fetch-with-timeout';
 
 /**
  * Fetch document completeness analysis for a case.
  */
 async function fetchCompleteness(caseId: string): Promise<CompletenessResult> {
-  const response = await fetch(`/api/cases/${caseId}/completeness`, {
+  const response = await fetchWithTimeout(`/api/cases/${caseId}/completeness`, {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',

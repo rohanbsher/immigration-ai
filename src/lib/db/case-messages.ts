@@ -1,4 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
+import { createLogger } from '@/lib/logger';
+
+const logger = createLogger('db:case-messages');
 
 export interface CaseMessage {
   id: string;
@@ -82,7 +85,7 @@ export const caseMessagesService = {
       .range(offset, offset + limit - 1);
 
     if (error) {
-      console.error('Error fetching messages:', error);
+      logger.logError('Error fetching messages', error, { caseId });
       throw error;
     }
 
@@ -118,7 +121,7 @@ export const caseMessagesService = {
 
     if (error) {
       if (error.code === 'PGRST116') return null;
-      console.error('Error fetching message:', error);
+      logger.logError('Error fetching message', error, { messageId });
       throw error;
     }
 
@@ -148,7 +151,7 @@ export const caseMessagesService = {
       .single();
 
     if (error) {
-      console.error('Error creating message:', error);
+      logger.logError('Error creating message', error, { caseId: data.case_id, senderId: data.sender_id });
       throw error;
     }
 
@@ -168,7 +171,7 @@ export const caseMessagesService = {
       .single();
 
     if (error) {
-      console.error('Error adding attachment:', error);
+      logger.logError('Error adding attachment', error, { messageId: data.message_id, fileName: data.file_name });
       throw error;
     }
 
@@ -188,7 +191,7 @@ export const caseMessagesService = {
       .is('read_at', null);
 
     if (error) {
-      console.error('Error marking message as read:', error);
+      logger.logError('Error marking message as read', error, { messageId });
       throw error;
     }
   },
@@ -207,7 +210,7 @@ export const caseMessagesService = {
       .is('read_at', null);
 
     if (error) {
-      console.error('Error marking all messages as read:', error);
+      logger.logError('Error marking all messages as read', error, { caseId, userId });
       throw error;
     }
   },
@@ -224,7 +227,7 @@ export const caseMessagesService = {
       .eq('id', messageId);
 
     if (error) {
-      console.error('Error deleting message:', error);
+      logger.logError('Error deleting message', error, { messageId });
       throw error;
     }
   },
@@ -243,7 +246,7 @@ export const caseMessagesService = {
       .is('deleted_at', null);
 
     if (casesError) {
-      console.error('Error fetching cases:', casesError);
+      logger.logError('Error fetching cases for unread count', casesError, { userId });
       return 0;
     }
 
@@ -261,7 +264,7 @@ export const caseMessagesService = {
       .is('deleted_at', null);
 
     if (error) {
-      console.error('Error fetching unread count:', error);
+      logger.logError('Error fetching unread count', error, { userId });
       return 0;
     }
 
@@ -283,7 +286,7 @@ export const caseMessagesService = {
       .is('deleted_at', null);
 
     if (error) {
-      console.error('Error fetching unread count for case:', error);
+      logger.logError('Error fetching unread count for case', error, { caseId, userId });
       return 0;
     }
 

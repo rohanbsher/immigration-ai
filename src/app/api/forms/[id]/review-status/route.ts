@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { formsService, casesService } from '@/lib/db';
 import { createClient } from '@/lib/supabase/server';
 import { analyzeFormForReview, getReviewSummary } from '@/lib/form-validation';
+import { standardRateLimiter } from '@/lib/rate-limit';
 
 /**
  * GET /api/forms/[id]/review-status
@@ -20,6 +21,12 @@ export async function GET(
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Rate limit check
+    const rateLimitResult = await standardRateLimiter.limit(request, user.id);
+    if (!rateLimitResult.allowed) {
+      return rateLimitResult.response;
     }
 
     const form = await formsService.getForm(id);

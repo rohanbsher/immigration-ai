@@ -1,5 +1,8 @@
 import { createClient } from '@/lib/supabase/server';
+import { createLogger } from '@/lib/logger';
 import type { CaseStatus, VisaType } from '@/types';
+
+const logger = createLogger('db:cases');
 
 export interface Case {
   id: string;
@@ -120,7 +123,7 @@ export const casesService = {
     const { data, error, count } = await query;
 
     if (error) {
-      console.error('Error fetching cases:', error);
+      logger.logError('Error fetching cases', error);
       throw error;
     }
 
@@ -151,7 +154,7 @@ export const casesService = {
       .single();
 
     if (error) {
-      console.error('Error fetching case:', error);
+      logger.logError('Error fetching case', error, { caseId: id });
       return null;
     }
 
@@ -182,7 +185,7 @@ export const casesService = {
       .single();
 
     if (error) {
-      console.error('Error creating case:', error);
+      logger.logError('Error creating case', error);
       throw error;
     }
 
@@ -200,7 +203,7 @@ export const casesService = {
       .single();
 
     if (error) {
-      console.error('Error updating case:', error);
+      logger.logError('Error updating case', error, { caseId: id });
       throw error;
     }
 
@@ -220,7 +223,7 @@ export const casesService = {
       .eq('id', id);
 
     if (error) {
-      console.error('Error deleting case:', error);
+      logger.logError('Error deleting case', error, { caseId: id });
       throw error;
     }
   },
@@ -239,7 +242,7 @@ export const casesService = {
       .single();
 
     if (error) {
-      console.error('Error restoring case:', error);
+      logger.logError('Error restoring case', error, { caseId: id });
       throw error;
     }
 
@@ -259,7 +262,7 @@ export const casesService = {
       .is('deleted_at', null);
 
     if (error) {
-      console.error('Error fetching case stats:', error);
+      logger.logError('Error fetching case stats', error);
       throw error;
     }
 

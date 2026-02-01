@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { acknowledgeAlert, snoozeAlert } from '@/lib/deadline';
+import { standardRateLimiter } from '@/lib/rate-limit';
 
 interface RouteParams {
   params: Promise<{ alertId: string }>;
@@ -34,6 +35,12 @@ export async function PATCH(
         { error: 'Unauthorized', message: 'Please log in to continue' },
         { status: 401 }
       );
+    }
+
+    // Rate limit check
+    const rateLimitResult = await standardRateLimiter.limit(request, user.id);
+    if (!rateLimitResult.allowed) {
+      return rateLimitResult.response;
     }
 
     // Parse request body

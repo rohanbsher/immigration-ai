@@ -20,14 +20,12 @@ import {
   ChevronDown,
   ChevronRight,
   Sparkles,
-  FileText,
   AlertCircle,
-  CheckCircle2,
   Info,
 } from 'lucide-react';
 import { useForm, useUpdateForm, useAutofillForm } from '@/hooks/use-forms';
 import { getFormDefinition, FormField as FormFieldType, FormSection } from '@/lib/forms/definitions';
-import { ProcessingStatus, ConfidenceIndicator } from '@/components/ai';
+import { ConfidenceIndicator } from '@/components/ai';
 import { toast } from 'sonner';
 
 interface FormFieldProps {

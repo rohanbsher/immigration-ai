@@ -1,5 +1,8 @@
 import { createClient } from '@/lib/supabase/server';
+import { createLogger } from '@/lib/logger';
 import type { ActivityType } from '@/types';
+
+const logger = createLogger('db:activities');
 
 export interface Activity {
   id: string;
@@ -45,7 +48,7 @@ export const activitiesService = {
       .limit(limit);
 
     if (error) {
-      console.error('Error fetching activities:', error);
+      logger.logError('Error fetching activities', error, { caseId });
       throw error;
     }
 
@@ -65,7 +68,7 @@ export const activitiesService = {
       .limit(limit);
 
     if (error) {
-      console.error('Error fetching recent activities:', error);
+      logger.logError('Error fetching recent activities', error, { limit });
       throw error;
     }
 
@@ -91,7 +94,7 @@ export const activitiesService = {
       .single();
 
     if (error) {
-      console.error('Error creating activity:', error);
+      logger.logError('Error creating activity', error, { activityType: data.activity_type, caseId: data.case_id });
       throw error;
     }
 

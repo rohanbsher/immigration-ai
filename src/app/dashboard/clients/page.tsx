@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -19,6 +19,8 @@ import {
 } from 'lucide-react';
 import { useClients } from '@/hooks/use-clients';
 import { useRoleGuard } from '@/hooks/use-role-guard';
+import { ClientsEmptyState, SearchEmptyState } from '@/components/ui/empty-state';
+import { Skeleton, ClientCardSkeleton, GridSkeleton, StatsCardSkeleton } from '@/components/ui/skeletons';
 
 export default function ClientsPage() {
   const [search, setSearch] = useState('');
@@ -29,7 +31,7 @@ export default function ClientsPage() {
     requiredRoles: ['attorney', 'admin'],
   });
 
-  const isLoading = isAuthLoading || isClientsLoading;
+  const _isLoading = isAuthLoading || isClientsLoading;
 
   // If still checking access or redirecting, show loading
   if (isAuthLoading || !hasAccess) {
@@ -52,8 +54,25 @@ export default function ClientsPage() {
 
   if (isClientsLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+      <div className="space-y-6">
+        {/* Header skeleton */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-32" />
+            <Skeleton className="h-4 w-56" />
+          </div>
+          <Skeleton className="h-10 w-40" />
+        </div>
+        {/* Search skeleton */}
+        <Card>
+          <CardContent className="p-4">
+            <Skeleton className="h-10 w-full" />
+          </CardContent>
+        </Card>
+        {/* Stats skeleton */}
+        <GridSkeleton count={3} ItemSkeleton={StatsCardSkeleton} columns={3} />
+        {/* Clients grid skeleton */}
+        <GridSkeleton count={6} ItemSkeleton={ClientCardSkeleton} columns={3} />
       </div>
     );
   }
@@ -63,8 +82,8 @@ export default function ClientsPage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Clients</h1>
-          <p className="text-slate-600">Manage your client relationships</p>
+          <h1 className="text-2xl font-bold text-foreground">Clients</h1>
+          <p className="text-muted-foreground">Manage your client relationships</p>
         </div>
         <Link href="/dashboard/cases">
           <Button className="gap-2">
@@ -78,7 +97,7 @@ export default function ClientsPage() {
       <Card>
         <CardContent className="p-4">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search clients by name or email..."
               value={search}
@@ -98,7 +117,7 @@ export default function ClientsPage() {
             </div>
             <div>
               <p className="text-2xl font-bold">{clients?.length || 0}</p>
-              <p className="text-sm text-slate-500">Total Clients</p>
+              <p className="text-sm text-muted-foreground">Total Clients</p>
             </div>
           </CardContent>
         </Card>
@@ -111,7 +130,7 @@ export default function ClientsPage() {
               <p className="text-2xl font-bold">
                 {clients?.reduce((sum, c) => sum + c.active_cases_count, 0) || 0}
               </p>
-              <p className="text-sm text-slate-500">Active Cases</p>
+              <p className="text-sm text-muted-foreground">Active Cases</p>
             </div>
           </CardContent>
         </Card>
@@ -124,7 +143,7 @@ export default function ClientsPage() {
               <p className="text-2xl font-bold">
                 {clients?.reduce((sum, c) => sum + c.cases_count, 0) || 0}
               </p>
-              <p className="text-sm text-slate-500">Total Cases</p>
+              <p className="text-sm text-muted-foreground">Total Cases</p>
             </div>
           </CardContent>
         </Card>
@@ -134,7 +153,7 @@ export default function ClientsPage() {
       {error ? (
         <Card>
           <CardContent className="p-8 text-center">
-            <p className="text-slate-600">Failed to load clients. Please try again.</p>
+            <p className="text-muted-foreground">Failed to load clients. Please try again.</p>
           </CardContent>
         </Card>
       ) : filteredClients && filteredClients.length > 0 ? (
@@ -152,15 +171,15 @@ export default function ClientsPage() {
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-slate-900 truncate">
+                      <h3 className="font-semibold text-foreground truncate">
                         {client.first_name} {client.last_name}
                       </h3>
-                      <div className="flex items-center gap-1 text-sm text-slate-500 mt-1">
+                      <div className="flex items-center gap-1 text-sm text-muted-foreground mt-1">
                         <Mail size={12} />
                         <span className="truncate">{client.email}</span>
                       </div>
                       {client.phone && (
-                        <div className="flex items-center gap-1 text-sm text-slate-500">
+                        <div className="flex items-center gap-1 text-sm text-muted-foreground">
                           <Phone size={12} />
                           <span>{client.phone}</span>
                         </div>
@@ -184,26 +203,14 @@ export default function ClientsPage() {
         </div>
       ) : clients && clients.length === 0 ? (
         <Card>
-          <CardContent className="p-12 text-center">
-            <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-4">
-              <Users className="h-8 w-8 text-slate-400" />
-            </div>
-            <h3 className="text-lg font-semibold text-slate-900 mb-2">No clients yet</h3>
-            <p className="text-slate-600 mb-4">
-              Create a case to add your first client.
-            </p>
-            <Link href="/dashboard/cases">
-              <Button className="gap-2">
-                <Plus size={18} />
-                Create Case
-              </Button>
-            </Link>
+          <CardContent className="p-6">
+            <ClientsEmptyState />
           </CardContent>
         </Card>
       ) : (
         <Card>
-          <CardContent className="p-8 text-center">
-            <p className="text-slate-600">No clients match your search.</p>
+          <CardContent className="p-6">
+            <SearchEmptyState query={search} />
           </CardContent>
         </Card>
       )}

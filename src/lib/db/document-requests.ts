@@ -1,5 +1,8 @@
 import { createClient } from '@/lib/supabase/server';
+import { createLogger } from '@/lib/logger';
 import type { DocumentType } from '@/types';
+
+const logger = createLogger('db:document-requests');
 
 export type DocumentRequestStatus = 'pending' | 'uploaded' | 'fulfilled' | 'expired' | 'cancelled';
 export type RequestPriority = 'low' | 'normal' | 'high' | 'urgent';
@@ -80,7 +83,7 @@ export const documentRequestsService = {
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('Error fetching document requests:', error);
+      logger.logError('Error fetching document requests', error, { caseId });
       throw error;
     }
 
@@ -111,7 +114,7 @@ export const documentRequestsService = {
       .order('due_date', { ascending: true, nullsFirst: false });
 
     if (error) {
-      console.error('Error fetching pending requests:', error);
+      logger.logError('Error fetching pending requests', error, { caseId });
       throw error;
     }
 
@@ -146,7 +149,7 @@ export const documentRequestsService = {
 
     if (error) {
       if (error.code === 'PGRST116') return null;
-      console.error('Error fetching document request:', error);
+      logger.logError('Error fetching document request', error, { requestId: id });
       throw error;
     }
 
@@ -177,7 +180,7 @@ export const documentRequestsService = {
       .single();
 
     if (error) {
-      console.error('Error creating document request:', error);
+      logger.logError('Error creating document request', error, { caseId: data.case_id, documentType: data.document_type });
       throw error;
     }
 
@@ -211,7 +214,7 @@ export const documentRequestsService = {
       .single();
 
     if (error) {
-      console.error('Error updating document request:', error);
+      logger.logError('Error updating document request', error, { requestId: id });
       throw error;
     }
 
@@ -250,7 +253,7 @@ export const documentRequestsService = {
       .eq('id', id);
 
     if (error) {
-      console.error('Error cancelling document request:', error);
+      logger.logError('Error cancelling document request', error, { requestId: id });
       throw error;
     }
   },
@@ -267,7 +270,7 @@ export const documentRequestsService = {
       .eq('id', id);
 
     if (error) {
-      console.error('Error deleting document request:', error);
+      logger.logError('Error deleting document request', error, { requestId: id });
       throw error;
     }
   },
@@ -286,7 +289,7 @@ export const documentRequestsService = {
       .is('deleted_at', null);
 
     if (error) {
-      console.error('Error fetching pending count:', error);
+      logger.logError('Error fetching pending count', error, { caseId });
       return 0;
     }
 

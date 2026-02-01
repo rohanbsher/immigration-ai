@@ -135,12 +135,14 @@ export function apiHandler<T>(handler: ApiHandler<T>) {
 
 /**
  * Wrap an API handler with authentication.
+ * Rate limiting is already applied by the authenticate() function.
  */
 export function withAuth<T>(
   handler: AuthenticatedApiHandler<T>,
   options?: AuthOptions
 ) {
   return apiHandler<T>(async (request, context) => {
+    // authenticate() already includes rate limiting via RATE_LIMITS
     const auth = await authenticate(request, options);
 
     if (!auth.success) {

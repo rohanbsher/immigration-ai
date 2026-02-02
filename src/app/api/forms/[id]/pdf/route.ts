@@ -4,7 +4,10 @@ import { createClient } from '@/lib/supabase/server';
 import { generateFormPDF, isPDFGenerationSupported } from '@/lib/pdf';
 import { auditService } from '@/lib/audit';
 import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit';
+import { createLogger } from '@/lib/logger';
 import type { FormType } from '@/types';
+
+const log = createLogger('api:forms-pdf');
 
 /**
  * GET /api/forms/[id]/pdf
@@ -105,7 +108,7 @@ export async function GET(
       },
     });
   } catch (error) {
-    console.error('Error generating PDF:', error);
+    log.logError('Error generating PDF', error);
     return NextResponse.json(
       { error: 'Failed to generate PDF' },
       { status: 500 }

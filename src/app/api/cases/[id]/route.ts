@@ -4,6 +4,9 @@ import { createClient } from '@/lib/supabase/server';
 import { z } from 'zod';
 import { sendCaseUpdateEmail } from '@/lib/email/notifications';
 import { standardRateLimiter } from '@/lib/rate-limit';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('api:case');
 
 const updateCaseSchema = z.object({
   visa_type: z.string().optional(),
@@ -71,7 +74,7 @@ export async function GET(
 
     return NextResponse.json(accessResult.case);
   } catch (error) {
-    console.error('Error fetching case:', error);
+    log.logError('Error fetching case', error);
     return NextResponse.json(
       { error: 'Failed to fetch case' },
       { status: 500 }
@@ -126,7 +129,7 @@ export async function PATCH(
         `Case status changed from "${previousStatus}" to "${validatedData.status}"`,
         user.id
       ).catch((err) => {
-        console.error('Failed to send case update email:', err);
+        log.logError('Failed to send case update email', err);
       });
     }
 
@@ -139,7 +142,7 @@ export async function PATCH(
       );
     }
 
-    console.error('Error updating case:', error);
+    log.logError('Error updating case', error);
     return NextResponse.json(
       { error: 'Failed to update case' },
       { status: 500 }
@@ -181,7 +184,7 @@ export async function DELETE(
 
     return NextResponse.json({ message: 'Case deleted successfully' });
   } catch (error) {
-    console.error('Error deleting case:', error);
+    log.logError('Error deleting case', error);
     return NextResponse.json(
       { error: 'Failed to delete case' },
       { status: 500 }

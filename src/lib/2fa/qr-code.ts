@@ -1,4 +1,7 @@
 import QRCode from 'qrcode';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('2fa');
 
 export async function generateQRCodeDataURL(uri: string): Promise<string> {
   try {
@@ -14,7 +17,7 @@ export async function generateQRCodeDataURL(uri: string): Promise<string> {
     });
     return dataUrl;
   } catch (error) {
-    console.error('Failed to generate QR code:', error);
+    log.logError('Failed to generate QR code', error);
     throw new Error('Failed to generate QR code');
   }
 }
@@ -29,7 +32,7 @@ export async function generateQRCodeSVG(uri: string): Promise<string> {
     });
     return svg;
   } catch (error) {
-    console.error('Failed to generate QR code SVG:', error);
+    log.logError('Failed to generate QR code SVG', error);
     throw new Error('Failed to generate QR code');
   }
 }

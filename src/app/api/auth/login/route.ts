@@ -2,6 +2,9 @@ import { createClient } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { authRateLimiter } from '@/lib/rate-limit';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('api:auth-login');
 
 const LOGIN_TIMEOUT_MS = 15_000;
 
@@ -68,7 +71,7 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     if (error instanceof LoginTimeoutError) {
-      console.error('Login timeout - Supabase auth took too long');
+      log.error('Login timeout - Supabase auth took too long');
       return NextResponse.json(
         { error: 'Login timed out. Please try again.' },
         { status: 504 }
@@ -82,7 +85,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.error('Login error:', error);
+    log.logError('Login error', error);
     return NextResponse.json(
       { error: 'An unexpected error occurred' },
       { status: 500 }

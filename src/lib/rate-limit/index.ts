@@ -12,6 +12,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Redis } from '@upstash/redis';
 import { Ratelimit } from '@upstash/ratelimit';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('rate-limit');
 
 interface RateLimitConfig {
   /** Maximum number of requests allowed */
@@ -42,21 +45,12 @@ const isProduction = process.env.NODE_ENV === 'production';
 const ALLOW_IN_MEMORY_FALLBACK = process.env.ALLOW_IN_MEMORY_RATE_LIMIT === 'true';
 
 if (isProduction && !isUpstashConfigured && !ALLOW_IN_MEMORY_FALLBACK) {
-  console.error(
-    '\n' +
-    '╔═══════════════════════════════════════════════════════════════════╗\n' +
-    '║ CRITICAL SECURITY ERROR: Rate limiting not properly configured   ║\n' +
-    '╠═══════════════════════════════════════════════════════════════════╣\n' +
-    '║ Upstash Redis is REQUIRED for production deployments.            ║\n' +
-    '║ In-memory rate limiting does NOT work with multiple instances.   ║\n' +
-    '║                                                                   ║\n' +
-    '║ To fix:                                                          ║\n' +
-    '║ 1. Set UPSTASH_REDIS_REST_URL environment variable              ║\n' +
-    '║ 2. Set UPSTASH_REDIS_REST_TOKEN environment variable            ║\n' +
-    '║                                                                   ║\n' +
-    '║ To bypass (NOT RECOMMENDED):                                     ║\n' +
-    '║ Set ALLOW_IN_MEMORY_RATE_LIMIT=true (single-instance only)       ║\n' +
-    '╚═══════════════════════════════════════════════════════════════════╝\n'
+  log.error(
+    'CRITICAL SECURITY ERROR: Rate limiting not properly configured. ' +
+    'Upstash Redis is REQUIRED for production deployments. ' +
+    'In-memory rate limiting does NOT work with multiple instances. ' +
+    'To fix: Set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN environment variables. ' +
+    'To bypass (NOT RECOMMENDED): Set ALLOW_IN_MEMORY_RATE_LIMIT=true (single-instance only)'
   );
   // In production, we don't throw to avoid breaking deployments,
   // but we log prominently and will fail-closed on rate limit checks
@@ -305,8 +299,8 @@ export function createRateLimiter(config: RateLimitConfig) {
       // In production without Redis and without explicit bypass, fail closed
       if (isProduction && !ALLOW_IN_MEMORY_FALLBACK) {
         if (!hasWarnedAboutMissingRedis) {
-          console.error(
-            '[SECURITY] Rate limiting disabled - Redis not configured. ' +
+          log.error(
+            'Rate limiting disabled - Redis not configured. ' +
             'All rate-limited requests will be rejected.'
           );
           hasWarnedAboutMissingRedis = true;
@@ -323,8 +317,8 @@ export function createRateLimiter(config: RateLimitConfig) {
 
       // Development or explicitly allowed in-memory fallback
       if (!hasWarnedAboutMissingRedis && isProduction) {
-        console.warn(
-          '[Rate Limit] Using in-memory fallback in production. ' +
+        log.warn(
+          'Using in-memory fallback in production. ' +
           'This only works for single-instance deployments!'
         );
         hasWarnedAboutMissingRedis = true;

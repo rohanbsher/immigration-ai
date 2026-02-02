@@ -3,6 +3,9 @@ import { formsService, casesService } from '@/lib/db';
 import { createClient } from '@/lib/supabase/server';
 import { z } from 'zod';
 import { standardRateLimiter } from '@/lib/rate-limit';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('api:forms-review');
 
 const reviewSchema = z.object({
   notes: z.string().optional().default(''),
@@ -63,7 +66,7 @@ export async function POST(
       );
     }
 
-    console.error('Error reviewing form:', error);
+    log.logError('Error reviewing form', error);
     return NextResponse.json(
       { error: 'Failed to review form' },
       { status: 500 }

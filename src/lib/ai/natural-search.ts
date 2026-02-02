@@ -8,6 +8,9 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@/lib/supabase/server';
 import { parseClaudeJSON } from './utils';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('natural-search');
 
 /**
  * Search interpretation from Claude.
@@ -168,7 +171,7 @@ Respond with JSON only.`,
       confidence: parsed.confidence || 0.5,
     };
   } catch (error) {
-    console.error('Error parsing search query:', error);
+    log.logError('Error parsing search query', error);
 
     // Fallback to simple text search
     return {
@@ -248,7 +251,7 @@ export async function executeSearch(
     .limit(50);
 
   if (error) {
-    console.error('Search query error:', error);
+    log.logError('Search query error', error);
     throw new Error('Failed to execute search');
   }
 

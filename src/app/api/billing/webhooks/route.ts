@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { constructWebhookEvent, handleWebhookEvent } from '@/lib/stripe';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('api:billing-webhooks');
 
 export async function POST(request: NextRequest) {
   try {
@@ -19,7 +22,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ received: true });
   } catch (error) {
-    console.error('Webhook error:', error);
+    log.logError('Webhook error', error);
 
     if (error instanceof Error && error.message.includes('signature')) {
       return NextResponse.json(

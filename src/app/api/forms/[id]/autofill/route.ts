@@ -8,6 +8,9 @@ import {
   ExtractedField,
 } from '@/lib/ai';
 import { aiRateLimiter } from '@/lib/rate-limit';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('api:forms-autofill');
 
 export async function POST(
   request: NextRequest,
@@ -111,7 +114,7 @@ export async function POST(
         visaType: caseData.visa_type,
       });
     } catch (aiError) {
-      console.error('AI autofill error:', aiError);
+      log.logError('AI autofill error', aiError);
       // Don't expose internal AI error details to client
       return NextResponse.json(
         {
@@ -138,12 +141,15 @@ export async function POST(
       .filter((f) => f.requires_review)
       .map((f) => f.field_id);
 
-    // Update form with AI results
-    const updatedForm = await formsService.updateForm(id, {
-      status: 'ai_filled',
+    // Update form with AI results - ATOMIC operation with all data together
+    // This prevents partial state if the update fails partway through
+    const atomicUpdateData = {
+      status: 'ai_filled' as const,
       ai_filled_data: {
         ...aiFilledData,
         _metadata: {
+          generated_at: new Date().toISOString(),
+          model: 'claude-3',
           fields_requiring_review: fieldsRequiringReview,
           missing_documents: autofillResult.missing_documents,
           warnings: autofillResult.warnings,
@@ -152,7 +158,21 @@ export async function POST(
         },
       },
       ai_confidence_scores: confidenceScores,
-    });
+    };
+
+    const updatedForm = await formsService.updateForm(id, atomicUpdateData);
+
+    // Verify the update succeeded with all data
+    if (!updatedForm || !updatedForm.ai_filled_data || !updatedForm.ai_confidence_scores) {
+      log.logError('AI autofill update incomplete', new Error('Partial data saved'), { formId: id });
+      return NextResponse.json(
+        {
+          error: 'Autofill save failed',
+          message: 'Failed to save AI autofill data completely. Please try again.',
+        },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json({
       form: updatedForm,
@@ -167,7 +187,7 @@ export async function POST(
       },
     });
   } catch (error) {
-    console.error('Error autofilling form:', error);
+    log.logError('Error autofilling form', error);
     return NextResponse.json(
       { error: 'Failed to autofill form' },
       { status: 500 }

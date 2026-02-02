@@ -3,6 +3,9 @@ import { z } from 'zod';
 import { serverAuth } from '@/lib/auth';
 import { createFirm, getUserFirms } from '@/lib/db/firms';
 import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('api:firms');
 
 const createFirmSchema = z.object({
   name: z.string().min(2).max(100),
@@ -42,7 +45,7 @@ export async function GET(request: NextRequest) {
       data: firms,
     });
   } catch (error) {
-    console.error('Get firms error:', error);
+    log.logError('Get firms error', error);
     return NextResponse.json(
       { error: 'Failed to fetch firms' },
       { status: 500 }
@@ -84,7 +87,7 @@ export async function POST(request: NextRequest) {
       data: firm,
     }, { status: 201 });
   } catch (error) {
-    console.error('Create firm error:', error);
+    log.logError('Create firm error', error);
     return NextResponse.json(
       { error: 'Failed to create firm' },
       { status: 500 }

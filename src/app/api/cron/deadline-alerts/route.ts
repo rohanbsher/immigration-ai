@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { syncDeadlineAlerts } from '@/lib/deadline';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('cron:deadline-alerts');
 
 /**
  * POST /api/cron/deadline-alerts
@@ -25,7 +28,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     // Always require CRON_SECRET to be configured
     if (!cronSecret) {
-      console.error('CRON_SECRET not configured');
+      log.error('CRON_SECRET not configured');
       return NextResponse.json(
         { error: 'Server configuration error' },
         { status: 500 }
@@ -40,12 +43,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    console.log('[Cron] Starting deadline alerts sync...');
+    log.info('Starting deadline alerts sync');
 
     // Sync all deadline alerts
     const syncCount = await syncDeadlineAlerts();
 
-    console.log(`[Cron] Synced ${syncCount} deadline alerts`);
+    log.info('Synced deadline alerts', { syncCount });
 
     return NextResponse.json({
       success: true,
@@ -54,7 +57,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
-    console.error('[Cron] Error syncing deadline alerts:', error);
+    log.logError('Error syncing deadline alerts', error);
 
     return NextResponse.json(
       {

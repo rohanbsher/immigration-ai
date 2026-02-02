@@ -3,6 +3,9 @@ import { serverAuth } from '@/lib/auth';
 import { checkQuota, QuotaMetric } from '@/lib/billing/quota';
 import { z } from 'zod';
 import { standardRateLimiter } from '@/lib/rate-limit';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('api:billing-quota');
 
 const querySchema = z.object({
   metric: z.enum(['cases', 'documents', 'ai_requests', 'storage', 'team_members']),
@@ -39,7 +42,7 @@ export async function GET(request: NextRequest) {
       data: quota,
     });
   } catch (error) {
-    console.error('Quota check error:', error);
+    log.logError('Quota check error', error);
     return NextResponse.json(
       { error: 'Failed to check quota' },
       { status: 500 }

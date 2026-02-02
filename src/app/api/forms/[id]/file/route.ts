@@ -3,6 +3,9 @@ import { formsService } from '@/lib/db';
 import { createClient } from '@/lib/supabase/server';
 import { validateFormReadyForFiling } from '@/lib/form-validation';
 import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('api:forms-file');
 
 export async function POST(
   request: NextRequest,
@@ -72,7 +75,7 @@ export async function POST(
     );
 
     if (!filingValidation.isReady) {
-      console.warn('Form filing blocked due to unreviewed fields:', {
+      log.warn('Form filing blocked due to unreviewed fields', {
         formId: id,
         errors: filingValidation.errors,
       });
@@ -93,7 +96,7 @@ export async function POST(
 
     return NextResponse.json(filedForm);
   } catch (error) {
-    console.error('Error filing form:', error);
+    log.logError('Error filing form', error);
     return NextResponse.json(
       { error: 'Failed to mark form as filed' },
       { status: 500 }

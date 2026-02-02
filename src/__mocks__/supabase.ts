@@ -149,7 +149,7 @@ export const resetMocks = () => {
   vi.clearAllMocks();
 };
 
-export default {
+const supabaseMocks = {
   mockUser,
   mockSession,
   mockAuth,
@@ -160,3 +160,5 @@ export default {
   mockCreateServerClient,
   resetMocks,
 };
+
+export default supabaseMocks;

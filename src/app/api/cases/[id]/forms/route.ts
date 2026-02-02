@@ -3,6 +3,9 @@ import { formsService, casesService } from '@/lib/db';
 import { createClient } from '@/lib/supabase/server';
 import { z } from 'zod';
 import { standardRateLimiter } from '@/lib/rate-limit';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('api:case-forms');
 
 const createFormSchema = z.object({
   form_type: z.string(),
@@ -47,7 +50,7 @@ export async function GET(
 
     return NextResponse.json(forms);
   } catch (error) {
-    console.error('Error fetching forms:', error);
+    log.logError('Error fetching forms', error);
     return NextResponse.json(
       { error: 'Failed to fetch forms' },
       { status: 500 }
@@ -98,7 +101,7 @@ export async function POST(
       );
     }
 
-    console.error('Error creating form:', error);
+    log.logError('Error creating form', error);
     return NextResponse.json(
       { error: 'Failed to create form' },
       { status: 500 }

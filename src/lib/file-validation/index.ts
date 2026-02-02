@@ -8,6 +8,10 @@
  * 4. Virus scanning (via ClamAV or external API)
  */
 
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('security:file-validation');
+
 // Magic bytes for supported file types
 const FILE_SIGNATURES: Record<string, { signature: number[]; offset?: number }[]> = {
   // PDF: %PDF
@@ -260,7 +264,7 @@ async function scanWithClamAV(
   const apiUrl = config?.apiUrl || process.env.CLAMAV_API_URL;
 
   if (!apiUrl) {
-    console.error('ClamAV API URL not configured');
+    log.error('ClamAV API URL not configured');
     // Fail closed - if scanner isn't configured, reject the file
     return {
       isClean: false,
@@ -281,7 +285,7 @@ async function scanWithClamAV(
     });
 
     if (!response.ok) {
-      console.error('ClamAV scan failed:', response.status, response.statusText);
+      log.error('ClamAV scan failed', { status: response.status, statusText: response.statusText });
       // Fail closed on scanner error
       return {
         isClean: false,
@@ -300,7 +304,7 @@ async function scanWithClamAV(
       scannedAt: new Date(),
     };
   } catch (error) {
-    console.error('ClamAV scan error:', error);
+    log.logError('ClamAV scan error', error);
     // Fail closed on network/timeout error
     return {
       isClean: false,
@@ -321,7 +325,7 @@ async function scanWithVirusTotal(
   const apiKey = config?.apiKey || process.env.VIRUSTOTAL_API_KEY;
 
   if (!apiKey) {
-    console.error('VirusTotal API key not configured');
+    log.error('VirusTotal API key not configured');
     return {
       isClean: false,
       threatName: 'SCANNER_NOT_CONFIGURED',
@@ -397,7 +401,7 @@ async function scanWithVirusTotal(
       scannedAt: new Date(),
     };
   } catch (error) {
-    console.error('VirusTotal scan error:', error);
+    log.logError('VirusTotal scan error', error);
     return {
       isClean: false,
       threatName: 'SCAN_ERROR',
@@ -414,10 +418,7 @@ async function scanWithVirusTotal(
 async function mockVirusScan(file: File | Blob): Promise<VirusScanResult> {
   // In development, warn that real scanning is disabled
   if (process.env.NODE_ENV === 'production') {
-    console.warn(
-      '[SECURITY WARNING] Mock virus scanner is active in production. ' +
-      'Configure VIRUS_SCANNER_PROVIDER and appropriate API credentials.'
-    );
+    log.warn('Mock virus scanner active in production - configure VIRUS_SCANNER_PROVIDER');
     // In production with mock scanner, fail closed
     return {
       isClean: false,

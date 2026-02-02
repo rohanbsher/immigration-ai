@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { serverAuth } from '@/lib/auth';
 import { getInvitationByToken, acceptInvitation } from '@/lib/db/firms';
 import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('api:firms-invitation-token');
 
 interface Params {
   params: Promise<{ token: string }>;
@@ -55,7 +58,7 @@ export async function GET(request: NextRequest, { params }: Params) {
       },
     });
   } catch (error) {
-    console.error('Get invitation error:', error);
+    log.logError('Get invitation error', error);
     return NextResponse.json(
       { error: 'Failed to fetch invitation' },
       { status: 500 }
@@ -104,6 +107,14 @@ export async function POST(request: NextRequest, { params }: Params) {
       );
     }
 
+    // Verify invitation email matches authenticated user
+    if (invitation.email.toLowerCase() !== user.email?.toLowerCase()) {
+      return NextResponse.json(
+        { error: 'This invitation was sent to a different email address' },
+        { status: 403 }
+      );
+    }
+
     const member = await acceptInvitation(token, user.id);
 
     return NextResponse.json({
@@ -111,7 +122,7 @@ export async function POST(request: NextRequest, { params }: Params) {
       data: member,
     });
   } catch (error) {
-    console.error('Accept invitation error:', error);
+    log.logError('Accept invitation error', error);
     const message = error instanceof Error ? error.message : 'Failed to accept invitation';
     return NextResponse.json(
       { error: message },

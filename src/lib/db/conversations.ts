@@ -16,6 +16,11 @@ export interface Conversation {
 }
 
 /**
+ * Message status for tracking streaming state.
+ */
+export type MessageStatus = 'streaming' | 'complete' | 'error';
+
+/**
  * Conversation message interface.
  */
 export interface ConversationMessage {
@@ -24,6 +29,7 @@ export interface ConversationMessage {
   role: 'user' | 'assistant';
   content: string;
   metadata?: Record<string, unknown>;
+  status?: MessageStatus;
   createdAt: string;
 }
 
@@ -210,6 +216,7 @@ export async function getConversationMessages(
     role: msg.role as 'user' | 'assistant',
     content: msg.content,
     metadata: msg.metadata || undefined,
+    status: (msg.metadata?.status as MessageStatus) || 'complete',
     createdAt: msg.created_at,
   }));
 }
@@ -263,6 +270,67 @@ export async function addMessage(
     role: data.role as 'user' | 'assistant',
     content: data.content,
     metadata: data.metadata || undefined,
+    status: (data.metadata?.status as MessageStatus) || 'complete',
+    createdAt: data.created_at,
+  };
+}
+
+/**
+ * Update an existing message (for streaming updates).
+ */
+export async function updateMessage(
+  messageId: string,
+  updates: {
+    content?: string;
+    status?: MessageStatus;
+    metadata?: Record<string, unknown>;
+  }
+): Promise<ConversationMessage> {
+  const supabase = await createClient();
+
+  // Build metadata update - merge with existing
+  const { data: existingMessage, error: fetchError } = await supabase
+    .from('conversation_messages')
+    .select('metadata')
+    .eq('id', messageId)
+    .single();
+
+  if (fetchError) {
+    throw new Error(`Failed to fetch message: ${fetchError.message}`);
+  }
+
+  const updatedMetadata = {
+    ...(existingMessage?.metadata || {}),
+    ...(updates.metadata || {}),
+    ...(updates.status ? { status: updates.status } : {}),
+  };
+
+  const updatePayload: Record<string, unknown> = {
+    metadata: updatedMetadata,
+  };
+
+  if (updates.content !== undefined) {
+    updatePayload.content = updates.content;
+  }
+
+  const { data, error } = await supabase
+    .from('conversation_messages')
+    .update(updatePayload)
+    .eq('id', messageId)
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Failed to update message: ${error.message}`);
+  }
+
+  return {
+    id: data.id,
+    conversationId: data.conversation_id,
+    role: data.role as 'user' | 'assistant',
+    content: data.content,
+    metadata: data.metadata || undefined,
+    status: (data.metadata?.status as MessageStatus) || 'complete',
     createdAt: data.created_at,
   };
 }

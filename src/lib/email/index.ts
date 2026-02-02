@@ -1,6 +1,9 @@
 import { resend, EMAIL_CONFIG } from './client';
 import { createClient } from '@/lib/supabase/server';
 import type { ReactElement } from 'react';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('email');
 
 export { EMAIL_CONFIG } from './client';
 
@@ -57,11 +60,11 @@ export async function sendEmail(
     .single();
 
   if (logError) {
-    console.error('Failed to create email log:', logError);
+    log.logError('Failed to create email log', logError);
   }
 
   if (!resend) {
-    console.warn('Email not sent: Resend is not configured');
+    log.warn('Email not sent: Resend is not configured');
     if (emailLog) {
       await supabase
         .from('email_log')
@@ -92,7 +95,7 @@ export async function sendEmail(
     });
 
     if (error) {
-      console.error('Resend error:', error);
+      log.logError('Resend error', error);
       if (emailLog) {
         await supabase
           .from('email_log')
@@ -124,7 +127,7 @@ export async function sendEmail(
       messageId: data?.id,
     };
   } catch (error) {
-    console.error('Email send error:', error);
+    log.logError('Email send error', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 
     if (emailLog) {

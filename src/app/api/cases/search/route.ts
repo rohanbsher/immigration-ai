@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { naturalLanguageSearch } from '@/lib/ai/natural-search';
 import { createRateLimiter, RATE_LIMITS } from '@/lib/rate-limit';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('api:cases-search');
 
 const rateLimiter = createRateLimiter(RATE_LIMITS.AI_SEARCH);
 
@@ -76,7 +79,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     return NextResponse.json(searchResponse);
   } catch (error) {
-    console.error('Error in natural language search:', error);
+    log.logError('Error in natural language search', error);
 
     return NextResponse.json(
       { error: 'Internal Server Error', message: 'Failed to perform search' },

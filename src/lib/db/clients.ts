@@ -41,6 +41,9 @@ export interface UpdateClientData {
   nationality?: string | null;
 }
 
+// Statuses that indicate an inactive/completed case
+const INACTIVE_STATUSES = ['closed', 'denied', 'approved'] as const;
+
 export const clientsService = {
   async getClients(): Promise<ClientWithCases[]> {
     const supabase = await createClient();
@@ -52,53 +55,76 @@ export const clientsService = {
       throw new Error('Unauthorized');
     }
 
-    // Get all client profiles that have cases with this attorney
-    const { data: cases, error: casesError } = await supabase
+    // Single query: fetch cases with client profile data using Supabase's join syntax
+    // This replaces the previous 2-query approach (N+1 fix)
+    const { data: casesWithClients, error } = await supabase
       .from('cases')
-      .select('client_id, status')
+      .select(`
+        client_id,
+        status,
+        client:profiles!cases_client_id_fkey(
+          id,
+          email,
+          first_name,
+          last_name,
+          phone,
+          date_of_birth,
+          country_of_birth,
+          nationality,
+          avatar_url,
+          created_at,
+          updated_at
+        )
+      `)
       .eq('attorney_id', user.id)
       .is('deleted_at', null);
 
-    if (casesError) {
-      logger.logError('Error fetching cases', casesError, { userId: user.id });
-      throw casesError;
+    if (error) {
+      logger.logError('Error fetching clients with cases', error, { userId: user.id });
+      throw error;
     }
 
-    // Get unique client IDs and count cases
-    const clientCases = (cases || []).reduce((acc, c) => {
-      if (!acc[c.client_id]) {
-        acc[c.client_id] = { total: 0, active: 0 };
-      }
-      acc[c.client_id].total++;
-      if (!['closed', 'denied', 'approved'].includes(c.status)) {
-        acc[c.client_id].active++;
-      }
-      return acc;
-    }, {} as Record<string, { total: number; active: number }>);
-
-    const clientIds = Object.keys(clientCases);
-
-    if (clientIds.length === 0) {
+    if (!casesWithClients || casesWithClients.length === 0) {
       return [];
     }
 
-    // Get client profiles
-    const { data: clients, error: clientsError } = await supabase
-      .from('profiles')
-      .select('*')
-      .in('id', clientIds)
-      .order('first_name', { ascending: true });
+    // Aggregate case counts per client in memory
+    const clientMap = new Map<string, {
+      client: Client;
+      total: number;
+      active: number;
+    }>();
 
-    if (clientsError) {
-      logger.logError('Error fetching clients', clientsError, { clientCount: clientIds.length });
-      throw clientsError;
+    for (const row of casesWithClients) {
+      // The client object from the join - Supabase returns object for singular FK relations
+      // Use unknown first for safe type narrowing
+      const clientRaw = row.client as unknown;
+      if (!clientRaw || typeof clientRaw !== 'object') continue;
+      const clientData = clientRaw as Client;
+
+      const existing = clientMap.get(clientData.id);
+      const isActive = !INACTIVE_STATUSES.includes(row.status as typeof INACTIVE_STATUSES[number]);
+
+      if (existing) {
+        existing.total++;
+        if (isActive) existing.active++;
+      } else {
+        clientMap.set(clientData.id, {
+          client: clientData,
+          total: 1,
+          active: isActive ? 1 : 0,
+        });
+      }
     }
 
-    return (clients || []).map((client) => ({
-      ...client,
-      cases_count: clientCases[client.id]?.total || 0,
-      active_cases_count: clientCases[client.id]?.active || 0,
-    }));
+    // Convert map to array and sort by first_name
+    return Array.from(clientMap.values())
+      .map(({ client, total, active }) => ({
+        ...client,
+        cases_count: total,
+        active_cases_count: active,
+      }))
+      .sort((a, b) => a.first_name.localeCompare(b.first_name));
   },
 
   async getClient(id: string): Promise<ClientWithCases | null> {

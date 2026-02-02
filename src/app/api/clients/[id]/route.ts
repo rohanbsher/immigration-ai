@@ -4,6 +4,9 @@ import { createClient } from '@/lib/supabase/server';
 import { profilesService } from '@/lib/db/profiles';
 import { z } from 'zod';
 import { standardRateLimiter } from '@/lib/rate-limit';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('api:clients-detail');
 
 const updateClientSchema = z.object({
   first_name: z.string().min(1).optional(),
@@ -72,7 +75,7 @@ export async function GET(
 
     return NextResponse.json(client);
   } catch (error) {
-    console.error('Error fetching client:', error);
+    log.logError('Error fetching client', error);
     return NextResponse.json(
       { error: 'Failed to fetch client' },
       { status: 500 }
@@ -126,7 +129,7 @@ export async function PATCH(
       );
     }
 
-    console.error('Error updating client:', error);
+    log.logError('Error updating client', error);
     return NextResponse.json(
       { error: 'Failed to update client' },
       { status: 500 }

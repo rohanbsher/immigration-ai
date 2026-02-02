@@ -12,6 +12,9 @@ import {
 } from '@/components/ui/card';
 import { AlertTriangle, RefreshCw, Home, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('dashboard-error');
 
 interface DashboardErrorProps {
   error: Error & { digest?: string };
@@ -21,7 +24,7 @@ interface DashboardErrorProps {
 export default function DashboardError({ error, reset }: DashboardErrorProps) {
   useEffect(() => {
     // Log error to monitoring service
-    console.error('Dashboard Error:', error);
+    log.logError('Dashboard Error', error, { digest: error.digest });
 
     // Future: Sentry integration with dashboard tag
     // Sentry.captureException(error, { tags: { area: 'dashboard' } });

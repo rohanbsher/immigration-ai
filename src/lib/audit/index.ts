@@ -10,6 +10,9 @@
  */
 
 import { createClient } from '@/lib/supabase/server';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('audit');
 
 export type AuditOperation = 'create' | 'update' | 'delete' | 'restore' | 'access' | 'export';
 
@@ -142,7 +145,7 @@ export const auditService = {
       const { data: { user } } = await supabase.auth.getUser();
 
       if (!user) {
-        console.error('Audit log: No user found');
+        log.error('Audit log: No user found');
         return null;
       }
 
@@ -177,13 +180,13 @@ export const auditService = {
         .single();
 
       if (error) {
-        console.error('Failed to create audit log:', error);
+        log.logError('Failed to create audit log', error);
         return null;
       }
 
       return entry as AuditLogEntry;
     } catch (error) {
-      console.error('Audit log error:', error);
+      log.logError('Audit log error', error);
       return null;
     }
   },
@@ -317,7 +320,7 @@ export const auditService = {
       .limit(limit);
 
     if (error) {
-      console.error('Failed to fetch audit logs:', error);
+      log.logError('Failed to fetch audit logs', error);
       return [];
     }
 
@@ -338,7 +341,7 @@ export const auditService = {
       .limit(limit);
 
     if (error) {
-      console.error('Failed to fetch audit logs:', error);
+      log.logError('Failed to fetch audit logs', error);
       return [];
     }
 
@@ -358,7 +361,7 @@ export const auditService = {
       .limit(limit);
 
     if (error) {
-      console.error('Failed to fetch audit logs:', error);
+      log.logError('Failed to fetch audit logs', error);
       return [];
     }
 

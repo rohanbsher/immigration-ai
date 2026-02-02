@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { serverAuth } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('api:admin-stats');
 
 export async function GET(request: NextRequest) {
   try {
@@ -85,7 +88,7 @@ export async function GET(request: NextRequest) {
       data: stats,
     });
   } catch (error) {
-    console.error('Admin stats error:', error);
+    log.logError('Admin stats error', error);
     return NextResponse.json(
       { error: 'Failed to fetch admin stats' },
       { status: 500 }

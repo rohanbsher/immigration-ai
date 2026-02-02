@@ -3,6 +3,9 @@ import { formsService, casesService } from '@/lib/db';
 import { createClient } from '@/lib/supabase/server';
 import { analyzeFormForReview, getReviewSummary } from '@/lib/form-validation';
 import { standardRateLimiter } from '@/lib/rate-limit';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('api:forms-review-status');
 
 /**
  * GET /api/forms/[id]/review-status
@@ -74,7 +77,7 @@ export async function GET(
       formStatus: form.status,
     });
   } catch (error) {
-    console.error('Error getting form review status:', error);
+    log.logError('Error getting form review status', error);
     return NextResponse.json(
       { error: 'Failed to get review status' },
       { status: 500 }

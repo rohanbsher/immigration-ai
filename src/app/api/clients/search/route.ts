@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { clientsService } from '@/lib/db/clients';
 import { sensitiveRateLimiter } from '@/lib/rate-limit';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('api:clients-search');
 
 export async function GET(request: NextRequest) {
   try {
@@ -46,7 +49,7 @@ export async function GET(request: NextRequest) {
     const clients = await clientsService.searchClients(query);
     return NextResponse.json(clients);
   } catch (error) {
-    console.error('Error searching clients:', error);
+    log.logError('Error searching clients', error);
     return NextResponse.json(
       { error: 'Failed to search clients' },
       { status: 500 }

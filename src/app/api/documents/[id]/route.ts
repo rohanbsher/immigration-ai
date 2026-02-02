@@ -4,6 +4,9 @@ import { createClient } from '@/lib/supabase/server';
 import { z } from 'zod';
 import { sensitiveRateLimiter } from '@/lib/rate-limit';
 import { auditService } from '@/lib/audit';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('api:documents');
 
 const updateDocumentSchema = z.object({
   document_type: z.string().optional(),
@@ -86,7 +89,7 @@ export async function GET(
 
     return NextResponse.json(accessResult.document);
   } catch (error) {
-    console.error('Error fetching document:', error);
+    log.logError('Error fetching document', error);
     return NextResponse.json(
       { error: 'Failed to fetch document' },
       { status: 500 }
@@ -131,7 +134,7 @@ export async function PATCH(
       );
     }
 
-    console.error('Error updating document:', error);
+    log.logError('Error updating document', error);
     return NextResponse.json(
       { error: 'Failed to update document' },
       { status: 500 }
@@ -168,7 +171,7 @@ export async function DELETE(
       const filePath = fileUrl.pathname.split('/').slice(-2).join('/');
       await supabase.storage.from('documents').remove([filePath]);
     } catch (storageError) {
-      console.error('Error deleting file from storage:', storageError);
+      log.logError('Error deleting file from storage', storageError);
       // Continue with document deletion even if storage deletion fails
     }
 
@@ -176,7 +179,7 @@ export async function DELETE(
 
     return NextResponse.json({ message: 'Document deleted successfully' });
   } catch (error) {
-    console.error('Error deleting document:', error);
+    log.logError('Error deleting document', error);
     return NextResponse.json(
       { error: 'Failed to delete document' },
       { status: 500 }

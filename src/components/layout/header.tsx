@@ -1,6 +1,4 @@
 'use client';
-
-import { useState } from 'react';
 import Link from 'next/link';
 import { Bell, Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -38,7 +36,7 @@ export function Header({ title, onMenuClick, user }: HeaderProps) {
     try {
       await signOut();
       toast.success('Logged out successfully');
-    } catch (error) {
+    } catch {
       toast.error('Failed to log out');
     }
   };

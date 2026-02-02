@@ -105,6 +105,7 @@ import {
 import { createClient } from '@/lib/supabase/client';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { rateLimit } from '@/lib/rate-limit';
+import { getProfileAsAdmin } from '@/lib/supabase/admin';
 
 // Helper to create mock NextRequest
 function createMockRequest(options: {
@@ -607,14 +608,11 @@ describe('Authentication Module', () => {
       });
 
       it('should return error when profile not found', async () => {
-        const mockQueryBuilder = createMockQueryBuilder([]);
-        mockQueryBuilder.single = vi.fn().mockResolvedValue({
-          data: null,
+        // Mock getProfileAsAdmin to return no profile
+        vi.mocked(getProfileAsAdmin).mockResolvedValueOnce({
+          profile: null,
           error: new Error('Not found'),
         });
-        const mockClient = createMockSupabaseClient();
-        mockClient.from = vi.fn().mockReturnValue(mockQueryBuilder);
-        vi.mocked(createServerClient).mockResolvedValueOnce(mockClient);
 
         const request = createMockRequest();
 
@@ -628,14 +626,11 @@ describe('Authentication Module', () => {
 
       it('should check role when roles option provided', async () => {
         const mockProfile = createMockProfile({ role: 'client' });
-        const mockQueryBuilder = createMockQueryBuilder([mockProfile]);
-        mockQueryBuilder.single = vi.fn().mockResolvedValue({
-          data: mockProfile,
+        // Mock getProfileAsAdmin to return client profile
+        vi.mocked(getProfileAsAdmin).mockResolvedValueOnce({
+          profile: mockProfile,
           error: null,
         });
-        const mockClient = createMockSupabaseClient();
-        mockClient.from = vi.fn().mockReturnValue(mockQueryBuilder);
-        vi.mocked(createServerClient).mockResolvedValueOnce(mockClient);
 
         const request = createMockRequest();
 
@@ -732,14 +727,11 @@ describe('Authentication Module', () => {
 
       it('should reject non-attorney role', async () => {
         const mockProfile = createMockProfile({ role: 'client' });
-        const mockQueryBuilder = createMockQueryBuilder([mockProfile]);
-        mockQueryBuilder.single = vi.fn().mockResolvedValue({
-          data: mockProfile,
+        // Mock getProfileAsAdmin to return client profile
+        vi.mocked(getProfileAsAdmin).mockResolvedValueOnce({
+          profile: mockProfile,
           error: null,
         });
-        const mockClient = createMockSupabaseClient();
-        mockClient.from = vi.fn().mockReturnValue(mockQueryBuilder);
-        vi.mocked(createServerClient).mockResolvedValueOnce(mockClient);
 
         const request = createMockRequest();
 
@@ -755,14 +747,11 @@ describe('Authentication Module', () => {
     describe('requireAdmin', () => {
       it('should allow admin role', async () => {
         const mockProfile = createMockProfile({ role: 'admin' });
-        const mockQueryBuilder = createMockQueryBuilder([mockProfile]);
-        mockQueryBuilder.single = vi.fn().mockResolvedValue({
-          data: mockProfile,
+        // Mock getProfileAsAdmin to return admin profile
+        vi.mocked(getProfileAsAdmin).mockResolvedValueOnce({
+          profile: mockProfile,
           error: null,
         });
-        const mockClient = createMockSupabaseClient();
-        mockClient.from = vi.fn().mockReturnValue(mockQueryBuilder);
-        vi.mocked(createServerClient).mockResolvedValueOnce(mockClient);
 
         const request = createMockRequest();
 
@@ -773,14 +762,11 @@ describe('Authentication Module', () => {
 
       it('should reject non-admin role', async () => {
         const mockProfile = createMockProfile({ role: 'attorney' });
-        const mockQueryBuilder = createMockQueryBuilder([mockProfile]);
-        mockQueryBuilder.single = vi.fn().mockResolvedValue({
-          data: mockProfile,
+        // Mock getProfileAsAdmin to return attorney profile (should fail admin check)
+        vi.mocked(getProfileAsAdmin).mockResolvedValueOnce({
+          profile: mockProfile,
           error: null,
         });
-        const mockClient = createMockSupabaseClient();
-        mockClient.from = vi.fn().mockReturnValue(mockQueryBuilder);
-        vi.mocked(createServerClient).mockResolvedValueOnce(mockClient);
 
         const request = createMockRequest();
 
@@ -793,14 +779,11 @@ describe('Authentication Module', () => {
     describe('requireAttorneyOrAdmin', () => {
       it('should allow attorney role', async () => {
         const mockProfile = createMockProfile({ role: 'attorney' });
-        const mockQueryBuilder = createMockQueryBuilder([mockProfile]);
-        mockQueryBuilder.single = vi.fn().mockResolvedValue({
-          data: mockProfile,
+        // Mock getProfileAsAdmin to return attorney profile
+        vi.mocked(getProfileAsAdmin).mockResolvedValueOnce({
+          profile: mockProfile,
           error: null,
         });
-        const mockClient = createMockSupabaseClient();
-        mockClient.from = vi.fn().mockReturnValue(mockQueryBuilder);
-        vi.mocked(createServerClient).mockResolvedValueOnce(mockClient);
 
         const request = createMockRequest();
 
@@ -811,14 +794,11 @@ describe('Authentication Module', () => {
 
       it('should allow admin role', async () => {
         const mockProfile = createMockProfile({ role: 'admin' });
-        const mockQueryBuilder = createMockQueryBuilder([mockProfile]);
-        mockQueryBuilder.single = vi.fn().mockResolvedValue({
-          data: mockProfile,
+        // Mock getProfileAsAdmin to return admin profile
+        vi.mocked(getProfileAsAdmin).mockResolvedValueOnce({
+          profile: mockProfile,
           error: null,
         });
-        const mockClient = createMockSupabaseClient();
-        mockClient.from = vi.fn().mockReturnValue(mockQueryBuilder);
-        vi.mocked(createServerClient).mockResolvedValueOnce(mockClient);
 
         const request = createMockRequest();
 
@@ -829,14 +809,11 @@ describe('Authentication Module', () => {
 
       it('should reject client role', async () => {
         const mockProfile = createMockProfile({ role: 'client' });
-        const mockQueryBuilder = createMockQueryBuilder([mockProfile]);
-        mockQueryBuilder.single = vi.fn().mockResolvedValue({
-          data: mockProfile,
+        // Mock getProfileAsAdmin to return client profile
+        vi.mocked(getProfileAsAdmin).mockResolvedValueOnce({
+          profile: mockProfile,
           error: null,
         });
-        const mockClient = createMockSupabaseClient();
-        mockClient.from = vi.fn().mockReturnValue(mockQueryBuilder);
-        vi.mocked(createServerClient).mockResolvedValueOnce(mockClient);
 
         const request = createMockRequest();
 
@@ -1174,14 +1151,11 @@ describe('Authentication Module', () => {
 
       it('should pass options to authenticate', async () => {
         const mockProfile = createMockProfile({ role: 'client' });
-        const mockQueryBuilder = createMockQueryBuilder([mockProfile]);
-        mockQueryBuilder.single = vi.fn().mockResolvedValue({
-          data: mockProfile,
+        // Mock getProfileAsAdmin to return client profile
+        vi.mocked(getProfileAsAdmin).mockResolvedValueOnce({
+          profile: mockProfile,
           error: null,
         });
-        const mockClient = createMockSupabaseClient();
-        mockClient.from = vi.fn().mockReturnValue(mockQueryBuilder);
-        vi.mocked(createServerClient).mockResolvedValueOnce(mockClient);
 
         const handler = vi.fn();
         const wrappedHandler = withAuth(handler, { roles: ['attorney'] });
@@ -1199,14 +1173,11 @@ describe('Authentication Module', () => {
     describe('withAttorneyAuth HOF', () => {
       it('should require attorney role', async () => {
         const mockProfile = createMockProfile({ role: 'attorney' });
-        const mockQueryBuilder = createMockQueryBuilder([mockProfile]);
-        mockQueryBuilder.single = vi.fn().mockResolvedValue({
-          data: mockProfile,
+        // Mock getProfileAsAdmin to return attorney profile
+        vi.mocked(getProfileAsAdmin).mockResolvedValueOnce({
+          profile: mockProfile,
           error: null,
         });
-        const mockClient = createMockSupabaseClient();
-        mockClient.from = vi.fn().mockReturnValue(mockQueryBuilder);
-        vi.mocked(createServerClient).mockResolvedValueOnce(mockClient);
 
         const handler = vi.fn().mockResolvedValue(NextResponse.json({ ok: true }));
         const wrappedHandler = withAttorneyAuth(handler);
@@ -1221,14 +1192,11 @@ describe('Authentication Module', () => {
 
       it('should reject non-attorney', async () => {
         const mockProfile = createMockProfile({ role: 'client' });
-        const mockQueryBuilder = createMockQueryBuilder([mockProfile]);
-        mockQueryBuilder.single = vi.fn().mockResolvedValue({
-          data: mockProfile,
+        // Mock getProfileAsAdmin to return client profile
+        vi.mocked(getProfileAsAdmin).mockResolvedValueOnce({
+          profile: mockProfile,
           error: null,
         });
-        const mockClient = createMockSupabaseClient();
-        mockClient.from = vi.fn().mockReturnValue(mockQueryBuilder);
-        vi.mocked(createServerClient).mockResolvedValueOnce(mockClient);
 
         const handler = vi.fn();
         const wrappedHandler = withAttorneyAuth(handler);
@@ -1246,14 +1214,11 @@ describe('Authentication Module', () => {
     describe('withAdminAuth HOF', () => {
       it('should require admin role', async () => {
         const mockProfile = createMockProfile({ role: 'admin' });
-        const mockQueryBuilder = createMockQueryBuilder([mockProfile]);
-        mockQueryBuilder.single = vi.fn().mockResolvedValue({
-          data: mockProfile,
+        // Mock getProfileAsAdmin to return admin profile
+        vi.mocked(getProfileAsAdmin).mockResolvedValueOnce({
+          profile: mockProfile,
           error: null,
         });
-        const mockClient = createMockSupabaseClient();
-        mockClient.from = vi.fn().mockReturnValue(mockQueryBuilder);
-        vi.mocked(createServerClient).mockResolvedValueOnce(mockClient);
 
         const handler = vi.fn().mockResolvedValue(NextResponse.json({ ok: true }));
         const wrappedHandler = withAdminAuth(handler);
@@ -1268,14 +1233,11 @@ describe('Authentication Module', () => {
 
       it('should reject non-admin', async () => {
         const mockProfile = createMockProfile({ role: 'attorney' });
-        const mockQueryBuilder = createMockQueryBuilder([mockProfile]);
-        mockQueryBuilder.single = vi.fn().mockResolvedValue({
-          data: mockProfile,
+        // Mock getProfileAsAdmin to return attorney profile (should fail admin check)
+        vi.mocked(getProfileAsAdmin).mockResolvedValueOnce({
+          profile: mockProfile,
           error: null,
         });
-        const mockClient = createMockSupabaseClient();
-        mockClient.from = vi.fn().mockReturnValue(mockQueryBuilder);
-        vi.mocked(createServerClient).mockResolvedValueOnce(mockClient);
 
         const handler = vi.fn();
         const wrappedHandler = withAdminAuth(handler);

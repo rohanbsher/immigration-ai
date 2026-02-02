@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { serverAuth } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('api:admin-users');
 
 /**
  * Sanitize search input for use in Supabase ILIKE patterns.
@@ -86,7 +89,7 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('Admin users error:', error);
+    log.logError('Admin users error', error);
     return NextResponse.json(
       { error: 'Failed to fetch users' },
       { status: 500 }

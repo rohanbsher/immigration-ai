@@ -192,7 +192,7 @@ export const resetMocks = () => {
   vi.clearAllMocks();
 };
 
-export default {
+const anthropicMocks = {
   mockMessageResponse,
   mockDocumentAnalysisResponse,
   mockFormAutofillResponse,
@@ -207,3 +207,5 @@ export default {
   simulateStreamingError,
   resetMocks,
 };
+
+export default anthropicMocks;

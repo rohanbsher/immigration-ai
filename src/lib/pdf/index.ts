@@ -6,6 +6,9 @@
 import { PDFDocument, StandardFonts, rgb, PDFFont, PDFPage } from 'pdf-lib';
 import type { FormType } from '@/types';
 import { getFieldMappings, FormFieldMapping } from './templates';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('pdf');
 
 export interface PDFGenerationResult {
   success: boolean;
@@ -46,7 +49,7 @@ export async function generateFormPDF(form: FormData): Promise<PDFGenerationResu
       fileName: `${form.formType}_${form.id.slice(0, 8)}_${Date.now()}.pdf`,
     };
   } catch (error) {
-    console.error('PDF generation error:', error);
+    log.logError('PDF generation error', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to generate PDF',

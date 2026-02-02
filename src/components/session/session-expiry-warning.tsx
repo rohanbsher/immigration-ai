@@ -14,6 +14,9 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Clock, LogOut } from 'lucide-react';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('session-expiry');
 
 const WARNING_TIME_MS = 5 * 60 * 1000; // 5 minutes before expiry
 const CHECK_INTERVAL_MS = 30 * 1000; // Check every 30 seconds
@@ -55,7 +58,7 @@ export function SessionExpiryWarning() {
         setShowWarning(false);
       }
     } catch (error) {
-      console.error('Error checking session:', error);
+      log.logError('Error checking session', error);
     }
   }, [pathname, router, showWarning, supabase.auth]);
 
@@ -98,7 +101,7 @@ export function SessionExpiryWarning() {
         setTimeRemaining(0);
       }
     } catch (error) {
-      console.error('Error extending session:', error);
+      log.logError('Error extending session', error);
       const returnUrl = encodeURIComponent(pathname);
       router.push(`/login?returnUrl=${returnUrl}&expired=true`);
     } finally {

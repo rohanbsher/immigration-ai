@@ -10,6 +10,9 @@ import {
 } from '@/lib/db/firms';
 import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 import { canManageMembers } from '@/types/firms';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('api:firms-invitations');
 
 const createInvitationSchema = z.object({
   email: z.string().email(),
@@ -54,7 +57,7 @@ export async function GET(request: NextRequest, { params }: Params) {
       data: invitations,
     });
   } catch (error) {
-    console.error('Get invitations error:', error);
+    log.logError('Get invitations error', error);
     return NextResponse.json(
       { error: 'Failed to fetch invitations' },
       { status: 500 }
@@ -122,7 +125,7 @@ export async function POST(request: NextRequest, { params }: Params) {
       data: invitation,
     }, { status: 201 });
   } catch (error) {
-    console.error('Create invitation error:', error);
+    log.logError('Create invitation error', error);
     return NextResponse.json(
       { error: 'Failed to create invitation' },
       { status: 500 }
@@ -170,7 +173,7 @@ export async function DELETE(request: NextRequest, { params }: Params) {
       message: 'Invitation revoked successfully',
     });
   } catch (error) {
-    console.error('Revoke invitation error:', error);
+    log.logError('Revoke invitation error', error);
     return NextResponse.json(
       { error: 'Failed to revoke invitation' },
       { status: 500 }

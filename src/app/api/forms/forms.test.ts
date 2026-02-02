@@ -550,6 +550,7 @@ describe('Forms API Routes', () => {
         ...mockForm,
         status: 'ai_filled',
         ai_filled_data: { first_name: 'John', last_name: 'Doe' },
+        ai_confidence_scores: { first_name: 0.95, last_name: 0.91 },
       } as ReturnType<typeof formsService.updateForm> extends Promise<infer T> ? T : never);
 
       const request = createMockRequest('POST');

@@ -3,6 +3,22 @@ import { documentsService, casesService } from '@/lib/db';
 import { createClient } from '@/lib/supabase/server';
 import { analyzeDocument, type DocumentAnalysisResult } from '@/lib/ai';
 import { aiRateLimiter } from '@/lib/rate-limit';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('api:documents-analyze');
+
+/**
+ * Validates that a URL is from our trusted Supabase storage.
+ * Prevents SSRF attacks by ensuring only internal storage URLs are processed.
+ */
+function validateStorageUrl(url: string): boolean {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!supabaseUrl) return false;
+
+  // Expected format: https://<project>.supabase.co/storage/v1/object/...
+  const expectedPrefix = `${supabaseUrl}/storage/v1/object/`;
+  return url.startsWith(expectedPrefix);
+}
 
 // Minimum confidence threshold for accepting AI analysis results
 // Documents below this threshold are flagged for manual review
@@ -63,6 +79,18 @@ export async function POST(
       // Use the file URL directly (it's already a signed URL from Supabase storage)
       const fileUrl = document.file_url;
 
+      // SSRF protection: validate URL is from our Supabase storage
+      if (!validateStorageUrl(fileUrl)) {
+        log.logError('Invalid document URL - possible SSRF attempt', null, {
+          documentId: id,
+          url: document.file_url
+        });
+        return NextResponse.json(
+          { error: 'Invalid document URL' },
+          { status: 400 }
+        );
+      }
+
       // Analyze the document using AI
       analysisResult = await analyzeDocument({
         documentId: id,
@@ -77,7 +105,7 @@ export async function POST(
       // If AI analysis fails, update status and return error
       await documentsService.updateDocument(id, { status: 'uploaded' });
 
-      console.error('AI analysis error:', aiError);
+      log.logError('AI analysis error', aiError);
       // Don't expose internal AI error details to client
       return NextResponse.json(
         {
@@ -147,7 +175,7 @@ export async function POST(
       },
     });
   } catch (error) {
-    console.error('Error analyzing document:', error);
+    log.logError('Error analyzing document', error);
     return NextResponse.json(
       { error: 'Failed to analyze document' },
       { status: 500 }

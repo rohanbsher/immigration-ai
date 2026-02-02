@@ -3,6 +3,9 @@ import { profilesService } from '@/lib/db';
 import { createClient } from '@/lib/supabase/server';
 import { z } from 'zod';
 import { standardRateLimiter } from '@/lib/rate-limit';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('api:profile');
 
 const updateProfileSchema = z.object({
   first_name: z.string().min(1).optional(),
@@ -41,7 +44,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(profile);
   } catch (error) {
-    console.error('Error fetching profile:', error);
+    log.logError('Error fetching profile', error);
     return NextResponse.json(
       { error: 'Failed to fetch profile' },
       { status: 500 }
@@ -78,7 +81,7 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    console.error('Error updating profile:', error);
+    log.logError('Error updating profile', error);
     return NextResponse.json(
       { error: 'Failed to update profile' },
       { status: 500 }

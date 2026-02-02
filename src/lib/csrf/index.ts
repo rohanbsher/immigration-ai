@@ -12,6 +12,9 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('csrf');
 
 /**
  * Get the allowed origins for CSRF validation.
@@ -136,7 +139,7 @@ export function csrfMiddleware(request: NextRequest): NextResponse | null {
   const validation = validateCsrf(request);
 
   if (!validation.valid) {
-    console.warn(`CSRF validation failed: ${validation.reason}`);
+    log.warn(`CSRF validation failed: ${validation.reason}`);
     return NextResponse.json(
       { error: 'CSRF validation failed' },
       { status: 403 }

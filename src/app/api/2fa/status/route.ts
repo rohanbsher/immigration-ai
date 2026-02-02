@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { serverAuth } from '@/lib/auth';
 import { getTwoFactorStatus } from '@/lib/2fa';
 import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('api:2fa-status');
 
 export async function GET(request: NextRequest) {
   try {
@@ -27,7 +30,7 @@ export async function GET(request: NextRequest) {
       data: status,
     });
   } catch (error) {
-    console.error('2FA status error:', error);
+    log.logError('2FA status error', error);
     return NextResponse.json(
       { error: 'Failed to get 2FA status' },
       { status: 500 }

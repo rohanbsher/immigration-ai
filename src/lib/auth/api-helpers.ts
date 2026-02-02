@@ -22,8 +22,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { getProfileAsAdmin } from '@/lib/supabase/admin';
 import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit';
+import { createLogger } from '@/lib/logger';
 import type { UserRole } from '@/types';
 import { User } from '@supabase/supabase-js';
+
+const log = createLogger('auth:api-helpers');
 
 // =============================================================================
 // Types
@@ -221,13 +224,11 @@ export async function authenticate(
 
   if (!user) {
     // Debug logging for 401 errors
-    if (process.env.NODE_ENV === 'development') {
-      console.warn('[Auth] 401 Unauthorized:', {
-        hasCookieHeader: !!request.headers.get('cookie'),
-        url: request.url,
-        method: request.method,
-      });
-    }
+    log.debug('401 Unauthorized', {
+      hasCookieHeader: !!request.headers.get('cookie'),
+      url: request.url,
+      method: request.method,
+    });
     return {
       success: false,
       error: 'Unauthorized',
@@ -239,7 +240,7 @@ export async function authenticate(
   const { profile, error: profileError } = await getProfileAsAdmin(user.id);
 
   if (profileError || !profile) {
-    console.error('Profile lookup failed for user:', user.id, profileError?.message || 'No profile row');
+    log.error('Profile lookup failed for user', { userId: user.id, error: profileError?.message || 'No profile row' });
     return {
       success: false,
       error: 'Profile not found',
@@ -502,7 +503,7 @@ export function withAuth(
 
       return await handler(request, context, auth);
     } catch (error) {
-      console.error('API error:', error);
+      log.logError('API error', error);
       return errorResponse(
         error instanceof Error ? error.message : 'Internal server error',
         500

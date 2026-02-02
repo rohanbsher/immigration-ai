@@ -123,7 +123,7 @@ export const mockStripeClient = {
     },
   },
   webhooks: {
-    constructEvent: vi.fn().mockImplementation((payload, signature, secret) => {
+    constructEvent: vi.fn().mockImplementation((payload, _signature, _secret) => {
       return JSON.parse(payload);
     }),
   },
@@ -161,7 +161,7 @@ export const resetMocks = () => {
   vi.clearAllMocks();
 };
 
-export default {
+const stripeMocks = {
   mockCustomer,
   mockSubscription,
   mockInvoice,
@@ -175,3 +175,5 @@ export default {
   simulateStripeError,
   resetMocks,
 };
+
+export default stripeMocks;

@@ -14,6 +14,9 @@ import {
 } from '@/lib/db/recommendations';
 import { createRateLimiter, RATE_LIMITS } from '@/lib/rate-limit';
 import { withAIFallback } from '@/lib/ai/utils';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('api:case-recommendations');
 
 const rateLimiter = createRateLimiter(RATE_LIMITS.AI_RECOMMENDATIONS);
 
@@ -276,7 +279,7 @@ export async function GET(
 
     return NextResponse.json(result);
   } catch (error) {
-    console.error('Error generating recommendations:', error);
+    log.logError('Error generating recommendations', error);
 
     return NextResponse.json(
       { error: 'Internal Server Error', message: 'Failed to generate recommendations' },
@@ -365,7 +368,7 @@ export async function PATCH(
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error updating recommendation:', error);
+    log.logError('Error updating recommendation', error);
 
     return NextResponse.json(
       { error: 'Internal Server Error', message: 'Failed to update recommendation' },

@@ -2,6 +2,10 @@
  * Shared AI utility functions for consistent behavior across AI features.
  */
 
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('ai:utils');
+
 /**
  * Result of an AI call with fallback tracking.
  */
@@ -32,7 +36,7 @@ export async function withAIFallback<T>(
     const result = await aiCall();
     return { result, source: 'ai' };
   } catch (error) {
-    console.error('[AI Fallback] AI call failed, using fallback:', error);
+    log.logError('AI call failed, using fallback', error);
     const fallbackResult = await fallback();
     return {
       result: fallbackResult,
@@ -65,7 +69,7 @@ export function parseClaudeJSON<T>(content: string): T {
     content.match(/\{[\s\S]*\}/);
 
   if (!jsonMatch) {
-    throw new Error('No JSON found in response');
+    throw new Error('Could not parse JSON response from Claude');
   }
 
   const jsonStr = jsonMatch[1] || jsonMatch[0];

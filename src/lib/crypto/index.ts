@@ -11,6 +11,9 @@
  */
 
 import { randomBytes, createCipheriv, createDecipheriv } from 'crypto';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('crypto');
 
 const ALGORITHM = 'aes-256-gcm';
 const IV_LENGTH = 12; // 96 bits for GCM
@@ -34,8 +37,8 @@ function getEncryptionKey(): Buffer {
   if (!keyHex) {
     if (isDevelopment) {
       if (!devKeyWarningShown) {
-        console.warn(
-          '[Crypto] WARNING: ENCRYPTION_KEY not set. Using development fallback key. ' +
+        log.warn(
+          'ENCRYPTION_KEY not set. Using development fallback key. ' +
           'This is NOT SECURE and should only be used in development. ' +
           'Generate a production key with: openssl rand -hex 32'
         );

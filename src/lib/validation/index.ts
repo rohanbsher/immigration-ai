@@ -161,10 +161,12 @@ export const schemas = {
   nonEmptyString: z.string().min(1, 'This field is required'),
 };
 
-export default {
+const validationUtils = {
   formatZodError,
   validate,
   validateRequestBody,
   validateSearchParams,
   schemas,
 };
+
+export default validationUtils;

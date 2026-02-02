@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { clientsService } from '@/lib/db/clients';
 import { standardRateLimiter } from '@/lib/rate-limit';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('api:client-cases');
 
 export async function GET(
   request: NextRequest,
@@ -69,7 +72,7 @@ export async function GET(
     const cases = await clientsService.getClientCases(clientId);
     return NextResponse.json(cases);
   } catch (error) {
-    console.error('Error fetching client cases:', error);
+    log.logError('Error fetching client cases', error);
     return NextResponse.json(
       { error: 'Failed to fetch client cases' },
       { status: 500 }

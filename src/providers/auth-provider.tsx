@@ -5,6 +5,9 @@ import { User, Session } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/client';
 import { setUserContext, clearUserContext } from '@/lib/sentry/context';
 import type { UserRole } from '@/types';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('auth-provider');
 
 interface AuthContextType {
   user: User | null;
@@ -38,7 +41,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           await updateSentryContext(session.user.id);
         }
       } catch (error) {
-        console.error('Error getting session:', error);
+        log.logError('Error getting session', error);
       } finally {
         setIsLoading(false);
       }

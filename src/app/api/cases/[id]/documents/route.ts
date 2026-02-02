@@ -5,6 +5,9 @@ import { sensitiveRateLimiter } from '@/lib/rate-limit';
 import { validateFile } from '@/lib/file-validation';
 import { sendDocumentUploadedEmail } from '@/lib/email/notifications';
 import { enforceQuota, QuotaExceededError } from '@/lib/billing/quota';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('api:case-documents');
 
 // File validation constants
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -41,7 +44,7 @@ export async function GET(
 
     return NextResponse.json(documents);
   } catch (error) {
-    console.error('Error fetching documents:', error);
+    log.logError('Error fetching documents', error);
     return NextResponse.json(
       { error: 'Failed to fetch documents' },
       { status: 500 }
@@ -116,7 +119,7 @@ export async function POST(
     const validationResult = await validateFile(file);
 
     if (!validationResult.isValid) {
-      console.error('File validation failed:', {
+      log.error('File validation failed', {
         fileName: file.name,
         claimedType: file.type,
         error: validationResult.error,
@@ -144,7 +147,7 @@ export async function POST(
 
     // Log any warnings from validation
     if (validationResult.typeValidation.warnings.length > 0) {
-      console.warn('File validation warnings:', {
+      log.warn('File validation warnings', {
         fileName: file.name,
         warnings: validationResult.typeValidation.warnings,
       });
@@ -159,7 +162,7 @@ export async function POST(
       .upload(fileName, file);
 
     if (uploadError) {
-      console.error('Upload error:', uploadError);
+      log.logError('Upload error', uploadError);
       return NextResponse.json(
         { error: 'Failed to upload file' },
         { status: 500 }
@@ -190,12 +193,12 @@ export async function POST(
       documentType,
       user.id
     ).catch((err) => {
-      console.error('Failed to send document upload email:', err);
+      log.logError('Failed to send document upload email', err);
     });
 
     return NextResponse.json(document, { status: 201 });
   } catch (error) {
-    console.error('Error uploading document:', error);
+    log.logError('Error uploading document', error);
     return NextResponse.json(
       { error: 'Failed to upload document' },
       { status: 500 }

@@ -1,6 +1,9 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { validateCsrf } from '@/lib/csrf';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('middleware');
 
 /**
  * Generate a unique request ID for tracing.
@@ -30,7 +33,7 @@ export async function updateSession(request: NextRequest) {
   if (request.nextUrl.pathname.startsWith('/api/')) {
     const csrfValidation = validateCsrf(request);
     if (!csrfValidation.valid) {
-      console.warn(`[${requestId}] CSRF validation failed: ${csrfValidation.reason}`);
+      log.warn(`CSRF validation failed: ${csrfValidation.reason}`, { requestId });
       const csrfResponse = NextResponse.json(
         { error: 'CSRF validation failed' },
         { status: 403 }
@@ -113,7 +116,7 @@ export async function updateSession(request: NextRequest) {
   if (isAdminPath && user) {
     // Redirect non-admins to dashboard
     if (!profile || profile.role !== 'admin') {
-      console.warn(`[${requestId}] Non-admin user attempted to access admin route: ${request.nextUrl.pathname}`);
+      log.warn(`Non-admin user attempted to access admin route: ${request.nextUrl.pathname}`, { requestId });
       const url = request.nextUrl.clone();
       url.pathname = profile?.role === 'client' ? '/dashboard/client' : '/dashboard';
       const redirectResponse = NextResponse.redirect(url);
@@ -138,7 +141,7 @@ export async function updateSession(request: NextRequest) {
 
     // Prevent non-clients from accessing client portal
     if (profile.role !== 'client' && isClientPortalPath) {
-      console.warn(`[${requestId}] Non-client user attempted to access client portal: ${request.nextUrl.pathname}`);
+      log.warn(`Non-client user attempted to access client portal: ${request.nextUrl.pathname}`, { requestId });
       const url = request.nextUrl.clone();
       url.pathname = '/dashboard';
       const redirectResponse = NextResponse.redirect(url);

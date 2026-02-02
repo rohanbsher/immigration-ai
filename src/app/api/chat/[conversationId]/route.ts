@@ -7,6 +7,9 @@ import {
   updateConversationTitle,
 } from '@/lib/db/conversations';
 import { standardRateLimiter, sensitiveRateLimiter } from '@/lib/rate-limit';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('api:chat-conversation');
 
 interface RouteParams {
   params: Promise<{ conversationId: string }>;
@@ -72,7 +75,7 @@ export async function GET(
       })),
     });
   } catch (error) {
-    console.error('Error fetching conversation:', error);
+    log.logError('Error fetching conversation', error);
 
     return NextResponse.json(
       { error: 'Internal Server Error', message: 'Failed to fetch conversation' },
@@ -132,7 +135,7 @@ export async function PATCH(
       },
     });
   } catch (error) {
-    console.error('Error updating conversation:', error);
+    log.logError('Error updating conversation', error);
 
     return NextResponse.json(
       { error: 'Internal Server Error', message: 'Failed to update conversation' },
@@ -177,7 +180,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error deleting conversation:', error);
+    log.logError('Error deleting conversation', error);
 
     return NextResponse.json(
       { error: 'Internal Server Error', message: 'Failed to delete conversation' },

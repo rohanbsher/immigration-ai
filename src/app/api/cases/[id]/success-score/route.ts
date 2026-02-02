@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { calculateSuccessScore } from '@/lib/scoring/success-probability';
 import { createRateLimiter, RATE_LIMITS } from '@/lib/rate-limit';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('api:success-score');
 
 const rateLimiter = createRateLimiter(RATE_LIMITS.AI_SUCCESS_SCORE);
 
@@ -74,7 +77,7 @@ export async function GET(
 
     return response;
   } catch (error) {
-    console.error('Error calculating success score:', error);
+    log.logError('Error calculating success score', error);
 
     return NextResponse.json(
       { error: 'Internal Server Error', message: 'Failed to calculate success score' },

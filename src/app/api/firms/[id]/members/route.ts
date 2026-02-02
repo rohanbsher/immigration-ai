@@ -9,6 +9,9 @@ import {
 } from '@/lib/db/firms';
 import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 import { canManageMembers } from '@/types/firms';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('api:firms-members');
 
 const updateMemberSchema = z.object({
   userId: z.string().uuid(),
@@ -55,7 +58,7 @@ export async function GET(request: NextRequest, { params }: Params) {
       data: members,
     });
   } catch (error) {
-    console.error('Get members error:', error);
+    log.logError('Get members error', error);
     return NextResponse.json(
       { error: 'Failed to fetch members' },
       { status: 500 }
@@ -108,7 +111,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       data: member,
     });
   } catch (error) {
-    console.error('Update member error:', error);
+    log.logError('Update member error', error);
     return NextResponse.json(
       { error: 'Failed to update member' },
       { status: 500 }
@@ -166,7 +169,7 @@ export async function DELETE(request: NextRequest, { params }: Params) {
       message: 'Member removed successfully',
     });
   } catch (error) {
-    console.error('Remove member error:', error);
+    log.logError('Remove member error', error);
     return NextResponse.json(
       { error: 'Failed to remove member' },
       { status: 500 }

@@ -3,6 +3,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { authRateLimiter } from '@/lib/rate-limit';
 import { sendWelcomeEmail } from '@/lib/email/notifications';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('api:auth-register');
 
 const registerSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -63,7 +66,7 @@ export async function POST(request: NextRequest) {
         validatedData.email,
         validatedData.firstName
       ).catch((err) => {
-        console.error('Failed to send welcome email:', err);
+        log.logError('Failed to send welcome email', err);
       });
     }
 
@@ -89,7 +92,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.error('Registration error:', error);
+    log.logError('Registration error', error);
     return NextResponse.json(
       { error: 'An unexpected error occurred' },
       { status: 500 }

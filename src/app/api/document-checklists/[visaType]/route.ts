@@ -3,7 +3,10 @@ import { z } from 'zod';
 import { serverAuth } from '@/lib/auth';
 import { getDocumentChecklist } from '@/lib/db/document-checklists';
 import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit';
+import { createLogger } from '@/lib/logger';
 import type { VisaType } from '@/types';
+
+const log = createLogger('api:document-checklists');
 
 const VALID_VISA_TYPES: VisaType[] = [
   'B1B2', 'F1', 'H1B', 'H4', 'L1', 'O1',
@@ -75,7 +78,7 @@ export async function GET(request: NextRequest, { params }: Params) {
       data: checklist,
     });
   } catch (error) {
-    console.error('Get document checklist error:', error);
+    log.logError('Get document checklist error', error);
     return NextResponse.json(
       { error: 'Failed to fetch document checklist' },
       { status: 500 }

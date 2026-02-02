@@ -4,6 +4,9 @@ import { createClient } from '@/lib/supabase/server';
 import { auditService } from '@/lib/audit';
 import { z } from 'zod';
 import { standardRateLimiter } from '@/lib/rate-limit';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('api:forms-review-field');
 
 const reviewFieldSchema = z.object({
   fieldName: z.string().min(1, 'Field name is required'),
@@ -133,7 +136,7 @@ export async function POST(
       );
     }
 
-    console.error('Error reviewing form field:', error);
+    log.logError('Error reviewing form field', error);
     return NextResponse.json(
       { error: 'Failed to review form field' },
       { status: 500 }

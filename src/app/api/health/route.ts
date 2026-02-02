@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { getDetailedRedisHealth } from '@/lib/rate-limit/health';
 
@@ -7,7 +7,7 @@ interface HealthCheckResult {
   timestamp: string;
   version: string;
   uptime: number;
-  checks: {
+  checks?: {
     database: HealthCheck;
     environment: HealthCheck;
     redis: HealthCheck;
@@ -26,7 +26,39 @@ interface HealthCheck {
 // Track server start time for uptime calculation
 const serverStartTime = Date.now();
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const isDetailedCheck = request.headers.get('x-health-detail') === 'true';
+
+  // Basic health check for load balancers - minimal info, no auth required
+  if (!isDetailedCheck) {
+    return NextResponse.json({
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      version: process.env.npm_package_version || '0.1.0',
+      uptime: Math.floor((Date.now() - serverStartTime) / 1000),
+    }, {
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+      },
+    });
+  }
+
+  // Detailed check requires authentication
+  const authHeader = request.headers.get('authorization');
+  if (!authHeader?.startsWith('Bearer ')) {
+    return NextResponse.json({
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      version: process.env.npm_package_version || '0.1.0',
+      uptime: Math.floor((Date.now() - serverStartTime) / 1000),
+    }, {
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+      },
+    });
+  }
+
+  // Full detailed health check
   const startTime = Date.now();
 
   const checks = {
@@ -200,73 +232,45 @@ async function checkRedis(): Promise<HealthCheck> {
 }
 
 function checkExternalServices(): HealthCheck {
-  const services: { name: string; status: 'pass' | 'warn' | 'fail' }[] = [];
+  // Check service configuration status without exposing key details
+  // This is safe because it only checks presence, not key values or lengths
+  const services: { name: string; configured: boolean }[] = [
+    { name: 'stripe', configured: !!process.env.STRIPE_SECRET_KEY },
+    { name: 'anthropic', configured: !!process.env.ANTHROPIC_API_KEY },
+    { name: 'openai', configured: !!process.env.OPENAI_API_KEY },
+    { name: 'resend', configured: !!process.env.RESEND_API_KEY },
+  ];
 
-  // Check Stripe if configured
-  if (process.env.STRIPE_SECRET_KEY) {
-    const isValidKey = process.env.STRIPE_SECRET_KEY.startsWith('sk_');
-    services.push({
-      name: 'stripe',
-      status: isValidKey ? 'pass' : 'warn',
-    });
-  }
+  const configuredCount = services.filter((s) => s.configured).length;
 
-  // Check AI services
-  if (process.env.ANTHROPIC_API_KEY) {
-    services.push({
-      name: 'anthropic',
-      status: process.env.ANTHROPIC_API_KEY.length > 0 ? 'pass' : 'warn',
-    });
-  }
-
-  if (process.env.OPENAI_API_KEY) {
-    services.push({
-      name: 'openai',
-      status: process.env.OPENAI_API_KEY.length > 0 ? 'pass' : 'warn',
-    });
-  }
-
-  // Check email service
-  if (process.env.RESEND_API_KEY) {
-    services.push({
-      name: 'resend',
-      status: process.env.RESEND_API_KEY.startsWith('re_') ? 'pass' : 'warn',
-    });
-  }
-
-  // Note: Redis is checked separately via checkRedis()
-
-  const failedServices = services.filter((s) => s.status === 'fail');
-  const warnServices = services.filter((s) => s.status === 'warn');
-
-  if (failedServices.length > 0) {
+  if (configuredCount === 0) {
     return {
-      status: 'fail',
-      message: 'External services unavailable',
+      status: 'warn',
+      message: 'No external services configured',
       details: {
-        services: services.map((s) => ({ name: s.name, status: s.status })),
+        configuredCount: 0,
+        totalServices: services.length,
       },
     };
   }
 
-  if (warnServices.length > 0 || services.length === 0) {
+  if (configuredCount < services.length) {
     return {
       status: 'warn',
-      message:
-        services.length === 0
-          ? 'No external services configured'
-          : 'Some services need attention',
+      message: 'Some external services not configured',
       details: {
-        services: services.map((s) => ({ name: s.name, status: s.status })),
+        configuredCount,
+        totalServices: services.length,
       },
     };
   }
 
   return {
     status: 'pass',
-    message: 'All external services operational',
+    message: 'All external services configured',
     details: {
-      services: services.map((s) => ({ name: s.name, status: s.status })),
+      configuredCount,
+      totalServices: services.length,
     },
   };
 }

@@ -4,6 +4,9 @@ import { createClient } from '@/lib/supabase/server';
 import { auditService } from '@/lib/audit';
 import { z } from 'zod';
 import { standardRateLimiter, sensitiveRateLimiter } from '@/lib/rate-limit';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('api:forms-detail');
 
 const updateFormSchema = z.object({
   status: z.string().optional(),
@@ -74,7 +77,7 @@ export async function GET(
 
     return NextResponse.json(accessResult.form);
   } catch (error) {
-    console.error('Error fetching form:', error);
+    log.logError('Error fetching form', error);
     return NextResponse.json(
       { error: 'Failed to fetch form' },
       { status: 500 }
@@ -180,7 +183,7 @@ export async function PATCH(
       );
     }
 
-    console.error('Error updating form:', error);
+    log.logError('Error updating form', error);
     return NextResponse.json(
       { error: 'Failed to update form' },
       { status: 500 }
@@ -228,7 +231,7 @@ export async function DELETE(
 
     return NextResponse.json({ message: 'Form deleted successfully' });
   } catch (error) {
-    console.error('Error deleting form:', error);
+    log.logError('Error deleting form', error);
     return NextResponse.json(
       { error: 'Failed to delete form' },
       { status: 500 }

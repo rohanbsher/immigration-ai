@@ -7,7 +7,11 @@ import {
   getConversation,
   getConversationMessages,
   addMessage,
+  updateMessage,
 } from '@/lib/db/conversations';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('api:chat');
 
 const rateLimiter = createRateLimiter(RATE_LIMITS.AI_CHAT);
 
@@ -113,9 +117,18 @@ export async function POST(request: NextRequest): Promise<Response> {
       },
     ];
 
-    // Create streaming response
+    // Create streaming response with transaction protection
     const encoder = new TextEncoder();
     let fullResponse = '';
+
+    // Create placeholder assistant message BEFORE streaming to prevent data loss
+    const assistantMessage = await addMessage(
+      conversation.id,
+      user.id,
+      'assistant',
+      '',
+      { status: 'streaming' }
+    );
 
     const stream = new ReadableStream({
       async start(controller) {
@@ -135,10 +148,14 @@ export async function POST(request: NextRequest): Promise<Response> {
                 `data: ${JSON.stringify({ type: 'content', text: chunk })}\n\n`
               )
             );
+
           }
 
-          // Save assistant response
-          await addMessage(conversation.id, user.id, 'assistant', fullResponse);
+          // Final update marks message as complete
+          await updateMessage(assistantMessage.id, {
+            content: fullResponse,
+            status: 'complete',
+          });
 
           // Send done signal
           controller.enqueue(
@@ -149,7 +166,18 @@ export async function POST(request: NextRequest): Promise<Response> {
 
           controller.close();
         } catch (error) {
-          console.error('Chat streaming error:', error);
+          log.logError('Chat streaming error', error);
+
+          // Mark message as error state with partial content
+          try {
+            await updateMessage(assistantMessage.id, {
+              content: fullResponse || '[Error: Response generation failed]',
+              status: 'error',
+            });
+          } catch (updateErr) {
+            log.logError('Failed to save error state', updateErr);
+          }
+
           controller.enqueue(
             encoder.encode(
               `data: ${JSON.stringify({ type: 'error', message: 'Failed to generate response' })}\n\n`
@@ -168,7 +196,7 @@ export async function POST(request: NextRequest): Promise<Response> {
       },
     });
   } catch (error) {
-    console.error('Error in chat API:', error);
+    log.logError('Error in chat API', error);
 
     return NextResponse.json(
       { error: 'Internal Server Error', message: 'Failed to process chat' },
@@ -243,7 +271,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       })),
     });
   } catch (error) {
-    console.error('Error fetching conversations:', error);
+    log.logError('Error fetching conversations', error);
 
     return NextResponse.json(
       { error: 'Internal Server Error', message: 'Failed to fetch conversations' },

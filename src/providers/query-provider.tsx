@@ -3,6 +3,9 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactNode, useState } from 'react';
 import { toast } from 'sonner';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('query-provider');
 
 // Custom error handler for mutations
 const handleMutationError = (error: unknown) => {
@@ -10,7 +13,7 @@ const handleMutationError = (error: unknown) => {
 
   // Don't toast if error is already handled by the component
   // Components can pass onError to override this
-  console.error('Mutation error:', message);
+  log.error('Mutation error', { message });
 };
 
 // Determine if an error should trigger a retry

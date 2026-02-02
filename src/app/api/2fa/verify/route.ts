@@ -3,6 +3,9 @@ import { z } from 'zod';
 import { serverAuth } from '@/lib/auth';
 import { verifyAndEnableTwoFactor, verifyTwoFactorToken } from '@/lib/2fa';
 import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('api:2fa-verify');
 
 const verifySchema = z.object({
   token: z.string().min(6).max(8),
@@ -60,7 +63,7 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('2FA verify error:', error);
+    log.logError('2FA verify error', error);
     const message = error instanceof Error ? error.message : 'Verification failed';
     return NextResponse.json({ error: message }, { status: 500 });
   }

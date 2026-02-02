@@ -1,5 +1,8 @@
 import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('api:auth-logout');
 
 export async function POST() {
   try {
@@ -18,7 +21,7 @@ export async function POST() {
       message: 'Logged out successfully',
     });
   } catch (error) {
-    console.error('Logout error:', error);
+    log.logError('Logout error', error);
     return NextResponse.json(
       { error: 'An unexpected error occurred' },
       { status: 500 }

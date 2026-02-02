@@ -1,7 +1,10 @@
 import { stripe, STRIPE_CONFIG } from './client';
 import { getOrCreateStripeCustomer } from './customers';
 import { createClient } from '@/lib/supabase/server';
+import { createLogger } from '@/lib/logger';
 import type Stripe from 'stripe';
+
+const log = createLogger('stripe:subscriptions');
 
 export type PlanType = 'free' | 'pro' | 'enterprise';
 export type BillingPeriod = 'monthly' | 'yearly';
@@ -127,7 +130,16 @@ export async function getUserSubscription(userId: string) {
   return subscription;
 }
 
-export async function syncSubscriptionFromStripe(stripeSubscription: Stripe.Subscription): Promise<void> {
+export interface SyncResult {
+  success: boolean;
+  skipped?: boolean;
+  reason?: string;
+}
+
+export async function syncSubscriptionFromStripe(
+  stripeSubscription: Stripe.Subscription,
+  eventId?: string
+): Promise<SyncResult> {
   const supabase = await createClient();
 
   const customerId = typeof stripeSubscription.customer === 'string'
@@ -142,6 +154,21 @@ export async function syncSubscriptionFromStripe(stripeSubscription: Stripe.Subs
 
   if (customerError || !customer) {
     throw new Error(`Customer not found for Stripe customer: ${customerId}`);
+  }
+
+  // Idempotency check: Skip if we've already processed this event
+  if (eventId) {
+    const { data: existing } = await supabase
+      .from('subscriptions')
+      .select('id, updated_at, stripe_event_id')
+      .eq('stripe_subscription_id', stripeSubscription.id)
+      .single();
+
+    // Skip if we've already processed this exact event
+    if (existing?.stripe_event_id === eventId) {
+      log.info('Skipping duplicate webhook event', { eventId, subscriptionId: stripeSubscription.id });
+      return { success: true, skipped: true, reason: 'duplicate_event' };
+    }
   }
 
   const priceId = stripeSubscription.items.data[0]?.price?.id;
@@ -185,6 +212,8 @@ export async function syncSubscriptionFromStripe(stripeSubscription: Stripe.Subs
       ? new Date(sub.trial_end * 1000).toISOString()
       : null,
     metadata: stripeSubscription.metadata || {},
+    // Track which event last updated this subscription
+    ...(eventId ? { stripe_event_id: eventId } : {}),
   };
 
   const { error: upsertError } = await supabase
@@ -196,6 +225,8 @@ export async function syncSubscriptionFromStripe(stripeSubscription: Stripe.Subs
   if (upsertError) {
     throw new Error(`Failed to sync subscription: ${upsertError.message}`);
   }
+
+  return { success: true };
 }
 
 function getPlanTypeFromPriceId(priceId: string | undefined): PlanType {

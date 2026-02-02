@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { analyzeDocumentCompleteness } from '@/lib/ai/document-completeness';
 import { createRateLimiter, RATE_LIMITS } from '@/lib/rate-limit';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('api:document-completeness');
 
 const rateLimiter = createRateLimiter(RATE_LIMITS.AI_COMPLETENESS);
 
@@ -70,7 +73,7 @@ export async function GET(
 
     return NextResponse.json(result);
   } catch (error) {
-    console.error('Error analyzing document completeness:', error);
+    log.logError('Error analyzing document completeness', error);
 
     if (error instanceof Error) {
       if (error.message === 'Case not found') {

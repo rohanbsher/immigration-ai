@@ -161,6 +161,29 @@ vi.mock('@/lib/supabase/server', () => ({
   createClient: vi.fn().mockImplementation(() => Promise.resolve(mockSupabaseClient)),
 }));
 
+// Mock getProfileAsAdmin from admin module
+vi.mock('@/lib/supabase/admin', () => ({
+  getProfileAsAdmin: vi.fn().mockImplementation((userId: string) => {
+    if (userId === ATTORNEY_ID) {
+      return Promise.resolve({ profile: mockAttorneyProfile, error: null });
+    }
+    if (userId === CLIENT_ID) {
+      return Promise.resolve({ profile: mockClientProfile, error: null });
+    }
+    if (userId === ADMIN_ID) {
+      return Promise.resolve({ profile: mockAdminProfile, error: null });
+    }
+    if (userId === UNAUTHORIZED_USER_ID) {
+      return Promise.resolve({
+        profile: { ...mockClientProfile, id: UNAUTHORIZED_USER_ID },
+        error: null
+      });
+    }
+    return Promise.resolve({ profile: null, error: new Error('Profile not found') });
+  }),
+  getAdminClient: vi.fn(),
+}));
+
 // Mock the db services
 const mockCasesService = {
   getCases: vi.fn().mockResolvedValue({ cases: [mockCase], total: 1 }),
@@ -229,9 +252,11 @@ vi.mock('@/lib/rate-limit', () => ({
 // Mock logger
 vi.mock('@/lib/logger', () => ({
   createLogger: vi.fn().mockReturnValue({
-    logInfo: vi.fn(),
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
     logError: vi.fn(),
-    logDebug: vi.fn(),
   }),
 }));
 

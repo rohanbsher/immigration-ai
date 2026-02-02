@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { serverAuth } from '@/lib/auth';
 import { setupTwoFactor } from '@/lib/2fa';
 import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('api:2fa-setup');
 
 export async function POST(request: NextRequest) {
   try {
@@ -33,7 +36,7 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('2FA setup error:', error);
+    log.logError('2FA setup error', error);
     const message = error instanceof Error ? error.message : 'Failed to setup 2FA';
     return NextResponse.json({ error: message }, { status: 500 });
   }

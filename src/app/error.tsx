@@ -12,6 +12,9 @@ import {
 } from '@/components/ui/card';
 import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
 import Link from 'next/link';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('app-error');
 
 interface ErrorPageProps {
   error: Error & { digest?: string };
@@ -21,7 +24,7 @@ interface ErrorPageProps {
 export default function ErrorPage({ error, reset }: ErrorPageProps) {
   useEffect(() => {
     // Log error to monitoring service
-    console.error('App Error:', error);
+    log.logError('App Error', error, { digest: error.digest });
 
     // Future: Sentry integration
     // Sentry.captureException(error);

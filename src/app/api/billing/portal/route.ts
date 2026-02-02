@@ -3,6 +3,9 @@ import { z } from 'zod';
 import { createBillingPortalSession } from '@/lib/stripe';
 import { serverAuth } from '@/lib/auth';
 import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('api:billing-portal');
 
 const portalSchema = z.object({
   returnUrl: z.string().url().optional(),
@@ -44,7 +47,7 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('Portal session error:', error);
+    log.logError('Portal session error', error);
     return NextResponse.json(
       { error: 'Failed to create billing portal session' },
       { status: 500 }

@@ -13,6 +13,9 @@ import {
 } from '@/components/ui/card';
 import { AlertTriangle, RefreshCw, Home, Bug } from 'lucide-react';
 import Link from 'next/link';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('error-boundary');
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -44,7 +47,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo): void {
     // Log error to console in development
-    console.error('ErrorBoundary caught an error:', error, errorInfo);
+    log.logError('ErrorBoundary caught an error', error, { componentStack: errorInfo.componentStack });
 
     // Report to Sentry
     const eventId = Sentry.captureException(error, {

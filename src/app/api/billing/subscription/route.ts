@@ -3,6 +3,9 @@ import { serverAuth } from '@/lib/auth';
 import { getSubscriptionByUserId, getUserPlanLimits, getAllPlanLimits } from '@/lib/db/subscriptions';
 import { getCustomerWithSubscription } from '@/lib/stripe';
 import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('api:billing-subscription');
 
 export async function GET(request: NextRequest) {
   try {
@@ -55,7 +58,7 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('Subscription fetch error:', error);
+    log.logError('Subscription fetch error', error);
     return NextResponse.json(
       { error: 'Failed to fetch subscription' },
       { status: 500 }

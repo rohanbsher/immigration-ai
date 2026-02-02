@@ -8,6 +8,9 @@
 import { createClient } from '@/lib/supabase/server';
 import { analyzeDocumentCompleteness } from '@/lib/ai/document-completeness';
 import { calculateWeightedScore } from '@/lib/ai/utils';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('success-probability');
 
 /**
  * Success score result.
@@ -417,7 +420,7 @@ export async function calculateSuccessScore(caseId: string): Promise<SuccessScor
       status: getFactorStatus(completeness.overallCompleteness),
     });
   } catch (error) {
-    console.error('Error calculating completeness:', error);
+    log.logError('Error calculating completeness', error);
     factors.push({
       name: SCORING_CONFIG.documentCompleteness.name,
       description: SCORING_CONFIG.documentCompleteness.description,

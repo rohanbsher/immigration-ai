@@ -8,6 +8,9 @@
 
 import { createClient } from '@/lib/supabase/server';
 import type { DocumentType, DocumentStatus } from '@/types';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('document-completeness');
 
 /**
  * Result of document completeness analysis.
@@ -215,7 +218,7 @@ export async function analyzeDocumentCompleteness(
     .eq('visa_type', visaType);
 
   if (checklistError) {
-    console.error('Error fetching checklist:', checklistError);
+    log.logError('Error fetching checklist', checklistError);
     throw new Error('Failed to fetch document requirements');
   }
 
@@ -227,7 +230,7 @@ export async function analyzeDocumentCompleteness(
     .is('deleted_at', null);
 
   if (docsError) {
-    console.error('Error fetching documents:', docsError);
+    log.logError('Error fetching documents', docsError);
     throw new Error('Failed to fetch case documents');
   }
 

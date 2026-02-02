@@ -526,28 +526,41 @@ describe('Database Services', () => {
   describe('clientsService', () => {
     describe('getClients', () => {
       it('should fetch clients for the current attorney', async () => {
-        const mockCases = [
-          { client_id: 'client-1', status: 'intake' },
-          { client_id: 'client-1', status: 'approved' },
-          { client_id: 'client-2', status: 'in_review' },
-        ];
-        const mockProfiles = [
-          createMockProfile({ id: 'client-1', first_name: 'Alice' }),
-          createMockProfile({ id: 'client-2', first_name: 'Bob' }),
+        // New implementation uses a single query with join
+        // Returns cases with embedded client profile data
+        const mockCasesWithClients = [
+          {
+            client_id: 'client-1',
+            status: 'intake',
+            client: createMockProfile({ id: 'client-1', first_name: 'Alice' }),
+          },
+          {
+            client_id: 'client-1',
+            status: 'approved',
+            client: createMockProfile({ id: 'client-1', first_name: 'Alice' }),
+          },
+          {
+            client_id: 'client-2',
+            status: 'in_review',
+            client: createMockProfile({ id: 'client-2', first_name: 'Bob' }),
+          },
         ];
 
-        const casesQueryBuilder = createMockQueryBuilder(mockCases);
-        const profilesQueryBuilder = createMockQueryBuilder(mockProfiles);
-
-        mockSupabase.from
-          .mockReturnValueOnce(casesQueryBuilder)
-          .mockReturnValueOnce(profilesQueryBuilder);
+        const casesQueryBuilder = createMockQueryBuilder(mockCasesWithClients);
+        mockSupabase.from.mockReturnValue(casesQueryBuilder);
 
         const result = await clientsService.getClients();
 
         expect(result).toHaveLength(2);
         expect(result[0]).toHaveProperty('cases_count');
         expect(result[0]).toHaveProperty('active_cases_count');
+        // Verify case counts are aggregated correctly
+        const alice = result.find((c) => c.first_name === 'Alice');
+        const bob = result.find((c) => c.first_name === 'Bob');
+        expect(alice?.cases_count).toBe(2);
+        expect(alice?.active_cases_count).toBe(1); // intake is active, approved is not
+        expect(bob?.cases_count).toBe(1);
+        expect(bob?.active_cases_count).toBe(1); // in_review is active
       });
 
       it('should return empty array when no cases exist', async () => {

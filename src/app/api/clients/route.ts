@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { clientsService } from '@/lib/db/clients';
 import { requireAttorney, errorResponse } from '@/lib/auth/api-helpers';
 import { standardRateLimiter } from '@/lib/rate-limit';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('api:clients');
 
 export async function GET(request: NextRequest) {
   try {
@@ -17,7 +20,7 @@ export async function GET(request: NextRequest) {
     const clients = await clientsService.getClients();
     return NextResponse.json(clients);
   } catch (error) {
-    console.error('Error fetching clients:', error);
+    log.logError('Error fetching clients', error);
     return errorResponse('Failed to fetch clients', 500);
   }
 }

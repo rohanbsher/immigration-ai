@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { documentsService, casesService } from '@/lib/db';
 import { createClient } from '@/lib/supabase/server';
 import { sensitiveRateLimiter } from '@/lib/rate-limit';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('api:documents-verify');
 
 export async function POST(
   request: NextRequest,
@@ -48,7 +51,7 @@ export async function POST(
 
     return NextResponse.json(verifiedDocument);
   } catch (error) {
-    console.error('Error verifying document:', error);
+    log.logError('Error verifying document', error);
     return NextResponse.json(
       { error: 'Failed to verify document' },
       { status: 500 }

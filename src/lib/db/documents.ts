@@ -89,8 +89,14 @@ export const documentsService = {
           doc.ai_extracted_data = decryptSensitiveFields(
             doc.ai_extracted_data as Record<string, unknown>
           );
-        } catch {
-          // If decryption fails, data may be unencrypted (legacy) - leave as-is
+        } catch (err) {
+          // In production, fail-closed on decryption errors to prevent PII exposure
+          if (process.env.NODE_ENV === 'production') {
+            logger.logError('Decryption failed - refusing to return potentially encrypted data', err, { documentId: doc.id });
+            throw new Error('Failed to decrypt document data');
+          }
+          // In development, log warning but allow unencrypted legacy data
+          logger.warn('Decryption failed, data may be unencrypted (legacy)', { documentId: doc.id });
         }
       }
       return doc;
@@ -124,8 +130,14 @@ export const documentsService = {
         data.ai_extracted_data = decryptSensitiveFields(
           data.ai_extracted_data as Record<string, unknown>
         );
-      } catch {
-        // If decryption fails, data may be unencrypted (legacy) - leave as-is
+      } catch (err) {
+        // In production, fail-closed on decryption errors to prevent PII exposure
+        if (process.env.NODE_ENV === 'production') {
+          logger.logError('Decryption failed - refusing to return potentially encrypted data', err, { documentId: id });
+          throw new Error('Failed to decrypt document data');
+        }
+        // In development, log warning but allow unencrypted legacy data
+        logger.warn('Decryption failed, data may be unencrypted (legacy)', { documentId: id });
       }
     }
 
@@ -170,9 +182,13 @@ export const documentsService = {
           updateData.ai_extracted_data as Record<string, unknown>
         );
       } catch (err) {
-        logger.logError('Error encrypting ai_extracted_data', err, { documentId: id });
-        // Continue without encryption if ENCRYPTION_KEY is not set
-        // This allows development without encryption configured
+        // In production, fail-closed - don't store unencrypted PII
+        if (process.env.NODE_ENV === 'production') {
+          logger.logError('Encryption failed - refusing to store unencrypted PII', err, { documentId: id });
+          throw new Error('Failed to encrypt document data');
+        }
+        // In development, log warning but continue
+        logger.warn('Encryption failed, storing unencrypted (development only)', { documentId: id });
       }
     }
 

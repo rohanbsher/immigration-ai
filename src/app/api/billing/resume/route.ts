@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { resumeSubscription, getUserSubscription } from '@/lib/stripe';
 import { serverAuth } from '@/lib/auth';
 import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('api:billing-resume');
 
 export async function POST(request: NextRequest) {
   try {
@@ -48,7 +51,7 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('Resume subscription error:', error);
+    log.logError('Resume subscription error', error);
     return NextResponse.json(
       { error: 'Failed to resume subscription' },
       { status: 500 }

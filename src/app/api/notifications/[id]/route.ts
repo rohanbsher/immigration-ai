@@ -3,6 +3,9 @@ import { notificationsService } from '@/lib/db';
 import { createClient } from '@/lib/supabase/server';
 import { z } from 'zod';
 import { standardRateLimiter, sensitiveRateLimiter } from '@/lib/rate-limit';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('api:notifications');
 
 const updateNotificationSchema = z.object({
   read: z.boolean(),
@@ -61,7 +64,7 @@ export async function PATCH(
       );
     }
 
-    console.error('Error updating notification:', error);
+    log.logError('Error updating notification', error);
     return NextResponse.json(
       { error: 'Failed to update notification' },
       { status: 500 }
@@ -110,7 +113,7 @@ export async function DELETE(
 
     return NextResponse.json({ message: 'Notification deleted successfully' });
   } catch (error) {
-    console.error('Error deleting notification:', error);
+    log.logError('Error deleting notification', error);
     return NextResponse.json(
       { error: 'Failed to delete notification' },
       { status: 500 }

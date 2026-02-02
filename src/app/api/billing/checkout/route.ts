@@ -3,6 +3,9 @@ import { z } from 'zod';
 import { createCheckoutSession, type PlanType, type BillingPeriod } from '@/lib/stripe';
 import { serverAuth } from '@/lib/auth';
 import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('api:billing-checkout');
 
 const checkoutSchema = z.object({
   planType: z.enum(['pro', 'enterprise']),
@@ -57,7 +60,7 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('Checkout error:', error);
+    log.logError('Checkout error', error);
     return NextResponse.json(
       { error: 'Failed to create checkout session' },
       { status: 500 }

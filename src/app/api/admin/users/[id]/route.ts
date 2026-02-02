@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { serverAuth } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('api:admin-users-detail');
 
 interface Params {
   params: Promise<{ id: string }>;
@@ -80,7 +83,7 @@ export async function GET(request: NextRequest, { params }: Params) {
       },
     });
   } catch (error) {
-    console.error('Admin user detail error:', error);
+    log.logError('Admin user detail error', error);
     return NextResponse.json(
       { error: 'Failed to fetch user' },
       { status: 500 }

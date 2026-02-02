@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { acknowledgeAlert, snoozeAlert } from '@/lib/deadline';
 import { standardRateLimiter } from '@/lib/rate-limit';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('api:deadlines-alert');
 
 interface RouteParams {
   params: Promise<{ alertId: string }>;
@@ -79,7 +82,7 @@ export async function PATCH(
       alertId,
     });
   } catch (error) {
-    console.error('Error updating deadline alert:', error);
+    log.logError('Error updating deadline alert', error);
 
     return NextResponse.json(
       { error: 'Internal Server Error', message: 'Failed to update alert' },

@@ -14,6 +14,9 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { auditService } from '@/lib/audit';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('jobs:cleanup');
 
 export interface CleanupResult {
   success: boolean;
@@ -263,56 +266,42 @@ export async function runCleanupJobs(
   let documentsCleanedCount = 0;
   let softDeletesPurgedCount = 0;
 
-  console.log(
-    `Starting cleanup jobs (${opts.dryRun ? 'DRY RUN' : 'LIVE'})...`
-  );
+  log.info('Starting cleanup jobs', { dryRun: opts.dryRun });
 
   // 1. Clean up expired AI data
-  console.log('Cleaning up expired AI data...');
+  log.info('Cleaning up expired AI data');
   const aiResult = await cleanupExpiredAiData(opts.dryRun);
   documentsCleanedCount = aiResult.count;
   errors.push(...aiResult.errors);
-  console.log(
-    `AI data cleanup: ${aiResult.count} documents ${
-      opts.dryRun ? 'would be' : 'were'
-    } cleaned`
-  );
+  log.info('AI data cleanup complete', { count: aiResult.count, dryRun: opts.dryRun });
 
   // 2. Purge soft-deleted records
-  console.log('Purging soft-deleted records...');
+  log.info('Purging soft-deleted records');
   const purgeResult = await purgeSoftDeletedRecords(
     opts.softDeleteRetentionDays,
     opts.dryRun
   );
   softDeletesPurgedCount = purgeResult.count;
   errors.push(...purgeResult.errors);
-  console.log(
-    `Soft delete purge: ${purgeResult.count} records ${
-      opts.dryRun ? 'would be' : 'were'
-    } permanently deleted`
-  );
+  log.info('Soft delete purge complete', { count: purgeResult.count, dryRun: opts.dryRun });
 
   // 3. Clean up old audit logs (if configured)
   if (opts.auditLogRetentionDays !== null) {
-    console.log('Cleaning up old audit logs...');
+    log.info('Cleaning up old audit logs');
     const auditResult = await cleanupAuditLogs(
       opts.auditLogRetentionDays,
       opts.dryRun
     );
     errors.push(...auditResult.errors);
-    console.log(
-      `Audit log cleanup: ${auditResult.count} entries ${
-        opts.dryRun ? 'would be' : 'were'
-      } deleted`
-    );
+    log.info('Audit log cleanup complete', { count: auditResult.count, dryRun: opts.dryRun });
   }
 
   const success = errors.length === 0;
 
   if (!success) {
-    console.error('Cleanup completed with errors:', errors);
+    log.error('Cleanup completed with errors', { errors });
   } else {
-    console.log('Cleanup completed successfully');
+    log.info('Cleanup completed successfully');
   }
 
   return {
@@ -334,13 +323,13 @@ export function scheduleCleanupJobs(): void {
 
   // Run immediately on startup
   setTimeout(() => {
-    runCleanupJobs().catch(console.error);
+    runCleanupJobs().catch((err) => log.logError('Scheduled cleanup failed', err));
   }, 5000);
 
   // Then run daily
   setInterval(() => {
-    runCleanupJobs().catch(console.error);
+    runCleanupJobs().catch((err) => log.logError('Scheduled cleanup failed', err));
   }, ONE_DAY_MS);
 
-  console.log('Cleanup jobs scheduled to run daily');
+  log.info('Cleanup jobs scheduled to run daily');
 }

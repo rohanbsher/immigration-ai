@@ -1,7 +1,10 @@
 import { Resend } from 'resend';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('email-client');
 
 if (!process.env.RESEND_API_KEY) {
-  console.warn('RESEND_API_KEY is not set. Email functionality will be disabled.');
+  log.warn('RESEND_API_KEY is not set. Email functionality will be disabled.');
 }
 
 export const resend = process.env.RESEND_API_KEY

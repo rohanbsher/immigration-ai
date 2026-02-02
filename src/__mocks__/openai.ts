@@ -88,7 +88,7 @@ export const resetMocks = () => {
   vi.clearAllMocks();
 };
 
-export default {
+const openaiMocks = {
   mockChatCompletion,
   mockEmbedding,
   mockOpenAIClient,
@@ -97,3 +97,5 @@ export default {
   simulateOpenAIError,
   resetMocks,
 };
+
+export default openaiMocks;

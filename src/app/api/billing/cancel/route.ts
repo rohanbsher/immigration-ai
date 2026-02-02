@@ -3,6 +3,9 @@ import { z } from 'zod';
 import { cancelSubscription, getUserSubscription } from '@/lib/stripe';
 import { serverAuth } from '@/lib/auth';
 import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('api:billing-cancel');
 
 const cancelSchema = z.object({
   immediately: z.boolean().optional().default(false),
@@ -65,7 +68,7 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('Cancel subscription error:', error);
+    log.logError('Cancel subscription error', error);
     return NextResponse.json(
       { error: 'Failed to cancel subscription' },
       { status: 500 }

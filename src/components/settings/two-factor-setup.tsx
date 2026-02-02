@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -22,6 +23,9 @@ import {
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Shield, Loader2, Check, Copy, AlertTriangle, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('two-factor-setup');
 
 interface TwoFactorStatus {
   enabled: boolean;
@@ -51,7 +55,7 @@ export function TwoFactorSetup() {
         setStatus(data.data);
       }
     } catch (err) {
-      console.error('Failed to fetch 2FA status:', err);
+      log.logError('Failed to fetch 2FA status', err);
     } finally {
       setIsLoading(false);
     }
@@ -308,10 +312,13 @@ export function TwoFactorSetup() {
           </DialogHeader>
           <div className="flex flex-col items-center gap-4 py-4">
             {qrCodeDataUrl && (
-              <img
+              <Image
                 src={qrCodeDataUrl}
                 alt="2FA QR Code"
-                className="w-48 h-48 border rounded-lg"
+                width={192}
+                height={192}
+                className="border rounded-lg"
+                unoptimized
               />
             )}
             <p className="text-sm text-slate-500 text-center">

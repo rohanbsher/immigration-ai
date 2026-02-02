@@ -177,10 +177,12 @@ export function withAttorneyOrAdminAuth<T>(handler: AuthenticatedApiHandler<T>) 
   return withAuth(handler, { roles: ['attorney', 'admin'] });
 }
 
-export default {
+const apiHandlers = {
   apiHandler,
   withAuth,
   withAttorneyAuth,
   withAdminAuth,
   withAttorneyOrAdminAuth,
 };
+
+export default apiHandlers;

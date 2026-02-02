@@ -18,6 +18,9 @@
  */
 
 import { z } from 'zod';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('config');
 
 // =============================================================================
 // Schema Definitions
@@ -118,8 +121,8 @@ function validatePublicEnv() {
   });
 
   if (!result.success) {
-    console.error(
-      '[Config] Invalid public environment variables:\n' +
+    log.error(
+      'Invalid public environment variables:\n' +
         formatErrors(result.error)
     );
     throw new Error('Invalid public environment configuration');
@@ -157,8 +160,8 @@ function validateServerEnv() {
   });
 
   if (!result.success) {
-    console.error(
-      '[Config] Invalid server environment variables:\n' +
+    log.error(
+      'Invalid server environment variables:\n' +
         formatErrors(result.error)
     );
     throw new Error('Invalid server environment configuration');
@@ -210,17 +213,17 @@ function validateProductionRequirements(env: z.infer<typeof serverEnvSchema>) {
 
   // Log warnings
   if (warnings.length > 0) {
-    console.warn(
-      '[Config] Production warnings:\n' +
-        warnings.map((w) => `  ⚠ ${w}`).join('\n')
+    log.warn(
+      'Production warnings:\n' +
+        warnings.map((w) => `  - ${w}`).join('\n')
     );
   }
 
   // Throw on critical errors
   if (errors.length > 0) {
-    console.error(
-      '[Config] Production requirements not met:\n' +
-        errors.map((e) => `  ✗ ${e}`).join('\n')
+    log.error(
+      'Production requirements not met:\n' +
+        errors.map((e) => `  - ${e}`).join('\n')
     );
     throw new Error(
       `Production environment misconfigured: ${errors.length} critical issue(s) found. See logs for details.`

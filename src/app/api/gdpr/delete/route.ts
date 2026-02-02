@@ -3,6 +3,9 @@ import { z } from 'zod';
 import { serverAuth } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('api:gdpr-delete');
 
 const deleteRequestSchema = z.object({
   reason: z.string().optional(),
@@ -47,7 +50,7 @@ export async function GET(request: NextRequest) {
       data: request_ || null,
     });
   } catch (error) {
-    console.error('GDPR delete request error:', error);
+    log.logError('GDPR delete request error', error);
     return NextResponse.json(
       { error: 'Failed to fetch deletion request' },
       { status: 500 }
@@ -109,7 +112,7 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('GDPR delete request error:', error);
+    log.logError('GDPR delete request error', error);
     const message = error instanceof Error ? error.message : 'Failed to request deletion';
     return NextResponse.json({ error: message }, { status: 500 });
   }
@@ -161,7 +164,7 @@ export async function DELETE(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('GDPR cancel delete error:', error);
+    log.logError('GDPR cancel delete error', error);
     const message = error instanceof Error ? error.message : 'Failed to cancel deletion';
     return NextResponse.json({ error: message }, { status: 500 });
   }

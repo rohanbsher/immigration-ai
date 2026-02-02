@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { serverAuth } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('api:gdpr-export');
 
 export async function GET(request: NextRequest) {
   try {
@@ -38,7 +41,7 @@ export async function GET(request: NextRequest) {
       data: jobs || [],
     });
   } catch (error) {
-    console.error('GDPR export list error:', error);
+    log.logError('GDPR export list error', error);
     return NextResponse.json(
       { error: 'Failed to fetch export history' },
       { status: 500 }
@@ -108,7 +111,7 @@ export async function POST(request: NextRequest) {
       .eq('id', job.id);
 
     if (updateError) {
-      console.error('Failed to update export job status:', updateError);
+      log.logError('Failed to update export job status', updateError);
     }
 
     return NextResponse.json({
@@ -119,7 +122,7 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('GDPR export error:', error);
+    log.logError('GDPR export error', error);
     const message = error instanceof Error ? error.message : 'Failed to create export';
     return NextResponse.json({ error: message }, { status: 500 });
   }

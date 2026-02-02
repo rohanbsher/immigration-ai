@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { casesService } from '@/lib/db';
 import { requireAttorneyOrAdmin, errorResponse } from '@/lib/auth/api-helpers';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('api:case-stats');
 
 export async function GET(request: NextRequest) {
   try {
@@ -11,7 +14,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(stats);
   } catch (error) {
-    console.error('Error fetching case stats:', error);
+    log.logError('Error fetching case stats', error);
     return errorResponse('Failed to fetch case stats', 500);
   }
 }

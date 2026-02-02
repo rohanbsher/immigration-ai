@@ -4,6 +4,9 @@ import { serverAuth } from '@/lib/auth';
 import { getFirmById, updateFirm, deleteFirm, getUserRole } from '@/lib/db/firms';
 import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 import { canManageMembers, canDeleteFirm } from '@/types/firms';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('api:firms-detail');
 
 const updateFirmSchema = z.object({
   name: z.string().min(2).max(100).optional(),
@@ -60,7 +63,7 @@ export async function GET(request: NextRequest, { params }: Params) {
       },
     });
   } catch (error) {
-    console.error('Get firm error:', error);
+    log.logError('Get firm error', error);
     return NextResponse.json(
       { error: 'Failed to fetch firm' },
       { status: 500 }
@@ -108,7 +111,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       data: firm,
     });
   } catch (error) {
-    console.error('Update firm error:', error);
+    log.logError('Update firm error', error);
     return NextResponse.json(
       { error: 'Failed to update firm' },
       { status: 500 }
@@ -146,7 +149,7 @@ export async function DELETE(request: NextRequest, { params }: Params) {
       message: 'Firm deleted successfully',
     });
   } catch (error) {
-    console.error('Delete firm error:', error);
+    log.logError('Delete firm error', error);
     return NextResponse.json(
       { error: 'Failed to delete firm' },
       { status: 500 }

@@ -90,7 +90,7 @@ export const resetMocks = () => {
   vi.clearAllMocks();
 };
 
-export default {
+const upstashMocks = {
   mockRateLimitSuccess,
   mockRateLimitExceeded,
   mockRedisClient,
@@ -102,3 +102,5 @@ export default {
   setCachedValue,
   resetMocks,
 };
+
+export default upstashMocks;

@@ -2,7 +2,10 @@ import { stripe, STRIPE_CONFIG } from './client';
 import { syncSubscriptionFromStripe } from './subscriptions';
 import { createClient } from '@/lib/supabase/server';
 import { sendBillingUpdateEmail } from '@/lib/email/notifications';
+import { createLogger } from '@/lib/logger';
 import type Stripe from 'stripe';
+
+const log = createLogger('stripe:webhooks');
 
 export type WebhookEvent =
   | 'checkout.session.completed'
@@ -31,12 +34,12 @@ export async function constructWebhookEvent(
 export async function handleWebhookEvent(event: Stripe.Event): Promise<void> {
   switch (event.type) {
     case 'checkout.session.completed':
-      await handleCheckoutCompleted(event.data.object as Stripe.Checkout.Session);
+      await handleCheckoutCompleted(event.data.object as Stripe.Checkout.Session, event.id);
       break;
 
     case 'customer.subscription.created':
     case 'customer.subscription.updated':
-      await handleSubscriptionChange(event.data.object as Stripe.Subscription);
+      await handleSubscriptionChange(event.data.object as Stripe.Subscription, event.id);
       break;
 
     case 'customer.subscription.deleted':
@@ -56,18 +59,18 @@ export async function handleWebhookEvent(event: Stripe.Event): Promise<void> {
       break;
 
     default:
-      console.log(`Unhandled webhook event type: ${event.type}`);
+      log.info('Unhandled webhook event', { eventType: event.type });
   }
 }
 
-async function handleCheckoutCompleted(session: Stripe.Checkout.Session): Promise<void> {
+async function handleCheckoutCompleted(session: Stripe.Checkout.Session, eventId: string): Promise<void> {
   if (session.mode !== 'subscription') return;
 
   const subscriptionId = session.subscription as string;
   if (!subscriptionId) return;
 
   const subscription = await stripe.subscriptions.retrieve(subscriptionId) as Stripe.Subscription;
-  await syncSubscriptionFromStripe(subscription);
+  await syncSubscriptionFromStripe(subscription, eventId);
 
   // Send welcome email for new subscription
   const supabase = await createClient();
@@ -100,14 +103,17 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session): Promis
         currency: subscription.currency,
         nextBillingDate,
       }).catch((err) => {
-        console.error('Failed to send billing email:', err);
+        log.logError('Failed to send billing email', err);
       });
     }
   }
 }
 
-async function handleSubscriptionChange(subscription: Stripe.Subscription): Promise<void> {
-  await syncSubscriptionFromStripe(subscription);
+async function handleSubscriptionChange(subscription: Stripe.Subscription, eventId: string): Promise<void> {
+  const result = await syncSubscriptionFromStripe(subscription, eventId);
+  if (result.skipped) {
+    log.info('Skipped subscription sync', { reason: result.reason, subscriptionId: subscription.id });
+  }
 }
 
 async function handleSubscriptionDeleted(subscription: Stripe.Subscription): Promise<void> {
@@ -122,7 +128,7 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription): Pro
     .eq('stripe_subscription_id', subscription.id);
 
   if (error) {
-    console.error('Failed to update canceled subscription:', error);
+    log.logError('Failed to update canceled subscription', error);
     throw error;
   }
 
@@ -152,7 +158,7 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription): Pro
       sendBillingUpdateEmail(customer.user_id, 'subscription_cancelled', {
         nextBillingDate: accessUntil,
       }).catch((err) => {
-        console.error('Failed to send cancellation email:', err);
+        log.logError('Failed to send cancellation email', err);
       });
     }
   }
@@ -259,7 +265,7 @@ async function handleInvoicePaid(invoice: Stripe.Invoice): Promise<void> {
       currency: invoice.currency,
       nextBillingDate,
     }).catch((err) => {
-      console.error('Failed to send payment success email:', err);
+      log.logError('Failed to send payment success email', err);
     });
   }
 }
@@ -338,7 +344,7 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice): Promise<void
       amount: invoice.amount_due,
       currency: invoice.currency,
     }).catch((err) => {
-      console.error('Failed to send payment failed email:', err);
+      log.logError('Failed to send payment failed email', err);
     });
   }
 }

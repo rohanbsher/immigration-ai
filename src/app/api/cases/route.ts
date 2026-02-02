@@ -1,15 +1,14 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { casesService } from '@/lib/db';
 import { z } from 'zod';
 import {
-  requireAuth,
-  requireAttorney,
+  withAuth,
+  withAttorneyAuth,
   errorResponse,
   successResponse,
 } from '@/lib/auth/api-helpers';
 import { createLogger } from '@/lib/logger';
 import { enforceQuota, QuotaExceededError } from '@/lib/billing/quota';
-import { standardRateLimiter } from '@/lib/rate-limit';
 
 const log = createLogger('api:cases');
 
@@ -23,17 +22,12 @@ const createCaseSchema = z.object({
   notes: z.string().optional(),
 });
 
-export async function GET(request: NextRequest) {
+/**
+ * GET /api/cases
+ * List cases with optional filtering and pagination.
+ */
+export const GET = withAuth(async (request, _context, auth) => {
   try {
-    const auth = await requireAuth(request);
-    if (!auth.success) return auth.response;
-
-    // Rate limit check
-    const rateLimitResult = await standardRateLimiter.limit(request, auth.user.id);
-    if (!rateLimitResult.allowed) {
-      return rateLimitResult.response;
-    }
-
     const { searchParams } = new URL(request.url);
 
     const filters = {
@@ -53,33 +47,35 @@ export async function GET(request: NextRequest) {
       sortOrder: (searchParams.get('sortOrder') || 'desc') as 'asc' | 'desc',
     };
 
-    const result = await casesService.getCases(filters as Parameters<typeof casesService.getCases>[0], pagination);
+    log.debug('Fetching cases', { userId: auth.user.id, filters, pagination });
+
+    const result = await casesService.getCases(
+      filters as Parameters<typeof casesService.getCases>[0],
+      pagination
+    );
 
     return NextResponse.json(result);
   } catch (error) {
     log.logError('Failed to fetch cases', error);
     return errorResponse('Failed to fetch cases', 500);
   }
-}
+});
 
-export async function POST(request: NextRequest) {
+/**
+ * POST /api/cases
+ * Create a new case (attorney only).
+ */
+export const POST = withAttorneyAuth(async (request, _context, auth) => {
   try {
-    const auth = await requireAttorney(request);
-    if (!auth.success) return auth.response;
-
-    // Rate limit check
-    const rateLimitResult = await standardRateLimiter.limit(request, auth.user.id);
-    if (!rateLimitResult.allowed) {
-      return rateLimitResult.response;
-    }
-
     // Enforce case quota
     await enforceQuota(auth.user.id, 'cases');
 
     const body = await request.json();
     const validatedData = createCaseSchema.parse(body);
 
-    const newCase = await casesService.createCase(validatedData as Parameters<typeof casesService.createCase>[0]);
+    const newCase = await casesService.createCase(
+      validatedData as Parameters<typeof casesService.createCase>[0]
+    );
 
     return successResponse(newCase, 201);
   } catch (error) {
@@ -97,4 +93,4 @@ export async function POST(request: NextRequest) {
     log.logError('Failed to create case', error);
     return errorResponse('Failed to create case', 500);
   }
-}
+});

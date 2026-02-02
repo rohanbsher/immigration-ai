@@ -1,10 +1,8 @@
-import { NextRequest } from 'next/server';
 import { tasksService } from '@/lib/db';
 import { createClient } from '@/lib/supabase/server';
 import { z } from 'zod';
 import { createLogger } from '@/lib/logger';
-import { requireAuth, errorResponse, successResponse } from '@/lib/auth/api-helpers';
-import { standardRateLimiter, sensitiveRateLimiter } from '@/lib/rate-limit';
+import { withAuth, errorResponse, successResponse } from '@/lib/auth/api-helpers';
 
 const log = createLogger('api:task');
 
@@ -21,20 +19,9 @@ const updateTaskSchema = z.object({
 /**
  * GET /api/tasks/[id] - Get a single task
  */
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export const GET = withAuth(async (_request, context, _auth) => {
   try {
-    const { id } = await params;
-    const auth = await requireAuth(request);
-    if (!auth.success) return auth.response;
-
-    // Rate limit check
-    const rateLimitResult = await standardRateLimiter.limit(request, auth.user.id);
-    if (!rateLimitResult.allowed) {
-      return rateLimitResult.response;
-    }
+    const { id } = await context.params!;
 
     const task = await tasksService.getTask(id);
 
@@ -47,25 +34,14 @@ export async function GET(
     log.logError('Failed to fetch task', error);
     return errorResponse('Failed to fetch task', 500);
   }
-}
+});
 
 /**
  * PATCH /api/tasks/[id] - Update a task
  */
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export const PATCH = withAuth(async (request, context, auth) => {
   try {
-    const { id } = await params;
-    const auth = await requireAuth(request);
-    if (!auth.success) return auth.response;
-
-    // Rate limit check
-    const rateLimitResult = await standardRateLimiter.limit(request, auth.user.id);
-    if (!rateLimitResult.allowed) {
-      return rateLimitResult.response;
-    }
+    const { id } = await context.params!;
 
     const task = await tasksService.getTask(id);
 
@@ -114,25 +90,14 @@ export async function PATCH(
     log.logError('Failed to update task', error);
     return errorResponse('Failed to update task', 500);
   }
-}
+});
 
 /**
  * DELETE /api/tasks/[id] - Delete a task
  */
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export const DELETE = withAuth(async (_request, context, auth) => {
   try {
-    const { id } = await params;
-    const auth = await requireAuth(request);
-    if (!auth.success) return auth.response;
-
-    // Rate limit check (using sensitive for destructive actions)
-    const rateLimitResult = await sensitiveRateLimiter.limit(request, auth.user.id);
-    if (!rateLimitResult.allowed) {
-      return rateLimitResult.response;
-    }
+    const { id } = await context.params!;
 
     const task = await tasksService.getTask(id);
 
@@ -164,4 +129,4 @@ export async function DELETE(
     log.logError('Failed to delete task', error);
     return errorResponse('Failed to delete task', 500);
   }
-}
+}, { rateLimit: 'SENSITIVE' });

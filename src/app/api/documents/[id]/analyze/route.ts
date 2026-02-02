@@ -4,59 +4,9 @@ import { createClient } from '@/lib/supabase/server';
 import { analyzeDocument, type DocumentAnalysisResult } from '@/lib/ai';
 import { aiRateLimiter } from '@/lib/rate-limit';
 import { createLogger } from '@/lib/logger';
+import { validateStorageUrl } from '@/lib/security';
 
 const log = createLogger('api:documents-analyze');
-
-/**
- * Validates that a URL is from our trusted Supabase storage.
- * Prevents SSRF attacks by ensuring only internal storage URLs are processed.
- * Uses proper URL parsing to prevent bypass via encoding, fragments, or path traversal.
- */
-function validateStorageUrl(urlString: string): boolean {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  if (!supabaseUrl) return false;
-
-  try {
-    const url = new URL(urlString);
-    const expectedBaseUrl = new URL(supabaseUrl);
-
-    // 1. Origin validation (hostname + protocol)
-    if (url.origin !== expectedBaseUrl.origin) {
-      return false;
-    }
-
-    // 2. Protocol must be HTTPS
-    if (url.protocol !== 'https:') {
-      return false;
-    }
-
-    // 3. Path must start with storage prefix
-    if (!url.pathname.startsWith('/storage/v1/object/')) {
-      return false;
-    }
-
-    // 4. No path traversal
-    if (url.pathname.includes('..') || url.pathname.includes('//')) {
-      return false;
-    }
-
-    // 5. Bucket allowlist
-    const pathParts = url.pathname.split('/').filter(Boolean);
-    // Path format: /storage/v1/object/public|authenticated/bucket/path...
-    // After split and filter: ['storage', 'v1', 'object', 'public|authenticated', 'bucket', ...]
-    if (pathParts.length < 5) return false;
-
-    const bucket = pathParts[4];
-    const allowedBuckets = ['documents'];
-    if (!allowedBuckets.includes(bucket)) {
-      return false;
-    }
-
-    return true;
-  } catch {
-    return false;
-  }
-}
 
 // Minimum confidence threshold for accepting AI analysis results
 // Documents below this threshold are flagged for manual review
@@ -66,10 +16,14 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  // Extract id early so we can use it in error handling
-  const { id } = await params;
+  // Track state for proper cleanup in error handlers
+  let documentId: string | null = null;
+  let statusWasSet = false;
 
   try {
+    const { id } = await params;
+    documentId = id;
+
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
@@ -102,6 +56,14 @@ export async function POST(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    // Prevent re-analyzing verified or rejected documents
+    if (document.status === 'verified' || document.status === 'rejected') {
+      return NextResponse.json(
+        { error: `Cannot re-analyze a ${document.status} document` },
+        { status: 400 }
+      );
+    }
+
     // Check if document has a file URL
     if (!document.file_url) {
       return NextResponse.json(
@@ -110,8 +72,9 @@ export async function POST(
       );
     }
 
-    // Update status to processing
+    // Update status to processing - track that we changed it
     await documentsService.updateDocument(id, { status: 'processing' });
+    statusWasSet = true;
 
     let analysisResult: DocumentAnalysisResult;
 
@@ -217,13 +180,15 @@ export async function POST(
       },
     });
   } catch (error) {
-    // Reset status on any unhandled error
-    try {
-      await documentsService.updateDocument(id, { status: 'uploaded' });
-    } catch (resetErr) {
-      log.logError('Failed to reset document status', resetErr);
+    // Only reset status if we actually changed it to 'processing'
+    if (statusWasSet && documentId) {
+      try {
+        await documentsService.updateDocument(documentId, { status: 'uploaded' });
+      } catch (resetErr) {
+        log.logError('Failed to reset document status', resetErr, { documentId });
+      }
     }
-    log.logError('Error analyzing document', error);
+    log.logError('Error analyzing document', error, { documentId });
     return NextResponse.json(
       { error: 'Failed to analyze document' },
       { status: 500 }

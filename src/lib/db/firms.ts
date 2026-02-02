@@ -319,7 +319,7 @@ export async function createInvitation(
     .from('firm_invitations')
     .insert({
       firm_id: firmId,
-      email: email.toLowerCase(),
+      email: email.trim().toLowerCase(),
       role,
       token,
       invited_by: invitedBy,

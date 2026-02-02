@@ -192,7 +192,7 @@ function log(
 /**
  * Logger instance with context support.
  */
-class Logger {
+export class Logger {
   private baseContext?: LogContext;
 
   constructor(baseContext?: LogContext) {

@@ -101,11 +101,12 @@ export async function POST(request: NextRequest, { params }: Params) {
     const { email, role } = validation.data;
 
     // Check if invitee is already a member by looking up their profile by email
+    // Normalize email consistently (trim + lowercase) to match invitation storage
     const supabase = await (await import('@/lib/supabase/server')).createClient();
     const { data: inviteeProfile } = await supabase
       .from('profiles')
       .select('id')
-      .eq('email', email.toLowerCase())
+      .eq('email', email.trim().toLowerCase())
       .single();
 
     if (inviteeProfile) {

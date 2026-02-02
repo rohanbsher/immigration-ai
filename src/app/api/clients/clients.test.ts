@@ -124,14 +124,44 @@ vi.mock('@/lib/db/profiles', () => ({
   },
 }));
 
-// Mock auth helpers
-vi.mock('@/lib/auth/api-helpers', async () => {
-  const actual = await vi.importActual('@/lib/auth/api-helpers');
+// Mock auth helpers - need to mock authenticate and the wrapper functions
+vi.mock('@/lib/auth/api-helpers', () => {
+  const authenticateFn = vi.fn();
+
+  // Create wrapper that uses the mocked authenticate
+  const withAuth = (handler: any, options?: any) => {
+    return async (request: any, context: any) => {
+      const auth = await authenticateFn(request, options);
+      if (!auth.success) {
+        return auth.response;
+      }
+      try {
+        return await handler(request, context, auth);
+      } catch (error) {
+        return new Response(
+          JSON.stringify({ success: false, error: error instanceof Error ? error.message : 'Internal server error' }),
+          { status: 500, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+    };
+  };
+
+  const withAttorneyAuth = (handler: any) => withAuth(handler, { roles: ['attorney'] });
+  const withAdminAuth = (handler: any) => withAuth(handler, { roles: ['admin'] });
+
   return {
-    ...actual,
+    authenticate: authenticateFn,
     requireAttorney: vi.fn(),
+    withAuth,
+    withAttorneyAuth,
+    withAdminAuth,
     errorResponse: (error: string, status: number) =>
       new Response(JSON.stringify({ success: false, error }), {
+        status,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    successResponse: (data: any, status = 200) =>
+      new Response(JSON.stringify({ success: true, data }), {
         status,
         headers: { 'Content-Type': 'application/json' },
       }),
@@ -184,7 +214,7 @@ import { GET as getClient, PATCH as updateClient } from './[id]/route';
 import { GET as getClientCases } from './[id]/cases/route';
 import { clientsService } from '@/lib/db/clients';
 import { profilesService } from '@/lib/db/profiles';
-import { requireAttorney } from '@/lib/auth/api-helpers';
+import { requireAttorney, authenticate } from '@/lib/auth/api-helpers';
 import { sensitiveRateLimiter } from '@/lib/rate-limit';
 
 // Helper to create mock NextRequest
@@ -245,10 +275,11 @@ describe('Clients API Routes', () => {
 
   // ==========================================================================
   // GET /api/clients
+  // Note: This route uses withAttorneyAuth which calls authenticate internally
   // ==========================================================================
   describe('GET /api/clients', () => {
     it('should return 401 when not authenticated', async () => {
-      vi.mocked(requireAttorney).mockResolvedValue({
+      vi.mocked(authenticate).mockResolvedValue({
         success: false,
         error: 'Unauthorized',
         response: new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), {
@@ -266,7 +297,7 @@ describe('Clients API Routes', () => {
     });
 
     it('should return 403 when non-attorney tries to access', async () => {
-      vi.mocked(requireAttorney).mockResolvedValue({
+      vi.mocked(authenticate).mockResolvedValue({
         success: false,
         error: 'Forbidden',
         response: new Response(JSON.stringify({ success: false, error: 'Access denied. Required role: attorney' }), {
@@ -282,7 +313,7 @@ describe('Clients API Routes', () => {
     });
 
     it('should return list of clients for attorney', async () => {
-      vi.mocked(requireAttorney).mockResolvedValue({
+      vi.mocked(authenticate).mockResolvedValue({
         success: true,
         user: { id: mockAttorneyId, email: 'attorney@example.com' } as any,
         profile: mockAttorneyProfile as any,
@@ -300,7 +331,7 @@ describe('Clients API Routes', () => {
     });
 
     it('should return empty array when attorney has no clients', async () => {
-      vi.mocked(requireAttorney).mockResolvedValue({
+      vi.mocked(authenticate).mockResolvedValue({
         success: true,
         user: { id: mockAttorneyId, email: 'attorney@example.com' } as any,
         profile: mockAttorneyProfile as any,
@@ -316,7 +347,7 @@ describe('Clients API Routes', () => {
     });
 
     it('should handle database errors gracefully', async () => {
-      vi.mocked(requireAttorney).mockResolvedValue({
+      vi.mocked(authenticate).mockResolvedValue({
         success: true,
         user: { id: mockAttorneyId, email: 'attorney@example.com' } as any,
         profile: mockAttorneyProfile as any,

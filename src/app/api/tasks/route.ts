@@ -1,14 +1,13 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { tasksService } from '@/lib/db';
 import { z } from 'zod';
 import { createLogger } from '@/lib/logger';
 import {
-  requireAuth,
-  requireAttorney,
+  withAuth,
+  withAttorneyAuth,
   errorResponse,
   successResponse,
 } from '@/lib/auth/api-helpers';
-import { standardRateLimiter } from '@/lib/rate-limit';
 
 const log = createLogger('api:tasks');
 
@@ -26,17 +25,8 @@ const createTaskSchema = z.object({
 /**
  * GET /api/tasks - Get all tasks for the current user
  */
-export async function GET(request: NextRequest) {
+export const GET = withAuth(async (request, _context, auth) => {
   try {
-    const auth = await requireAuth(request);
-    if (!auth.success) return auth.response;
-
-    // Rate limit check
-    const rateLimitResult = await standardRateLimiter.limit(request, auth.user.id);
-    if (!rateLimitResult.allowed) {
-      return rateLimitResult.response;
-    }
-
     const { searchParams } = new URL(request.url);
 
     const filters = {
@@ -47,29 +37,23 @@ export async function GET(request: NextRequest) {
       search: searchParams.get('search') || undefined,
     };
 
-    const tasks = await tasksService.getTasks(auth.user.id, filters as Parameters<typeof tasksService.getTasks>[1]);
+    const tasks = await tasksService.getTasks(
+      auth.user.id,
+      filters as Parameters<typeof tasksService.getTasks>[1]
+    );
 
     return NextResponse.json({ data: tasks });
   } catch (error) {
     log.logError('Failed to fetch tasks', error);
     return errorResponse('Failed to fetch tasks', 500);
   }
-}
+});
 
 /**
- * POST /api/tasks - Create a new task
+ * POST /api/tasks - Create a new task (attorney only)
  */
-export async function POST(request: NextRequest) {
+export const POST = withAttorneyAuth(async (request, _context, auth) => {
   try {
-    const auth = await requireAttorney(request);
-    if (!auth.success) return auth.response;
-
-    // Rate limit check
-    const rateLimitResult = await standardRateLimiter.limit(request, auth.user.id);
-    if (!rateLimitResult.allowed) {
-      return rateLimitResult.response;
-    }
-
     const body = await request.json();
     const validatedData = createTaskSchema.parse(body);
 
@@ -89,4 +73,4 @@ export async function POST(request: NextRequest) {
     log.logError('Failed to create task', error);
     return errorResponse('Failed to create task', 500);
   }
-}
+});

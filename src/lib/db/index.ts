@@ -72,3 +72,11 @@ export type {
   UpdateTaskData,
   TaskFilters,
 } from './tasks';
+
+export { conversationsService } from './conversations';
+export type {
+  Conversation,
+  ConversationMessage,
+  MessageStatus,
+  GetConversationsOptions,
+} from './conversations';

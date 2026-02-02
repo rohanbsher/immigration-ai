@@ -54,7 +54,7 @@ export async function POST(request: NextRequest): Promise<Response> {
       return limitResult.response;
     }
 
-    // Parse and validate request body
+    // Parse request body
     const body = await request.json();
     const { conversationId, caseId, message } = body as {
       conversationId?: string;
@@ -62,6 +62,7 @@ export async function POST(request: NextRequest): Promise<Response> {
       message: string;
     };
 
+    // Validate required fields
     if (!message || typeof message !== 'string') {
       return NextResponse.json(
         { error: 'Bad Request', message: 'Message is required' },

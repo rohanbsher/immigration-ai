@@ -2,7 +2,7 @@
  * Server-Sent Events (SSE) utilities for streaming responses.
  *
  * Provides a clean abstraction for creating SSE streams with
- * consistent encoding, error handling, and proper formatting.
+ * consistent encoding, error handling, keepalive support, and proper formatting.
  *
  * @example
  * ```typescript
@@ -39,6 +39,28 @@ export interface SSEController {
 
 type SSEHandler = (controller: SSEController) => Promise<void>;
 
+export interface SSEOptions {
+  /**
+   * Callback for logging unhandled errors.
+   * Called before the generic error event is sent.
+   */
+  onUnhandledError?: (error: unknown) => void | Promise<void>;
+
+  /**
+   * Interval in milliseconds for sending keepalive comments.
+   * Set to 0 to disable keepalives.
+   *
+   * Default: 20000 (20 seconds) - safe for Vercel's 25s function timeout.
+   *
+   * Common proxy timeouts:
+   * - Vercel: 25s (standard), 60s (pro)
+   * - nginx: 60s (proxy_read_timeout)
+   * - AWS ALB: 60s
+   * - Cloudflare: 600s
+   */
+  keepaliveIntervalMs?: number;
+}
+
 /**
  * Standard SSE headers for streaming responses.
  *
@@ -51,6 +73,9 @@ export const SSE_HEADERS = {
   'X-Accel-Buffering': 'no',
 } as const;
 
+/** Default keepalive interval - 20 seconds (safe for Vercel) */
+export const DEFAULT_KEEPALIVE_INTERVAL_MS = 20_000;
+
 /**
  * Create a Server-Sent Events streaming response.
  *
@@ -58,17 +83,31 @@ export const SSE_HEADERS = {
  * errors will result in a generic error event being sent before the
  * stream closes.
  *
+ * Keepalives are sent as SSE comments (`:` followed by newlines) which
+ * browsers safely ignore but keep the connection alive through proxies.
+ *
  * @param handler - Async function that sends events via the controller
- * @param onUnhandledError - Optional callback for logging unhandled errors
+ * @param options - Optional configuration (keepalive interval, error callback)
  */
 export function createSSEStream(
   handler: SSEHandler,
-  onUnhandledError?: (error: unknown) => void | Promise<void>
+  options: SSEOptions | ((error: unknown) => void | Promise<void>) = {}
 ): Response {
+  // Support legacy signature: createSSEStream(handler, onUnhandledError)
+  const opts: SSEOptions =
+    typeof options === 'function' ? { onUnhandledError: options } : options;
+
+  const {
+    onUnhandledError,
+    keepaliveIntervalMs = DEFAULT_KEEPALIVE_INTERVAL_MS,
+  } = opts;
+
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream({
     async start(controller) {
+      let keepaliveTimer: ReturnType<typeof setInterval> | null = null;
+
       const sse: SSEController = {
         send: (event) => {
           controller.enqueue(
@@ -83,6 +122,14 @@ export function createSSEStream(
       };
 
       try {
+        // Start keepalive timer if enabled
+        if (keepaliveIntervalMs > 0) {
+          keepaliveTimer = setInterval(() => {
+            // SSE comment format - browsers ignore this but it keeps connection alive
+            controller.enqueue(encoder.encode(': keepalive\n\n'));
+          }, keepaliveIntervalMs);
+        }
+
         await handler(sse);
       } catch (error) {
         // Await the error callback if provided
@@ -91,6 +138,10 @@ export function createSSEStream(
         }
         sse.error('An unexpected error occurred');
       } finally {
+        // Always clean up the keepalive timer
+        if (keepaliveTimer) {
+          clearInterval(keepaliveTimer);
+        }
         controller.close();
       }
     },

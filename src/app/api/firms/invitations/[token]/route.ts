@@ -107,8 +107,8 @@ export async function POST(request: NextRequest, { params }: Params) {
       );
     }
 
-    // Verify invitation email matches authenticated user
-    if (invitation.email.toLowerCase() !== user.email?.toLowerCase()) {
+    // Verify invitation email matches authenticated user (trim whitespace for robustness)
+    if (invitation.email.trim().toLowerCase() !== user.email?.trim().toLowerCase()) {
       return NextResponse.json(
         { error: 'This invitation was sent to a different email address' },
         { status: 403 }

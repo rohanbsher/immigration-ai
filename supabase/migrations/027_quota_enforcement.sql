@@ -1,5 +1,33 @@
 -- Migration: 027_quota_enforcement.sql
 -- Enforces quotas at database level to prevent race conditions
+--
+-- IMPORTANT: These functions use SECURITY DEFINER because they need to read
+-- the subscriptions and customers tables which have RLS policies that would
+-- otherwise block the trigger from seeing the user's subscription data.
+-- Without SECURITY DEFINER, the quota check silently fails and defaults to 'free'.
+
+-- ============================================================================
+-- PERFORMANCE INDEXES for quota queries
+-- ============================================================================
+
+-- Fast subscription lookup per customer
+CREATE INDEX IF NOT EXISTS idx_subscriptions_customer_status_created
+  ON subscriptions(customer_id, status, created_at DESC)
+  WHERE status IN ('active', 'trialing');
+
+-- Fast case counting per attorney
+CREATE INDEX IF NOT EXISTS idx_cases_attorney_active
+  ON cases(attorney_id)
+  WHERE deleted_at IS NULL;
+
+-- Fast document counting per user
+CREATE INDEX IF NOT EXISTS idx_documents_uploaded_by_active
+  ON documents(uploaded_by)
+  WHERE deleted_at IS NULL;
+
+-- ============================================================================
+-- QUOTA ENFORCEMENT FUNCTIONS
+-- ============================================================================
 
 -- Function to check case quota before insert
 CREATE OR REPLACE FUNCTION check_case_quota()
@@ -23,6 +51,11 @@ BEGIN
   ORDER BY s.created_at DESC
   LIMIT 1;
 
+  -- Handle NULL result (no subscription found)
+  IF user_plan IS NULL THEN
+    user_plan := 'free';
+  END IF;
+
   -- Set limits based on plan
   max_allowed := CASE user_plan
     WHEN 'free' THEN 5
@@ -38,7 +71,7 @@ BEGIN
 
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_catalog;
 
 -- Trigger before case insert
 DROP TRIGGER IF EXISTS enforce_case_quota ON cases;
@@ -67,6 +100,11 @@ BEGIN
   ORDER BY s.created_at DESC
   LIMIT 1;
 
+  -- Handle NULL result (no subscription found)
+  IF user_plan IS NULL THEN
+    user_plan := 'free';
+  END IF;
+
   max_allowed := CASE user_plan
     WHEN 'free' THEN 100
     WHEN 'pro' THEN 1000
@@ -81,7 +119,7 @@ BEGIN
 
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_catalog;
 
 -- Trigger before document insert
 DROP TRIGGER IF EXISTS enforce_document_quota ON documents;
@@ -92,6 +130,6 @@ CREATE TRIGGER enforce_document_quota
 
 -- Comments
 COMMENT ON FUNCTION check_case_quota() IS
-  'Enforces case quota limits at database level to prevent race conditions';
+  'Enforces case quota limits at database level. Uses SECURITY DEFINER to bypass RLS on subscriptions table.';
 COMMENT ON FUNCTION check_document_quota() IS
-  'Enforces document quota limits at database level to prevent race conditions';
+  'Enforces document quota limits at database level. Uses SECURITY DEFINER to bypass RLS on subscriptions table.';

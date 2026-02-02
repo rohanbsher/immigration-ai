@@ -10,14 +10,52 @@ const log = createLogger('api:documents-analyze');
 /**
  * Validates that a URL is from our trusted Supabase storage.
  * Prevents SSRF attacks by ensuring only internal storage URLs are processed.
+ * Uses proper URL parsing to prevent bypass via encoding, fragments, or path traversal.
  */
-function validateStorageUrl(url: string): boolean {
+function validateStorageUrl(urlString: string): boolean {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   if (!supabaseUrl) return false;
 
-  // Expected format: https://<project>.supabase.co/storage/v1/object/...
-  const expectedPrefix = `${supabaseUrl}/storage/v1/object/`;
-  return url.startsWith(expectedPrefix);
+  try {
+    const url = new URL(urlString);
+    const expectedBaseUrl = new URL(supabaseUrl);
+
+    // 1. Origin validation (hostname + protocol)
+    if (url.origin !== expectedBaseUrl.origin) {
+      return false;
+    }
+
+    // 2. Protocol must be HTTPS
+    if (url.protocol !== 'https:') {
+      return false;
+    }
+
+    // 3. Path must start with storage prefix
+    if (!url.pathname.startsWith('/storage/v1/object/')) {
+      return false;
+    }
+
+    // 4. No path traversal
+    if (url.pathname.includes('..') || url.pathname.includes('//')) {
+      return false;
+    }
+
+    // 5. Bucket allowlist
+    const pathParts = url.pathname.split('/').filter(Boolean);
+    // Path format: /storage/v1/object/public|authenticated/bucket/path...
+    // After split and filter: ['storage', 'v1', 'object', 'public|authenticated', 'bucket', ...]
+    if (pathParts.length < 5) return false;
+
+    const bucket = pathParts[4];
+    const allowedBuckets = ['documents'];
+    if (!allowedBuckets.includes(bucket)) {
+      return false;
+    }
+
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 // Minimum confidence threshold for accepting AI analysis results
@@ -28,8 +66,10 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Extract id early so we can use it in error handling
+  const { id } = await params;
+
   try {
-    const { id } = await params;
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
@@ -81,6 +121,8 @@ export async function POST(
 
       // SSRF protection: validate URL is from our Supabase storage
       if (!validateStorageUrl(fileUrl)) {
+        // Reset status since we set it to 'processing' above
+        await documentsService.updateDocument(id, { status: 'uploaded' });
         log.logError('Invalid document URL - possible SSRF attempt', null, {
           documentId: id,
           url: document.file_url
@@ -175,6 +217,12 @@ export async function POST(
       },
     });
   } catch (error) {
+    // Reset status on any unhandled error
+    try {
+      await documentsService.updateDocument(id, { status: 'uploaded' });
+    } catch (resetErr) {
+      log.logError('Failed to reset document status', resetErr);
+    }
     log.logError('Error analyzing document', error);
     return NextResponse.json(
       { error: 'Failed to analyze document' },

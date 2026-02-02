@@ -10,6 +10,7 @@ import {
   updateMessage,
 } from '@/lib/db/conversations';
 import { createLogger } from '@/lib/logger';
+import { createSSEStream } from '@/lib/api/sse';
 
 const log = createLogger('api:chat');
 
@@ -53,7 +54,7 @@ export async function POST(request: NextRequest): Promise<Response> {
       return limitResult.response;
     }
 
-    // Parse request body
+    // Parse and validate request body
     const body = await request.json();
     const { conversationId, caseId, message } = body as {
       conversationId?: string;
@@ -68,7 +69,6 @@ export async function POST(request: NextRequest): Promise<Response> {
       );
     }
 
-    // Limit message length
     const trimmedMessage = message.trim().slice(0, 4000);
 
     if (trimmedMessage.length < 1) {
@@ -95,10 +95,8 @@ export async function POST(request: NextRequest): Promise<Response> {
       conversation = await createConversation(user.id, caseId);
     }
 
-    // Get conversation history
+    // Get conversation history and add user message
     const existingMessages = await getConversationMessages(conversation.id, user.id);
-
-    // Add user message
     await addMessage(conversation.id, user.id, 'user', trimmedMessage);
 
     // Build message history for AI
@@ -117,11 +115,7 @@ export async function POST(request: NextRequest): Promise<Response> {
       },
     ];
 
-    // Create streaming response with transaction protection
-    const encoder = new TextEncoder();
-    let fullResponse = '';
-
-    // Create placeholder assistant message BEFORE streaming to prevent data loss
+    // Create placeholder message BEFORE streaming to prevent data loss on disconnect
     const assistantMessage = await addMessage(
       conversation.id,
       user.id,
@@ -130,70 +124,49 @@ export async function POST(request: NextRequest): Promise<Response> {
       { status: 'streaming' }
     );
 
-    const stream = new ReadableStream({
-      async start(controller) {
-        try {
-          // Send conversation ID first
-          controller.enqueue(
-            encoder.encode(
-              `data: ${JSON.stringify({ type: 'conversation', id: conversation.id })}\n\n`
-            )
-          );
+    const logContext = {
+      conversationId: conversation.id,
+      messageId: assistantMessage.id,
+      userId: user.id,
+    };
 
-          // Stream AI response
-          for await (const chunk of streamChatResponse(messages, user.id, activeCaseId)) {
-            fullResponse += chunk;
-            controller.enqueue(
-              encoder.encode(
-                `data: ${JSON.stringify({ type: 'content', text: chunk })}\n\n`
-              )
-            );
+    // Stream the response - error handling is inside the handler
+    // so we have access to fullResponse for saving partial content
+    return createSSEStream(async (sse) => {
+      let fullResponse = '';
 
-          }
+      try {
+        // Send conversation ID first so client can track it
+        sse.send({ type: 'conversation', id: conversation.id });
 
-          // Final update marks message as complete
-          await updateMessage(assistantMessage.id, {
-            content: fullResponse,
-            status: 'complete',
-          });
-
-          // Send done signal
-          controller.enqueue(
-            encoder.encode(
-              `data: ${JSON.stringify({ type: 'done' })}\n\n`
-            )
-          );
-
-          controller.close();
-        } catch (error) {
-          log.logError('Chat streaming error', error);
-
-          // Mark message as error state with partial content
-          try {
-            await updateMessage(assistantMessage.id, {
-              content: fullResponse || '[Error: Response generation failed]',
-              status: 'error',
-            });
-          } catch (updateErr) {
-            log.logError('Failed to save error state', updateErr);
-          }
-
-          controller.enqueue(
-            encoder.encode(
-              `data: ${JSON.stringify({ type: 'error', message: 'Failed to generate response' })}\n\n`
-            )
-          );
-          controller.close();
+        // Stream AI response
+        for await (const chunk of streamChatResponse(messages, user.id, activeCaseId)) {
+          fullResponse += chunk;
+          sse.send({ type: 'content', text: chunk });
         }
-      },
-    });
 
-    return new Response(stream, {
-      headers: {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        Connection: 'keep-alive',
-      },
+        // Mark message as complete with full content
+        await updateMessage(assistantMessage.id, {
+          content: fullResponse,
+          status: 'complete',
+        });
+
+        sse.send({ type: 'done' });
+      } catch (error) {
+        log.logError('Chat streaming error', error, logContext);
+
+        // Save partial response (or error placeholder) with error status
+        try {
+          await updateMessage(assistantMessage.id, {
+            content: fullResponse || '[Error: Response generation failed]',
+            status: 'error',
+          });
+        } catch (updateErr) {
+          log.logError('Failed to save error state', updateErr, logContext);
+        }
+
+        sse.error('Failed to generate response');
+      }
     });
   } catch (error) {
     log.logError('Error in chat API', error);
@@ -236,10 +209,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     const searchParams = request.nextUrl.searchParams;
     const caseId = searchParams.get('caseId') || undefined;
-    const limit = parseInt(searchParams.get('limit') || '20', 10);
+    // Clamp limit between 1 and 100 to prevent DoS via excessive limit
+    const rawLimit = parseInt(searchParams.get('limit') || '20', 10);
+    const limit = Math.min(Math.max(1, isNaN(rawLimit) ? 20 : rawLimit), 100);
 
-    // Get conversations
-    const { data, error } = await supabase
+    // Build query - filter by caseId in database if provided (not in memory)
+    let query = supabase
       .from('conversations')
       .select(`
         id,
@@ -248,7 +223,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         created_at,
         updated_at
       `)
-      .eq('user_id', user.id)
+      .eq('user_id', user.id);
+
+    if (caseId) {
+      query = query.eq('case_id', caseId);
+    }
+
+    const { data, error } = await query
       .order('updated_at', { ascending: false })
       .limit(limit);
 
@@ -256,10 +237,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       throw new Error(error.message);
     }
 
-    // Filter by caseId if provided
-    const conversations = caseId
-      ? (data || []).filter(c => c.case_id === caseId)
-      : data || [];
+    const conversations = data || [];
 
     return NextResponse.json({
       conversations: conversations.map(c => ({

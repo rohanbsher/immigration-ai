@@ -277,62 +277,37 @@ export async function addMessage(
 
 /**
  * Update an existing message (for streaming updates).
+ *
+ * Uses a single atomic update. For streaming, we only set status - we don't
+ * need to merge with existing metadata since streaming messages start empty.
  */
 export async function updateMessage(
   messageId: string,
   updates: {
     content?: string;
     status?: MessageStatus;
-    metadata?: Record<string, unknown>;
   }
-): Promise<ConversationMessage> {
+): Promise<void> {
   const supabase = await createClient();
 
-  // Build metadata update - merge with existing
-  const { data: existingMessage, error: fetchError } = await supabase
-    .from('conversation_messages')
-    .select('metadata')
-    .eq('id', messageId)
-    .single();
-
-  if (fetchError) {
-    throw new Error(`Failed to fetch message: ${fetchError.message}`);
-  }
-
-  const updatedMetadata = {
-    ...(existingMessage?.metadata || {}),
-    ...(updates.metadata || {}),
-    ...(updates.status ? { status: updates.status } : {}),
-  };
-
-  const updatePayload: Record<string, unknown> = {
-    metadata: updatedMetadata,
-  };
+  const updatePayload: Record<string, unknown> = {};
 
   if (updates.content !== undefined) {
     updatePayload.content = updates.content;
   }
 
-  const { data, error } = await supabase
+  if (updates.status !== undefined) {
+    updatePayload.metadata = { status: updates.status };
+  }
+
+  const { error } = await supabase
     .from('conversation_messages')
     .update(updatePayload)
-    .eq('id', messageId)
-    .select()
-    .single();
+    .eq('id', messageId);
 
   if (error) {
     throw new Error(`Failed to update message: ${error.message}`);
   }
-
-  return {
-    id: data.id,
-    conversationId: data.conversation_id,
-    role: data.role as 'user' | 'assistant',
-    content: data.content,
-    metadata: data.metadata || undefined,
-    status: (data.metadata?.status as MessageStatus) || 'complete',
-    createdAt: data.created_at,
-  };
 }
 
 /**

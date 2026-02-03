@@ -1,3 +1,6 @@
+// Note: No 'use server' directive - incompatible with object exports.
+// This module is only imported by API routes (server-side).
+
 import { createClient } from '@/lib/supabase/server';
 import { createLogger } from '@/lib/logger';
 import { generateConversationTitle } from '@/lib/ai/chat';
@@ -45,8 +48,12 @@ export interface GetConversationsOptions {
 
 /**
  * Transform database row to Conversation type.
+ * Validates required fields before type assertion.
  */
 function toConversation(row: Record<string, unknown>): Conversation {
+  if (!row.id || !row.user_id || !row.title) {
+    throw new Error('Invalid conversation row: missing required fields (id, user_id, or title)');
+  }
   return {
     id: row.id as string,
     userId: row.user_id as string,
@@ -59,8 +66,12 @@ function toConversation(row: Record<string, unknown>): Conversation {
 
 /**
  * Transform database row to ConversationMessage type.
+ * Validates required fields before type assertion.
  */
 function toMessage(row: Record<string, unknown>): ConversationMessage {
+  if (!row.id || !row.conversation_id || !row.role || row.content === undefined) {
+    throw new Error('Invalid message row: missing required fields (id, conversation_id, role, or content)');
+  }
   const metadata = row.metadata as Record<string, unknown> | null;
   return {
     id: row.id as string,
@@ -311,8 +322,8 @@ export const conversationsService = {
   /**
    * Update an existing message (for streaming updates).
    *
-   * Merges status into existing metadata to preserve any other fields.
-   * Content-only updates skip the metadata fetch for efficiency.
+   * Uses atomic RPC with JSONB merge to prevent race conditions
+   * where concurrent updates could overwrite each other's metadata.
    */
   async updateMessage(
     messageId: string,
@@ -321,43 +332,18 @@ export const conversationsService = {
       status?: MessageStatus;
     }
   ): Promise<void> {
+    if (!updates.content && !updates.status) {
+      return; // Nothing to update
+    }
+
     const supabase = await createClient();
 
-    const updatePayload: Record<string, unknown> = {};
-
-    if (updates.content !== undefined) {
-      updatePayload.content = updates.content;
-    }
-
-    // If updating status, we need to merge with existing metadata
-    if (updates.status !== undefined) {
-      const { data: existingMessage, error: fetchError } = await supabase
-        .from('conversation_messages')
-        .select('metadata')
-        .eq('id', messageId)
-        .single();
-
-      if (fetchError) {
-        logger.logError('Failed to fetch message for update', fetchError, { messageId });
-        throw new Error(`Failed to fetch message for update: ${fetchError.message}`);
-      }
-
-      // Merge status into existing metadata (preserving other fields)
-      updatePayload.metadata = {
-        ...(existingMessage?.metadata || {}),
-        status: updates.status,
-      };
-    }
-
-    // Skip update if nothing to update
-    if (Object.keys(updatePayload).length === 0) {
-      return;
-    }
-
-    const { error } = await supabase
-      .from('conversation_messages')
-      .update(updatePayload)
-      .eq('id', messageId);
+    // Use RPC for atomic JSONB merge - eliminates race condition
+    const { error } = await supabase.rpc('update_message_with_metadata', {
+      p_message_id: messageId,
+      p_content: updates.content ?? null,
+      p_status: updates.status ?? null,
+    });
 
     if (error) {
       logger.logError('Failed to update message', error, { messageId });

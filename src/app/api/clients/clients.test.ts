@@ -111,7 +111,7 @@ vi.mock('@/lib/supabase/server', () => ({
 vi.mock('@/lib/db/clients', () => ({
   clientsService: {
     getClients: vi.fn(),
-    getClient: vi.fn(),
+    getClientById: vi.fn(),
     updateClient: vi.fn(),
     searchClients: vi.fn(),
     getClientCases: vi.fn(),
@@ -525,7 +525,7 @@ describe('Clients API Routes', () => {
     });
 
     it('should return 404 when client does not exist', async () => {
-      vi.mocked(clientsService.getClient).mockResolvedValue(null);
+      vi.mocked(clientsService.getClientById).mockResolvedValue(null);
 
       const request = createMockRequest('GET', `/api/clients/${mockClientId}`);
       const response = await getClient(request, { params: createMockParams() });
@@ -536,7 +536,7 @@ describe('Clients API Routes', () => {
     });
 
     it('should return client when attorney has access', async () => {
-      vi.mocked(clientsService.getClient).mockResolvedValue(mockClient as any);
+      vi.mocked(clientsService.getClientById).mockResolvedValue(mockClient as any);
 
       const request = createMockRequest('GET', `/api/clients/${mockClientId}`);
       const response = await getClient(request, { params: createMockParams() });
@@ -545,7 +545,7 @@ describe('Clients API Routes', () => {
       expect(response.status).toBe(200);
       expect(data.id).toBe(mockClientId);
       expect(data.first_name).toBe('John');
-      expect(clientsService.getClient).toHaveBeenCalledWith(mockClientId);
+      expect(clientsService.getClientById).toHaveBeenCalledWith(mockClientId);
     });
 
     it('should return client when client views own profile', async () => {
@@ -554,7 +554,7 @@ describe('Clients API Routes', () => {
         error: null,
       });
 
-      vi.mocked(clientsService.getClient).mockResolvedValue(mockClient as any);
+      vi.mocked(clientsService.getClientById).mockResolvedValue(mockClient as any);
 
       const request = createMockRequest('GET', `/api/clients/${mockClientId}`);
       const response = await getClient(request, { params: createMockParams() });

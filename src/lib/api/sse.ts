@@ -4,6 +4,21 @@
  * Provides a clean abstraction for creating SSE streams with
  * consistent encoding, error handling, keepalive support, and proper formatting.
  *
+ * IMPORTANT: Keepalive Limitations
+ *
+ * The keepalive mechanism sends SSE comments to prevent proxy timeouts,
+ * but it does NOT prevent timeouts if no data is sent before the first
+ * keepalive fires. For example:
+ *
+ * - Vercel free tier: 25s timeout
+ * - Default keepalive: 20s
+ * - If first AI chunk takes 30s, connection dies at 25s
+ *
+ * Mitigations:
+ * 1. Send initial event immediately (e.g., conversation ID)
+ * 2. Use aggressive keepalive (15s) on Vercel free tier
+ * 3. Upgrade to Vercel Pro (60s timeout) for long-running AI calls
+ *
  * @example
  * ```typescript
  * import { createSSEStream } from '@/lib/api/sse';
@@ -104,10 +119,11 @@ export function createSSEStream(
 
   const encoder = new TextEncoder();
 
+  // Timer ref needs to be accessible by cancel handler
+  let keepaliveTimer: ReturnType<typeof setInterval> | null = null;
+
   const stream = new ReadableStream({
     async start(controller) {
-      let keepaliveTimer: ReturnType<typeof setInterval> | null = null;
-
       const sse: SSEController = {
         send: (event) => {
           controller.enqueue(
@@ -143,6 +159,12 @@ export function createSSEStream(
           clearInterval(keepaliveTimer);
         }
         controller.close();
+      }
+    },
+    // Clean up timer when client disconnects (e.g., closes browser tab)
+    cancel() {
+      if (keepaliveTimer) {
+        clearInterval(keepaliveTimer);
       }
     },
   });

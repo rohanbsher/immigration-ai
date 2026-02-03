@@ -67,7 +67,7 @@ export async function GET(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const client = await clientsService.getClient(id);
+    const client = await clientsService.getClientById(id);
 
     if (!client) {
       return NextResponse.json({ error: 'Client not found' }, { status: 404 });

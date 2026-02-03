@@ -1,7 +1,4 @@
-import { createClient } from '@/lib/supabase/server';
-import { createLogger } from '@/lib/logger';
-
-const logger = createLogger('db:tasks');
+import { BaseService } from './base-service';
 
 export type TaskStatus = 'pending' | 'in_progress' | 'completed' | 'cancelled';
 export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
@@ -90,223 +87,174 @@ export interface TaskFilters {
   search?: string;
 }
 
-export const tasksService = {
+// Common select statement for tasks with relations
+const TASK_SELECT = `
+  *,
+  creator:profiles!created_by (
+    id,
+    first_name,
+    last_name,
+    email
+  ),
+  assignee:profiles!assigned_to (
+    id,
+    first_name,
+    last_name,
+    email
+  ),
+  case:cases!case_id (
+    id,
+    title,
+    visa_type
+  )
+`;
+
+class TasksService extends BaseService {
+  constructor() {
+    super('tasks');
+  }
+
   /**
    * Get tasks with optional filters
    */
-  async getTasks(
-    userId: string,
-    filters: TaskFilters = {}
-  ): Promise<Task[]> {
-    const supabase = await createClient();
+  async getTasks(userId: string, filters: TaskFilters = {}): Promise<Task[]> {
+    return this.withErrorHandling(async () => {
+      const supabase = await this.getSupabaseClient();
 
-    let query = supabase
-      .from('tasks')
-      .select(`
-        *,
-        creator:profiles!created_by (
-          id,
-          first_name,
-          last_name,
-          email
-        ),
-        assignee:profiles!assigned_to (
-          id,
-          first_name,
-          last_name,
-          email
-        ),
-        case:cases!case_id (
-          id,
-          title,
-          visa_type
-        )
-      `)
-      .is('deleted_at', null)
-      .order('due_date', { ascending: true, nullsFirst: false })
-      .order('priority', { ascending: false })
-      .order('created_at', { ascending: false });
+      let query = supabase
+        .from('tasks')
+        .select(TASK_SELECT)
+        .is('deleted_at', null)
+        .order('due_date', { ascending: true, nullsFirst: false })
+        .order('priority', { ascending: false })
+        .order('created_at', { ascending: false });
 
-    // Apply filters
-    if (filters.case_id) {
-      query = query.eq('case_id', filters.case_id);
-    }
-
-    if (filters.assigned_to) {
-      query = query.eq('assigned_to', filters.assigned_to);
-    }
-
-    if (filters.status) {
-      if (Array.isArray(filters.status)) {
-        query = query.in('status', filters.status);
-      } else {
-        query = query.eq('status', filters.status);
+      // Apply filters
+      if (filters.case_id) {
+        query = query.eq('case_id', filters.case_id);
       }
-    }
 
-    if (filters.priority) {
-      if (Array.isArray(filters.priority)) {
-        query = query.in('priority', filters.priority);
-      } else {
-        query = query.eq('priority', filters.priority);
+      if (filters.assigned_to) {
+        query = query.eq('assigned_to', filters.assigned_to);
       }
-    }
 
-    if (filters.due_before) {
-      query = query.lte('due_date', filters.due_before);
-    }
+      if (filters.status) {
+        if (Array.isArray(filters.status)) {
+          query = query.in('status', filters.status);
+        } else {
+          query = query.eq('status', filters.status);
+        }
+      }
 
-    if (filters.search) {
-      query = query.ilike('title', `%${filters.search}%`);
-    }
+      if (filters.priority) {
+        if (Array.isArray(filters.priority)) {
+          query = query.in('priority', filters.priority);
+        } else {
+          query = query.eq('priority', filters.priority);
+        }
+      }
 
-    const { data, error } = await query;
+      if (filters.due_before) {
+        query = query.lte('due_date', filters.due_before);
+      }
 
-    if (error) {
-      logger.logError('Error fetching tasks', error, { userId, filters });
-      throw error;
-    }
+      if (filters.search) {
+        query = query.ilike('title', `%${filters.search}%`);
+      }
 
-    return data as Task[];
-  },
+      const { data, error } = await query;
+
+      if (error) {
+        throw error;
+      }
+
+      return data as Task[];
+    }, 'getTasks', { userId, filters });
+  }
 
   /**
    * Get tasks for a specific case
    */
   async getTasksByCase(caseId: string): Promise<Task[]> {
     return this.getTasks('', { case_id: caseId });
-  },
+  }
 
   /**
    * Get tasks assigned to a user
    */
   async getMyTasks(userId: string): Promise<Task[]> {
     return this.getTasks(userId, { assigned_to: userId });
-  },
+  }
 
   /**
    * Get a single task
    */
   async getTask(id: string): Promise<Task | null> {
-    const supabase = await createClient();
+    return this.withErrorHandling(async () => {
+      const supabase = await this.getSupabaseClient();
 
-    const { data, error } = await supabase
-      .from('tasks')
-      .select(`
-        *,
-        creator:profiles!created_by (
-          id,
-          first_name,
-          last_name,
-          email
-        ),
-        assignee:profiles!assigned_to (
-          id,
-          first_name,
-          last_name,
-          email
-        ),
-        case:cases!case_id (
-          id,
-          title,
-          visa_type
-        )
-      `)
-      .eq('id', id)
-      .is('deleted_at', null)
-      .single();
+      const { data, error } = await supabase
+        .from('tasks')
+        .select(TASK_SELECT)
+        .eq('id', id)
+        .is('deleted_at', null)
+        .single();
 
-    if (error) {
-      if (error.code === 'PGRST116') return null;
-      logger.logError('Error fetching task', error, { taskId: id });
-      throw error;
-    }
+      if (error) {
+        if (error.code === 'PGRST116') return null;
+        throw error;
+      }
 
-    return data as Task;
-  },
+      return data as Task;
+    }, 'getTask', { taskId: id });
+  }
 
   /**
    * Create a new task
    */
   async createTask(data: CreateTaskData): Promise<Task> {
-    const supabase = await createClient();
+    return this.withErrorHandling(async () => {
+      const supabase = await this.getSupabaseClient();
 
-    const { data: task, error } = await supabase
-      .from('tasks')
-      .insert({
-        ...data,
-        priority: data.priority || 'medium',
-        tags: data.tags || [],
-      })
-      .select(`
-        *,
-        creator:profiles!created_by (
-          id,
-          first_name,
-          last_name,
-          email
-        ),
-        assignee:profiles!assigned_to (
-          id,
-          first_name,
-          last_name,
-          email
-        ),
-        case:cases!case_id (
-          id,
-          title,
-          visa_type
-        )
-      `)
-      .single();
+      const { data: task, error } = await supabase
+        .from('tasks')
+        .insert({
+          ...data,
+          priority: data.priority || 'medium',
+          tags: data.tags || [],
+        })
+        .select(TASK_SELECT)
+        .single();
 
-    if (error) {
-      logger.logError('Error creating task', error, { title: data.title, caseId: data.case_id });
-      throw error;
-    }
+      if (error) {
+        throw error;
+      }
 
-    return task as Task;
-  },
+      return task as Task;
+    }, 'createTask', { title: data.title, caseId: data.case_id });
+  }
 
   /**
    * Update a task
    */
   async updateTask(id: string, data: UpdateTaskData): Promise<Task> {
-    const supabase = await createClient();
+    return this.withErrorHandling(async () => {
+      const supabase = await this.getSupabaseClient();
 
-    const { data: task, error } = await supabase
-      .from('tasks')
-      .update(data)
-      .eq('id', id)
-      .select(`
-        *,
-        creator:profiles!created_by (
-          id,
-          first_name,
-          last_name,
-          email
-        ),
-        assignee:profiles!assigned_to (
-          id,
-          first_name,
-          last_name,
-          email
-        ),
-        case:cases!case_id (
-          id,
-          title,
-          visa_type
-        )
-      `)
-      .single();
+      const { data: task, error } = await supabase
+        .from('tasks')
+        .update(data)
+        .eq('id', id)
+        .select(TASK_SELECT)
+        .single();
 
-    if (error) {
-      logger.logError('Error updating task', error, { taskId: id });
-      throw error;
-    }
+      if (error) {
+        throw error;
+      }
 
-    return task as Task;
-  },
+      return task as Task;
+    }, 'updateTask', { taskId: id });
+  }
 
   /**
    * Mark a task as complete
@@ -317,106 +265,111 @@ export const tasksService = {
       completed_at: new Date().toISOString(),
       completed_by: userId,
     });
-  },
+  }
 
   /**
    * Soft delete a task
    */
   async deleteTask(id: string): Promise<void> {
-    const supabase = await createClient();
+    return this.withErrorHandling(async () => {
+      const supabase = await this.getSupabaseClient();
 
-    const { error } = await supabase
-      .from('tasks')
-      .update({ deleted_at: new Date().toISOString() })
-      .eq('id', id);
+      const { error } = await supabase
+        .from('tasks')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', id);
 
-    if (error) {
-      logger.logError('Error deleting task', error, { taskId: id });
-      throw error;
-    }
-  },
+      if (error) {
+        throw error;
+      }
+    }, 'deleteTask', { taskId: id });
+  }
 
   /**
    * Get comments for a task
    */
   async getComments(taskId: string): Promise<TaskComment[]> {
-    const supabase = await createClient();
+    return this.withErrorHandling(async () => {
+      const supabase = await this.getSupabaseClient();
 
-    const { data, error } = await supabase
-      .from('task_comments')
-      .select(`
-        *,
-        user:profiles!user_id (
-          id,
-          first_name,
-          last_name,
-          avatar_url
-        )
-      `)
-      .eq('task_id', taskId)
-      .is('deleted_at', null)
-      .order('created_at', { ascending: true });
+      const { data, error } = await supabase
+        .from('task_comments')
+        .select(`
+          *,
+          user:profiles!user_id (
+            id,
+            first_name,
+            last_name,
+            avatar_url
+          )
+        `)
+        .eq('task_id', taskId)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: true });
 
-    if (error) {
-      logger.logError('Error fetching comments', error, { taskId });
-      throw error;
-    }
+      if (error) {
+        throw error;
+      }
 
-    return data as TaskComment[];
-  },
+      return data as TaskComment[];
+    }, 'getComments', { taskId });
+  }
 
   /**
    * Add a comment to a task
    */
   async addComment(taskId: string, userId: string, content: string): Promise<TaskComment> {
-    const supabase = await createClient();
+    return this.withErrorHandling(async () => {
+      const supabase = await this.getSupabaseClient();
 
-    const { data: comment, error } = await supabase
-      .from('task_comments')
-      .insert({
-        task_id: taskId,
-        user_id: userId,
-        content,
-      })
-      .select(`
-        *,
-        user:profiles!user_id (
-          id,
-          first_name,
-          last_name,
-          avatar_url
-        )
-      `)
-      .single();
+      const { data: comment, error } = await supabase
+        .from('task_comments')
+        .insert({
+          task_id: taskId,
+          user_id: userId,
+          content,
+        })
+        .select(`
+          *,
+          user:profiles!user_id (
+            id,
+            first_name,
+            last_name,
+            avatar_url
+          )
+        `)
+        .single();
 
-    if (error) {
-      logger.logError('Error adding comment', error, { taskId, userId });
-      throw error;
-    }
+      if (error) {
+        throw error;
+      }
 
-    return comment as TaskComment;
-  },
+      return comment as TaskComment;
+    }, 'addComment', { taskId, userId });
+  }
 
   /**
    * Get count of pending tasks for a user
    */
   async getPendingCount(userId: string): Promise<number> {
-    const supabase = await createClient();
+    return this.withErrorHandling(async () => {
+      const supabase = await this.getSupabaseClient();
 
-    const { count, error } = await supabase
-      .from('tasks')
-      .select('*', { count: 'exact', head: true })
-      .eq('assigned_to', userId)
-      .in('status', ['pending', 'in_progress'])
-      .is('deleted_at', null);
+      const { count, error } = await supabase
+        .from('tasks')
+        .select('*', { count: 'exact', head: true })
+        .eq('assigned_to', userId)
+        .in('status', ['pending', 'in_progress'])
+        .is('deleted_at', null);
 
-    if (error) {
-      logger.logError('Error fetching pending count', error, { userId });
-      return 0;
-    }
+      if (error) {
+        // Return 0 on error instead of throwing (graceful degradation)
+        return 0;
+      }
 
-    return count || 0;
-  },
+      return count || 0;
+    }, 'getPendingCount', { userId });
+  }
 
   /**
    * Get upcoming tasks (due within a week)
@@ -430,5 +383,8 @@ export const tasksService = {
       status: ['pending', 'in_progress'],
       due_before: futureDate.toISOString().split('T')[0],
     });
-  },
-};
+  }
+}
+
+// Export singleton instance
+export const tasksService = new TasksService();

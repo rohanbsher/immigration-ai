@@ -16,7 +16,7 @@ import { createLogger, Logger, type LogContext } from '@/lib/logger';
  *
  *   async getItem(id: string) {
  *     return this.withErrorHandling(async () => {
- *       const supabase = await this.getClient();
+ *       const supabase = await this.getSupabaseClient();
  *       const { data, error } = await supabase.from('items').select().eq('id', id).single();
  *       if (error) throw error;
  *       return data;
@@ -38,7 +38,7 @@ export abstract class BaseService {
    * Get a Supabase client instance.
    * Centralizes client creation for all services.
    */
-  protected async getClient() {
+  protected async getSupabaseClient() {
     return createClient();
   }
 

@@ -598,7 +598,7 @@ describe('Database Services', () => {
           .mockReturnValueOnce(profileQueryBuilder)
           .mockReturnValueOnce(casesQueryBuilder);
 
-        const result = await clientsService.getClient('client-123');
+        const result = await clientsService.getClientById('client-123');
 
         expect(result).not.toBeNull();
         expect(result?.cases_count).toBe(3);
@@ -613,7 +613,7 @@ describe('Database Services', () => {
         });
         mockSupabase.from.mockReturnValue(queryBuilder);
 
-        const result = await clientsService.getClient('non-existent');
+        const result = await clientsService.getClientById('non-existent');
 
         expect(result).toBeNull();
       });

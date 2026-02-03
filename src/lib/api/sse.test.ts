@@ -326,5 +326,39 @@ describe('SSE Utilities', () => {
       expect(clearIntervalSpy).toHaveBeenCalled();
       clearIntervalSpy.mockRestore();
     });
+
+    it('should clean up keepalive timer when reader cancels (client disconnect)', async () => {
+      const clearIntervalSpy = vi.spyOn(global, 'clearInterval');
+
+      let resolveHandler: () => void;
+      const handlerPromise = new Promise<void>(resolve => {
+        resolveHandler = resolve;
+      });
+
+      const response = createSSEStream(
+        async (sse) => {
+          sse.send({ type: 'start' });
+          // Simulate long-running operation
+          await handlerPromise;
+        },
+        { keepaliveIntervalMs: 1000 }
+      );
+
+      expect(response.body).not.toBeNull();
+      const reader = response.body!.getReader();
+
+      // Read initial event
+      await reader.read();
+
+      // Simulate client disconnect by canceling the reader
+      await reader.cancel();
+
+      // Timer should be cleaned up via cancel() handler
+      expect(clearIntervalSpy).toHaveBeenCalled();
+
+      // Clean up: resolve the promise so handler can finish
+      resolveHandler!();
+      clearIntervalSpy.mockRestore();
+    });
   });
 });

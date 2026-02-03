@@ -81,8 +81,24 @@ export function validateStorageUrl(
       return false;
     }
 
-    // 4. No path traversal
-    if (url.pathname.includes('..') || url.pathname.includes('//')) {
+    // 4. IMPROVED: Path traversal check with encoding variants
+    // Check both pathname and raw URL string to catch double-encoding attacks
+    const pathname = url.pathname;
+    const pathnameLower = pathname.toLowerCase();
+    const urlLower = urlString.toLowerCase();
+    if (
+      pathname.includes('..') ||
+      pathname.includes('//') ||
+      pathnameLower.includes('%2e%2e') ||  // Encoded dots
+      pathnameLower.includes('%2f') ||     // Encoded slash
+      pathname.includes('\\') ||           // Backslash separator
+      pathname.includes('%00') ||          // Null byte
+      pathnameLower.includes('%5c') ||     // Encoded backslash
+      urlLower.includes('%252e') ||        // Double-encoded dot
+      urlLower.includes('%252f') ||        // Double-encoded slash
+      urlLower.includes('%255c') ||        // Double-encoded backslash
+      urlLower.includes('%2500')           // Double-encoded null byte
+    ) {
       return false;
     }
 

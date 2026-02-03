@@ -92,6 +92,27 @@ export const SSE_HEADERS = {
 export const DEFAULT_KEEPALIVE_INTERVAL_MS = 20_000;
 
 /**
+ * SSE configuration constants for different deployment environments.
+ *
+ * Keepalive intervals are tuned to stay under platform-specific timeouts:
+ * - Vercel Free: 25s timeout → 15s keepalive (safe margin)
+ * - Vercel Pro: 60s timeout → 45s keepalive (efficient)
+ * - Default: 20s (safe for most proxies)
+ */
+export const SSE_CONFIG = {
+  /** Default keepalive for most environments (nginx default: 60s) */
+  DEFAULT_KEEPALIVE_MS: 20_000,
+  /** Aggressive keepalive for Vercel Free tier (25s function timeout) */
+  VERCEL_FREE_KEEPALIVE_MS: 15_000,
+  /** Relaxed keepalive for Vercel Pro tier (60s function timeout) */
+  VERCEL_PRO_KEEPALIVE_MS: 45_000,
+  /** Keepalive for AWS Lambda (29s default timeout) */
+  AWS_LAMBDA_KEEPALIVE_MS: 20_000,
+  /** Keepalive for Cloudflare Workers (600s timeout) */
+  CLOUDFLARE_KEEPALIVE_MS: 300_000,
+} as const;
+
+/**
  * Create a Server-Sent Events streaming response.
  *
  * The handler is responsible for its own error handling. Any unhandled

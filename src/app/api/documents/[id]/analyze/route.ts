@@ -5,6 +5,7 @@ import { analyzeDocument, type DocumentAnalysisResult } from '@/lib/ai';
 import { aiRateLimiter } from '@/lib/rate-limit';
 import { createLogger } from '@/lib/logger';
 import { validateStorageUrl } from '@/lib/security';
+import { isValidTransition, getValidNextStates, isTerminalState } from '@/lib/documents/state-machine';
 
 const log = createLogger('api:documents-analyze');
 
@@ -56,10 +57,32 @@ export async function POST(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Prevent re-analyzing verified or rejected documents
-    if (document.status === 'verified' || document.status === 'rejected') {
+    // Check if document has expired (either by status or by expiration_date)
+    if (document.status === 'expired') {
       return NextResponse.json(
-        { error: `Cannot re-analyze a ${document.status} document` },
+        { error: 'Document has expired and cannot be analyzed' },
+        { status: 410 } // 410 Gone
+      );
+    }
+
+    if (document.expiration_date && new Date(document.expiration_date) < new Date()) {
+      return NextResponse.json(
+        { error: 'Document has expired and cannot be analyzed' },
+        { status: 410 }
+      );
+    }
+
+    // Validate that analysis is allowed from current state using state machine
+    if (!isValidTransition(document.status, 'processing')) {
+      const validStates = getValidNextStates(document.status);
+      return NextResponse.json(
+        {
+          error: 'Invalid operation',
+          message: `Cannot analyze a document with status '${document.status}'. ` +
+                   (validStates.length > 0
+                     ? `Valid operations would transition to: ${validStates.join(', ')}`
+                     : 'This is a terminal state.'),
+        },
         { status: 400 }
       );
     }

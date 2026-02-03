@@ -10,7 +10,7 @@ import {
   updateMessage,
 } from '@/lib/db/conversations';
 import { createLogger } from '@/lib/logger';
-import { createSSEStream } from '@/lib/api/sse';
+import { createSSEStream, SSE_CONFIG } from '@/lib/api/sse';
 
 const log = createLogger('api:chat');
 
@@ -137,7 +137,7 @@ export async function POST(request: NextRequest): Promise<Response> {
       let fullResponse = '';
 
       try {
-        // Send conversation ID first so client can track it
+        // Send conversation ID immediately (resets timeout)
         sse.send({ type: 'conversation', id: conversation.id });
 
         // Stream AI response
@@ -168,6 +168,10 @@ export async function POST(request: NextRequest): Promise<Response> {
 
         sse.error('Failed to generate response');
       }
+    }, {
+      // Use aggressive keepalive for Vercel free tier (25s timeout)
+      // This ensures at least one keepalive before timeout
+      keepaliveIntervalMs: SSE_CONFIG.VERCEL_FREE_KEEPALIVE_MS,
     });
   } catch (error) {
     log.logError('Error in chat API', error);

@@ -4,6 +4,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { createLogger } from '@/lib/logger';
 import { generateConversationTitle } from '@/lib/ai/chat';
+import { rpcWithFallback } from '@/lib/supabase/rpc-fallback';
 
 const logger = createLogger('db:conversations');
 
@@ -324,6 +325,9 @@ export const conversationsService = {
    *
    * Uses atomic RPC with JSONB merge to prevent race conditions
    * where concurrent updates could overwrite each other's metadata.
+   *
+   * Falls back to manual fetch-then-update if the RPC function
+   * doesn't exist (migration not applied yet).
    */
   async updateMessage(
     messageId: string,
@@ -338,17 +342,51 @@ export const conversationsService = {
 
     const supabase = await createClient();
 
-    // Use RPC for atomic JSONB merge - eliminates race condition
-    const { error } = await supabase.rpc('update_message_with_metadata', {
-      p_message_id: messageId,
-      p_content: updates.content ?? null,
-      p_status: updates.status ?? null,
-    });
+    await rpcWithFallback({
+      supabase,
+      rpcName: 'update_message_with_metadata',
+      rpcParams: {
+        p_message_id: messageId,
+        p_content: updates.content ?? null,
+        p_status: updates.status ?? null,
+      },
+      fallback: async () => {
+        // Fallback: fetch-then-update (original behavior with race condition)
+        // This path is only used when migration 029 hasn't been applied yet
+        const { data: existing, error: fetchError } = await supabase
+          .from('conversation_messages')
+          .select('metadata')
+          .eq('id', messageId)
+          .single();
 
-    if (error) {
-      logger.logError('Failed to update message', error, { messageId });
-      throw new Error(`Failed to update message: ${error.message}`);
-    }
+        if (fetchError) {
+          logger.logError('Failed to fetch message for fallback update', fetchError, { messageId });
+          throw new Error(`Failed to fetch message: ${fetchError.message}`);
+        }
+
+        const updateData: Record<string, unknown> = {};
+        if (updates.content) {
+          updateData.content = updates.content;
+        }
+        if (updates.status) {
+          updateData.metadata = {
+            ...(existing?.metadata ?? {}),
+            status: updates.status,
+          };
+        }
+
+        const { error: updateError } = await supabase
+          .from('conversation_messages')
+          .update(updateData)
+          .eq('id', messageId);
+
+        if (updateError) {
+          logger.logError('Failed to update message (fallback)', updateError, { messageId });
+          throw new Error(`Failed to update message: ${updateError.message}`);
+        }
+      },
+      logContext: { messageId },
+    });
   },
 };
 

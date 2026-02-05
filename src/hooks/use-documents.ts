@@ -159,6 +159,7 @@ export function useUploadDocument() {
     onSuccess: (_, { case_id }) => {
       queryClient.invalidateQueries({ queryKey: ['documents', case_id] });
       queryClient.invalidateQueries({ queryKey: ['case', case_id] });
+      queryClient.invalidateQueries({ queryKey: ['billing-usage'] });
     },
   });
 }
@@ -207,6 +208,7 @@ export function useDeleteDocument() {
     mutationFn: deleteDocument,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['documents'] });
+      queryClient.invalidateQueries({ queryKey: ['billing-usage'] });
     },
   });
 }

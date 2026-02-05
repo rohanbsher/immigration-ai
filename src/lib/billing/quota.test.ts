@@ -1,7 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { checkQuota, enforceQuota, QuotaExceededError } from './quota';
+import {
+  checkQuota,
+  enforceQuota,
+  enforceQuotaForCase,
+  QuotaExceededError,
+  POSTGREST_NO_ROWS,
+} from './quota';
 import { createClient } from '@/lib/supabase/server';
 import { getUserPlanLimits } from '@/lib/db/subscriptions';
+import { createMockPlanLimits } from '@/test-utils/factories';
 
 // Mock dependencies
 vi.mock('@/lib/supabase/server', () => ({
@@ -12,12 +19,16 @@ vi.mock('@/lib/db/subscriptions', () => ({
   getUserPlanLimits: vi.fn(),
 }));
 
-/**
- * Quota Tests
- *
- * These tests verify the actual checkQuota() function logic,
- * including limit enforcement across different plans and metrics.
- */
+vi.mock('@/lib/logger', () => ({
+  createLogger: vi.fn().mockReturnValue({
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    logError: vi.fn(),
+  }),
+}));
+
 describe('checkQuota', () => {
   let mockSupabase: {
     from: ReturnType<typeof vi.fn>;
@@ -27,34 +38,18 @@ describe('checkQuota', () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    // Set up mock Supabase client
     mockSupabase = {
       from: vi.fn(),
       rpc: vi.fn(),
     };
 
-    vi.mocked(createClient).mockResolvedValue(mockSupabase as any);
+    vi.mocked(createClient).mockResolvedValue(mockSupabase as never);
   });
 
   describe('cases quota', () => {
     it('returns allowed=true when under limit', async () => {
-      // Free plan: 5 cases max, user has 3
-      vi.mocked(getUserPlanLimits).mockResolvedValue({
-        planType: 'free',
-        maxCases: 5,
-        maxDocumentsPerCase: 100,
-        maxAiRequestsPerMonth: 50,
-        maxStorageGb: 5,
-        maxTeamMembers: 2,
-        features: {
-          documentAnalysis: true,
-          formAutofill: false,
-          prioritySupport: false,
-          apiAccess: false,
-        },
-      });
+      vi.mocked(getUserPlanLimits).mockResolvedValue(createMockPlanLimits('free'));
 
-      // Mock current usage: 3 cases
       mockSupabase.from.mockReturnValue({
         select: vi.fn().mockReturnValue({
           eq: vi.fn().mockReturnValue({
@@ -76,23 +71,8 @@ describe('checkQuota', () => {
     });
 
     it('returns allowed=false when at limit', async () => {
-      // Free plan: 5 cases max, user has 5
-      vi.mocked(getUserPlanLimits).mockResolvedValue({
-        planType: 'free',
-        maxCases: 5,
-        maxDocumentsPerCase: 100,
-        maxAiRequestsPerMonth: 50,
-        maxStorageGb: 5,
-        maxTeamMembers: 2,
-        features: {
-          documentAnalysis: true,
-          formAutofill: false,
-          prioritySupport: false,
-          apiAccess: false,
-        },
-      });
+      vi.mocked(getUserPlanLimits).mockResolvedValue(createMockPlanLimits('free'));
 
-      // Mock current usage: 5 cases
       mockSupabase.from.mockReturnValue({
         select: vi.fn().mockReturnValue({
           eq: vi.fn().mockReturnValue({
@@ -114,21 +94,7 @@ describe('checkQuota', () => {
     });
 
     it('returns allowed=false when over limit', async () => {
-      // Free plan: 5 cases max, user has 6 (shouldn't happen, but edge case)
-      vi.mocked(getUserPlanLimits).mockResolvedValue({
-        planType: 'free',
-        maxCases: 5,
-        maxDocumentsPerCase: 100,
-        maxAiRequestsPerMonth: 50,
-        maxStorageGb: 5,
-        maxTeamMembers: 2,
-        features: {
-          documentAnalysis: true,
-          formAutofill: false,
-          prioritySupport: false,
-          apiAccess: false,
-        },
-      });
+      vi.mocked(getUserPlanLimits).mockResolvedValue(createMockPlanLimits('free'));
 
       mockSupabase.from.mockReturnValue({
         select: vi.fn().mockReturnValue({
@@ -148,22 +114,126 @@ describe('checkQuota', () => {
     });
   });
 
+  describe('documents quota (per-case semantics)', () => {
+    it('returns max documents in any single case', async () => {
+      vi.mocked(getUserPlanLimits).mockResolvedValue(createMockPlanLimits('free'));
+
+      const mockCases = [{ id: 'case-1' }, { id: 'case-2' }];
+      const mockDocs = [
+        { case_id: 'case-1' },
+        { case_id: 'case-1' },
+        { case_id: 'case-1' },
+        { case_id: 'case-2' },
+        { case_id: 'case-2' },
+        { case_id: 'case-2' },
+        { case_id: 'case-2' },
+        { case_id: 'case-2' },
+        { case_id: 'case-2' },
+        { case_id: 'case-2' },
+      ];
+
+      mockSupabase.from.mockImplementation((table: string) => {
+        if (table === 'cases') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                is: vi.fn().mockResolvedValue({
+                  data: mockCases,
+                  error: null,
+                }),
+              }),
+            }),
+          };
+        }
+        if (table === 'documents') {
+          return {
+            select: vi.fn().mockReturnValue({
+              in: vi.fn().mockReturnValue({
+                is: vi.fn().mockResolvedValue({
+                  data: mockDocs,
+                  error: null,
+                }),
+              }),
+            }),
+          };
+        }
+        return { select: vi.fn() };
+      });
+
+      const result = await checkQuota('user-123', 'documents');
+
+      expect(result.current).toBe(7);
+      expect(result.limit).toBe(10);
+      expect(result.allowed).toBe(true);
+      expect(result.remaining).toBe(3);
+    });
+
+    it('returns 0 when user has no cases', async () => {
+      vi.mocked(getUserPlanLimits).mockResolvedValue(createMockPlanLimits('free'));
+
+      mockSupabase.from.mockImplementation((table: string) => {
+        if (table === 'cases') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                is: vi.fn().mockResolvedValue({
+                  data: [],
+                  error: null,
+                }),
+              }),
+            }),
+          };
+        }
+        return { select: vi.fn() };
+      });
+
+      const result = await checkQuota('user-123', 'documents');
+
+      expect(result.current).toBe(0);
+      expect(result.allowed).toBe(true);
+    });
+
+    it('returns 0 when cases have no documents', async () => {
+      vi.mocked(getUserPlanLimits).mockResolvedValue(createMockPlanLimits('free'));
+
+      mockSupabase.from.mockImplementation((table: string) => {
+        if (table === 'cases') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                is: vi.fn().mockResolvedValue({
+                  data: [{ id: 'case-1' }],
+                  error: null,
+                }),
+              }),
+            }),
+          };
+        }
+        if (table === 'documents') {
+          return {
+            select: vi.fn().mockReturnValue({
+              in: vi.fn().mockReturnValue({
+                is: vi.fn().mockResolvedValue({
+                  data: [],
+                  error: null,
+                }),
+              }),
+            }),
+          };
+        }
+        return { select: vi.fn() };
+      });
+
+      const result = await checkQuota('user-123', 'documents');
+
+      expect(result.current).toBe(0);
+      expect(result.allowed).toBe(true);
+    });
+  });
+
   describe('plan-specific limits', () => {
     it('applies correct limits for pro plan', async () => {
-      vi.mocked(getUserPlanLimits).mockResolvedValue({
-        planType: 'pro',
-        maxCases: 50,
-        maxDocumentsPerCase: 1000,
-        maxAiRequestsPerMonth: 500,
-        maxStorageGb: 50,
-        maxTeamMembers: 10,
-        features: {
-          documentAnalysis: true,
-          formAutofill: true,
-          prioritySupport: true,
-          apiAccess: true,
-        },
-      });
+      vi.mocked(getUserPlanLimits).mockResolvedValue(createMockPlanLimits('pro'));
 
       mockSupabase.from.mockReturnValue({
         select: vi.fn().mockReturnValue({
@@ -184,20 +254,9 @@ describe('checkQuota', () => {
     });
 
     it('applies correct limits for enterprise plan', async () => {
-      vi.mocked(getUserPlanLimits).mockResolvedValue({
-        planType: 'enterprise',
-        maxCases: 1000,
-        maxDocumentsPerCase: 10000,
-        maxAiRequestsPerMonth: 5000,
-        maxStorageGb: 500,
-        maxTeamMembers: 100,
-        features: {
-          documentAnalysis: true,
-          formAutofill: true,
-          prioritySupport: true,
-          apiAccess: true,
-        },
-      });
+      vi.mocked(getUserPlanLimits).mockResolvedValue(
+        createMockPlanLimits('enterprise', { maxCases: 1000 })
+      );
 
       mockSupabase.from.mockReturnValue({
         select: vi.fn().mockReturnValue({
@@ -220,20 +279,7 @@ describe('checkQuota', () => {
 
   describe('unlimited plans', () => {
     it('returns isUnlimited=true for unlimited limits', async () => {
-      vi.mocked(getUserPlanLimits).mockResolvedValue({
-        planType: 'enterprise',
-        maxCases: -1, // -1 indicates unlimited
-        maxDocumentsPerCase: -1,
-        maxAiRequestsPerMonth: -1,
-        maxStorageGb: -1,
-        maxTeamMembers: -1,
-        features: {
-          documentAnalysis: true,
-          formAutofill: true,
-          prioritySupport: true,
-          apiAccess: true,
-        },
-      });
+      vi.mocked(getUserPlanLimits).mockResolvedValue(createMockPlanLimits('enterprise'));
 
       const result = await checkQuota('user-123', 'cases');
 
@@ -246,20 +292,7 @@ describe('checkQuota', () => {
 
   describe('required amount', () => {
     it('checks against required amount when specified', async () => {
-      vi.mocked(getUserPlanLimits).mockResolvedValue({
-        planType: 'free',
-        maxCases: 5,
-        maxDocumentsPerCase: 100,
-        maxAiRequestsPerMonth: 50,
-        maxStorageGb: 5,
-        maxTeamMembers: 2,
-        features: {
-          documentAnalysis: true,
-          formAutofill: false,
-          prioritySupport: false,
-          apiAccess: false,
-        },
-      });
+      vi.mocked(getUserPlanLimits).mockResolvedValue(createMockPlanLimits('free'));
 
       mockSupabase.from.mockReturnValue({
         select: vi.fn().mockReturnValue({
@@ -272,7 +305,6 @@ describe('checkQuota', () => {
         }),
       });
 
-      // User has 4 cases, limit is 5, trying to add 2 more
       const result = await checkQuota('user-123', 'cases', 2);
 
       expect(result.allowed).toBe(false);
@@ -281,20 +313,7 @@ describe('checkQuota', () => {
     });
 
     it('allows when required amount fits within remaining', async () => {
-      vi.mocked(getUserPlanLimits).mockResolvedValue({
-        planType: 'free',
-        maxCases: 5,
-        maxDocumentsPerCase: 100,
-        maxAiRequestsPerMonth: 50,
-        maxStorageGb: 5,
-        maxTeamMembers: 2,
-        features: {
-          documentAnalysis: true,
-          formAutofill: false,
-          prioritySupport: false,
-          apiAccess: false,
-        },
-      });
+      vi.mocked(getUserPlanLimits).mockResolvedValue(createMockPlanLimits('free'));
 
       mockSupabase.from.mockReturnValue({
         select: vi.fn().mockReturnValue({
@@ -307,7 +326,6 @@ describe('checkQuota', () => {
         }),
       });
 
-      // User has 3 cases, limit is 5, trying to add 2 more
       const result = await checkQuota('user-123', 'cases', 2);
 
       expect(result.allowed).toBe(true);
@@ -332,24 +350,11 @@ describe('enforceQuota', () => {
       }),
     };
 
-    vi.mocked(createClient).mockResolvedValue(mockSupabase as any);
+    vi.mocked(createClient).mockResolvedValue(mockSupabase as never);
   });
 
   it('throws QuotaExceededError when quota exceeded', async () => {
-    vi.mocked(getUserPlanLimits).mockResolvedValue({
-      planType: 'free',
-      maxCases: 5,
-      maxDocumentsPerCase: 100,
-      maxAiRequestsPerMonth: 50,
-      maxStorageGb: 5,
-      maxTeamMembers: 2,
-      features: {
-        documentAnalysis: true,
-        formAutofill: false,
-        prioritySupport: false,
-        apiAccess: false,
-      },
-    });
+    vi.mocked(getUserPlanLimits).mockResolvedValue(createMockPlanLimits('free'));
 
     await expect(enforceQuota('user-123', 'cases')).rejects.toThrow(QuotaExceededError);
     await expect(enforceQuota('user-123', 'cases')).rejects.toMatchObject({
@@ -360,20 +365,7 @@ describe('enforceQuota', () => {
   });
 
   it('does not throw when under quota', async () => {
-    vi.mocked(getUserPlanLimits).mockResolvedValue({
-      planType: 'pro',
-      maxCases: 50,
-      maxDocumentsPerCase: 1000,
-      maxAiRequestsPerMonth: 500,
-      maxStorageGb: 50,
-      maxTeamMembers: 10,
-      features: {
-        documentAnalysis: true,
-        formAutofill: true,
-        prioritySupport: true,
-        apiAccess: true,
-      },
-    });
+    vi.mocked(getUserPlanLimits).mockResolvedValue(createMockPlanLimits('pro'));
 
     await expect(enforceQuota('user-123', 'cases')).resolves.not.toThrow();
   });
@@ -394,5 +386,372 @@ describe('QuotaExceededError', () => {
   it('is instanceof Error', () => {
     const error = new QuotaExceededError('documents', 100, 100);
     expect(error).toBeInstanceOf(Error);
+  });
+});
+
+describe('enforceQuotaForCase', () => {
+  let mockSupabase: {
+    from: ReturnType<typeof vi.fn>;
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+
+    mockSupabase = {
+      from: vi.fn(),
+    };
+
+    vi.mocked(createClient).mockResolvedValue(mockSupabase as never);
+  });
+
+  it('throws QuotaExceededError when case document limit exceeded', async () => {
+    mockSupabase.from.mockImplementation((table: string) => {
+      if (table === 'cases') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: { attorney_id: 'user-123' },
+                error: null,
+              }),
+            }),
+          }),
+        };
+      }
+      if (table === 'documents') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              is: vi.fn().mockResolvedValue({
+                count: 10,
+                error: null,
+              }),
+            }),
+          }),
+        };
+      }
+      return { select: vi.fn() };
+    });
+
+    vi.mocked(getUserPlanLimits).mockResolvedValue(createMockPlanLimits('free'));
+
+    await expect(enforceQuotaForCase('case-1', 'documents')).rejects.toThrow(QuotaExceededError);
+    await expect(enforceQuotaForCase('case-1', 'documents')).rejects.toMatchObject({
+      metric: 'documents',
+      limit: 10,
+      current: 10,
+    });
+  });
+
+  it('does not throw when under case document limit', async () => {
+    mockSupabase.from.mockImplementation((table: string) => {
+      if (table === 'cases') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: { attorney_id: 'user-123' },
+                error: null,
+              }),
+            }),
+          }),
+        };
+      }
+      if (table === 'documents') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              is: vi.fn().mockResolvedValue({
+                count: 5,
+                error: null,
+              }),
+            }),
+          }),
+        };
+      }
+      return { select: vi.fn() };
+    });
+
+    vi.mocked(getUserPlanLimits).mockResolvedValue(createMockPlanLimits('free'));
+
+    await expect(enforceQuotaForCase('case-1', 'documents')).resolves.not.toThrow();
+  });
+
+  it('does not throw when plan has unlimited documents', async () => {
+    mockSupabase.from.mockImplementation((table: string) => {
+      if (table === 'cases') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: { attorney_id: 'user-123' },
+                error: null,
+              }),
+            }),
+          }),
+        };
+      }
+      return { select: vi.fn() };
+    });
+
+    vi.mocked(getUserPlanLimits).mockResolvedValue(createMockPlanLimits('enterprise'));
+
+    await expect(enforceQuotaForCase('case-1', 'documents')).resolves.not.toThrow();
+  });
+
+  it('throws Error when case not found', async () => {
+    mockSupabase.from.mockImplementation((table: string) => {
+      if (table === 'cases') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: null,
+                error: { code: POSTGREST_NO_ROWS, message: 'Not found' },
+              }),
+            }),
+          }),
+        };
+      }
+      return { select: vi.fn() };
+    });
+
+    await expect(enforceQuotaForCase('case-nonexistent', 'documents')).rejects.toThrow('Case not found');
+  });
+
+  it('throws with error message when case query fails', async () => {
+    mockSupabase.from.mockImplementation((table: string) => {
+      if (table === 'cases') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: null,
+                error: { code: 'SOME_ERROR', message: 'Connection failed' },
+              }),
+            }),
+          }),
+        };
+      }
+      return { select: vi.fn() };
+    });
+
+    await expect(enforceQuotaForCase('case-1', 'documents')).rejects.toThrow('Failed to get case: Connection failed');
+  });
+
+  it('skips case lookup when attorneyId is provided', async () => {
+    let casesTableQueried = false;
+
+    mockSupabase.from.mockImplementation((table: string) => {
+      if (table === 'cases') {
+        casesTableQueried = true;
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: null,
+                error: { message: 'Should not be called' },
+              }),
+            }),
+          }),
+        };
+      }
+      if (table === 'documents') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              is: vi.fn().mockResolvedValue({
+                count: 5,
+                error: null,
+              }),
+            }),
+          }),
+        };
+      }
+      return { select: vi.fn() };
+    });
+
+    vi.mocked(getUserPlanLimits).mockResolvedValue(createMockPlanLimits('free'));
+
+    await expect(enforceQuotaForCase('case-1', 'documents', 'user-123')).resolves.not.toThrow();
+    expect(casesTableQueried).toBe(false);
+  });
+});
+
+describe('getCurrentUsage error handling', () => {
+  let mockSupabase: {
+    from: ReturnType<typeof vi.fn>;
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+
+    mockSupabase = {
+      from: vi.fn(),
+    };
+
+    vi.mocked(createClient).mockResolvedValue(mockSupabase as never);
+  });
+
+  it('throws when cases query fails in documents metric', async () => {
+    vi.mocked(getUserPlanLimits).mockResolvedValue(createMockPlanLimits('free'));
+
+    mockSupabase.from.mockImplementation((table: string) => {
+      if (table === 'cases') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              is: vi.fn().mockResolvedValue({
+                data: null,
+                error: { message: 'Connection failed' },
+              }),
+            }),
+          }),
+        };
+      }
+      return { select: vi.fn() };
+    });
+
+    await expect(checkQuota('user-123', 'documents')).rejects.toThrow(
+      'Failed to get user cases: Connection failed'
+    );
+  });
+
+  it('throws when documents query fails in documents metric', async () => {
+    vi.mocked(getUserPlanLimits).mockResolvedValue(createMockPlanLimits('free'));
+
+    mockSupabase.from.mockImplementation((table: string) => {
+      if (table === 'cases') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              is: vi.fn().mockResolvedValue({
+                data: [{ id: 'case-1' }],
+                error: null,
+              }),
+            }),
+          }),
+        };
+      }
+      if (table === 'documents') {
+        return {
+          select: vi.fn().mockReturnValue({
+            in: vi.fn().mockReturnValue({
+              is: vi.fn().mockResolvedValue({
+                data: null,
+                error: { message: 'Query timeout' },
+              }),
+            }),
+          }),
+        };
+      }
+      return { select: vi.fn() };
+    });
+
+    await expect(checkQuota('user-123', 'documents')).rejects.toThrow(
+      'Failed to get document counts: Query timeout'
+    );
+  });
+
+  it('throws when cases count query fails', async () => {
+    vi.mocked(getUserPlanLimits).mockResolvedValue(createMockPlanLimits('free'));
+
+    mockSupabase.from.mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          is: vi.fn().mockResolvedValue({
+            count: null,
+            error: { message: 'Database error' },
+          }),
+        }),
+      }),
+    });
+
+    await expect(checkQuota('user-123', 'cases')).rejects.toThrow(
+      'Failed to get case count: Database error'
+    );
+  });
+
+  it('throws when storage query fails', async () => {
+    vi.mocked(getUserPlanLimits).mockResolvedValue(createMockPlanLimits('free'));
+
+    mockSupabase.from.mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockResolvedValue({
+          data: null,
+          error: { message: 'Storage query failed' },
+        }),
+      }),
+    });
+
+    await expect(checkQuota('user-123', 'storage')).rejects.toThrow(
+      'Failed to get storage usage: Storage query failed'
+    );
+  });
+
+  it('throws when team_members query fails', async () => {
+    vi.mocked(getUserPlanLimits).mockResolvedValue(createMockPlanLimits('free'));
+
+    mockSupabase.from.mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockResolvedValue({
+          count: null,
+          error: { message: 'Team query failed' },
+        }),
+      }),
+    });
+
+    await expect(checkQuota('user-123', 'team_members')).rejects.toThrow(
+      'Failed to get team member count: Team query failed'
+    );
+  });
+
+  it('throws when ai_requests subscription query fails (non-PGRST116)', async () => {
+    vi.mocked(getUserPlanLimits).mockResolvedValue(createMockPlanLimits('pro'));
+
+    mockSupabase.from.mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          in: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({
+              data: null,
+              error: { code: 'OTHER_ERROR', message: 'Connection lost' },
+            }),
+          }),
+        }),
+      }),
+    });
+
+    await expect(checkQuota('user-123', 'ai_requests')).rejects.toThrow(
+      'Failed to get subscription: Connection lost'
+    );
+  });
+
+  it('does NOT throw when subscription not found (PGRST116)', async () => {
+    vi.mocked(getUserPlanLimits).mockResolvedValue(createMockPlanLimits('free'));
+
+    mockSupabase.from.mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          in: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({
+              data: null,
+              error: { code: POSTGREST_NO_ROWS, message: 'No rows found' },
+            }),
+          }),
+        }),
+      }),
+    });
+
+    const result = await checkQuota('user-123', 'ai_requests');
+
+    expect(result.current).toBe(0);
+    expect(result.allowed).toBe(true);
+  });
+});
+
+describe('POSTGREST_NO_ROWS constant', () => {
+  it('is exported and has correct value', () => {
+    expect(POSTGREST_NO_ROWS).toBe('PGRST116');
   });
 });

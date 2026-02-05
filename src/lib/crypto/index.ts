@@ -12,6 +12,7 @@
 
 import { randomBytes, createCipheriv, createDecipheriv } from 'crypto';
 import { createLogger } from '@/lib/logger';
+import { serverEnv, features } from '@/lib/config';
 
 const log = createLogger('crypto');
 
@@ -31,11 +32,10 @@ let devKeyWarningShown = false;
  * In development mode, falls back to a deterministic key with a warning.
  */
 function getEncryptionKey(): Buffer {
-  let keyHex = process.env.ENCRYPTION_KEY;
-  const isDevelopment = process.env.NODE_ENV === 'development';
+  let keyHex = serverEnv.ENCRYPTION_KEY;
 
   if (!keyHex) {
-    if (isDevelopment) {
+    if (features.isDevelopment) {
       if (!devKeyWarningShown) {
         log.warn(
           'ENCRYPTION_KEY not set. Using development fallback key. ' +

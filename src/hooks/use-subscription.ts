@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { PlanType, BillingPeriod, PlanLimits } from '@/lib/db/subscriptions';
+import type { UsageData } from '@/types/billing';
 import { fetchWithTimeout } from '@/lib/api/fetch-with-timeout';
 
 interface Subscription {
@@ -209,4 +210,24 @@ export function useQuotaCheck(metric: 'maxCases' | 'maxDocumentsPerCase' | 'maxA
     isUnlimited: limit === -1,
     isLoading: false,
   };
+}
+
+async function fetchUsage(): Promise<UsageData> {
+  const response = await fetchWithTimeout('/api/billing/usage');
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch usage data');
+  }
+
+  const data = await response.json();
+  return data.data;
+}
+
+export function useUsage() {
+  return useQuery({
+    queryKey: ['billing-usage'],
+    queryFn: fetchUsage,
+    staleTime: 1000 * 60 * 2, // 2 minutes
+    refetchOnWindowFocus: true,
+  });
 }

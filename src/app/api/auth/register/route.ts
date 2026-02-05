@@ -65,8 +65,9 @@ export async function POST(request: NextRequest) {
         data.user.id,
         validatedData.email,
         validatedData.firstName
-      ).catch((err) => {
-        log.logError('Failed to send welcome email', err);
+      ).catch((err: unknown) => {
+        const message = err instanceof Error ? err.message : 'Unknown error';
+        log.logError('Failed to send welcome email', { error: message });
       });
     }
 

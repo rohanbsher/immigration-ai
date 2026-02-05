@@ -1,5 +1,4 @@
 import { test, expect } from '@playwright/test';
-import { generateTestEmail } from './fixtures/test-helpers';
 
 test.describe('Authentication Flows', () => {
   test.describe('Landing Page', () => {

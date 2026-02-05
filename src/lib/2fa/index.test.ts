@@ -342,7 +342,8 @@ describe('Backup Codes Module', () => {
       const codes = generateBackupCodes();
 
       codes.forEach((code) => {
-        expect(code).toMatch(/^[A-F0-9]{8}$/);
+        // 32-char codes provide 128 bits of entropy (NIST SP 800-63B compliant)
+        expect(code).toMatch(/^[A-F0-9]{32}$/);
       });
     });
 
@@ -469,22 +470,28 @@ describe('Backup Codes Module', () => {
   });
 
   describe('formatBackupCode', () => {
-    it('should format code with a dash in the middle', () => {
+    it('should format 8-char code with dashes every 4 characters', () => {
       const formatted = formatBackupCode('ABCD1234');
 
       expect(formatted).toBe('ABCD-1234');
     });
 
-    it('should handle shorter codes', () => {
-      const formatted = formatBackupCode('ABCD');
+    it('should handle shorter codes (less than 4 chars)', () => {
+      const formatted = formatBackupCode('ABC');
 
-      expect(formatted).toBe('ABCD-');
+      expect(formatted).toBe('ABC');
     });
 
-    it('should handle longer codes', () => {
+    it('should format 32-char codes into 8 groups of 4', () => {
+      const formatted = formatBackupCode('A1B2C3D4E5F6G7H8I9J0K1L2M3N4O5P6');
+
+      expect(formatted).toBe('A1B2-C3D4-E5F6-G7H8-I9J0-K1L2-M3N4-O5P6');
+    });
+
+    it('should handle 12-char codes', () => {
       const formatted = formatBackupCode('ABCD12345678');
 
-      expect(formatted).toBe('ABCD-12345678');
+      expect(formatted).toBe('ABCD-1234-5678');
     });
   });
 

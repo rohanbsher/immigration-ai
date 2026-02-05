@@ -1,3 +1,22 @@
+/**
+ * @deprecated This file is DEPRECATED. Use factories.ts instead.
+ *
+ * WARNING: This file contains HARDCODED credentials (test@example.com,
+ * attorney@example.com) that will be used as fallbacks if environment
+ * variables are not set. This is dangerous for security and may cause
+ * tests to pass against wrong accounts.
+ *
+ * Migration path:
+ * - Replace: import { ... } from './test-helpers'
+ * - With:    import { ... } from './factories'
+ * - Replace: TEST_ATTORNEY → TEST_USERS.attorney (same role)
+ * - Replace: TEST_USER → No direct equivalent; use TEST_USERS.attorney or .client
+ *   depending on what role the test actually needs
+ * - Replace: loginAs(page, email, pass) → AuthHelpers.loginAs(page, 'attorney')
+ *
+ * This file will be removed in a future PR after all tests are migrated.
+ */
+
 import { test as base, expect, Page } from '@playwright/test';
 
 // Test user credentials (should match test database fixtures)

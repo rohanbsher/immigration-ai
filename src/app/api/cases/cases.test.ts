@@ -263,6 +263,7 @@ vi.mock('@/lib/logger', () => ({
 // Mock billing quota enforcement
 vi.mock('@/lib/billing/quota', () => ({
   enforceQuota: vi.fn().mockResolvedValue(undefined),
+  enforceQuotaForCase: vi.fn().mockResolvedValue(undefined),
   QuotaExceededError: class QuotaExceededError extends Error {
     constructor(message: string) {
       super(message);

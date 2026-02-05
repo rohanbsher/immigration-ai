@@ -112,11 +112,12 @@ async function generateRecommendations(
     .eq('case_id', caseId)
     .is('deleted_at', null);
 
-  // Fetch forms
+  // Fetch forms (excluding soft-deleted)
   const { data: forms } = await supabase
     .from('forms')
     .select('form_type')
-    .eq('case_id', caseId);
+    .eq('case_id', caseId)
+    .is('deleted_at', null);
 
   // Call AI to suggest next steps
   const aiResult = await suggestNextSteps({

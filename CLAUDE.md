@@ -44,6 +44,10 @@ supabase/
 └── migrations/            # SQL migration files
 ```
 
+### Test Infrastructure
+- `src/__mocks__/` - Module mocks for `vi.mock()` (Vitest auto-discovery)
+- `src/test-utils/` - Test factories and render utilities (explicit imports)
+
 ## Architecture Patterns
 
 ### App Router Conventions
@@ -115,6 +119,11 @@ Components install to `components/ui/`
 - All document access requires RLS check
 - PII handling must follow HIPAA-adjacent practices
 - Audit log all document views/downloads
+
+### Backup Codes (2FA)
+- **Current:** 32 hex chars (128 bits, NIST compliant)
+- **Legacy:** 8 hex chars (32 bits) still work via hash verification
+- **Location:** `src/lib/2fa/backup-codes.ts`
 
 ## Verification Loop
 
@@ -192,6 +201,7 @@ See `.claude/agents/TODO.md` for detailed task breakdown.
 
 | Service | Location | Purpose |
 |---------|----------|---------|
+| Test Utils | `/src/test-utils/` | Mock factories & test helpers |
 | File Validation | `/src/lib/file-validation/` | Magic bytes + virus scanning |
 | Form Validation | `/src/lib/form-validation/` | AI confidence thresholds |
 | Rate Limiting | `/src/lib/rate-limit/` | Fail-closed in production |
@@ -214,3 +224,21 @@ See `.claude/agents/TODO.md` for detailed task breakdown.
 |------|----------|---------|
 | `useRoleGuard` | `/src/hooks/use-role-guard.ts` | Page-level role protection |
 | `useCanPerform` | `/src/hooks/use-role-guard.ts` | Permission checking without redirect |
+
+---
+
+## Billing Limits - Sources of Truth
+
+Limits are defined in THREE places that MUST stay synchronized:
+
+1. `src/lib/billing/limits.ts` - Frontend display
+2. `supabase/migrations/003_billing.sql` - plan_limits table seed
+3. Database triggers (migrations 027, 032) - Enforcement
+
+| Plan | maxCases | maxDocumentsPerCase | maxAiRequests | maxStorage | maxTeamMembers |
+|------|----------|---------------------|---------------|------------|----------------|
+| Free | 5 | 10 | 25 | 1 GB | 1 |
+| Pro | 50 | 50 | 500 | 25 GB | 5 |
+| Enterprise | ∞ | ∞ | ∞ | 500 GB | ∞ |
+
+**Note:** Documents quota is enforced per-case (not aggregate). The UsageMeter UI shows Cases, AI Requests, and Team Members only.

@@ -13,6 +13,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Redis } from '@upstash/redis';
 import { Ratelimit } from '@upstash/ratelimit';
 import { createLogger } from '@/lib/logger';
+import { serverEnv, features } from '@/lib/config';
 
 const log = createLogger('rate-limit');
 
@@ -34,14 +35,12 @@ interface RateLimitResult {
   retryAfterMs?: number;
 }
 
-// Check if Upstash Redis is configured
-const isUpstashConfigured = !!(
-  process.env.UPSTASH_REDIS_REST_URL &&
-  process.env.UPSTASH_REDIS_REST_TOKEN
-);
+// Check if Upstash Redis is configured (using feature flag)
+const isUpstashConfigured = features.redisRateLimiting;
 
 // CRITICAL: Validate Redis configuration at startup for production
-const isProduction = process.env.NODE_ENV === 'production';
+const isProduction = features.isProduction;
+// Keep process.env for override flag (not in schema - intentionally not validated)
 const ALLOW_IN_MEMORY_FALLBACK = process.env.ALLOW_IN_MEMORY_RATE_LIMIT === 'true';
 
 if (isProduction && !isUpstashConfigured && !ALLOW_IN_MEMORY_FALLBACK) {
@@ -63,8 +62,8 @@ let hasWarnedAboutMissingRedis = false;
 let redis: Redis | null = null;
 if (isUpstashConfigured) {
   redis = new Redis({
-    url: process.env.UPSTASH_REDIS_REST_URL!,
-    token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+    url: serverEnv.UPSTASH_REDIS_REST_URL!,
+    token: serverEnv.UPSTASH_REDIS_REST_TOKEN!,
   });
 }
 

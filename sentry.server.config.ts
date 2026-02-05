@@ -63,6 +63,82 @@ if (SENTRY_DSN) {
   });
 }
 
+// =============================================================================
+// Global Error Handlers
+// =============================================================================
+// NOTE: These handlers use console.error instead of the structured logger
+// intentionally. This file loads early in the application lifecycle, potentially
+// before the logger module is fully initialized. Using console.error ensures
+// these critical errors are always captured regardless of initialization order.
+
+/**
+ * Global handler for unhandled promise rejections.
+ * These are silent by default in production and can indicate serious bugs.
+ */
+process.on('unhandledRejection', (reason, promise) => {
+  const error = reason instanceof Error ? reason : new Error(String(reason));
+
+  // Log the error
+  console.error('[CRITICAL] Unhandled Promise Rejection:', {
+    message: error.message,
+    stack: error.stack,
+    timestamp: new Date().toISOString(),
+  });
+
+  // Send to Sentry if configured
+  if (SENTRY_DSN) {
+    Sentry.captureException(error, {
+      tags: {
+        type: 'unhandled_rejection',
+        critical: 'true',
+      },
+      extra: {
+        promise: String(promise),
+      },
+    });
+  }
+});
+
+/**
+ * Global handler for uncaught exceptions.
+ * These indicate serious bugs that should be investigated immediately.
+ */
+process.on('uncaughtException', (error, origin) => {
+  // Log the error
+  console.error('[CRITICAL] Uncaught Exception:', {
+    message: error.message,
+    stack: error.stack,
+    origin,
+    timestamp: new Date().toISOString(),
+  });
+
+  // Helper function to exit in production
+  const exitInProduction = () => {
+    // In production, we should exit after an uncaught exception
+    // as the process may be in an undefined state
+    if (process.env.NODE_ENV === 'production') {
+      process.exit(1);
+    }
+  };
+
+  // Send to Sentry if configured
+  if (SENTRY_DSN) {
+    Sentry.captureException(error, {
+      tags: {
+        type: 'uncaught_exception',
+        critical: 'true',
+        origin,
+      },
+    });
+
+    // Flush Sentry events before potentially crashing
+    Sentry.flush(2000).finally(exitInProduction);
+  } else {
+    // Even without Sentry, we must exit in production
+    exitInProduction();
+  }
+});
+
 /**
  * Sanitize error messages by removing potential secrets.
  */

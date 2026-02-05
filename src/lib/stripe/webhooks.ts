@@ -7,6 +7,53 @@ import type Stripe from 'stripe';
 
 const log = createLogger('stripe:webhooks');
 
+/**
+ * Extended invoice interface for properties that may vary between Stripe API versions.
+ * Uses Omit to remove and redefine properties with broader types.
+ *
+ * Note: In webhook events, `subscription` is typically a string ID. However, we
+ * handle both string and object cases defensively to support:
+ * - Future API version changes
+ * - Explicit expand[] requests
+ * - Test fixtures with expanded objects
+ */
+type ExtendedStripeInvoice = Omit<Stripe.Invoice, 'subscription' | 'payment_intent'> & {
+  subscription?: string | Stripe.Subscription | null;
+  payment_intent?: string | Stripe.PaymentIntent | null;
+};
+
+/**
+ * Extended subscription interface for type-safe access to current_period_end.
+ *
+ * While Stripe.Subscription includes current_period_end, TypeScript's strict null
+ * checking can cause issues when the property is accessed after a type cast.
+ * This interface explicitly marks the property as optional to silence type errors
+ * when accessing it on a cast object, while maintaining runtime safety through
+ * the existing null checks in the code.
+ */
+interface ExtendedStripeSubscription extends Stripe.Subscription {
+  current_period_end?: number;
+}
+
+/**
+ * Looks up database subscription ID from Stripe subscription ID.
+ * Returns null if not found or not provided.
+ */
+async function lookupDbSubscriptionId(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  stripeSubscriptionId: string | null | undefined
+): Promise<string | null> {
+  if (!stripeSubscriptionId) return null;
+
+  const { data } = await supabase
+    .from('subscriptions')
+    .select('id')
+    .eq('stripe_subscription_id', stripeSubscriptionId)
+    .single();
+
+  return data?.id ?? null;
+}
+
 export type WebhookEvent =
   | 'checkout.session.completed'
   | 'customer.subscription.created'
@@ -87,7 +134,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session, eventId
 
     if (customer?.user_id) {
       const planName = subscription.items.data[0]?.price?.nickname || 'Pro';
-      const periodEnd = (subscription as Stripe.Subscription & { current_period_end?: number }).current_period_end;
+      const periodEnd = (subscription as ExtendedStripeSubscription).current_period_end;
       const nextBillingDate = periodEnd
         ? new Date(periodEnd * 1000).toLocaleDateString('en-US', {
             weekday: 'long',
@@ -102,7 +149,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session, eventId
         amount: subscription.items.data[0]?.price?.unit_amount || undefined,
         currency: subscription.currency,
         nextBillingDate,
-      }).catch((err) => {
+      }).catch((err: unknown) => {
         log.logError('Failed to send billing email', err);
       });
     }
@@ -145,7 +192,7 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription): Pro
       .single();
 
     if (customer?.user_id) {
-      const periodEnd = (subscription as Stripe.Subscription & { current_period_end?: number }).current_period_end;
+      const periodEnd = (subscription as ExtendedStripeSubscription).current_period_end;
       const accessUntil = periodEnd
         ? new Date(periodEnd * 1000).toLocaleDateString('en-US', {
             weekday: 'long',
@@ -157,7 +204,7 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription): Pro
 
       sendBillingUpdateEmail(customer.user_id, 'subscription_cancelled', {
         nextBillingDate: accessUntil,
-      }).catch((err) => {
+      }).catch((err: unknown) => {
         log.logError('Failed to send cancellation email', err);
       });
     }
@@ -181,28 +228,12 @@ async function handleInvoicePaid(invoice: Stripe.Invoice): Promise<void> {
 
   if (!customer) return;
 
-  // Cast invoice to access properties that may vary between API versions
-  const inv = invoice as unknown as {
-    subscription?: string | { id: string } | null;
-    period_start?: number;
-    period_end?: number;
-    due_date?: number;
-    payment_intent?: string | { id: string } | null;
-  };
+  const inv = invoice as ExtendedStripeInvoice;
 
-  const subscriptionId = typeof inv.subscription === 'string'
+  const stripeSubId = typeof inv.subscription === 'string'
     ? inv.subscription
-    : inv.subscription?.id;
-
-  let dbSubscriptionId = null;
-  if (subscriptionId) {
-    const { data: subscription } = await supabase
-      .from('subscriptions')
-      .select('id')
-      .eq('stripe_subscription_id', subscriptionId)
-      .single();
-    dbSubscriptionId = subscription?.id;
-  }
+    : (inv.subscription as Stripe.Subscription | null)?.id;
+  const dbSubscriptionId = await lookupDbSubscriptionId(supabase, stripeSubId);
 
   await supabase.from('invoices').upsert({
     customer_id: customer.id,
@@ -264,7 +295,7 @@ async function handleInvoicePaid(invoice: Stripe.Invoice): Promise<void> {
       amount: invoice.amount_paid,
       currency: invoice.currency,
       nextBillingDate,
-    }).catch((err) => {
+    }).catch((err: unknown) => {
       log.logError('Failed to send payment success email', err);
     });
   }
@@ -287,16 +318,16 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice): Promise<void
 
   if (!customer) return;
 
-  // Cast invoice to access properties that may vary between API versions
-  const inv = invoice as unknown as {
-    due_date?: number;
-    period_start?: number;
-    period_end?: number;
-    payment_intent?: string | { id: string } | null;
-  };
+  const inv = invoice as ExtendedStripeInvoice;
+
+  const stripeSubId = typeof inv.subscription === 'string'
+    ? inv.subscription
+    : (inv.subscription as Stripe.Subscription | null)?.id;
+  const dbSubscriptionId = await lookupDbSubscriptionId(supabase, stripeSubId);
 
   await supabase.from('invoices').upsert({
     customer_id: customer.id,
+    subscription_id: dbSubscriptionId,
     stripe_invoice_id: invoice.id,
     stripe_invoice_url: invoice.hosted_invoice_url,
     amount_due_cents: invoice.amount_due,
@@ -343,7 +374,7 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice): Promise<void
     sendBillingUpdateEmail(customerData.user_id, 'payment_failed', {
       amount: invoice.amount_due,
       currency: invoice.currency,
-    }).catch((err) => {
+    }).catch((err: unknown) => {
       log.logError('Failed to send payment failed email', err);
     });
   }

@@ -1,5 +1,8 @@
 import { test, expect } from '@playwright/test';
 
+// NOTE: This file uses E2E_TEST_USER (legacy generic user) and E2E_ATTORNEY_USER (legacy pattern)
+// instead of E2E_ATTORNEY_EMAIL (role-based pattern from factories.ts).
+// TODO: Migrate to hasValidCredentials() when env vars are standardized across CI/CD
 const hasTestCredentials = process.env.E2E_TEST_USER && process.env.E2E_TEST_PASSWORD;
 const hasAttorneyCredentials = process.env.E2E_ATTORNEY_USER && process.env.E2E_ATTORNEY_PASSWORD;
 

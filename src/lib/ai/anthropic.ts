@@ -4,17 +4,18 @@ import Anthropic from '@anthropic-ai/sdk';
 import { FormAutofillResult, ExtractedField, FormField } from './types';
 import { FORM_AUTOFILL_SYSTEM_PROMPT, getAutofillPrompt } from './prompts';
 import { parseClaudeJSON, extractTextContent } from './utils';
+import { serverEnv, features } from '@/lib/config';
 
 // Lazy-initialize Anthropic client to avoid errors during build
 let anthropicInstance: Anthropic | null = null;
 
 function getAnthropicClient(): Anthropic {
   if (!anthropicInstance) {
-    if (!process.env.ANTHROPIC_API_KEY) {
-      throw new Error('ANTHROPIC_API_KEY environment variable is not set');
+    if (!features.formAutofill) {
+      throw new Error('Anthropic API is not configured (ANTHROPIC_API_KEY not set)');
     }
     anthropicInstance = new Anthropic({
-      apiKey: process.env.ANTHROPIC_API_KEY,
+      apiKey: serverEnv.ANTHROPIC_API_KEY,
     });
   }
   return anthropicInstance;

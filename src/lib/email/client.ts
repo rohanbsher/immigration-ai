@@ -1,19 +1,57 @@
+/**
+ * Email client for sending transactional emails via Resend.
+ *
+ * Uses lazy initialization to avoid errors during build/client import.
+ * All server-only values are accessed through getters, not at module load.
+ */
+
 import { Resend } from 'resend';
-import { createLogger } from '@/lib/logger';
+import { serverEnv, env, features } from '@/lib/config';
 
-const log = createLogger('email-client');
+let resendInstance: Resend | null | undefined;
 
-if (!process.env.RESEND_API_KEY) {
-  log.warn('RESEND_API_KEY is not set. Email functionality will be disabled.');
+/**
+ * Get the Resend email client (lazy singleton).
+ * Returns null if email is not configured.
+ */
+export function getResendClient(): Resend | null {
+  if (resendInstance === undefined) {
+    resendInstance = features.email
+      ? new Resend(serverEnv.RESEND_API_KEY)
+      : null;
+  }
+  return resendInstance;
 }
 
-export const resend = process.env.RESEND_API_KEY
-  ? new Resend(process.env.RESEND_API_KEY)
-  : null;
+/**
+ * Resend client proxy - throws helpful error if email not configured.
+ */
+export const resend = new Proxy({} as Resend, {
+  get(_target, prop) {
+    const client = getResendClient();
+    if (!client) {
+      throw new Error('Email is not configured. Set RESEND_API_KEY.');
+    }
+    return client[prop as keyof Resend];
+  },
+});
 
+/**
+ * Email configuration - uses getters to avoid server env access at module load.
+ */
 export const EMAIL_CONFIG = {
-  from: process.env.EMAIL_FROM || 'Immigration AI <noreply@immigrationai.app>',
-  replyTo: process.env.EMAIL_REPLY_TO || 'support@immigrationai.app',
+  /** Sender address for outgoing emails (server-only) */
+  get from() {
+    return serverEnv.EMAIL_FROM || 'Immigration AI <noreply@immigrationai.app>';
+  },
+  /** Reply-to address (server-only) */
+  get replyTo() {
+    return serverEnv.EMAIL_REPLY_TO || 'support@immigrationai.app';
+  },
+  /** Application name for email templates */
   appName: 'Immigration AI',
-  appUrl: process.env.NEXT_PUBLIC_APP_URL || 'https://immigrationai.app',
+  /** Application URL for links in emails */
+  get appUrl() {
+    return env.NEXT_PUBLIC_APP_URL || 'https://immigrationai.app';
+  },
 } as const;

@@ -172,22 +172,25 @@ export async function verifyTwoFactorToken(
   if (isBackupCode) {
     const codeHash = hashBackupCode(token);
 
-    const { data: usedCode } = await supabase
+    // Use atomic insert with conflict handling to prevent race conditions.
+    // If two requests try to use the same code simultaneously, only one will succeed.
+    // Requires unique constraint on (two_factor_id, code_hash) in backup_code_usage table.
+    const { error: insertError } = await supabase
       .from('backup_code_usage')
-      .select('id')
-      .eq('two_factor_id', twoFactor.id)
-      .eq('code_hash', codeHash)
-      .single();
+      .insert({
+        two_factor_id: twoFactor.id,
+        code_hash: codeHash,
+      });
 
-    if (usedCode) {
+    // Check for unique constraint violation (Postgres error code 23505)
+    if (insertError?.code === '23505') {
       await recordAttempt(userId, 'backup_code', false);
-      return false;
+      return false; // Code already used
     }
 
-    await supabase.from('backup_code_usage').insert({
-      two_factor_id: twoFactor.id,
-      code_hash: codeHash,
-    });
+    if (insertError) {
+      throw new Error(`Failed to record backup code usage: ${insertError.message}`);
+    }
 
     await recordAttempt(userId, 'backup_code', true);
     return true;

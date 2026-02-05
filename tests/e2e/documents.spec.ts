@@ -1,5 +1,7 @@
 import { test, expect } from '@playwright/test';
 
+// NOTE: Uses E2E_TEST_USER (legacy generic user) instead of E2E_ATTORNEY_EMAIL (role-based)
+// TODO: Migrate to hasValidCredentials() when env vars are standardized across CI/CD
 const hasTestCredentials = process.env.E2E_TEST_USER && process.env.E2E_TEST_PASSWORD;
 
 test.describe('Document Management', () => {

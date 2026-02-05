@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -10,6 +11,7 @@ import {
   useBillingPortal,
   useCancelSubscription,
   useResumeSubscription,
+  useUsage,
 } from '@/hooks/use-subscription';
 import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import { PlanCard } from './components/plan-card';
@@ -24,6 +26,7 @@ export default function BillingPage() {
   const [showCancelDialog, setShowCancelDialog] = useState(false);
 
   const { data, isLoading, error } = useSubscription();
+  const { data: usage, error: usageError } = useUsage();
   const checkout = useCheckout();
   const billingPortal = useBillingPortal();
   const cancelSubscription = useCancelSubscription();
@@ -119,15 +122,29 @@ export default function BillingPage() {
 
       {/* Usage */}
       {limits && (
-        <UsageMeter
-          limits={limits}
-          usage={{
-            cases: 0, // TODO: Fetch actual usage from API
-            documents: 0,
-            aiRequests: 0,
-            teamMembers: 1,
-          }}
-        />
+        usageError ? (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Usage This Period</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                <p className="text-amber-800 text-sm">
+                  Unable to load usage data. Please try again later.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <UsageMeter
+            limits={limits}
+            usage={{
+              cases: usage?.cases ?? 0,
+              aiRequests: usage?.aiRequests ?? 0,
+              teamMembers: usage?.teamMembers ?? 1,
+            }}
+          />
+        )
       )}
 
       {/* Plan Comparison */}

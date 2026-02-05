@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { getDetailedRedisHealth } from '@/lib/rate-limit/health';
 
+// NOTE: Health checks intentionally use process.env directly (not serverEnv)
+// to diagnose configuration issues. If serverEnv validation fails, we still
+// want the health endpoint to report which variables are missing.
+
 interface HealthCheckResult {
   status: 'healthy' | 'degraded' | 'unhealthy';
   timestamp: string;

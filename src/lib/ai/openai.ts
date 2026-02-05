@@ -6,17 +6,18 @@ import {
   DOCUMENT_ANALYSIS_SYSTEM_PROMPT,
   getExtractionPrompt,
 } from './prompts';
+import { serverEnv, features } from '@/lib/config';
 
 // Lazy-initialize OpenAI client to avoid errors during build
 let openaiInstance: OpenAI | null = null;
 
 function getOpenAIClient(): OpenAI {
   if (!openaiInstance) {
-    if (!process.env.OPENAI_API_KEY) {
-      throw new Error('OPENAI_API_KEY environment variable is not set');
+    if (!features.documentAnalysis) {
+      throw new Error('OpenAI API is not configured (OPENAI_API_KEY not set)');
     }
     openaiInstance = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
+      apiKey: serverEnv.OPENAI_API_KEY,
     });
   }
   return openaiInstance;

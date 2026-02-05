@@ -280,6 +280,58 @@ describe('Config/Env Module', () => {
       expect(features.isDevelopment).toBe(false);
       expect(features.isProduction).toBe(false);
     });
+
+    it('should detect cron jobs capability', async () => {
+      process.env.CRON_SECRET = 'secure-secret-16chars';
+      vi.resetModules();
+
+      const { features } = await import('./env');
+
+      expect(features.cronJobs).toBe(true);
+    });
+
+    it('should detect missing cron jobs', async () => {
+      vi.resetModules();
+
+      const { features } = await import('./env');
+
+      expect(features.cronJobs).toBe(false);
+    });
+
+    it('should detect virus scanning with clamav', async () => {
+      process.env.VIRUS_SCANNER_PROVIDER = 'clamav';
+      vi.resetModules();
+
+      const { features } = await import('./env');
+
+      expect(features.virusScanning).toBe(true);
+    });
+
+    it('should detect virus scanning with virustotal', async () => {
+      process.env.VIRUS_SCANNER_PROVIDER = 'virustotal';
+      vi.resetModules();
+
+      const { features } = await import('./env');
+
+      expect(features.virusScanning).toBe(true);
+    });
+
+    it('should NOT detect virus scanning with mock', async () => {
+      process.env.VIRUS_SCANNER_PROVIDER = 'mock';
+      vi.resetModules();
+
+      const { features } = await import('./env');
+
+      expect(features.virusScanning).toBe(false);
+    });
+
+    it('should NOT detect virus scanning when not set', async () => {
+      vi.resetModules();
+
+      const { features } = await import('./env');
+
+      expect(features.virusScanning).toBe(false);
+    });
   });
 
   // Note: Production validation tests are skipped because they require

@@ -1,6 +1,16 @@
+/**
+ * Backup Code Generation & Verification
+ *
+ * Security: 128 bits entropy (NIST SP 800-63B recommends 112+ bits)
+ *
+ * Backward Compatibility:
+ * - Old 8-char codes (pre-Feb 2024) still verify correctly
+ * - Hash comparison is length-agnostic
+ * - Users do NOT need to regenerate unless they choose to
+ */
 import crypto from 'crypto';
 
-const BACKUP_CODE_LENGTH = 8;
+const BACKUP_CODE_BYTES = 16; // 128 bits of entropy (NIST SP 800-63B compliant)
 const BACKUP_CODE_COUNT = 10;
 
 export function generateBackupCodes(count: number = BACKUP_CODE_COUNT): string[] {
@@ -8,7 +18,7 @@ export function generateBackupCodes(count: number = BACKUP_CODE_COUNT): string[]
 
   for (let i = 0; i < count; i++) {
     const code = crypto
-      .randomBytes(BACKUP_CODE_LENGTH / 2)
+      .randomBytes(BACKUP_CODE_BYTES)
       .toString('hex')
       .toUpperCase();
     codes.push(code);
@@ -32,7 +42,12 @@ export function verifyBackupCode(code: string, hashedCodes: string[]): boolean {
 }
 
 export function formatBackupCode(code: string): string {
-  return `${code.slice(0, 4)}-${code.slice(4)}`;
+  // Format 32-char code as 8 groups of 4: A1B2-C3D4-E5F6-G7H8-I9J0-K1L2-M3N4-O5P6
+  const chunks: string[] = [];
+  for (let i = 0; i < code.length; i += 4) {
+    chunks.push(code.slice(i, i + 4));
+  }
+  return chunks.join('-');
 }
 
 export function parseBackupCode(formattedCode: string): string {

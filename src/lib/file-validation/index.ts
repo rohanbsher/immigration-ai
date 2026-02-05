@@ -9,11 +9,12 @@
  */
 
 import { createLogger } from '@/lib/logger';
+import { serverEnv, features } from '@/lib/config';
 
 const log = createLogger('security:file-validation');
 
 // Magic bytes for supported file types
-const FILE_SIGNATURES: Record<string, { signature: number[]; offset?: number }[]> = {
+export const FILE_SIGNATURES: Record<string, { signature: number[]; offset?: number }[]> = {
   // PDF: %PDF
   'application/pdf': [
     { signature: [0x25, 0x50, 0x44, 0x46] }
@@ -241,7 +242,7 @@ export async function scanFileForViruses(
   file: File | Blob,
   config?: VirusScannerConfig
 ): Promise<VirusScanResult> {
-  const provider = config?.provider || process.env.VIRUS_SCANNER_PROVIDER || 'mock';
+  const provider = config?.provider || serverEnv.VIRUS_SCANNER_PROVIDER || 'mock';
 
   switch (provider) {
     case 'clamav':
@@ -261,7 +262,7 @@ async function scanWithClamAV(
   file: File | Blob,
   config?: VirusScannerConfig
 ): Promise<VirusScanResult> {
-  const apiUrl = config?.apiUrl || process.env.CLAMAV_API_URL;
+  const apiUrl = config?.apiUrl || serverEnv.CLAMAV_API_URL;
 
   if (!apiUrl) {
     log.error('ClamAV API URL not configured');
@@ -322,7 +323,7 @@ async function scanWithVirusTotal(
   file: File | Blob,
   config?: VirusScannerConfig
 ): Promise<VirusScanResult> {
-  const apiKey = config?.apiKey || process.env.VIRUSTOTAL_API_KEY;
+  const apiKey = config?.apiKey || serverEnv.VIRUSTOTAL_API_KEY;
 
   if (!apiKey) {
     log.error('VirusTotal API key not configured');
@@ -416,8 +417,8 @@ async function scanWithVirusTotal(
  * Performs basic heuristic checks but should NOT be used in production
  */
 async function mockVirusScan(file: File | Blob): Promise<VirusScanResult> {
-  // In development, warn that real scanning is disabled
-  if (process.env.NODE_ENV === 'production') {
+  // In production, fail closed if proper virus scanning is not configured
+  if (features.isProduction) {
     log.warn('Mock virus scanner active in production - configure VIRUS_SCANNER_PROVIDER');
     // In production with mock scanner, fail closed
     return {

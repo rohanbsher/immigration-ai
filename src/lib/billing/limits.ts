@@ -9,7 +9,7 @@ export const PLAN_FEATURES = {
       yearly: 0,
     },
     limits: {
-      maxCases: 3,
+      maxCases: 5,
       maxDocumentsPerCase: 10,
       maxAiRequestsPerMonth: 25,
       maxStorageGb: 1,

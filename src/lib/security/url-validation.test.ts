@@ -91,6 +91,33 @@ describe('validateStorageUrl', () => {
     });
   });
 
+  describe('encoding bypass prevention', () => {
+    it('should reject double-encoded path traversal (%252e%252e)', () => {
+      const url = 'https://test-project.supabase.co/storage/v1/object/public/documents/%252e%252e/secret';
+      expect(validateStorageUrl(url, options)).toBe(false);
+    });
+
+    it('should reject backslash path separators', () => {
+      const url = 'https://test-project.supabase.co/storage/v1/object/public/documents\\..\\secret';
+      expect(validateStorageUrl(url, options)).toBe(false);
+    });
+
+    it('should reject null byte injection', () => {
+      const url = 'https://test-project.supabase.co/storage/v1/object/public/documents/file%00.txt';
+      expect(validateStorageUrl(url, options)).toBe(false);
+    });
+
+    it('should reject encoded slashes (%2f)', () => {
+      const url = 'https://test-project.supabase.co/storage/v1/object/public/documents%2f..%2fsecret';
+      expect(validateStorageUrl(url, options)).toBe(false);
+    });
+
+    it('should reject encoded backslashes (%5c)', () => {
+      const url = 'https://test-project.supabase.co/storage/v1/object/public/documents%5c..%5csecret';
+      expect(validateStorageUrl(url, options)).toBe(false);
+    });
+  });
+
   describe('path validation', () => {
     it('should reject URLs without storage prefix', () => {
       const url = 'https://test-project.supabase.co/api/documents/file.pdf';

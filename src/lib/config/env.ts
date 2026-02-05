@@ -88,6 +88,14 @@ const serverEnvSchema = z.object({
   UPSTASH_REDIS_REST_URL: z.string().url().optional(),
   UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
 
+  // Cron Jobs
+  CRON_SECRET: z.string().min(16, 'CRON_SECRET must be at least 16 characters').optional(),
+
+  // Virus Scanner Configuration
+  VIRUS_SCANNER_PROVIDER: z.enum(['clamav', 'virustotal', 'mock']).optional(),
+  CLAMAV_API_URL: z.string().url().optional(),
+  VIRUSTOTAL_API_KEY: z.string().optional(),
+
   // Vercel (auto-set)
   VERCEL_URL: z.string().optional(),
 });
@@ -156,6 +164,10 @@ function validateServerEnv() {
     EMAIL_REPLY_TO: process.env.EMAIL_REPLY_TO,
     UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL,
     UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN,
+    CRON_SECRET: process.env.CRON_SECRET,
+    VIRUS_SCANNER_PROVIDER: process.env.VIRUS_SCANNER_PROVIDER,
+    CLAMAV_API_URL: process.env.CLAMAV_API_URL,
+    VIRUSTOTAL_API_KEY: process.env.VIRUSTOTAL_API_KEY,
     VERCEL_URL: process.env.VERCEL_URL,
   });
 
@@ -209,6 +221,20 @@ function validateProductionRequirements(env: z.infer<typeof serverEnvSchema>) {
   // Warning: Rate limiting fallback
   if (!env.UPSTASH_REDIS_REST_URL || !env.UPSTASH_REDIS_REST_TOKEN) {
     warnings.push('Upstash Redis not configured - using in-memory rate limiting (not suitable for multiple instances)');
+  }
+
+  // Critical: Cron jobs require authentication
+  if (!env.CRON_SECRET) {
+    errors.push('CRON_SECRET is required in production for scheduled task authentication');
+  }
+
+  // Warning: Virus scanner not configured
+  if (!env.VIRUS_SCANNER_PROVIDER || env.VIRUS_SCANNER_PROVIDER === 'mock') {
+    warnings.push('VIRUS_SCANNER_PROVIDER not configured - file uploads will be rejected in production');
+  } else if (env.VIRUS_SCANNER_PROVIDER === 'clamav' && !env.CLAMAV_API_URL) {
+    errors.push('CLAMAV_API_URL is required when using ClamAV virus scanner');
+  } else if (env.VIRUS_SCANNER_PROVIDER === 'virustotal' && !env.VIRUSTOTAL_API_KEY) {
+    errors.push('VIRUSTOTAL_API_KEY is required when using VirusTotal virus scanner');
   }
 
   // Log warnings
@@ -297,6 +323,14 @@ export const features = {
 
   /** Whether encryption is configured for PII */
   encryption: !!process.env.ENCRYPTION_KEY,
+
+  /** Whether cron jobs are properly configured */
+  cronJobs: !!process.env.CRON_SECRET,
+
+  /** Whether virus scanning is properly configured (not mock) */
+  virusScanning:
+    !!process.env.VIRUS_SCANNER_PROVIDER &&
+    process.env.VIRUS_SCANNER_PROVIDER !== 'mock',
 
   /** Whether running in development mode */
   isDevelopment: process.env.NODE_ENV === 'development',

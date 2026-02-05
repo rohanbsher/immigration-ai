@@ -21,7 +21,7 @@ describe('Billing - Limits Module', () => {
       expect(PLAN_FEATURES.free.name).toBe('Free');
       expect(PLAN_FEATURES.free.price.monthly).toBe(0);
       expect(PLAN_FEATURES.free.price.yearly).toBe(0);
-      expect(PLAN_FEATURES.free.limits.maxCases).toBe(3);
+      expect(PLAN_FEATURES.free.limits.maxCases).toBe(5);
       expect(PLAN_FEATURES.free.limits.maxDocumentsPerCase).toBe(10);
       expect(PLAN_FEATURES.free.limits.maxAiRequestsPerMonth).toBe(25);
       expect(PLAN_FEATURES.free.limits.maxStorageGb).toBe(1);

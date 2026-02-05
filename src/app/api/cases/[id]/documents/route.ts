@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { sensitiveRateLimiter } from '@/lib/rate-limit';
 import { validateFile } from '@/lib/file-validation';
 import { sendDocumentUploadedEmail } from '@/lib/email/notifications';
-import { enforceQuota, QuotaExceededError } from '@/lib/billing/quota';
+import { enforceQuota, enforceQuotaForCase, QuotaExceededError } from '@/lib/billing/quota';
 import { createLogger } from '@/lib/logger';
 
 const log = createLogger('api:case-documents');
@@ -12,13 +12,20 @@ const log = createLogger('api:case-documents');
 // File validation constants
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
+interface CaseAccessResult {
+  hasAccess: boolean;
+  attorneyId?: string;
+}
+
 /**
  * Verify user has access to this case (is attorney or client)
+ * Returns the attorney_id to avoid double lookup in quota checks
  */
-async function verifyCaseAccess(userId: string, caseId: string): Promise<boolean> {
+async function verifyCaseAccess(userId: string, caseId: string): Promise<CaseAccessResult> {
   const caseData = await casesService.getCase(caseId);
-  if (!caseData) return false;
-  return caseData.attorney_id === userId || caseData.client_id === userId;
+  if (!caseData) return { hasAccess: false };
+  const hasAccess = caseData.attorney_id === userId || caseData.client_id === userId;
+  return { hasAccess, attorneyId: caseData.attorney_id };
 }
 
 export async function GET(
@@ -35,7 +42,7 @@ export async function GET(
     }
 
     // Verify user has access to this case
-    const hasAccess = await verifyCaseAccess(user.id, caseId);
+    const { hasAccess } = await verifyCaseAccess(user.id, caseId);
     if (!hasAccess) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
@@ -65,8 +72,8 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Verify user has access to this case
-    const hasAccess = await verifyCaseAccess(user.id, caseId);
+    // Verify user has access to this case (and get attorneyId to avoid double lookup)
+    const { hasAccess, attorneyId } = await verifyCaseAccess(user.id, caseId);
     if (!hasAccess) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
@@ -84,6 +91,19 @@ export async function POST(
       if (error instanceof QuotaExceededError) {
         return NextResponse.json(
           { error: 'You have reached your storage limit. Please upgrade your plan.' },
+          { status: 403 }
+        );
+      }
+      throw error;
+    }
+
+    // Enforce per-case document quota (pass attorneyId to avoid double case lookup)
+    try {
+      await enforceQuotaForCase(caseId, 'documents', attorneyId);
+    } catch (error) {
+      if (error instanceof QuotaExceededError) {
+        return NextResponse.json(
+          { error: 'You have reached the document limit for this case. Please upgrade your plan.' },
           { status: 403 }
         );
       }

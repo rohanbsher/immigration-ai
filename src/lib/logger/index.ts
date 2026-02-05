@@ -5,6 +5,11 @@
  * log levels and environments. Designed to be easily extended for
  * integration with external logging services (Sentry, LogRocket, etc.).
  *
+ * NOTE: Logger uses process.env directly for NODE_ENV and LOG_LEVEL because
+ * it must be available before the config module is fully initialized. Many
+ * modules import the logger, and the config module also uses it for logging
+ * validation errors, so we avoid a circular dependency.
+ *
  * @example
  * ```typescript
  * import { logger } from '@/lib/logger';

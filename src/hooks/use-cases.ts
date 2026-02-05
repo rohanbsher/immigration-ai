@@ -170,6 +170,7 @@ export function useCreateCase() {
     mutationFn: createCase,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cases'] });
+      queryClient.invalidateQueries({ queryKey: ['billing-usage'] });
     },
   });
 }
@@ -194,6 +195,7 @@ export function useDeleteCase() {
     mutationFn: deleteCase,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cases'] });
+      queryClient.invalidateQueries({ queryKey: ['billing-usage'] });
     },
   });
 }

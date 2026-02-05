@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { syncDeadlineAlerts } from '@/lib/deadline';
 import { createLogger } from '@/lib/logger';
+import { serverEnv, features } from '@/lib/config';
+import { safeCompare } from '@/lib/security/timing-safe';
 
 const log = createLogger('cron:deadline-alerts');
 
@@ -22,12 +24,8 @@ const log = createLogger('cron:deadline-alerts');
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
-    // Verify cron secret (for security) - ALWAYS required
-    const authHeader = request.headers.get('authorization');
-    const cronSecret = process.env.CRON_SECRET;
-
-    // Always require CRON_SECRET to be configured
-    if (!cronSecret) {
+    // Verify cron jobs are properly configured
+    if (!features.cronJobs) {
       log.error('CRON_SECRET not configured');
       return NextResponse.json(
         { error: 'Server configuration error' },
@@ -35,8 +33,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // Always verify authorization
-    if (authHeader !== `Bearer ${cronSecret}`) {
+    // Verify cron secret (for security) - using timing-safe comparison
+    const authHeader = request.headers.get('authorization');
+    const expectedAuth = `Bearer ${serverEnv.CRON_SECRET}`;
+
+    // Always verify authorization with timing-safe comparison
+    if (!authHeader || !safeCompare(authHeader, expectedAuth)) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }

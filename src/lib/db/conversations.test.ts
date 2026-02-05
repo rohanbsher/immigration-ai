@@ -1,152 +1,150 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { updateMessage } from './conversations';
+import { createClient } from '@/lib/supabase/server';
 
-// Mock modules - factory functions can't reference external variables
-vi.mock('@/lib/supabase/server', () => {
-  const mockEq = vi.fn();
-  const mockSingle = vi.fn();
-  const mockSelectEq = vi.fn(() => ({ single: mockSingle }));
-  const mockSelect = vi.fn(() => ({ eq: mockSelectEq }));
-  const mockUpdate = vi.fn(() => ({ eq: mockEq }));
-  const mockFrom = vi.fn((table: string) => ({
-    update: mockUpdate,
-    select: mockSelect,
-  }));
-
-  return {
-    createClient: vi.fn().mockResolvedValue({
-      from: mockFrom,
-    }),
-    // Expose mocks for test access
-    __mocks: { mockFrom, mockUpdate, mockEq, mockSelect, mockSelectEq, mockSingle },
-  };
-});
+// Mock modules
+vi.mock('@/lib/supabase/server', () => ({
+  createClient: vi.fn(),
+}));
 
 vi.mock('@/lib/ai/chat', () => ({
   generateConversationTitle: vi.fn().mockResolvedValue('Test Title'),
 }));
 
-// Get mock references after import
-const getMocks = async () => {
-  const supabaseModule = await import('@/lib/supabase/server');
-  return (supabaseModule as unknown as {
-    __mocks: {
-      mockFrom: ReturnType<typeof vi.fn>;
-      mockUpdate: ReturnType<typeof vi.fn>;
-      mockEq: ReturnType<typeof vi.fn>;
-      mockSelect: ReturnType<typeof vi.fn>;
-      mockSelectEq: ReturnType<typeof vi.fn>;
-      mockSingle: ReturnType<typeof vi.fn>;
-    };
-  }).__mocks;
-};
-
 describe('Conversations DB', () => {
-  let mocks: Awaited<ReturnType<typeof getMocks>>;
+  let mockRpc: ReturnType<typeof vi.fn>;
 
-  beforeEach(async () => {
-    mocks = await getMocks();
+  beforeEach(() => {
     vi.clearAllMocks();
-    // Default: successful update, no existing metadata
-    mocks.mockEq.mockResolvedValue({ error: null });
-    mocks.mockSingle.mockResolvedValue({ data: { metadata: null }, error: null });
+    mockRpc = vi.fn().mockResolvedValue({ data: null, error: null });
+    vi.mocked(createClient).mockResolvedValue({ rpc: mockRpc } as unknown as ReturnType<typeof createClient>);
   });
 
   describe('updateMessage', () => {
-    it('should update content only without fetching metadata', async () => {
+    it('should call RPC with content only', async () => {
       await updateMessage('msg-123', { content: 'Hello world' });
 
-      // Should NOT call select when only updating content
-      expect(mocks.mockSelect).not.toHaveBeenCalled();
-      expect(mocks.mockUpdate).toHaveBeenCalledWith({ content: 'Hello world' });
-      expect(mocks.mockEq).toHaveBeenCalledWith('id', 'msg-123');
+      expect(mockRpc).toHaveBeenCalledWith('update_message_with_metadata', {
+        p_message_id: 'msg-123',
+        p_content: 'Hello world',
+        p_status: null,
+      });
     });
 
-    it('should update status and merge with empty existing metadata', async () => {
-      mocks.mockSingle.mockResolvedValue({ data: { metadata: null }, error: null });
-
+    it('should call RPC with status only', async () => {
       await updateMessage('msg-123', { status: 'complete' });
 
-      expect(mocks.mockSelect).toHaveBeenCalledWith('metadata');
-      expect(mocks.mockUpdate).toHaveBeenCalledWith({
-        metadata: { status: 'complete' },
-      });
-      expect(mocks.mockEq).toHaveBeenCalledWith('id', 'msg-123');
-    });
-
-    it('should preserve existing metadata fields when updating status', async () => {
-      // Simulate existing metadata with additional fields
-      mocks.mockSingle.mockResolvedValue({
-        data: { metadata: { status: 'streaming', tokens: 100, model: 'gpt-4' } },
-        error: null,
-      });
-
-      await updateMessage('msg-123', { status: 'complete' });
-
-      expect(mocks.mockUpdate).toHaveBeenCalledWith({
-        metadata: { status: 'complete', tokens: 100, model: 'gpt-4' },
+      expect(mockRpc).toHaveBeenCalledWith('update_message_with_metadata', {
+        p_message_id: 'msg-123',
+        p_content: null,
+        p_status: 'complete',
       });
     });
 
-    it('should update both content and status with metadata merge', async () => {
-      mocks.mockSingle.mockResolvedValue({
-        data: { metadata: { status: 'streaming' } },
-        error: null,
-      });
+    it('should call RPC with both content and status', async () => {
+      await updateMessage('msg-123', { content: 'Full response', status: 'complete' });
 
-      await updateMessage('msg-123', {
-        content: 'Full response',
-        status: 'complete',
-      });
-
-      expect(mocks.mockUpdate).toHaveBeenCalledWith({
-        content: 'Full response',
-        metadata: { status: 'complete' },
+      expect(mockRpc).toHaveBeenCalledWith('update_message_with_metadata', {
+        p_message_id: 'msg-123',
+        p_content: 'Full response',
+        p_status: 'complete',
       });
     });
 
-    it('should throw on metadata fetch error', async () => {
-      mocks.mockSingle.mockResolvedValue({
+    it('should skip RPC when no updates provided', async () => {
+      await updateMessage('msg-123', {});
+
+      expect(mockRpc).not.toHaveBeenCalled();
+    });
+
+    it('should throw on RPC error', async () => {
+      mockRpc.mockResolvedValue({
         data: null,
         error: { message: 'Message not found' },
       });
 
-      await expect(
-        updateMessage('msg-123', { status: 'error' })
-      ).rejects.toThrow('Failed to fetch message for update: Message not found');
-    });
-
-    it('should throw on database update error', async () => {
-      mocks.mockSingle.mockResolvedValue({ data: { metadata: null }, error: null });
-      mocks.mockEq.mockResolvedValue({
-        error: { message: 'Connection failed' },
-      });
-
-      await expect(
-        updateMessage('msg-123', { status: 'error' })
-      ).rejects.toThrow('Failed to update message: Connection failed');
-    });
-
-    it('should skip update when no changes provided', async () => {
-      await updateMessage('msg-123', {});
-
-      expect(mocks.mockUpdate).not.toHaveBeenCalled();
+      await expect(updateMessage('msg-123', { status: 'error' }))
+        .rejects.toThrow('Message not found');
     });
 
     it('should handle error status with partial content', async () => {
-      mocks.mockSingle.mockResolvedValue({
-        data: { metadata: { status: 'streaming' } },
-        error: null,
-      });
-
       await updateMessage('msg-123', {
         content: 'Partial response before failure...',
         status: 'error',
       });
 
-      expect(mocks.mockUpdate).toHaveBeenCalledWith({
-        content: 'Partial response before failure...',
-        metadata: { status: 'error' },
+      expect(mockRpc).toHaveBeenCalledWith('update_message_with_metadata', {
+        p_message_id: 'msg-123',
+        p_content: 'Partial response before failure...',
+        p_status: 'error',
+      });
+    });
+
+    it('should handle streaming status', async () => {
+      await updateMessage('msg-123', { status: 'streaming' });
+
+      expect(mockRpc).toHaveBeenCalledWith('update_message_with_metadata', {
+        p_message_id: 'msg-123',
+        p_content: null,
+        p_status: 'streaming',
+      });
+    });
+
+    describe('RPC fallback behavior', () => {
+      it('should fall back when RPC function does not exist', async () => {
+        mockRpc.mockResolvedValue({
+          data: null,
+          error: { code: '42883', message: 'function update_message_with_metadata does not exist' }
+        });
+
+        const mockMetadata = { existingKey: 'value' };
+        const mockSelect = vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({ data: { metadata: mockMetadata }, error: null })
+          })
+        });
+        const mockUpdate = vi.fn().mockReturnValue({
+          eq: vi.fn().mockResolvedValue({ error: null })
+        });
+        const mockFrom = vi.fn().mockReturnValue({
+          select: mockSelect,
+          update: mockUpdate
+        });
+
+        vi.mocked(createClient).mockResolvedValue({
+          rpc: mockRpc,
+          from: mockFrom
+        } as unknown as Awaited<ReturnType<typeof createClient>>);
+
+        await updateMessage('msg-123', { status: 'complete' });
+
+        expect(mockFrom).toHaveBeenCalledWith('conversation_messages');
+        expect(mockSelect).toHaveBeenCalledWith('metadata');
+      });
+
+      it('should throw on fallback fetch error', async () => {
+        mockRpc.mockResolvedValue({
+          data: null,
+          error: { code: '42883', message: 'function does not exist' }
+        });
+
+        const mockSelect = vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({
+              data: null,
+              error: { message: 'Message not found' }
+            })
+          })
+        });
+        const mockFrom = vi.fn().mockReturnValue({ select: mockSelect });
+
+        vi.mocked(createClient).mockResolvedValue({
+          rpc: mockRpc,
+          from: mockFrom
+        } as unknown as Awaited<ReturnType<typeof createClient>>);
+
+        await expect(updateMessage('msg-123', { status: 'complete' }))
+          .rejects.toThrow('Message not found');
       });
     });
   });

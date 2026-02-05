@@ -2,20 +2,18 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { FolderOpen, Files, Sparkles, Users } from 'lucide-react';
+import { FolderOpen, Sparkles, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatLimit, isUnlimited } from '@/lib/billing/limits';
 
 interface UsageMeterProps {
   limits: {
     maxCases: number;
-    maxDocumentsPerCase: number;
     maxAiRequestsPerMonth: number;
     maxTeamMembers: number;
   };
   usage?: {
     cases?: number;
-    documents?: number;
     aiRequests?: number;
     teamMembers?: number;
   };
@@ -69,7 +67,6 @@ function MeterItem({ icon: Icon, label, current, max }: MeterItemProps) {
 export function UsageMeter({ limits, usage = {} }: UsageMeterProps) {
   const {
     cases = 0,
-    documents = 0,
     aiRequests = 0,
     teamMembers = 1,
   } = usage;
@@ -86,12 +83,6 @@ export function UsageMeter({ limits, usage = {} }: UsageMeterProps) {
           label="Cases"
           current={cases}
           max={limits.maxCases}
-        />
-        <MeterItem
-          icon={Files}
-          label="Documents"
-          current={documents}
-          max={limits.maxDocumentsPerCase}
         />
         <MeterItem
           icon={Sparkles}

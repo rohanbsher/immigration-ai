@@ -80,9 +80,9 @@ export const POST = withAttorneyAuth(async (request, _context, auth) => {
     return successResponse(newCase, 201);
   } catch (error) {
     if (error instanceof QuotaExceededError) {
-      return errorResponse(
-        'You have reached your case limit. Please upgrade your plan to create more cases.',
-        403
+      return NextResponse.json(
+        { error: 'You have reached your case limit. Please upgrade your plan to create more cases.', code: 'QUOTA_EXCEEDED' },
+        { status: 402 }
       );
     }
 

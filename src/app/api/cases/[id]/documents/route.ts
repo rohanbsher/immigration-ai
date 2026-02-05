@@ -6,16 +6,12 @@ import { validateFile } from '@/lib/file-validation';
 import { sendDocumentUploadedEmail } from '@/lib/email/notifications';
 import { enforceQuota, enforceQuotaForCase, QuotaExceededError } from '@/lib/billing/quota';
 import { createLogger } from '@/lib/logger';
+import type { CaseAccessResult } from '@/types';
 
 const log = createLogger('api:case-documents');
 
 // File validation constants
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-
-interface CaseAccessResult {
-  hasAccess: boolean;
-  attorneyId?: string;
-}
 
 /**
  * Verify user has access to this case (is attorney or client)
@@ -90,8 +86,8 @@ export async function POST(
     } catch (error) {
       if (error instanceof QuotaExceededError) {
         return NextResponse.json(
-          { error: 'You have reached your storage limit. Please upgrade your plan.' },
-          { status: 403 }
+          { error: 'You have reached your storage limit. Please upgrade your plan.', code: 'QUOTA_EXCEEDED' },
+          { status: 402 }
         );
       }
       throw error;
@@ -103,8 +99,8 @@ export async function POST(
     } catch (error) {
       if (error instanceof QuotaExceededError) {
         return NextResponse.json(
-          { error: 'You have reached the document limit for this case. Please upgrade your plan.' },
-          { status: 403 }
+          { error: 'You have reached the document limit for this case. Please upgrade your plan.', code: 'QUOTA_EXCEEDED' },
+          { status: 402 }
         );
       }
       throw error;

@@ -143,6 +143,10 @@ async function getCurrentUsage(userId: string, metric: QuotaMetric): Promise<num
     case 'documents': {
       // Get max document count in any single case (not total across all cases)
       // This matches the semantic of maxDocumentsPerCase limit
+      //
+      // TODO: Optimize for users with many cases/documents.
+      // Current approach fetches all document rows then counts in-memory.
+      // Could be replaced with a database RPC using GROUP BY and MAX().
       const { data: cases, error: casesError } = await supabase
         .from('cases')
         .select('id')
@@ -291,22 +295,6 @@ export class QuotaExceededError extends Error {
     super(`Quota exceeded for ${metric}: ${current}/${limit}`);
     this.name = 'QuotaExceededError';
   }
-}
-
-/**
- * Options for enforcing per-case quotas.
- */
-export interface EnforceQuotaForCaseOptions {
-  /** The case to check quota for */
-  caseId: string;
-  /** The metric to check (currently only 'documents') */
-  metric: 'documents';
-  /**
-   * The case owner's user ID. If provided, skips the case lookup.
-   * IMPORTANT: Caller is responsible for verifying case access before
-   * passing this - the function will not validate the case exists.
-   */
-  attorneyId?: string;
 }
 
 /**

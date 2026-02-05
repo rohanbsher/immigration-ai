@@ -214,3 +214,10 @@ export interface ApiResponse<T> {
   message?: string;
 }
 
+// Access Control Types
+export interface CaseAccessResult {
+  hasAccess: boolean;
+  /** The case owner's attorney ID, useful for quota checks */
+  attorneyId?: string;
+}
+

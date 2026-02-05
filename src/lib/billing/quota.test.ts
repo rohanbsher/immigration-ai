@@ -3,6 +3,7 @@ import {
   checkQuota,
   enforceQuota,
   enforceQuotaForCase,
+  trackUsage,
   QuotaExceededError,
   POSTGREST_NO_ROWS,
 } from './quota';
@@ -19,15 +20,23 @@ vi.mock('@/lib/db/subscriptions', () => ({
   getUserPlanLimits: vi.fn(),
 }));
 
-vi.mock('@/lib/logger', () => ({
-  createLogger: vi.fn().mockReturnValue({
+// Mock logger - we'll access this via the module mock
+vi.mock('@/lib/logger', () => {
+  const mockLogger = {
     debug: vi.fn(),
     info: vi.fn(),
     warn: vi.fn(),
     error: vi.fn(),
     logError: vi.fn(),
-  }),
-}));
+  };
+  return {
+    createLogger: vi.fn().mockReturnValue(mockLogger),
+    __mockLogger: mockLogger,
+  };
+});
+
+// Import the mock logger for test assertions
+import { __mockLogger as mockLogger } from '@/lib/logger';
 
 describe('checkQuota', () => {
   let mockSupabase: {
@@ -753,5 +762,177 @@ describe('getCurrentUsage error handling', () => {
 describe('POSTGREST_NO_ROWS constant', () => {
   it('is exported and has correct value', () => {
     expect(POSTGREST_NO_ROWS).toBe('PGRST116');
+  });
+});
+
+describe('trackUsage', () => {
+  let mockSupabase: {
+    from: ReturnType<typeof vi.fn>;
+    rpc: ReturnType<typeof vi.fn>;
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+
+    mockSupabase = {
+      from: vi.fn(),
+      rpc: vi.fn(),
+    };
+
+    vi.mocked(createClient).mockResolvedValue(mockSupabase as never);
+  });
+
+  it('increments usage when subscription found', async () => {
+    mockSupabase.from.mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          in: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({
+              data: {
+                id: 'sub-123',
+                current_period_start: '2024-01-01',
+                current_period_end: '2024-02-01',
+              },
+              error: null,
+            }),
+          }),
+        }),
+      }),
+    });
+
+    mockSupabase.rpc.mockResolvedValue({ error: null });
+
+    await trackUsage('user-123', 'ai_requests', 5);
+
+    expect(mockSupabase.rpc).toHaveBeenCalledWith('increment_usage', {
+      p_subscription_id: 'sub-123',
+      p_metric_name: 'ai_requests',
+      p_quantity: 5,
+    });
+    expect(mockLogger.warn).not.toHaveBeenCalled();
+  });
+
+  it('returns silently when no subscription found (PGRST116)', async () => {
+    mockSupabase.from.mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          in: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({
+              data: null,
+              error: { code: POSTGREST_NO_ROWS, message: 'No rows found' },
+            }),
+          }),
+        }),
+      }),
+    });
+
+    await trackUsage('user-123', 'ai_requests');
+
+    expect(mockSupabase.rpc).not.toHaveBeenCalled();
+    expect(mockLogger.warn).not.toHaveBeenCalled();
+  });
+
+  it('logs warning when subscription query fails (non-PGRST116)', async () => {
+    mockSupabase.from.mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          in: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({
+              data: null,
+              error: { code: 'OTHER_ERROR', message: 'Connection failed' },
+            }),
+          }),
+        }),
+      }),
+    });
+
+    await trackUsage('user-123', 'ai_requests');
+
+    expect(mockSupabase.rpc).not.toHaveBeenCalled();
+    expect(mockLogger.warn).toHaveBeenCalledWith(
+      'Failed to get subscription for usage tracking',
+      expect.objectContaining({
+        userId: 'user-123',
+        metric: 'ai_requests',
+        error: 'Connection failed',
+      })
+    );
+  });
+
+  it('logs warning when RPC fails', async () => {
+    mockSupabase.from.mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          in: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({
+              data: {
+                id: 'sub-123',
+                current_period_start: '2024-01-01',
+                current_period_end: '2024-02-01',
+              },
+              error: null,
+            }),
+          }),
+        }),
+      }),
+    });
+
+    mockSupabase.rpc.mockResolvedValue({ error: { message: 'RPC failed' } });
+
+    await trackUsage('user-123', 'ai_requests');
+
+    expect(mockLogger.warn).toHaveBeenCalledWith(
+      'Failed to increment usage',
+      expect.objectContaining({
+        userId: 'user-123',
+        metric: 'ai_requests',
+        subscriptionId: 'sub-123',
+        error: 'RPC failed',
+      })
+    );
+  });
+
+  it('logs warning on unexpected error and does not throw', async () => {
+    vi.mocked(createClient).mockRejectedValue(new Error('Unexpected DB error'));
+
+    await expect(trackUsage('user-123', 'ai_requests')).resolves.not.toThrow();
+
+    expect(mockLogger.warn).toHaveBeenCalledWith(
+      'Unexpected error in trackUsage',
+      expect.objectContaining({
+        userId: 'user-123',
+        metric: 'ai_requests',
+        error: 'Unexpected DB error',
+      })
+    );
+  });
+
+  it('defaults amount to 1 when not specified', async () => {
+    mockSupabase.from.mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          in: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({
+              data: {
+                id: 'sub-123',
+                current_period_start: '2024-01-01',
+                current_period_end: '2024-02-01',
+              },
+              error: null,
+            }),
+          }),
+        }),
+      }),
+    });
+
+    mockSupabase.rpc.mockResolvedValue({ error: null });
+
+    await trackUsage('user-123', 'ai_requests');
+
+    expect(mockSupabase.rpc).toHaveBeenCalledWith('increment_usage', {
+      p_subscription_id: 'sub-123',
+      p_metric_name: 'ai_requests',
+      p_quantity: 1,
+    });
   });
 });

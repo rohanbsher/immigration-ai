@@ -1,23 +1,14 @@
 'use client';
 
 import { useMemo } from 'react';
+import dynamic from 'next/dynamic';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { MotionCard, MotionSlideUp } from '@/components/ui/motion';
 import { AnimatedCounter } from '@/components/visualizations/animated-counter';
-import { StatusChart } from '@/components/visualizations/status-chart';
 import { Skeleton, StatsCardSkeleton, GridSkeleton } from '@/components/ui/skeletons';
 import { CaseStatusBadge } from '@/components/cases';
 import { useRoleGuard } from '@/hooks/use-role-guard';
 import { useCases, useCaseStats } from '@/hooks/use-cases';
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  Cell,
-} from 'recharts';
 import {
   FolderOpen,
   CheckCircle2,
@@ -25,6 +16,22 @@ import {
   TrendingUp,
   BarChart3,
 } from 'lucide-react';
+
+const StatusChart = dynamic(
+  () => import('@/components/visualizations/status-chart').then(mod => ({ default: mod.StatusChart })),
+  {
+    ssr: false,
+    loading: () => <Skeleton className="h-48 rounded-lg" />,
+  }
+);
+
+const VisaTypeChart = dynamic(
+  () => import('@/components/visualizations/visa-type-chart').then(mod => ({ default: mod.VisaTypeChart })),
+  {
+    ssr: false,
+    loading: () => <Skeleton className="h-64 rounded-lg" />,
+  }
+);
 import type { CaseStatus } from '@/types';
 
 const STATUS_COLORS: Record<string, string> = {
@@ -257,44 +264,7 @@ export default function AnalyticsPage() {
                 </CardHeader>
                 <CardContent>
                   {analytics.visaTypeData.length > 0 ? (
-                    <div className="h-64">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart
-                          data={analytics.visaTypeData}
-                          layout="vertical"
-                          margin={{ top: 0, right: 20, bottom: 0, left: 50 }}
-                        >
-                          <XAxis type="number" allowDecimals={false} />
-                          <YAxis
-                            type="category"
-                            dataKey="name"
-                            width={45}
-                            tick={{ fontSize: 12 }}
-                          />
-                          <Tooltip
-                            content={({ active, payload }) => {
-                              if (active && payload && payload.length) {
-                                const data = payload[0].payload;
-                                return (
-                                  <div className="bg-popover text-popover-foreground rounded-lg border border-border px-3 py-2 shadow-lg">
-                                    <p className="font-medium">{data.name}</p>
-                                    <p className="text-sm text-muted-foreground">
-                                      {data.count} case{data.count !== 1 ? 's' : ''}
-                                    </p>
-                                  </div>
-                                );
-                              }
-                              return null;
-                            }}
-                          />
-                          <Bar dataKey="count" radius={[0, 4, 4, 0]}>
-                            {analytics.visaTypeData.map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={entry.fill} />
-                            ))}
-                          </Bar>
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
+                    <VisaTypeChart data={analytics.visaTypeData} />
                   ) : (
                     <p className="text-muted-foreground text-center py-8">No visa type data</p>
                   )}

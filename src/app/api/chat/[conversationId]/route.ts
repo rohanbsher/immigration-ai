@@ -125,13 +125,20 @@ export async function PATCH(
 
     const conversation = await getConversation(conversationId, user.id);
 
+    if (!conversation) {
+      return NextResponse.json(
+        { error: 'Not Found', message: 'Conversation not found' },
+        { status: 404 }
+      );
+    }
+
     return NextResponse.json({
       conversation: {
-        id: conversation?.id,
-        caseId: conversation?.caseId,
-        title: conversation?.title,
-        createdAt: conversation?.createdAt,
-        updatedAt: conversation?.updatedAt,
+        id: conversation.id,
+        caseId: conversation.caseId,
+        title: conversation.title,
+        createdAt: conversation.createdAt,
+        updatedAt: conversation.updatedAt,
       },
     });
   } catch (error) {

@@ -3,6 +3,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Users, Briefcase, FileText, CreditCard, TrendingUp, TrendingDown } from 'lucide-react';
+import { fetchWithTimeout } from '@/lib/api/fetch-with-timeout';
 
 interface AdminStats {
   totalUsers: number;
@@ -18,7 +19,7 @@ interface AdminStats {
 }
 
 async function fetchAdminStats(): Promise<AdminStats> {
-  const response = await fetch('/api/admin/stats');
+  const response = await fetchWithTimeout('/api/admin/stats', { timeout: 'QUICK' });
   if (!response.ok) {
     throw new Error('Failed to fetch admin stats');
   }

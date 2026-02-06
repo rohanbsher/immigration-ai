@@ -18,6 +18,7 @@ import {
   EyeOff,
   Shield,
 } from 'lucide-react';
+import { fetchWithTimeout } from '@/lib/api/fetch-with-timeout';
 import { useUser } from '@/hooks/use-user';
 import { useAuth } from '@/hooks/use-auth';
 import { toast } from 'sonner';
@@ -65,10 +66,11 @@ export default function SettingsPage() {
   const handleProfileSave = async () => {
     setIsSaving(true);
     try {
-      const response = await fetch('/api/profile', {
+      const response = await fetchWithTimeout('/api/profile', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(profileData),
+        timeout: 'STANDARD',
       });
 
       if (!response.ok) {

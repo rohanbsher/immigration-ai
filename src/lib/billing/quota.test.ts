@@ -124,8 +124,36 @@ describe('checkQuota', () => {
   });
 
   describe('documents quota (per-case semantics)', () => {
-    it('returns max documents in any single case', async () => {
+    it('returns max documents via RPC', async () => {
       vi.mocked(getUserPlanLimits).mockResolvedValue(createMockPlanLimits('free'));
+
+      // RPC succeeds — returns max doc count across all cases
+      mockSupabase.rpc.mockResolvedValue({ data: 7, error: null });
+
+      const result = await checkQuota('user-123', 'documents');
+
+      expect(result.current).toBe(7);
+      expect(result.limit).toBe(10);
+      expect(result.allowed).toBe(true);
+      expect(result.remaining).toBe(3);
+    });
+
+    it('returns 0 when RPC returns 0', async () => {
+      vi.mocked(getUserPlanLimits).mockResolvedValue(createMockPlanLimits('free'));
+
+      mockSupabase.rpc.mockResolvedValue({ data: 0, error: null });
+
+      const result = await checkQuota('user-123', 'documents');
+
+      expect(result.current).toBe(0);
+      expect(result.allowed).toBe(true);
+    });
+
+    it('falls back to in-memory counting when RPC fails', async () => {
+      vi.mocked(getUserPlanLimits).mockResolvedValue(createMockPlanLimits('free'));
+
+      // RPC fails — triggers fallback
+      mockSupabase.rpc.mockResolvedValue({ data: null, error: { message: 'function not found' } });
 
       const mockCases = [{ id: 'case-1' }, { id: 'case-2' }];
       const mockDocs = [
@@ -177,8 +205,10 @@ describe('checkQuota', () => {
       expect(result.remaining).toBe(3);
     });
 
-    it('returns 0 when user has no cases', async () => {
+    it('returns 0 in fallback when user has no cases', async () => {
       vi.mocked(getUserPlanLimits).mockResolvedValue(createMockPlanLimits('free'));
+
+      mockSupabase.rpc.mockResolvedValue({ data: null, error: { message: 'function not found' } });
 
       mockSupabase.from.mockImplementation((table: string) => {
         if (table === 'cases') {
@@ -202,8 +232,10 @@ describe('checkQuota', () => {
       expect(result.allowed).toBe(true);
     });
 
-    it('returns 0 when cases have no documents', async () => {
+    it('returns 0 in fallback when cases have no documents', async () => {
       vi.mocked(getUserPlanLimits).mockResolvedValue(createMockPlanLimits('free'));
+
+      mockSupabase.rpc.mockResolvedValue({ data: null, error: { message: 'function not found' } });
 
       mockSupabase.from.mockImplementation((table: string) => {
         if (table === 'cases') {
@@ -590,6 +622,7 @@ describe('enforceQuotaForCase', () => {
 describe('getCurrentUsage error handling', () => {
   let mockSupabase: {
     from: ReturnType<typeof vi.fn>;
+    rpc: ReturnType<typeof vi.fn>;
   };
 
   beforeEach(() => {
@@ -597,13 +630,17 @@ describe('getCurrentUsage error handling', () => {
 
     mockSupabase = {
       from: vi.fn(),
+      rpc: vi.fn(),
     };
 
     vi.mocked(createClient).mockResolvedValue(mockSupabase as never);
   });
 
-  it('throws when cases query fails in documents metric', async () => {
+  it('throws when cases query fails in documents metric (fallback path)', async () => {
     vi.mocked(getUserPlanLimits).mockResolvedValue(createMockPlanLimits('free'));
+
+    // RPC fails — triggers fallback
+    mockSupabase.rpc.mockResolvedValue({ data: null, error: { message: 'function not found' } });
 
     mockSupabase.from.mockImplementation((table: string) => {
       if (table === 'cases') {
@@ -626,8 +663,11 @@ describe('getCurrentUsage error handling', () => {
     );
   });
 
-  it('throws when documents query fails in documents metric', async () => {
+  it('throws when documents query fails in documents metric (fallback path)', async () => {
     vi.mocked(getUserPlanLimits).mockResolvedValue(createMockPlanLimits('free'));
+
+    // RPC fails — triggers fallback
+    mockSupabase.rpc.mockResolvedValue({ data: null, error: { message: 'function not found' } });
 
     mockSupabase.from.mockImplementation((table: string) => {
       if (table === 'cases') {

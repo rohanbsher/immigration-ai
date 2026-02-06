@@ -148,6 +148,7 @@ export type FormType =
 
 export type FormStatus =
   | 'draft'
+  | 'autofilling'
   | 'ai_filled'
   | 'in_review'
   | 'approved'

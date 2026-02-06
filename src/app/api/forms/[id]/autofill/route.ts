@@ -10,6 +10,7 @@ import {
 import { aiRateLimiter } from '@/lib/rate-limit';
 import { createLogger } from '@/lib/logger';
 import { enforceQuota, trackUsage, QuotaExceededError } from '@/lib/billing/quota';
+import type { FormStatus } from '@/types';
 
 const log = createLogger('api:forms-autofill');
 
@@ -17,8 +18,11 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  let id = 'unknown';
+  let previousStatus: FormStatus = 'draft';
+
   try {
-    const { id } = await params;
+    id = (await params).id;
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
@@ -64,6 +68,34 @@ export async function POST(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    // Recover stuck forms: if autofilling for >5 min, reset to draft
+    if (form.status === 'autofilling') {
+      const updatedAt = new Date(form.updated_at).getTime();
+      const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
+      if (updatedAt < fiveMinutesAgo) {
+        log.warn('Resetting stuck autofilling form', { formId: id, updatedAt: form.updated_at });
+        await formsService.updateForm(id, { status: 'draft' });
+        form.status = 'draft' as typeof form.status;
+      }
+    }
+
+    // CAS (Compare-and-Swap) protection against concurrent autofill
+    previousStatus = form.status;
+    const { data: casResult, error: casError } = await supabase
+      .from('forms')
+      .update({ status: 'autofilling', updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .eq('status', previousStatus)
+      .select('id')
+      .single();
+
+    if (casError || !casResult) {
+      return NextResponse.json(
+        { error: 'Form autofill is already in progress. Please try again later.' },
+        { status: 409 }
+      );
+    }
+
     // Get all analyzed documents for the case
     const documents = await documentsService.getDocumentsByCase(form.case_id);
     const analyzedDocuments = documents.filter(
@@ -71,6 +103,10 @@ export async function POST(
     );
 
     if (analyzedDocuments.length === 0) {
+      // Reset status since CAS already set it to 'autofilling'
+      await formsService.updateForm(id, { status: previousStatus }).catch((err) =>
+        log.logError('Failed to reset form status after no-docs check', err, { formId: id })
+      );
       return NextResponse.json(
         {
           error: 'No analyzed documents available',
@@ -129,6 +165,10 @@ export async function POST(
       });
     } catch (aiError) {
       log.logError('AI autofill error', aiError);
+      // Reset form status since autofill failed
+      await formsService.updateForm(id, { status: previousStatus }).catch((err) =>
+        log.logError('Failed to reset form status after AI error', err, { formId: id })
+      );
       // Don't expose internal AI error details to client
       return NextResponse.json(
         {
@@ -203,7 +243,20 @@ export async function POST(
       },
     });
   } catch (error) {
-    log.logError('Error autofilling form', error);
+    log.logError('Error autofilling form', error, { formId: id });
+    // Attempt to reset form status on unexpected error (only if CAS was applied)
+    if (id !== 'unknown') {
+      try {
+        const supabaseCleanup = await createClient();
+        await supabaseCleanup
+          .from('forms')
+          .update({ status: previousStatus })
+          .eq('id', id)
+          .eq('status', 'autofilling');
+      } catch (resetErr) {
+        log.logError('Failed to reset form status', resetErr, { formId: id });
+      }
+    }
     return NextResponse.json(
       { error: 'Failed to autofill form' },
       { status: 500 }

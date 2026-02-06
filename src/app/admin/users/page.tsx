@@ -23,6 +23,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Search, MoreHorizontal, Eye, Ban, CheckCircle } from 'lucide-react';
 import { format } from 'date-fns';
+import { fetchWithTimeout } from '@/lib/api/fetch-with-timeout';
 
 interface User {
   id: string;
@@ -49,7 +50,7 @@ async function fetchUsers(search: string, page: number): Promise<UsersResponse> 
   });
   if (search) params.set('search', search);
 
-  const response = await fetch(`/api/admin/users?${params}`);
+  const response = await fetchWithTimeout(`/api/admin/users?${params}`, { timeout: 'STANDARD' });
   if (!response.ok) {
     throw new Error('Failed to fetch users');
   }
@@ -58,8 +59,9 @@ async function fetchUsers(search: string, page: number): Promise<UsersResponse> 
 }
 
 async function suspendUser(userId: string): Promise<void> {
-  const response = await fetch(`/api/admin/users/${userId}/suspend`, {
+  const response = await fetchWithTimeout(`/api/admin/users/${userId}/suspend`, {
     method: 'POST',
+    timeout: 'STANDARD',
   });
   if (!response.ok) {
     throw new Error('Failed to suspend user');
@@ -67,8 +69,9 @@ async function suspendUser(userId: string): Promise<void> {
 }
 
 async function unsuspendUser(userId: string): Promise<void> {
-  const response = await fetch(`/api/admin/users/${userId}/unsuspend`, {
+  const response = await fetchWithTimeout(`/api/admin/users/${userId}/unsuspend`, {
     method: 'POST',
+    timeout: 'STANDARD',
   });
   if (!response.ok) {
     throw new Error('Failed to unsuspend user');

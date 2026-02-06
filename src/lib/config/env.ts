@@ -58,6 +58,9 @@ const serverEnvSchema = z.object({
     .enum(['development', 'production', 'test'])
     .default('development'),
 
+  // Supabase service role (admin access, never expose to client)
+  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1, 'Supabase service role key is required').optional(),
+
   // AI Configuration
   OPENAI_API_KEY: z.string().optional(),
   ANTHROPIC_API_KEY: z.string().optional(),
@@ -150,6 +153,7 @@ function validateServerEnv() {
 
   const result = serverEnvSchema.safeParse({
     NODE_ENV: process.env.NODE_ENV,
+    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
     OPENAI_API_KEY: process.env.OPENAI_API_KEY,
     ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
     ENCRYPTION_KEY: process.env.ENCRYPTION_KEY,
@@ -198,6 +202,10 @@ function validateProductionRequirements(env: z.infer<typeof serverEnvSchema>) {
   // Critical: Required for core functionality
   if (!env.ENCRYPTION_KEY) {
     errors.push('ENCRYPTION_KEY is required in production for PII protection');
+  }
+
+  if (!env.SUPABASE_SERVICE_ROLE_KEY) {
+    errors.push('SUPABASE_SERVICE_ROLE_KEY is required in production for admin database operations');
   }
 
   // Critical: At least one AI service should be configured

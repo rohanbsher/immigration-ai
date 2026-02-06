@@ -240,7 +240,7 @@ describe('Auth API Routes', () => {
       const data = await response.json();
 
       expect(response.status).toBe(401);
-      expect(data.error).toBe('Invalid login credentials');
+      expect(data.error).toBe('Invalid email or password');
     });
 
     it('should return 429 when rate limit is exceeded', async () => {
@@ -539,7 +539,7 @@ describe('Auth API Routes', () => {
       const data = await response.json();
 
       expect(response.status).toBe(400);
-      expect(data.error).toBe('User already registered');
+      expect(data.error).toBe('Registration could not be completed. Please try again.');
     });
 
     it('should return 429 when rate limit is exceeded', async () => {

@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       return NextResponse.json(
-        { error: error.message },
+        { error: 'Registration could not be completed. Please try again.' },
         { status: 400 }
       );
     }

@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/use-auth';
+import { fetchWithTimeout } from '@/lib/api/fetch-with-timeout';
 
 const adminNavItems = [
   {
@@ -64,7 +65,7 @@ export default function AdminLayout({
       }
 
       try {
-        const response = await fetch('/api/profile');
+        const response = await fetchWithTimeout('/api/profile', { timeout: 'QUICK' });
         const data = await response.json();
 
         if (data.success && data.data?.role === 'admin') {

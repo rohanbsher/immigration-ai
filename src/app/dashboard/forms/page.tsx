@@ -35,6 +35,7 @@ const formSummaries = getFormSummaries();
 // Status colors kept for future implementation
 const _statusColors: Record<FormStatus, string> = {
   draft: 'bg-slate-100 text-slate-700',
+  autofilling: 'bg-orange-100 text-orange-700',
   ai_filled: 'bg-purple-100 text-purple-700',
   in_review: 'bg-yellow-100 text-yellow-700',
   approved: 'bg-green-100 text-green-700',

@@ -481,6 +481,22 @@ describe('Forms API Routes', () => {
   describe('POST /api/forms/[id]/autofill', () => {
     beforeEach(() => {
       vi.mocked(aiRateLimiter.limit).mockResolvedValue({ allowed: true });
+
+      // CAS update mock: supabase.from('forms').update(...).eq(...).eq(...).select(...).single()
+      mockSupabaseClient.from.mockReturnValue({
+        update: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              select: vi.fn().mockReturnValue({
+                single: vi.fn().mockResolvedValue({
+                  data: { id: mockFormId },
+                  error: null,
+                }),
+              }),
+            }),
+          }),
+        }),
+      });
     });
 
     it('should return 401 when not authenticated', async () => {
@@ -540,10 +556,11 @@ describe('Forms API Routes', () => {
       expect(data.error).toBe('Forbidden');
     });
 
-    it('should return 400 when no analyzed documents available', async () => {
+    it('should return 400 when no analyzed documents available and reset status', async () => {
       vi.mocked(formsService.getForm).mockResolvedValue(mockForm as ReturnType<typeof formsService.getForm> extends Promise<infer T> ? T : never);
       vi.mocked(casesService.getCase).mockResolvedValue(mockCase as ReturnType<typeof casesService.getCase> extends Promise<infer T> ? T : never);
       vi.mocked(documentsService.getDocumentsByCase).mockResolvedValue([]);
+      vi.mocked(formsService.updateForm).mockResolvedValue(mockForm as any);
 
       const request = createMockRequest('POST');
       const response = await autofillPOST(request, { params: createMockParams() });
@@ -551,6 +568,8 @@ describe('Forms API Routes', () => {
 
       expect(response.status).toBe(400);
       expect(data.error).toBe('No analyzed documents available');
+      // Verify status was reset after CAS had set it to 'autofilling'
+      expect(formsService.updateForm).toHaveBeenCalledWith(mockFormId, { status: 'draft' });
     });
 
     it('should autofill form successfully with analyzed documents', async () => {

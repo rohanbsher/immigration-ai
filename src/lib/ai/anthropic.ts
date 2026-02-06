@@ -16,6 +16,7 @@ function getAnthropicClient(): Anthropic {
     }
     anthropicInstance = new Anthropic({
       apiKey: serverEnv.ANTHROPIC_API_KEY,
+      timeout: 120_000, // 120s — matches TIMEOUT_CONFIG.AI
     });
   }
   return anthropicInstance;

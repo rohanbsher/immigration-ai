@@ -141,42 +141,43 @@ async function getCurrentUsage(userId: string, metric: QuotaMetric): Promise<num
     }
 
     case 'documents': {
-      // Get max document count in any single case (not total across all cases)
-      // This matches the semantic of maxDocumentsPerCase limit
-      //
-      // TODO: Optimize for users with many cases/documents.
-      // Current approach fetches all document rows then counts in-memory.
-      // Could be replaced with a database RPC using GROUP BY and MAX().
-      const { data: cases, error: casesError } = await supabase
-        .from('cases')
-        .select('id')
-        .eq('attorney_id', userId)
-        .is('deleted_at', null);
+      // Single optimized query via RPC — replaces N+1 in-memory counting
+      const { data, error } = await supabase.rpc('get_max_documents_per_case', {
+        p_attorney_id: userId,
+      });
 
-      if (casesError) {
-        throw new Error(`Failed to get user cases: ${casesError.message}`);
+      if (error) {
+        // Fallback to in-memory counting if RPC doesn't exist yet (deploy migration 035)
+        logger.warn('RPC fallback: get_max_documents_per_case not available', {
+          error: error.message,
+          code: (error as { code?: string }).code,
+        });
+        const { data: cases, error: casesError } = await supabase
+          .from('cases')
+          .select('id')
+          .eq('attorney_id', userId)
+          .is('deleted_at', null);
+
+        if (casesError) throw new Error(`Failed to get user cases: ${casesError.message}`);
+        if (!cases || cases.length === 0) return 0;
+
+        const { data: docCounts, error: docsError } = await supabase
+          .from('documents')
+          .select('case_id')
+          .in('case_id', cases.map(c => c.id))
+          .is('deleted_at', null);
+
+        if (docsError) throw new Error(`Failed to get document counts: ${docsError.message}`);
+        if (!docCounts || docCounts.length === 0) return 0;
+
+        const countsByCase = new Map<string, number>();
+        for (const doc of docCounts) {
+          countsByCase.set(doc.case_id, (countsByCase.get(doc.case_id) || 0) + 1);
+        }
+        return Math.max(...countsByCase.values(), 0);
       }
 
-      if (!cases || cases.length === 0) return 0;
-
-      const { data: docCounts, error: docsError } = await supabase
-        .from('documents')
-        .select('case_id')
-        .in('case_id', cases.map(c => c.id))
-        .is('deleted_at', null);
-
-      if (docsError) {
-        throw new Error(`Failed to get document counts: ${docsError.message}`);
-      }
-
-      if (!docCounts || docCounts.length === 0) return 0;
-
-      // Count per case, return maximum
-      const countsByCase = new Map<string, number>();
-      for (const doc of docCounts) {
-        countsByCase.set(doc.case_id, (countsByCase.get(doc.case_id) || 0) + 1);
-      }
-      return Math.max(...countsByCase.values(), 0);
+      return (data as number) || 0;
     }
 
     case 'storage': {

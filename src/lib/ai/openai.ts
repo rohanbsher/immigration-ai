@@ -18,6 +18,7 @@ function getOpenAIClient(): OpenAI {
     }
     openaiInstance = new OpenAI({
       apiKey: serverEnv.OPENAI_API_KEY,
+      timeout: 120_000, // 120s — matches TIMEOUT_CONFIG.AI
     });
   }
   return openaiInstance;

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { getDetailedRedisHealth } from '@/lib/rate-limit/health';
+import { safeCompareSecrets } from '@/lib/security/timing-safe';
 
 // NOTE: Health checks intentionally use process.env directly (not serverEnv)
 // to diagnose configuration issues. If serverEnv validation fails, we still
@@ -47,9 +48,12 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  // Detailed check requires authentication
+  // Detailed check requires authentication via CRON_SECRET
   const authHeader = request.headers.get('authorization');
-  if (!authHeader?.startsWith('Bearer ')) {
+  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  const isAuthenticated = safeCompareSecrets(token, process.env.CRON_SECRET);
+
+  if (!isAuthenticated) {
     return NextResponse.json({
       status: 'healthy',
       timestamp: new Date().toISOString(),

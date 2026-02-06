@@ -1,6 +1,6 @@
 # Immigration AI - Features
 
-> Last updated: 2026-02-05 (Verified)
+> Last updated: 2026-02-06 (Verified)
 
 ## Shipped Features
 
@@ -29,17 +29,16 @@
 | PII Encryption | AES-256-GCM for extracted document data | `src/lib/crypto/` | 2026-01-27 |
 | Audit Logging | Activity tracking for compliance | `src/lib/audit/` | 2026-01-27 |
 | GDPR Compliance | Data export and deletion endpoints | `src/app/api/gdpr/` | 2026-01-28 |
+| Stripe Billing UI | Subscription management, checkout, usage meters | `src/app/dashboard/billing/`, `src/components/billing/` | 2026-02-05 |
+| Multi-Tenancy UI | Firm switcher, team management, invitations | `src/app/dashboard/firm/`, `src/components/firm/` | 2026-02-05 |
+| Production Readiness Fixes | AI timeouts, CAS autofill, admin pages, auth hardening | Various | 2026-02-06 |
+| Email Notifications | Resend integration with templates (welcome, case update, deadline, invitation) | `src/lib/email/`, `src/components/notifications/` | 2026-02-05 |
+| Activity Timeline | Real timeline component replacing placeholder | `src/components/dashboard/activity-timeline.tsx`, `src/app/api/activities/` | 2026-02-06 |
+| GDPR Privacy UI | Settings privacy tab with data export + account deletion | `src/app/dashboard/settings/` | 2026-02-06 |
+| Admin Dashboard Pages | Subscriptions, audit-logs, system admin pages | `src/app/dashboard/admin/` | 2026-02-06 |
 | Deadline Alerts | Vercel cron job (daily 6 AM UTC) | `src/app/api/cron/deadline-alerts/` | 2026-01-28 |
 | Document Checklists | Visa-specific document requirements | `src/app/api/document-checklists/` | 2026-01-28 |
 | Security Headers | CSP, HSTS, X-Frame-Options, Permissions-Policy | `next.config.ts` | 2026-01-27 |
-
-## In Development (UI Needed)
-
-| Feature | Backend Status | Frontend Status | Work Stream |
-|---------|---------------|-----------------|-------------|
-| Stripe Billing UI | Complete (API + webhooks) | Not started | WS-1 |
-| Multi-Tenancy UI | Complete (API + RLS) | Not started | WS-2 |
-| Email Notifications | Resend integration exists | Templates needed | WS-3 |
 
 ## Planned
 

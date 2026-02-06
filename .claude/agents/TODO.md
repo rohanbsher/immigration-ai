@@ -50,34 +50,34 @@ Console: 0 statements in production code
 
 ## Open Work Streams (Available for New Agents)
 
-### WS-1: Billing UI (READY)
-**Status:** Backend complete, frontend needed
+### WS-1: Billing UI (COMPLETE)
+**Status:** Shipped 2026-02-05
 **Files:** `src/app/dashboard/billing/`, `src/components/billing/`
 **Tasks:**
-- [ ] Build subscription management page
-- [ ] Build checkout flow component
-- [ ] Build usage meter display
-- [ ] Build plan comparison table
-- [ ] Build upgrade/downgrade flow
-- [ ] Test Stripe webhook integration end-to-end
+- [x] Build subscription management page
+- [x] Build checkout flow component
+- [x] Build usage meter display
+- [x] Build plan comparison table
+- [x] Build upgrade/downgrade flow
+- [x] Test Stripe webhook integration end-to-end
 
-### WS-2: Multi-Tenancy UI (READY)
-**Status:** DB/API complete, frontend needed
+### WS-2: Multi-Tenancy UI (COMPLETE)
+**Status:** Shipped 2026-02-05
 **Files:** `src/app/dashboard/firm/`, `src/components/firm/`
 **Tasks:**
-- [ ] Build firm switcher component
-- [ ] Build team invitation flow
-- [ ] Build firm settings page
-- [ ] Build member management UI
+- [x] Build firm switcher component
+- [x] Build team invitation flow
+- [x] Build firm settings page
+- [x] Build member management UI
 
-### WS-3: Email Notifications (BLOCKED on WS-1)
-**Status:** Resend integration exists, templates needed
+### WS-3: Email Notifications (COMPLETE)
+**Status:** Shipped 2026-02-05
 **Files:** `src/lib/email/`
 **Tasks:**
-- [ ] Create email templates (welcome, case update, deadline, invitation)
-- [ ] Configure Resend for production
-- [ ] Wire up notification triggers
-- [ ] Build notification preferences UI
+- [x] Create email templates (welcome, case update, deadline, invitation)
+- [x] Configure Resend for production
+- [x] Wire up notification triggers
+- [x] Build notification preferences UI
 
 ### WS-BASESERVICE: BaseService Migration (COMPLETE)
 **Status:** All 12 services migrated to BaseService pattern
@@ -103,11 +103,22 @@ Console: 0 statements in production code
 - [x] Group B: Form data sync fix in forms/[id]/page.tsx (isInitialized flag)
 - [x] Group C: Document upload partial failure (Promise.allSettled + retry)
 
-### WS-AUDIT-FIXES: Production Readiness Audit Findings (READY)
-**Status:** Audit complete (79/100), fixes available
+### WS-PROD-FIXES: Production Readiness Fixes (COMPLETE)
+**Status:** Shipped 2026-02-06 — Score 83→~92/100
 **Tasks:**
-- [ ] Migrate admin dashboard pages to fetchWithTimeout
-- [ ] Fix forms list N+1 aggregation query
+- [x] Fix 1: AI API timeout configuration (OpenAI + Anthropic constructors)
+- [x] Fix 2: Admin/settings bare fetch → fetchWithTimeout (6 call sites)
+- [x] Fix 3: Form autofill CAS race condition (autofilling status + rollback)
+- [x] Fix 4: Missing admin pages (subscriptions, audit-logs, system)
+- [x] Fix 5: Auth error message standardization (prevent enumeration)
+- [x] Fix 6: N+1 quota query → Supabase RPC with fallback
+- [x] Fix 7: Update stale documentation
+
+### WS-AUDIT-FIXES: Production Readiness Audit Findings (MOSTLY COMPLETE)
+**Status:** Core fixes done via WS-PROD-FIXES. Remaining items below.
+**Tasks:**
+- [x] Migrate admin dashboard pages to fetchWithTimeout
+- [x] Fix forms list N+1 aggregation query
 - [ ] Add tests for 6 untested lib modules
 - [ ] Include documents/AI conversations in GDPR data export
 - [ ] Review Redis fail-closed behavior for production safety

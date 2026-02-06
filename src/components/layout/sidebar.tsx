@@ -17,6 +17,7 @@ import {
   CreditCard,
   Building2,
   ListTodo,
+  BarChart3,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -24,6 +25,7 @@ import { useMemo, useState } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { toast } from 'sonner';
 import { getNavItemsForRole, MAIN_NAV_ITEMS, BOTTOM_NAV_ITEMS } from '@/lib/rbac';
+import { FirmSwitcher } from '@/components/firm/firm-switcher';
 import type { UserRole } from '@/types';
 
 interface NavItem {
@@ -39,6 +41,7 @@ const navIcons: Record<string, React.ElementType> = {
   Documents: Files,
   Forms: FileText,
   Tasks: ListTodo,
+  Analytics: BarChart3,
   Clients: Users,
   Firm: Building2,
   Billing: CreditCard,
@@ -126,6 +129,11 @@ export function Sidebar({ user }: SidebarProps) {
         >
           {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
         </Button>
+      </div>
+
+      {/* Firm Switcher */}
+      <div className="px-2 pt-2">
+        <FirmSwitcher collapsed={collapsed} />
       </div>
 
       {/* Main Navigation */}

@@ -34,6 +34,7 @@ export const ROUTE_PERMISSIONS: RoutePermission[] = [
   { path: '/dashboard/client', allowedRoles: ['client'], isPrefix: true },
 
   // Attorney and admin routes (not accessible by clients)
+  { path: '/dashboard/analytics', allowedRoles: ['attorney', 'admin'], isPrefix: true },
   { path: '/dashboard/clients', allowedRoles: ['attorney', 'admin'], isPrefix: true },
   { path: '/dashboard/cases/new', allowedRoles: ['attorney', 'admin'] },
   { path: '/dashboard/tasks', allowedRoles: ['attorney', 'admin'], isPrefix: true },
@@ -129,6 +130,7 @@ export const MAIN_NAV_ITEMS: NavItemConfig[] = [
   { label: 'Documents', href: '/dashboard/documents', allowedRoles: ['attorney', 'client', 'admin'] },
   { label: 'Forms', href: '/dashboard/forms', allowedRoles: ['attorney', 'client', 'admin'] },
   { label: 'Tasks', href: '/dashboard/tasks', allowedRoles: ['attorney', 'admin'] },
+  { label: 'Analytics', href: '/dashboard/analytics', allowedRoles: ['attorney', 'admin'] },
   { label: 'Clients', href: '/dashboard/clients', allowedRoles: ['attorney', 'admin'] },
   { label: 'Firm', href: '/dashboard/firm', allowedRoles: ['attorney', 'admin'] },
 ];

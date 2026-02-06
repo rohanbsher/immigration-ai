@@ -15,6 +15,7 @@ import {
 import { createRateLimiter, RATE_LIMITS } from '@/lib/rate-limit';
 import { withAIFallback } from '@/lib/ai/utils';
 import { createLogger } from '@/lib/logger';
+import { enforceQuota, trackUsage, QuotaExceededError } from '@/lib/billing/quota';
 
 const log = createLogger('api:case-recommendations');
 
@@ -243,6 +244,21 @@ export async function GET(
     // Check URL params for refresh flag
     const forceRefresh = request.nextUrl.searchParams.get('refresh') === 'true';
 
+    // Quota enforcement (only needed if we'll generate fresh recommendations)
+    if (forceRefresh || !(await getCachedRecommendations(caseId))) {
+      try {
+        await enforceQuota(user.id, 'ai_requests');
+      } catch (error) {
+        if (error instanceof QuotaExceededError) {
+          return NextResponse.json(
+            { error: 'AI request limit reached. Please upgrade your plan.', code: 'QUOTA_EXCEEDED' },
+            { status: 402 }
+          );
+        }
+        throw error;
+      }
+    }
+
     // Try to get cached recommendations
     if (!forceRefresh) {
       const cached = await getCachedRecommendations(caseId);
@@ -263,6 +279,9 @@ export async function GET(
       () => generateRecommendations(caseId),
       () => generateFallbackRecommendations(caseId)
     );
+
+    // Track AI usage for freshly generated recommendations
+    trackUsage(user.id, 'ai_requests').catch(() => {});
 
     // Cache the recommendations
     await cacheRecommendations(caseId, recommendations);

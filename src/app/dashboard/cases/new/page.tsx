@@ -16,7 +16,7 @@ import {
   FolderOpen,
 } from 'lucide-react';
 import { useCreateCase } from '@/hooks/use-cases';
-import { useSearchClients } from '@/hooks/use-clients';
+import { useSearchClients, useCreateClient } from '@/hooks/use-clients';
 import { useRoleGuard } from '@/hooks/use-role-guard';
 import { useQuota } from '@/hooks/use-quota';
 import { UpgradePromptBanner, UpgradePromptDialog } from '@/components/billing/upgrade-prompt';
@@ -71,6 +71,7 @@ type Step = 'client' | 'visa' | 'details' | 'review';
 export default function NewCasePage() {
   const router = useRouter();
   const { mutate: createCase, isPending } = useCreateCase();
+  const { mutateAsync: createClient, isPending: isCreatingClient } = useCreateClient();
 
   // Protect this page - only attorneys and admins can create cases
   const { isLoading: isAuthLoading, hasAccess } = useRoleGuard({
@@ -147,16 +148,36 @@ export default function NewCasePage() {
       return;
     }
 
-    // For now, we need an existing client
-    // In a full implementation, we'd create the client first if it's a new one
-    if (!formData.client_id) {
-      toast.error('Please select an existing client');
+    let clientId = formData.client_id;
+
+    // If new client, create them first
+    if (formData.is_new_client && !clientId) {
+      if (!formData.client_email || !formData.client_first_name || !formData.client_last_name) {
+        toast.error('Please provide client name and email');
+        return;
+      }
+
+      try {
+        const newClient = await createClient({
+          email: formData.client_email,
+          first_name: formData.client_first_name,
+          last_name: formData.client_last_name,
+        });
+        clientId = newClient.id;
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : 'Failed to create client');
+        return;
+      }
+    }
+
+    if (!clientId) {
+      toast.error('Please select or create a client');
       return;
     }
 
     createCase(
       {
-        client_id: formData.client_id,
+        client_id: clientId,
         visa_type: formData.visa_type,
         title: formData.title,
         description: formData.description || undefined,
@@ -576,11 +597,11 @@ export default function NewCasePage() {
         </Button>
 
         {step === 'review' ? (
-          <Button onClick={handleSubmit} disabled={isPending}>
-            {isPending ? (
+          <Button onClick={handleSubmit} disabled={isPending || isCreatingClient}>
+            {isPending || isCreatingClient ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Creating...
+                {isCreatingClient ? 'Creating Client...' : 'Creating Case...'}
               </>
             ) : (
               <>

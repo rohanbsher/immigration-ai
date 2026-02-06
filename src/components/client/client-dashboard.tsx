@@ -7,6 +7,7 @@ import { Progress } from '@/components/ui/progress';
 import { FileText, Calendar, CheckCircle, Clock, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
 import { CaseTimeline } from './case-timeline';
+import { fetchWithTimeout } from '@/lib/api/fetch-with-timeout';
 
 interface ClientCase {
   id: string;
@@ -22,7 +23,7 @@ interface ClientCase {
 }
 
 async function fetchClientCases(): Promise<ClientCase[]> {
-  const response = await fetch('/api/cases?role=client');
+  const response = await fetchWithTimeout('/api/cases?role=client', { timeout: 'STANDARD' });
   if (!response.ok) {
     throw new Error('Failed to fetch cases');
   }

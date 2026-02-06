@@ -36,8 +36,12 @@ export function AISearchInput({
   const [isAIMode, setIsAIMode] = useState(defaultAIMode);
   const [recentSearches, setRecentSearches] = useState<string[]>(() => {
     if (typeof window === 'undefined') return [];
-    const stored = localStorage.getItem('recentSearches');
-    return stored ? JSON.parse(stored).slice(0, 5) : [];
+    try {
+      const stored = localStorage.getItem('recentSearches');
+      return stored ? JSON.parse(stored).slice(0, 5) : [];
+    } catch {
+      return [];
+    }
   });
   const [showSuggestions, setShowSuggestions] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);

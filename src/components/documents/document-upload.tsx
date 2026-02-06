@@ -6,6 +6,8 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { Upload, X, FileText, Loader2 } from 'lucide-react';
 import { useUploadDocument } from '@/hooks/use-documents';
+import { useQuota } from '@/hooks/use-quota';
+import { UpgradePromptDialog, UpgradePromptBanner } from '@/components/billing/upgrade-prompt';
 import { formatFileSize, isAllowedFileType } from '@/lib/storage/utils';
 import { toast } from 'sonner';
 import type { DocumentType } from '@/types';
@@ -45,7 +47,13 @@ interface SelectedFile {
 export function DocumentUpload({ caseId, onSuccess }: DocumentUploadProps) {
   const [selectedFiles, setSelectedFiles] = useState<SelectedFile[]>([]);
   const [isDragging, setIsDragging] = useState(false);
+  const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
   const { mutate: uploadDocument, isPending } = useUploadDocument();
+  const { data: docQuota } = useQuota('documents');
+  const { data: storageQuota } = useQuota('storage');
+
+  const isAtDocLimit = docQuota && !docQuota.isUnlimited && !docQuota.allowed;
+  const isAtStorageLimit = storageQuota && !storageQuota.isUnlimited && !storageQuota.allowed;
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -106,32 +114,87 @@ export function DocumentUpload({ caseId, onSuccess }: DocumentUploadProps) {
   const handleUpload = async () => {
     if (selectedFiles.length === 0) return;
 
-    for (const selectedFile of selectedFiles) {
-      uploadDocument(
-        {
-          case_id: caseId,
-          document_type: selectedFile.documentType,
-          file: selectedFile.file,
-          expiration_date: selectedFile.expirationDate,
-          notes: selectedFile.notes,
-        },
-        {
-          onSuccess: () => {
-            toast.success(`${selectedFile.file.name} uploaded successfully`);
-          },
-          onError: (error) => {
-            toast.error(`Failed to upload ${selectedFile.file.name}: ${error.message}`);
-          },
-        }
+    if (isAtDocLimit || isAtStorageLimit) {
+      setShowUpgradeDialog(true);
+      return;
+    }
+
+    const results = await Promise.allSettled(
+      selectedFiles.map(
+        (selectedFile) =>
+          new Promise<string>((resolve, reject) => {
+            uploadDocument(
+              {
+                case_id: caseId,
+                document_type: selectedFile.documentType,
+                file: selectedFile.file,
+                expiration_date: selectedFile.expirationDate,
+                notes: selectedFile.notes,
+              },
+              {
+                onSuccess: () => resolve(selectedFile.file.name),
+                onError: (error) => reject(error),
+              }
+            );
+          })
+      )
+    );
+
+    const succeeded = results
+      .map((r, i) => (r.status === 'fulfilled' ? i : -1))
+      .filter((i) => i !== -1);
+    const failed = results
+      .map((r, i) => (r.status === 'rejected' ? i : -1))
+      .filter((i) => i !== -1);
+
+    if (succeeded.length > 0) {
+      toast.success(
+        `${succeeded.length} of ${selectedFiles.length} file${selectedFiles.length > 1 ? 's' : ''} uploaded`
       );
     }
 
-    setSelectedFiles([]);
-    onSuccess?.();
+    for (const i of failed) {
+      const reason = results[i].status === 'rejected' ? (results[i] as PromiseRejectedResult).reason : null;
+      const fileName = selectedFiles[i].file.name;
+      if (reason?.message?.includes('quota') || reason?.message?.includes('limit')) {
+        setShowUpgradeDialog(true);
+      } else {
+        toast.error(`Failed to upload ${fileName}: ${reason?.message || 'Unknown error'}`);
+      }
+    }
+
+    // Keep failed files for retry, remove successful ones
+    const failedFiles = failed.map((i) => selectedFiles[i]);
+    setSelectedFiles(failedFiles);
+
+    if (succeeded.length > 0) {
+      onSuccess?.();
+    }
   };
+
+  const activeQuotaMetric = isAtDocLimit ? 'documents' : 'storage';
+  const activeQuota = isAtDocLimit ? docQuota : storageQuota;
 
   return (
     <div className="space-y-4">
+      {/* Quota Warning Banner */}
+      {docQuota && (
+        <UpgradePromptBanner metric="documents" quota={docQuota} />
+      )}
+      {storageQuota && !isAtDocLimit && (
+        <UpgradePromptBanner metric="storage" quota={storageQuota} />
+      )}
+
+      {/* Upgrade Dialog */}
+      {activeQuota && (
+        <UpgradePromptDialog
+          open={showUpgradeDialog}
+          onOpenChange={setShowUpgradeDialog}
+          metric={activeQuotaMetric}
+          quota={activeQuota}
+        />
+      )}
+
       {/* Drop Zone */}
       <div
         onDragOver={handleDragOver}

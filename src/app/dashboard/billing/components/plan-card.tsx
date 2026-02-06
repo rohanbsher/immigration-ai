@@ -14,6 +14,7 @@ interface PlanCardProps {
   billingPeriod: 'monthly' | 'yearly';
   onSelect: (planType: 'pro' | 'enterprise') => void;
   isLoading?: boolean;
+  disabled?: boolean;
 }
 
 const FEATURE_LABELS: Record<string, string> = {
@@ -32,6 +33,7 @@ export function PlanCard({
   billingPeriod,
   onSelect,
   isLoading,
+  disabled,
 }: PlanCardProps) {
   const plan = PLAN_FEATURES[planType];
   const price = plan.price[billingPeriod];
@@ -132,7 +134,7 @@ export function PlanCard({
             <Button
               className="w-full"
               onClick={() => onSelect('enterprise')}
-              disabled={isLoading}
+              disabled={isLoading || disabled}
             >
               {isLoading ? 'Processing...' : 'Upgrade to Enterprise'}
             </Button>
@@ -140,7 +142,7 @@ export function PlanCard({
             <Button
               className="w-full bg-blue-600 hover:bg-blue-700"
               onClick={() => onSelect('pro')}
-              disabled={isLoading}
+              disabled={isLoading || disabled}
             >
               {isLoading ? 'Processing...' : 'Upgrade to Pro'}
             </Button>

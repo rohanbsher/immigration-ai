@@ -1,8 +1,5 @@
-import { createClient } from '@/lib/supabase/server';
-import { createLogger } from '@/lib/logger';
+import { BaseService } from './base-service';
 import type { DocumentType } from '@/types';
-
-const logger = createLogger('db:document-requests');
 
 export type DocumentRequestStatus = 'pending' | 'uploaded' | 'fulfilled' | 'expired' | 'cancelled';
 export type RequestPriority = 'low' | 'normal' | 'high' | 'urgent';
@@ -55,244 +52,185 @@ export interface UpdateDocumentRequestData {
   fulfilled_at?: string | null;
 }
 
-export const documentRequestsService = {
-  /**
-   * Get all document requests for a case
-   */
+const REQUEST_SELECT = `
+  *,
+  requester:profiles!requested_by (
+    id,
+    first_name,
+    last_name,
+    email
+  ),
+  fulfilled_document:documents!fulfilled_by_document_id (
+    id,
+    file_name,
+    file_url
+  )
+`;
+
+const REQUEST_SELECT_NO_FULFILLED = `
+  *,
+  requester:profiles!requested_by (
+    id,
+    first_name,
+    last_name,
+    email
+  )
+`;
+
+class DocumentRequestsService extends BaseService {
+  constructor() {
+    super('document-requests');
+  }
+
   async getRequestsByCase(caseId: string): Promise<DocumentRequest[]> {
-    const supabase = await createClient();
+    return this.withErrorHandling(async () => {
+      const supabase = await this.getSupabaseClient();
 
-    const { data, error } = await supabase
-      .from('document_requests')
-      .select(`
-        *,
-        requester:profiles!requested_by (
-          id,
-          first_name,
-          last_name,
-          email
-        ),
-        fulfilled_document:documents!fulfilled_by_document_id (
-          id,
-          file_name,
-          file_url
-        )
-      `)
-      .eq('case_id', caseId)
-      .is('deleted_at', null)
-      .order('created_at', { ascending: false });
+      const { data, error } = await supabase
+        .from('document_requests')
+        .select(REQUEST_SELECT)
+        .eq('case_id', caseId)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false });
 
-    if (error) {
-      logger.logError('Error fetching document requests', error, { caseId });
-      throw error;
-    }
+      if (error) throw error;
 
-    return data as DocumentRequest[];
-  },
+      return data as DocumentRequest[];
+    }, 'getRequestsByCase', { caseId });
+  }
 
-  /**
-   * Get pending requests for a case
-   */
   async getPendingRequestsByCase(caseId: string): Promise<DocumentRequest[]> {
-    const supabase = await createClient();
+    return this.withErrorHandling(async () => {
+      const supabase = await this.getSupabaseClient();
 
-    const { data, error } = await supabase
-      .from('document_requests')
-      .select(`
-        *,
-        requester:profiles!requested_by (
-          id,
-          first_name,
-          last_name,
-          email
-        )
-      `)
-      .eq('case_id', caseId)
-      .eq('status', 'pending')
-      .is('deleted_at', null)
-      .order('priority', { ascending: false })
-      .order('due_date', { ascending: true, nullsFirst: false });
+      const { data, error } = await supabase
+        .from('document_requests')
+        .select(REQUEST_SELECT_NO_FULFILLED)
+        .eq('case_id', caseId)
+        .eq('status', 'pending')
+        .is('deleted_at', null)
+        .order('priority', { ascending: false })
+        .order('due_date', { ascending: true, nullsFirst: false });
 
-    if (error) {
-      logger.logError('Error fetching pending requests', error, { caseId });
-      throw error;
-    }
+      if (error) throw error;
 
-    return data as DocumentRequest[];
-  },
+      return data as DocumentRequest[];
+    }, 'getPendingRequestsByCase', { caseId });
+  }
 
-  /**
-   * Get a single document request
-   */
   async getRequest(id: string): Promise<DocumentRequest | null> {
-    const supabase = await createClient();
+    return this.withErrorHandling(async () => {
+      const supabase = await this.getSupabaseClient();
 
-    const { data, error } = await supabase
-      .from('document_requests')
-      .select(`
-        *,
-        requester:profiles!requested_by (
-          id,
-          first_name,
-          last_name,
-          email
-        ),
-        fulfilled_document:documents!fulfilled_by_document_id (
-          id,
-          file_name,
-          file_url
-        )
-      `)
-      .eq('id', id)
-      .is('deleted_at', null)
-      .single();
+      const { data, error } = await supabase
+        .from('document_requests')
+        .select(REQUEST_SELECT)
+        .eq('id', id)
+        .is('deleted_at', null)
+        .single();
 
-    if (error) {
-      if (error.code === 'PGRST116') return null;
-      logger.logError('Error fetching document request', error, { requestId: id });
-      throw error;
-    }
+      if (error) {
+        if (error.code === 'PGRST116') return null;
+        throw error;
+      }
 
-    return data as DocumentRequest;
-  },
+      return data as DocumentRequest;
+    }, 'getRequest', { requestId: id });
+  }
 
-  /**
-   * Create a new document request
-   */
   async createRequest(data: CreateDocumentRequestData): Promise<DocumentRequest> {
-    const supabase = await createClient();
+    return this.withErrorHandling(async () => {
+      const supabase = await this.getSupabaseClient();
 
-    const { data: request, error } = await supabase
-      .from('document_requests')
-      .insert({
-        ...data,
-        priority: data.priority || 'normal',
-      })
-      .select(`
-        *,
-        requester:profiles!requested_by (
-          id,
-          first_name,
-          last_name,
-          email
-        )
-      `)
-      .single();
+      const { data: request, error } = await supabase
+        .from('document_requests')
+        .insert({
+          ...data,
+          priority: data.priority || 'normal',
+        })
+        .select(REQUEST_SELECT_NO_FULFILLED)
+        .single();
 
-    if (error) {
-      logger.logError('Error creating document request', error, { caseId: data.case_id, documentType: data.document_type });
-      throw error;
-    }
+      if (error) throw error;
 
-    return request as DocumentRequest;
-  },
+      return request as DocumentRequest;
+    }, 'createRequest', { caseId: data.case_id, documentType: data.document_type });
+  }
 
-  /**
-   * Update a document request
-   */
   async updateRequest(id: string, data: UpdateDocumentRequestData): Promise<DocumentRequest> {
-    const supabase = await createClient();
+    return this.withErrorHandling(async () => {
+      const supabase = await this.getSupabaseClient();
 
-    const { data: request, error } = await supabase
-      .from('document_requests')
-      .update(data)
-      .eq('id', id)
-      .select(`
-        *,
-        requester:profiles!requested_by (
-          id,
-          first_name,
-          last_name,
-          email
-        ),
-        fulfilled_document:documents!fulfilled_by_document_id (
-          id,
-          file_name,
-          file_url
-        )
-      `)
-      .single();
+      const { data: request, error } = await supabase
+        .from('document_requests')
+        .update(data)
+        .eq('id', id)
+        .select(REQUEST_SELECT)
+        .single();
 
-    if (error) {
-      logger.logError('Error updating document request', error, { requestId: id });
-      throw error;
-    }
+      if (error) throw error;
 
-    return request as DocumentRequest;
-  },
+      return request as DocumentRequest;
+    }, 'updateRequest', { requestId: id });
+  }
 
-  /**
-   * Mark a request as uploaded (when client uploads a document)
-   */
   async markAsUploaded(id: string, documentId: string): Promise<DocumentRequest> {
     return this.updateRequest(id, {
       status: 'uploaded',
       fulfilled_by_document_id: documentId,
     });
-  },
+  }
 
-  /**
-   * Mark a request as fulfilled (when attorney verifies the document)
-   */
   async markAsFulfilled(id: string): Promise<DocumentRequest> {
     return this.updateRequest(id, {
       status: 'fulfilled',
       fulfilled_at: new Date().toISOString(),
     });
-  },
+  }
 
-  /**
-   * Cancel a request
-   */
   async cancelRequest(id: string): Promise<void> {
-    const supabase = await createClient();
+    return this.withErrorHandling(async () => {
+      const supabase = await this.getSupabaseClient();
 
-    const { error } = await supabase
-      .from('document_requests')
-      .update({ status: 'cancelled' })
-      .eq('id', id);
+      const { error } = await supabase
+        .from('document_requests')
+        .update({ status: 'cancelled' })
+        .eq('id', id);
 
-    if (error) {
-      logger.logError('Error cancelling document request', error, { requestId: id });
-      throw error;
-    }
-  },
+      if (error) throw error;
+    }, 'cancelRequest', { requestId: id });
+  }
 
-  /**
-   * Soft delete a request
-   */
   async deleteRequest(id: string): Promise<void> {
-    const supabase = await createClient();
+    return this.withErrorHandling(async () => {
+      const supabase = await this.getSupabaseClient();
 
-    const { error } = await supabase
-      .from('document_requests')
-      .update({ deleted_at: new Date().toISOString() })
-      .eq('id', id);
+      const { error } = await supabase
+        .from('document_requests')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', id);
 
-    if (error) {
-      logger.logError('Error deleting document request', error, { requestId: id });
-      throw error;
-    }
-  },
+      if (error) throw error;
+    }, 'deleteRequest', { requestId: id });
+  }
 
-  /**
-   * Get count of pending requests for a case
-   */
   async getPendingCount(caseId: string): Promise<number> {
-    const supabase = await createClient();
+    return this.withErrorHandling(async () => {
+      const supabase = await this.getSupabaseClient();
 
-    const { count, error } = await supabase
-      .from('document_requests')
-      .select('*', { count: 'exact', head: true })
-      .eq('case_id', caseId)
-      .eq('status', 'pending')
-      .is('deleted_at', null);
+      const { count, error } = await supabase
+        .from('document_requests')
+        .select('*', { count: 'exact', head: true })
+        .eq('case_id', caseId)
+        .eq('status', 'pending')
+        .is('deleted_at', null);
 
-    if (error) {
-      logger.logError('Error fetching pending count', error, { caseId });
-      return 0;
-    }
+      if (error) throw error;
 
-    return count || 0;
-  },
-};
+      return count || 0;
+    }, 'getPendingCount', { caseId });
+  }
+}
+
+// Export singleton instance
+export const documentRequestsService = new DocumentRequestsService();

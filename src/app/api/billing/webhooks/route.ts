@@ -18,6 +18,14 @@ export async function POST(request: NextRequest) {
 
     const event = await constructWebhookEvent(body, signature);
 
+    // Reject replay attacks - events older than 5 minutes
+    const eventAge = Date.now() - event.created * 1000;
+    const MAX_WEBHOOK_AGE_MS = 5 * 60 * 1000; // 5 minutes
+    if (eventAge > MAX_WEBHOOK_AGE_MS) {
+      log.warn('Rejected stale webhook event', { eventId: event.id, ageMs: eventAge });
+      return NextResponse.json({ error: 'Event too old' }, { status: 400 });
+    }
+
     await handleWebhookEvent(event);
 
     return NextResponse.json({ received: true });

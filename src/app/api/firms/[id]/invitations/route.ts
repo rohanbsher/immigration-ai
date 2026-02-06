@@ -11,6 +11,8 @@ import {
 import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 import { canManageMembers } from '@/types/firms';
 import { createLogger } from '@/lib/logger';
+import { sendTeamInvitationEmail } from '@/lib/email/notifications';
+import { getFirmById } from '@/lib/db/firms';
 
 const log = createLogger('api:firms-invitations');
 
@@ -120,6 +122,26 @@ export async function POST(request: NextRequest, { params }: Params) {
     }
 
     const invitation = await createInvitation(id, email, role, user.id);
+
+    // Send invitation email (fire-and-forget)
+    const firm = await getFirmById(id);
+    const inviterProfile = await supabase
+      .from('profiles')
+      .select('first_name, last_name')
+      .eq('id', user.id)
+      .single();
+    const inviterName = inviterProfile.data
+      ? `${inviterProfile.data.first_name || ''} ${inviterProfile.data.last_name || ''}`.trim() || 'A team member'
+      : 'A team member';
+
+    sendTeamInvitationEmail(
+      email,
+      inviterName,
+      firm?.name || 'your firm',
+      role,
+      invitation.token,
+      new Date(invitation.expiresAt)
+    ).catch((err) => log.logError('Failed to send invitation email', err));
 
     return NextResponse.json({
       success: true,

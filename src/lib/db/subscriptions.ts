@@ -1,7 +1,4 @@
-import { createClient } from '@/lib/supabase/server';
-import { createLogger } from '@/lib/logger';
-
-const logger = createLogger('db:subscriptions');
+import { BaseService } from './base-service';
 
 export type SubscriptionStatus = 'trialing' | 'active' | 'past_due' | 'canceled' | 'paused' | 'incomplete' | 'incomplete_expired';
 export type PlanType = 'free' | 'pro' | 'enterprise';
@@ -90,104 +87,238 @@ function mapPlanLimitsFromDb(row: Record<string, unknown>): PlanLimits {
   };
 }
 
-export async function getSubscriptionByUserId(userId: string): Promise<Subscription | null> {
-  const supabase = await createClient();
-
-  const { data, error } = await supabase
-    .from('subscriptions')
-    .select(`
-      *,
-      customers!inner (
-        user_id
-      )
-    `)
-    .eq('customers.user_id', userId)
-    .in('status', ['trialing', 'active', 'past_due'])
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .single();
-
-  if (error || !data) {
-    return null;
+class SubscriptionsService extends BaseService {
+  constructor() {
+    super('subscriptions');
   }
 
-  return mapSubscriptionFromDb(data);
+  async getSubscriptionByUserId(userId: string): Promise<Subscription | null> {
+    return this.withErrorHandling(async () => {
+      const supabase = await this.getSupabaseClient();
+
+      const { data, error } = await supabase
+        .from('subscriptions')
+        .select(`
+          *,
+          customers!inner (
+            user_id
+          )
+        `)
+        .eq('customers.user_id', userId)
+        .in('status', ['trialing', 'active', 'past_due'])
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (error || !data) {
+        return null;
+      }
+
+      return mapSubscriptionFromDb(data);
+    }, 'getSubscriptionByUserId', { userId });
+  }
+
+  async getAllPlanLimits(): Promise<PlanLimits[]> {
+    return this.withErrorHandling(async () => {
+      const supabase = await this.getSupabaseClient();
+
+      const { data, error } = await supabase
+        .from('plan_limits')
+        .select('*')
+        .order('plan_type');
+
+      if (error) {
+        throw new Error(`Failed to fetch plan limits: ${error.message}`);
+      }
+
+      return (data || []).map(mapPlanLimitsFromDb);
+    }, 'getAllPlanLimits');
+  }
+
+  async getPlanLimits(planType: PlanType): Promise<PlanLimits | null> {
+    return this.withErrorHandling(async () => {
+      const supabase = await this.getSupabaseClient();
+
+      const { data, error } = await supabase
+        .from('plan_limits')
+        .select('*')
+        .eq('plan_type', planType)
+        .single();
+
+      if (error || !data) {
+        return null;
+      }
+
+      return mapPlanLimitsFromDb(data);
+    }, 'getPlanLimits', { planType });
+  }
+
+  async getUserPlanLimits(userId: string): Promise<PlanLimits> {
+    return this.withErrorHandling(async () => {
+      const subscription = await this.getSubscriptionByUserId(userId);
+      const planType = subscription?.planType || 'free';
+      const limits = await this.getPlanLimits(planType);
+
+      if (!limits) {
+        return {
+          planType: 'free',
+          maxCases: 3,
+          maxDocumentsPerCase: 10,
+          maxAiRequestsPerMonth: 25,
+          maxStorageGb: 1,
+          maxTeamMembers: 1,
+          features: {
+            documentAnalysis: true,
+            formAutofill: false,
+            prioritySupport: false,
+            apiAccess: false,
+          },
+        };
+      }
+
+      return limits;
+    }, 'getUserPlanLimits', { userId });
+  }
+
+  async getCurrentUsage(userId: string): Promise<Record<string, number>> {
+    return this.withErrorHandling(async () => {
+      const supabase = await this.getSupabaseClient();
+
+      const { data, error } = await supabase.rpc('get_current_usage', {
+        p_subscription_id: userId,
+      });
+
+      if (error) {
+        return {};
+      }
+
+      const usage: Record<string, number> = {};
+      for (const row of data || []) {
+        usage[row.metric_name] = row.quantity;
+      }
+
+      return usage;
+    }, 'getCurrentUsage', { userId });
+  }
+
+  async incrementUsage(
+    userId: string,
+    metricName: string,
+    quantity = 1
+  ): Promise<void> {
+    return this.withErrorHandling(async () => {
+      const supabase = await this.getSupabaseClient();
+
+      const subscription = await this.getSubscriptionByUserId(userId);
+      if (!subscription) {
+        return;
+      }
+
+      const { error } = await supabase.rpc('increment_usage', {
+        p_subscription_id: subscription.id,
+        p_metric_name: metricName,
+        p_quantity: quantity,
+      });
+
+      if (error) {
+        this.logger.logError('Failed to increment usage', error, { userId, metricName, quantity });
+      }
+    }, 'incrementUsage', { userId, metricName, quantity });
+  }
+
+  async checkQuota(
+    userId: string,
+    metricName: string,
+    requiredQuantity = 1
+  ): Promise<boolean> {
+    return this.withErrorHandling(async () => {
+      const supabase = await this.getSupabaseClient();
+
+      const { data, error } = await supabase.rpc('check_quota', {
+        p_user_id: userId,
+        p_metric_name: metricName,
+        p_required_quantity: requiredQuantity,
+      });
+
+      if (error) {
+        return false;
+      }
+
+      return data === true;
+    }, 'checkQuota', { userId, metricName, requiredQuantity });
+  }
+
+  async getUserInvoices(userId: string, limit = 10) {
+    return this.withErrorHandling(async () => {
+      const supabase = await this.getSupabaseClient();
+
+      const { data, error } = await supabase
+        .from('invoices')
+        .select(`
+          *,
+          customers!inner (
+            user_id
+          )
+        `)
+        .eq('customers.user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(limit);
+
+      if (error) {
+        throw new Error(`Failed to fetch invoices: ${error.message}`);
+      }
+
+      return data || [];
+    }, 'getUserInvoices', { userId, limit });
+  }
+
+  async getUserPayments(userId: string, limit = 10) {
+    return this.withErrorHandling(async () => {
+      const supabase = await this.getSupabaseClient();
+
+      const { data, error } = await supabase
+        .from('payments')
+        .select(`
+          *,
+          customers!inner (
+            user_id
+          )
+        `)
+        .eq('customers.user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(limit);
+
+      if (error) {
+        throw new Error(`Failed to fetch payments: ${error.message}`);
+      }
+
+      return data || [];
+    }, 'getUserPayments', { userId, limit });
+  }
+}
+
+// Export singleton instance
+const subscriptionsServiceInstance = new SubscriptionsService();
+
+// Backward-compatible standalone function exports
+export async function getSubscriptionByUserId(userId: string): Promise<Subscription | null> {
+  return subscriptionsServiceInstance.getSubscriptionByUserId(userId);
 }
 
 export async function getAllPlanLimits(): Promise<PlanLimits[]> {
-  const supabase = await createClient();
-
-  const { data, error } = await supabase
-    .from('plan_limits')
-    .select('*')
-    .order('plan_type');
-
-  if (error) {
-    throw new Error(`Failed to fetch plan limits: ${error.message}`);
-  }
-
-  return (data || []).map(mapPlanLimitsFromDb);
+  return subscriptionsServiceInstance.getAllPlanLimits();
 }
 
 export async function getPlanLimits(planType: PlanType): Promise<PlanLimits | null> {
-  const supabase = await createClient();
-
-  const { data, error } = await supabase
-    .from('plan_limits')
-    .select('*')
-    .eq('plan_type', planType)
-    .single();
-
-  if (error || !data) {
-    return null;
-  }
-
-  return mapPlanLimitsFromDb(data);
+  return subscriptionsServiceInstance.getPlanLimits(planType);
 }
 
 export async function getUserPlanLimits(userId: string): Promise<PlanLimits> {
-  const subscription = await getSubscriptionByUserId(userId);
-  const planType = subscription?.planType || 'free';
-  const limits = await getPlanLimits(planType);
-
-  if (!limits) {
-    return {
-      planType: 'free',
-      maxCases: 3,
-      maxDocumentsPerCase: 10,
-      maxAiRequestsPerMonth: 25,
-      maxStorageGb: 1,
-      maxTeamMembers: 1,
-      features: {
-        documentAnalysis: true,
-        formAutofill: false,
-        prioritySupport: false,
-        apiAccess: false,
-      },
-    };
-  }
-
-  return limits;
+  return subscriptionsServiceInstance.getUserPlanLimits(userId);
 }
 
 export async function getCurrentUsage(userId: string): Promise<Record<string, number>> {
-  const supabase = await createClient();
-
-  const { data, error } = await supabase.rpc('get_current_usage', {
-    p_subscription_id: userId,
-  });
-
-  if (error) {
-    logger.logError('Failed to get usage', error, { userId });
-    return {};
-  }
-
-  const usage: Record<string, number> = {};
-  for (const row of data || []) {
-    usage[row.metric_name] = row.quantity;
-  }
-
-  return usage;
+  return subscriptionsServiceInstance.getCurrentUsage(userId);
 }
 
 export async function incrementUsage(
@@ -195,22 +326,7 @@ export async function incrementUsage(
   metricName: string,
   quantity = 1
 ): Promise<void> {
-  const supabase = await createClient();
-
-  const subscription = await getSubscriptionByUserId(userId);
-  if (!subscription) {
-    return;
-  }
-
-  const { error } = await supabase.rpc('increment_usage', {
-    p_subscription_id: subscription.id,
-    p_metric_name: metricName,
-    p_quantity: quantity,
-  });
-
-  if (error) {
-    logger.logError('Failed to increment usage', error, { userId, metricName, quantity });
-  }
+  return subscriptionsServiceInstance.incrementUsage(userId, metricName, quantity);
 }
 
 export async function checkQuota(
@@ -218,62 +334,13 @@ export async function checkQuota(
   metricName: string,
   requiredQuantity = 1
 ): Promise<boolean> {
-  const supabase = await createClient();
-
-  const { data, error } = await supabase.rpc('check_quota', {
-    p_user_id: userId,
-    p_metric_name: metricName,
-    p_required_quantity: requiredQuantity,
-  });
-
-  if (error) {
-    logger.logError('Failed to check quota', error, { userId, metricName, requiredQuantity });
-    return false;
-  }
-
-  return data === true;
+  return subscriptionsServiceInstance.checkQuota(userId, metricName, requiredQuantity);
 }
 
 export async function getUserInvoices(userId: string, limit = 10) {
-  const supabase = await createClient();
-
-  const { data, error } = await supabase
-    .from('invoices')
-    .select(`
-      *,
-      customers!inner (
-        user_id
-      )
-    `)
-    .eq('customers.user_id', userId)
-    .order('created_at', { ascending: false })
-    .limit(limit);
-
-  if (error) {
-    throw new Error(`Failed to fetch invoices: ${error.message}`);
-  }
-
-  return data || [];
+  return subscriptionsServiceInstance.getUserInvoices(userId, limit);
 }
 
 export async function getUserPayments(userId: string, limit = 10) {
-  const supabase = await createClient();
-
-  const { data, error } = await supabase
-    .from('payments')
-    .select(`
-      *,
-      customers!inner (
-        user_id
-      )
-    `)
-    .eq('customers.user_id', userId)
-    .order('created_at', { ascending: false })
-    .limit(limit);
-
-  if (error) {
-    throw new Error(`Failed to fetch payments: ${error.message}`);
-  }
-
-  return data || [];
+  return subscriptionsServiceInstance.getUserPayments(userId, limit);
 }

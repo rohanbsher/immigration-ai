@@ -3,6 +3,7 @@
 import { useCallback, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useChatStore } from '@/store/chat-store';
+import { fetchWithTimeout } from '@/lib/api/fetch-with-timeout';
 
 /**
  * Chat hook for sending messages and managing chat state.
@@ -41,7 +42,9 @@ export function useChat() {
       const params = new URLSearchParams();
       if (caseId) params.set('caseId', caseId);
 
-      const response = await fetch(`/api/chat?${params.toString()}`);
+      const response = await fetchWithTimeout(`/api/chat?${params.toString()}`, {
+        timeout: 'STANDARD',
+      });
       if (!response.ok) {
         throw new Error('Failed to fetch conversations');
       }
@@ -60,7 +63,9 @@ export function useChat() {
       try {
         setLoading(true);
 
-        const response = await fetch(`/api/chat/${conversationId}`);
+        const response = await fetchWithTimeout(`/api/chat/${conversationId}`, {
+          timeout: 'STANDARD',
+        });
         if (!response.ok) {
           throw new Error('Failed to load conversation');
         }
@@ -113,19 +118,25 @@ export function useChat() {
       setLoading(true);
       setError(null);
 
-      // Send request
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          conversationId: currentConversationId,
-          caseId,
-          message,
-        }),
-        signal: abortControllerRef.current.signal,
-      });
+      // Send request — uses AI timeout for streaming, but preserves user's abort signal
+      const timeoutId = setTimeout(() => abortControllerRef.current?.abort(), 120_000);
+      let response: Response;
+      try {
+        response = await fetch('/api/chat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            conversationId: currentConversationId,
+            caseId,
+            message,
+          }),
+          signal: abortControllerRef.current.signal,
+        });
+      } finally {
+        clearTimeout(timeoutId);
+      }
 
       if (!response.ok) {
         const error = await response.json();
@@ -151,21 +162,23 @@ export function useChat() {
         for (const line of lines) {
           if (!line.startsWith('data: ')) continue;
 
+          let data;
           try {
-            const data = JSON.parse(line.slice(6));
-
-            if (data.type === 'conversation') {
-              setConversationId(data.id);
-            } else if (data.type === 'content') {
-              assistantContent += data.text;
-              updateMessage(assistantMsgId, assistantContent);
-            } else if (data.type === 'error') {
-              throw new Error(data.message);
-            } else if (data.type === 'done') {
-              setMessageStreaming(assistantMsgId, false);
-            }
+            data = JSON.parse(line.slice(6));
           } catch {
-            // Skip invalid JSON
+            // Skip invalid JSON lines (e.g. keepalive comments)
+            continue;
+          }
+
+          if (data.type === 'conversation') {
+            setConversationId(data.id);
+          } else if (data.type === 'content') {
+            assistantContent += data.text;
+            updateMessage(assistantMsgId, assistantContent);
+          } else if (data.type === 'error') {
+            throw new Error(data.message);
+          } else if (data.type === 'done') {
+            setMessageStreaming(assistantMsgId, false);
           }
         }
       }
@@ -188,8 +201,9 @@ export function useChat() {
   // Delete conversation
   const deleteConversationMutation = useMutation({
     mutationFn: async (conversationId: string) => {
-      const response = await fetch(`/api/chat/${conversationId}`, {
+      const response = await fetchWithTimeout(`/api/chat/${conversationId}`, {
         method: 'DELETE',
+        timeout: 'STANDARD',
       });
 
       if (!response.ok) {

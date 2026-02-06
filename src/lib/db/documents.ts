@@ -1,13 +1,10 @@
-import { createClient } from '@/lib/supabase/server';
-import { createLogger } from '@/lib/logger';
+import { BaseService } from './base-service';
 import type { DocumentType, DocumentStatus } from '@/types';
 import {
   encryptSensitiveFields,
   decryptSensitiveFields,
 } from '@/lib/crypto';
 import { auditService } from '@/lib/audit';
-
-const logger = createLogger('db:documents');
 
 export interface Document {
   id: string;
@@ -62,284 +59,257 @@ export interface UpdateDocumentData {
   notes?: string | null;
 }
 
-export const documentsService = {
-  async getDocumentsByCase(caseId: string): Promise<DocumentWithUploader[]> {
-    const supabase = await createClient();
+const DOCUMENT_SELECT = `
+  *,
+  uploader:profiles!documents_uploaded_by_fkey(id, first_name, last_name),
+  verifier:profiles!documents_verified_by_fkey(id, first_name, last_name)
+`;
 
-    const { data, error } = await supabase
-      .from('documents')
-      .select(`
-        *,
-        uploader:profiles!documents_uploaded_by_fkey(id, first_name, last_name),
-        verifier:profiles!documents_verified_by_fkey(id, first_name, last_name)
-      `)
-      .eq('case_id', caseId)
-      .is('deleted_at', null)
-      .order('created_at', { ascending: false });
+class DocumentsService extends BaseService {
+  constructor() {
+    super('documents');
+  }
 
-    if (error) {
-      logger.logError('Error fetching documents', error, { caseId });
-      throw error;
-    }
-
-    // Decrypt sensitive fields in ai_extracted_data
-    const documents = (data || []).map((doc) => {
-      if (doc.ai_extracted_data) {
-        try {
-          doc.ai_extracted_data = decryptSensitiveFields(
-            doc.ai_extracted_data as Record<string, unknown>
-          );
-        } catch (err) {
-          // In production, fail-closed on decryption errors to prevent PII exposure
-          if (process.env.NODE_ENV === 'production') {
-            logger.logError('Decryption failed - refusing to return potentially encrypted data', err, { documentId: doc.id });
-            throw new Error('Failed to decrypt document data');
-          }
-          // In development, log warning but allow unencrypted legacy data
-          logger.warn('Decryption failed, data may be unencrypted (legacy)', { documentId: doc.id });
-        }
-      }
-      return doc;
-    });
-
-    return documents as DocumentWithUploader[];
-  },
-
-  async getDocument(id: string): Promise<DocumentWithUploader | null> {
-    const supabase = await createClient();
-
-    const { data, error } = await supabase
-      .from('documents')
-      .select(`
-        *,
-        uploader:profiles!documents_uploaded_by_fkey(id, first_name, last_name),
-        verifier:profiles!documents_verified_by_fkey(id, first_name, last_name)
-      `)
-      .eq('id', id)
-      .is('deleted_at', null)
-      .single();
-
-    if (error) {
-      logger.logError('Error fetching document', error, { documentId: id });
-      return null;
-    }
-
-    // Decrypt sensitive fields in ai_extracted_data
-    if (data.ai_extracted_data) {
+  private decryptDocumentData(doc: Record<string, unknown>): Record<string, unknown> {
+    if (doc.ai_extracted_data) {
       try {
-        data.ai_extracted_data = decryptSensitiveFields(
-          data.ai_extracted_data as Record<string, unknown>
+        doc.ai_extracted_data = decryptSensitiveFields(
+          doc.ai_extracted_data as Record<string, unknown>
         );
       } catch (err) {
-        // In production, fail-closed on decryption errors to prevent PII exposure
         if (process.env.NODE_ENV === 'production') {
-          logger.logError('Decryption failed - refusing to return potentially encrypted data', err, { documentId: id });
+          this.logger.logError('Decryption failed - refusing to return potentially encrypted data', err, { documentId: doc.id });
           throw new Error('Failed to decrypt document data');
         }
-        // In development, log warning but allow unencrypted legacy data
-        logger.warn('Decryption failed, data may be unencrypted (legacy)', { documentId: id });
+        this.logger.warn('Decryption failed, data may be unencrypted (legacy)', { documentId: doc.id as string });
       }
     }
+    return doc;
+  }
 
-    return data as DocumentWithUploader;
-  },
+  async getDocumentsByCase(caseId: string): Promise<DocumentWithUploader[]> {
+    return this.withErrorHandling(async () => {
+      const supabase = await this.getSupabaseClient();
+
+      const { data, error } = await supabase
+        .from('documents')
+        .select(DOCUMENT_SELECT)
+        .eq('case_id', caseId)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      // Decrypt sensitive fields in ai_extracted_data
+      for (const doc of data || []) {
+        this.decryptDocumentData(doc);
+      }
+
+      return (data || []) as DocumentWithUploader[];
+    }, 'getDocumentsByCase', { caseId });
+  }
+
+  async getDocument(id: string): Promise<DocumentWithUploader | null> {
+    return this.withErrorHandling(async () => {
+      const supabase = await this.getSupabaseClient();
+
+      const { data, error } = await supabase
+        .from('documents')
+        .select(DOCUMENT_SELECT)
+        .eq('id', id)
+        .is('deleted_at', null)
+        .single();
+
+      if (error) {
+        return null;
+      }
+
+      this.decryptDocumentData(data);
+
+      return data as DocumentWithUploader;
+    }, 'getDocument', { documentId: id });
+  }
 
   async createDocument(data: CreateDocumentData): Promise<Document> {
-    const supabase = await createClient();
+    return this.withErrorHandling(async () => {
+      const supabase = await this.getSupabaseClient();
 
-    const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await supabase.auth.getUser();
 
-    if (!user) {
-      throw new Error('Unauthorized');
-    }
+      if (!user) {
+        throw new Error('Unauthorized');
+      }
 
-    const { data: newDocument, error } = await supabase
-      .from('documents')
-      .insert({
-        ...data,
-        uploaded_by: user.id,
-        status: 'uploaded',
-      })
-      .select()
-      .single();
+      const { data: newDocument, error } = await supabase
+        .from('documents')
+        .insert({
+          ...data,
+          uploaded_by: user.id,
+          status: 'uploaded',
+        })
+        .select()
+        .single();
 
-    if (error) {
-      logger.logError('Error creating document', error, { caseId: data.case_id, fileName: data.file_name });
-      throw error;
-    }
+      if (error) throw error;
 
-    return newDocument;
-  },
+      return newDocument;
+    }, 'createDocument', { caseId: data.case_id, fileName: data.file_name });
+  }
 
   async updateDocument(id: string, data: UpdateDocumentData): Promise<Document> {
-    const supabase = await createClient();
+    return this.withErrorHandling(async () => {
+      const supabase = await this.getSupabaseClient();
 
-    // Encrypt sensitive fields in ai_extracted_data before storage
-    const updateData = { ...data };
-    if (updateData.ai_extracted_data) {
-      try {
-        updateData.ai_extracted_data = encryptSensitiveFields(
-          updateData.ai_extracted_data as Record<string, unknown>
-        );
-      } catch (err) {
-        // In production, fail-closed - don't store unencrypted PII
-        if (process.env.NODE_ENV === 'production') {
-          logger.logError('Encryption failed - refusing to store unencrypted PII', err, { documentId: id });
-          throw new Error('Failed to encrypt document data');
+      // Encrypt sensitive fields in ai_extracted_data before storage
+      const updateData = { ...data };
+      if (updateData.ai_extracted_data) {
+        try {
+          updateData.ai_extracted_data = encryptSensitiveFields(
+            updateData.ai_extracted_data as Record<string, unknown>
+          );
+        } catch (err) {
+          if (process.env.NODE_ENV === 'production') {
+            this.logger.logError('Encryption failed - refusing to store unencrypted PII', err, { documentId: id });
+            throw new Error('Failed to encrypt document data');
+          }
+          this.logger.warn('Encryption failed, storing unencrypted (development only)', { documentId: id });
         }
-        // In development, log warning but continue
-        logger.warn('Encryption failed, storing unencrypted (development only)', { documentId: id });
       }
-    }
 
-    const { data: updatedDocument, error } = await supabase
-      .from('documents')
-      .update(updateData)
-      .eq('id', id)
-      .select()
-      .single();
+      const { data: updatedDocument, error } = await supabase
+        .from('documents')
+        .update(updateData)
+        .eq('id', id)
+        .select()
+        .single();
 
-    if (error) {
-      logger.logError('Error updating document', error, { documentId: id });
-      throw error;
-    }
+      if (error) throw error;
 
-    return updatedDocument;
-  },
+      return updatedDocument;
+    }, 'updateDocument', { documentId: id });
+  }
 
   async verifyDocument(id: string): Promise<Document> {
-    const supabase = await createClient();
+    return this.withErrorHandling(async () => {
+      const supabase = await this.getSupabaseClient();
 
-    const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await supabase.auth.getUser();
 
-    if (!user) {
-      throw new Error('Unauthorized');
-    }
+      if (!user) {
+        throw new Error('Unauthorized');
+      }
 
-    const { data: updatedDocument, error } = await supabase
-      .from('documents')
-      .update({
-        status: 'verified',
-        verified_by: user.id,
-        verified_at: new Date().toISOString(),
-      })
-      .eq('id', id)
-      .select()
-      .single();
+      const { data: updatedDocument, error } = await supabase
+        .from('documents')
+        .update({
+          status: 'verified',
+          verified_by: user.id,
+          verified_at: new Date().toISOString(),
+        })
+        .eq('id', id)
+        .select()
+        .single();
 
-    if (error) {
-      logger.logError('Error verifying document', error, { documentId: id });
-      throw error;
-    }
+      if (error) throw error;
 
-    return updatedDocument;
-  },
+      return updatedDocument;
+    }, 'verifyDocument', { documentId: id });
+  }
 
-  /**
-   * Soft delete a document by setting deleted_at timestamp.
-   * The document is not permanently removed from the database.
-   */
   async deleteDocument(id: string): Promise<void> {
-    const supabase = await createClient();
+    return this.withErrorHandling(async () => {
+      const supabase = await this.getSupabaseClient();
 
-    const { error } = await supabase
-      .from('documents')
-      .update({ deleted_at: new Date().toISOString() })
-      .eq('id', id);
+      const { error } = await supabase
+        .from('documents')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', id);
 
-    if (error) {
-      logger.logError('Error deleting document', error, { documentId: id });
-      throw error;
-    }
-  },
+      if (error) throw error;
+    }, 'deleteDocument', { documentId: id });
+  }
 
-  /**
-   * Permanently delete a document. Use with caution.
-   * This should only be used for compliance/GDPR data removal requests.
-   * Creates an audit trail before deletion for compliance.
-   */
   async permanentlyDeleteDocument(id: string): Promise<void> {
-    const supabase = await createClient();
+    return this.withErrorHandling(async () => {
+      const supabase = await this.getSupabaseClient();
 
-    // Fetch the document before deletion for audit trail
-    // Note: We query without soft-delete filter to allow permanent deletion of soft-deleted docs
-    const { data: document, error: fetchError } = await supabase
-      .from('documents')
-      .select('*')
-      .eq('id', id)
-      .single();
+      // Fetch the document before deletion for audit trail
+      const { data: document, error: fetchError } = await supabase
+        .from('documents')
+        .select('*')
+        .eq('id', id)
+        .single();
 
-    if (fetchError) {
-      logger.logError('Error fetching document for audit', fetchError, { documentId: id });
-      throw fetchError;
-    }
+      if (fetchError) throw fetchError;
 
-    if (!document) {
-      throw new Error('Document not found');
-    }
+      if (!document) {
+        throw new Error('Document not found');
+      }
 
-    // Create audit log entry before deletion
-    await auditService.logDelete(
-      'documents',
-      id,
-      document as Record<string, unknown>,
-      {
-        additional_context: {
-          deletion_type: 'permanent',
-          reason: 'GDPR/compliance data removal',
-        },
-      } as { ip_address?: string; user_agent?: string }
-    );
+      // Create audit log entry before deletion
+      await auditService.logDelete(
+        'documents',
+        id,
+        document as Record<string, unknown>,
+        {
+          additional_context: {
+            deletion_type: 'permanent',
+            reason: 'GDPR/compliance data removal',
+          },
+        } as { ip_address?: string; user_agent?: string }
+      );
 
-    const { error } = await supabase
-      .from('documents')
-      .delete()
-      .eq('id', id);
+      const { error } = await supabase
+        .from('documents')
+        .delete()
+        .eq('id', id);
 
-    if (error) {
-      logger.logError('Error permanently deleting document', error, { documentId: id });
-      throw error;
-    }
-  },
+      if (error) throw error;
+    }, 'permanentlyDeleteDocument', { documentId: id });
+  }
 
-  /**
-   * Restore a soft-deleted document.
-   */
   async restoreDocument(id: string): Promise<Document> {
-    const supabase = await createClient();
+    return this.withErrorHandling(async () => {
+      const supabase = await this.getSupabaseClient();
 
-    const { data: restoredDocument, error } = await supabase
-      .from('documents')
-      .update({ deleted_at: null })
-      .eq('id', id)
-      .select()
-      .single();
+      const { data: restoredDocument, error } = await supabase
+        .from('documents')
+        .update({ deleted_at: null })
+        .eq('id', id)
+        .select()
+        .single();
 
-    if (error) {
-      logger.logError('Error restoring document', error, { documentId: id });
-      throw error;
-    }
+      if (error) throw error;
 
-    return restoredDocument;
-  },
+      return restoredDocument;
+    }, 'restoreDocument', { documentId: id });
+  }
 
   async getDocumentChecklist(visaType: string): Promise<{
     document_type: DocumentType;
     required: boolean;
     description: string | null;
   }[]> {
-    const supabase = await createClient();
+    try {
+      const supabase = await this.getSupabaseClient();
 
-    const { data, error } = await supabase
-      .from('document_checklists')
-      .select('document_type, required, description')
-      .eq('visa_type', visaType);
+      const { data, error } = await supabase
+        .from('document_checklists')
+        .select('document_type, required, description')
+        .eq('visa_type', visaType);
 
-    if (error) {
-      logger.logError('Error fetching document checklist', error, { visaType });
+      if (error) {
+        this.logger.logError('Error in getDocumentChecklist', error, { visaType });
+        return [];
+      }
+
+      return data || [];
+    } catch (error) {
+      this.logger.logError('Error in getDocumentChecklist', error, { visaType });
       return [];
     }
+  }
+}
 
-    return data || [];
-  },
-};
+// Export singleton instance
+export const documentsService = new DocumentsService();

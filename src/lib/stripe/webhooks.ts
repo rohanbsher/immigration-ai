@@ -8,6 +8,46 @@ import type Stripe from 'stripe';
 const log = createLogger('stripe:webhooks');
 
 /**
+ * Idempotent email sending for webhook events.
+ * Prevents duplicate emails when Stripe retries webhook delivery.
+ * Uses the email_log table with a unique idempotency_key per event+email_type.
+ */
+async function sendIdempotentBillingEmail(
+  eventId: string,
+  userId: string,
+  eventType: Parameters<typeof sendBillingUpdateEmail>[1],
+  details: Parameters<typeof sendBillingUpdateEmail>[2]
+): Promise<void> {
+  const supabase = await createClient();
+  const idempotencyKey = `stripe:${eventId}:${eventType}`;
+
+  // Check if we already sent an email for this event
+  const { data: existing } = await supabase
+    .from('email_log')
+    .select('id')
+    .eq('idempotency_key', idempotencyKey)
+    .limit(1)
+    .maybeSingle();
+
+  if (existing) {
+    log.info('Skipping duplicate email', { eventId, eventType, userId });
+    return;
+  }
+
+  await sendBillingUpdateEmail(userId, eventType, details);
+
+  // Mark this event+email_type as sent for idempotency
+  await supabase
+    .from('email_log')
+    .update({ idempotency_key: idempotencyKey })
+    .eq('user_id', userId)
+    .eq('template_name', 'billing_update')
+    .is('idempotency_key', null)
+    .order('created_at', { ascending: false })
+    .limit(1);
+}
+
+/**
  * Extended invoice interface for properties that may vary between Stripe API versions.
  * Uses Omit to remove and redefine properties with broader types.
  *
@@ -90,15 +130,15 @@ export async function handleWebhookEvent(event: Stripe.Event): Promise<void> {
       break;
 
     case 'customer.subscription.deleted':
-      await handleSubscriptionDeleted(event.data.object as Stripe.Subscription);
+      await handleSubscriptionDeleted(event.data.object as Stripe.Subscription, event.id);
       break;
 
     case 'invoice.paid':
-      await handleInvoicePaid(event.data.object as Stripe.Invoice);
+      await handleInvoicePaid(event.data.object as Stripe.Invoice, event.id);
       break;
 
     case 'invoice.payment_failed':
-      await handleInvoicePaymentFailed(event.data.object as Stripe.Invoice);
+      await handleInvoicePaymentFailed(event.data.object as Stripe.Invoice, event.id);
       break;
 
     case 'customer.updated':
@@ -144,7 +184,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session, eventId
           })
         : undefined;
 
-      sendBillingUpdateEmail(customer.user_id, 'subscription_created', {
+      sendIdempotentBillingEmail(eventId, customer.user_id, 'subscription_created', {
         planName,
         amount: subscription.items.data[0]?.price?.unit_amount || undefined,
         currency: subscription.currency,
@@ -163,7 +203,7 @@ async function handleSubscriptionChange(subscription: Stripe.Subscription, event
   }
 }
 
-async function handleSubscriptionDeleted(subscription: Stripe.Subscription): Promise<void> {
+async function handleSubscriptionDeleted(subscription: Stripe.Subscription, eventId: string): Promise<void> {
   const supabase = await createClient();
 
   const { error } = await supabase
@@ -202,7 +242,7 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription): Pro
           })
         : undefined;
 
-      sendBillingUpdateEmail(customer.user_id, 'subscription_cancelled', {
+      sendIdempotentBillingEmail(eventId, customer.user_id, 'subscription_cancelled', {
         nextBillingDate: accessUntil,
       }).catch((err: unknown) => {
         log.logError('Failed to send cancellation email', err);
@@ -211,7 +251,7 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription): Pro
   }
 }
 
-async function handleInvoicePaid(invoice: Stripe.Invoice): Promise<void> {
+async function handleInvoicePaid(invoice: Stripe.Invoice, eventId: string): Promise<void> {
   const supabase = await createClient();
 
   const customerId = typeof invoice.customer === 'string'
@@ -291,7 +331,7 @@ async function handleInvoicePaid(invoice: Stripe.Invoice): Promise<void> {
         })
       : undefined;
 
-    sendBillingUpdateEmail(customerData.user_id, 'payment_succeeded', {
+    sendIdempotentBillingEmail(eventId, customerData.user_id, 'payment_succeeded', {
       amount: invoice.amount_paid,
       currency: invoice.currency,
       nextBillingDate,
@@ -301,7 +341,7 @@ async function handleInvoicePaid(invoice: Stripe.Invoice): Promise<void> {
   }
 }
 
-async function handleInvoicePaymentFailed(invoice: Stripe.Invoice): Promise<void> {
+async function handleInvoicePaymentFailed(invoice: Stripe.Invoice, eventId: string): Promise<void> {
   const supabase = await createClient();
 
   const customerId = typeof invoice.customer === 'string'
@@ -371,7 +411,7 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice): Promise<void
     .single();
 
   if (customerData?.user_id) {
-    sendBillingUpdateEmail(customerData.user_id, 'payment_failed', {
+    sendIdempotentBillingEmail(eventId, customerData.user_id, 'payment_failed', {
       amount: invoice.amount_due,
       currency: invoice.currency,
     }).catch((err: unknown) => {

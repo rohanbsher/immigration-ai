@@ -1,4 +1,5 @@
-import { BaseService } from './base-service';
+import { BaseService, sanitizeSearchInput } from './base-service';
+import { getAdminClient } from '@/lib/supabase/admin';
 
 export interface Client {
   id: string;
@@ -199,6 +200,60 @@ class ClientsService extends BaseService {
     }, 'updateClient', { clientId: id });
   }
 
+  async createClient(data: CreateClientData): Promise<Client> {
+    return this.withErrorHandling(async () => {
+      const admin = getAdminClient();
+
+      // Check for duplicate email
+      const { data: existing } = await admin
+        .from('profiles')
+        .select('id')
+        .eq('email', data.email)
+        .maybeSingle();
+
+      if (existing) {
+        throw new Error('A user with this email already exists');
+      }
+
+      // Create the auth user — the handle_new_user() DB trigger auto-creates the profile
+      const { data: authData, error: authError } = await admin.auth.admin.createUser({
+        email: data.email,
+        email_confirm: true,
+        user_metadata: {
+          first_name: data.first_name,
+          last_name: data.last_name,
+          role: 'client',
+        },
+      });
+
+      if (authError) {
+        throw authError;
+      }
+
+      // Fetch the profile created by the trigger (retry for trigger propagation delay)
+      let profile: Client | null = null;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const { data, error: profileError } = await admin
+          .from('profiles')
+          .select('*')
+          .eq('id', authData.user.id)
+          .single();
+
+        if (data) {
+          profile = data as Client;
+          break;
+        }
+        if (attempt === 2 || (profileError && profileError.code !== 'PGRST116')) {
+          throw profileError || new Error('Profile not found after user creation');
+        }
+        // Wait briefly for the DB trigger to complete
+        await new Promise((resolve) => setTimeout(resolve, 200));
+      }
+
+      return profile!;
+    }, 'createClient', { email: data.email });
+  }
+
   async searchClients(query: string): Promise<Client[]> {
     return this.withErrorHandling(async () => {
       const supabase = await this.getSupabaseClient();
@@ -222,12 +277,17 @@ class ClientsService extends BaseService {
         return [];
       }
 
+      const sanitizedQuery = sanitizeSearchInput(query);
+      if (sanitizedQuery.length === 0) {
+        return [];
+      }
+
       // Search within those clients
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .in('id', clientIds)
-        .or(`first_name.ilike.%${query}%,last_name.ilike.%${query}%,email.ilike.%${query}%`)
+        .or(`first_name.ilike.%${sanitizedQuery}%,last_name.ilike.%${sanitizedQuery}%,email.ilike.%${sanitizedQuery}%`)
         .limit(10);
 
       if (error) {

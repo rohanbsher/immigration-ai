@@ -1,8 +1,5 @@
-import { createClient } from '@/lib/supabase/server';
-import { createLogger } from '@/lib/logger';
+import { BaseService } from './base-service';
 import type { ActivityType } from '@/types';
-
-const logger = createLogger('db:activities');
 
 export interface Activity {
   id: string;
@@ -30,76 +27,77 @@ export interface CreateActivityData {
   metadata?: Record<string, unknown>;
 }
 
-export const activitiesService = {
+class ActivitiesService extends BaseService {
+  constructor() {
+    super('activities');
+  }
+
   async getActivitiesByCase(
     caseId: string,
     limit: number = 50
   ): Promise<ActivityWithUser[]> {
-    const supabase = await createClient();
+    return this.withErrorHandling(async () => {
+      const supabase = await this.getSupabaseClient();
 
-    const { data, error } = await supabase
-      .from('activities')
-      .select(`
-        *,
-        user:profiles!activities_user_id_fkey(id, first_name, last_name, avatar_url)
-      `)
-      .eq('case_id', caseId)
-      .order('created_at', { ascending: false })
-      .limit(limit);
+      const { data, error } = await supabase
+        .from('activities')
+        .select(`
+          *,
+          user:profiles!activities_user_id_fkey(id, first_name, last_name, avatar_url)
+        `)
+        .eq('case_id', caseId)
+        .order('created_at', { ascending: false })
+        .limit(limit);
 
-    if (error) {
-      logger.logError('Error fetching activities', error, { caseId });
-      throw error;
-    }
+      if (error) throw error;
 
-    return data as ActivityWithUser[];
-  },
+      return data as ActivityWithUser[];
+    }, 'getActivitiesByCase', { caseId });
+  }
 
   async getRecentActivities(limit: number = 20): Promise<ActivityWithUser[]> {
-    const supabase = await createClient();
+    return this.withErrorHandling(async () => {
+      const supabase = await this.getSupabaseClient();
 
-    const { data, error } = await supabase
-      .from('activities')
-      .select(`
-        *,
-        user:profiles!activities_user_id_fkey(id, first_name, last_name, avatar_url)
-      `)
-      .order('created_at', { ascending: false })
-      .limit(limit);
+      const { data, error } = await supabase
+        .from('activities')
+        .select(`
+          *,
+          user:profiles!activities_user_id_fkey(id, first_name, last_name, avatar_url)
+        `)
+        .order('created_at', { ascending: false })
+        .limit(limit);
 
-    if (error) {
-      logger.logError('Error fetching recent activities', error, { limit });
-      throw error;
-    }
+      if (error) throw error;
 
-    return data as ActivityWithUser[];
-  },
+      return data as ActivityWithUser[];
+    }, 'getRecentActivities', { limit });
+  }
 
   async createActivity(data: CreateActivityData): Promise<Activity> {
-    const supabase = await createClient();
+    return this.withErrorHandling(async () => {
+      const supabase = await this.getSupabaseClient();
 
-    const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await supabase.auth.getUser();
 
-    if (!user) {
-      throw new Error('Unauthorized');
-    }
+      if (!user) {
+        throw new Error('Unauthorized');
+      }
 
-    const { data: newActivity, error } = await supabase
-      .from('activities')
-      .insert({
-        ...data,
-        user_id: user.id,
-      })
-      .select()
-      .single();
+      const { data: newActivity, error } = await supabase
+        .from('activities')
+        .insert({
+          ...data,
+          user_id: user.id,
+        })
+        .select()
+        .single();
 
-    if (error) {
-      logger.logError('Error creating activity', error, { activityType: data.activity_type, caseId: data.case_id });
-      throw error;
-    }
+      if (error) throw error;
 
-    return newActivity;
-  },
+      return newActivity;
+    }, 'createActivity', { activityType: data.activity_type, caseId: data.case_id });
+  }
 
   async logCaseCreated(caseId: string, caseTitle: string): Promise<Activity> {
     return this.createActivity({
@@ -107,7 +105,7 @@ export const activitiesService = {
       activity_type: 'case_created',
       description: `Case "${caseTitle}" was created`,
     });
-  },
+  }
 
   async logCaseUpdated(caseId: string, changes: string): Promise<Activity> {
     return this.createActivity({
@@ -115,7 +113,7 @@ export const activitiesService = {
       activity_type: 'case_updated',
       description: changes,
     });
-  },
+  }
 
   async logStatusChanged(
     caseId: string,
@@ -128,7 +126,7 @@ export const activitiesService = {
       description: `Status changed from ${oldStatus} to ${newStatus}`,
       metadata: { old_status: oldStatus, new_status: newStatus },
     });
-  },
+  }
 
   async logDocumentUploaded(
     caseId: string,
@@ -141,7 +139,7 @@ export const activitiesService = {
       description: `Document "${documentName}" was uploaded`,
       metadata: { document_id: documentId },
     });
-  },
+  }
 
   async logDocumentAnalyzed(
     caseId: string,
@@ -154,7 +152,7 @@ export const activitiesService = {
       description: `Document "${documentName}" was analyzed by AI`,
       metadata: { document_id: documentId },
     });
-  },
+  }
 
   async logDocumentVerified(
     caseId: string,
@@ -167,7 +165,7 @@ export const activitiesService = {
       description: `Document "${documentName}" was verified`,
       metadata: { document_id: documentId },
     });
-  },
+  }
 
   async logFormCreated(
     caseId: string,
@@ -180,7 +178,7 @@ export const activitiesService = {
       description: `Form ${formType} was created`,
       metadata: { form_id: formId, form_type: formType },
     });
-  },
+  }
 
   async logFormAiFilled(
     caseId: string,
@@ -193,7 +191,7 @@ export const activitiesService = {
       description: `Form ${formType} was auto-filled by AI`,
       metadata: { form_id: formId, form_type: formType },
     });
-  },
+  }
 
   async logFormReviewed(
     caseId: string,
@@ -206,7 +204,7 @@ export const activitiesService = {
       description: `Form ${formType} was reviewed and approved`,
       metadata: { form_id: formId, form_type: formType },
     });
-  },
+  }
 
   async logFormFiled(
     caseId: string,
@@ -219,5 +217,8 @@ export const activitiesService = {
       description: `Form ${formType} was filed`,
       metadata: { form_id: formId, form_type: formType },
     });
-  },
-};
+  }
+}
+
+// Export singleton instance
+export const activitiesService = new ActivitiesService();

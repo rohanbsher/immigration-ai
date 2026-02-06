@@ -1,311 +1,178 @@
 # Immigration AI - Agent Task List
 
-> Last updated: 2026-01-30 17:30 (Production Readiness Plan Created)
+> Last updated: 2026-02-05 (Plan-and-Fix + Production Readiness Audit)
 
-## Current Execution Plan: Production Readiness
+## Completed Execution Plans
 
-**Goal:** Achieve production-ready state with all tests passing and clean codebase
-**Total Estimated Time:** 12-18 hours across 7 phases
-**Detailed Plan:** See `.claude/agents/EXECUTION_PLAN.md` for line-by-line implementation details
+All three implementation plans have been verified as 100% complete.
 
-### Progress Tracker
+### Bug Fix Implementation Plan (7/7 DONE)
+- [x] **P0** Fix updateMessage metadata clobbering — atomic JSONB merge via RPC
+- [x] **P0** Fix document status race condition — statusWasSet flag
+- [x] **P1** Extract validateStorageUrl to shared module
+- [x] **P1** Add SSE keepalive mechanism
+- [x] **P1** Add SECURITY DEFINER to quota triggers
+- [x] **P2** Normalize email on invitation insert
+- [x] **P3** Clean up placeholder tests
 
-| Phase | Description | Status | Tests | Console Stmts |
-|-------|-------------|--------|-------|---------------|
-| 1 | Fix 20 test failures | NOT STARTED | 954/977 | - |
-| 2 | Console migration - Jobs/Cron | NOT STARTED | - | 16 remaining |
-| 3 | Console migration - Stripe | NOT STARTED | - | 6 remaining |
-| 4 | Console migration - File Validation | NOT STARTED | - | 6 remaining |
-| 5 | Console migration - API Routes | NOT STARTED | - | ~150 remaining |
-| 6 | Console migration - Lib/Components | NOT STARTED | - | ~55 remaining |
-| 7 | ESLint cleanup | NOT STARTED | - | - |
+### Grill Review Fix Plan (9/9 DONE)
+- [x] Fix MockFile/MockBlob missing interface methods
+- [x] Create test-utils barrel export
+- [x] Fix non-deterministic random in createMockNavItems
+- [x] Scope vercel.json cache headers to API routes
+- [x] Fix Stripe webhook type handling
+- [x] Add RPC fallback path tests
+- [x] Move beforeAll polyfill to setupTests.ts
+- [x] Deduplicate magic bytes (single FILE_SIGNATURES export)
+- [x] Fix inconsistent error handling in Stripe webhooks
+
+### Execution Plan Phases (7/7 DONE)
+- [x] **Phase 1:** Fix 20 test failures (AI error message, auth mocks, cases mocks)
+- [x] **Phase 2:** Console migration — Jobs/Cron (2 files, 16 statements)
+- [x] **Phase 3:** Console migration — Stripe (1 file, 6 statements)
+- [x] **Phase 4:** Console migration — File Validation (1 file, 6 statements)
+- [x] **Phase 5:** Console migration — API Routes (30+ files, ~150 statements)
+- [x] **Phase 6:** Console migration — Lib/Components (20+ files, ~55 statements)
+- [x] **Phase 7:** ESLint cleanup (anonymous exports, Image component, unused imports)
 
 ---
 
-## Phase 1: Fix Test Failures (PRIORITY: CRITICAL)
+## Current State
 
-**Estimated Time:** 2-3 hours
-**Files:** 3
-**Blocking:** All other phases should wait for tests to pass
-
-### Tasks
-
-- [ ] **1.1** Fix AI error message in `src/lib/ai/utils.ts:68`
-  - Change: `'No JSON found in response'` → `'Could not parse JSON response from Claude'`
-  - Verification: `npm run test:run -- src/lib/ai/index.test.ts`
-
-- [ ] **1.2** Fix auth tests in `src/lib/auth/index.test.ts`
-  - Add import: `import { getProfileAsAdmin } from '@/lib/supabase/admin';`
-  - Add `mockResolvedValueOnce` for each role-based test (~9 tests)
-  - Tests at lines: ~756, ~774, ~812, ~830, ~629, ~651, ~1175, ~1247, ~1269
-  - Verification: `npm run test:run -- src/lib/auth/index.test.ts`
-
-- [ ] **1.3** Fix cases API tests in `src/app/api/cases/cases.test.ts`
-  - Add mock: `vi.mock('@/lib/supabase/admin', () => ({ getProfileAsAdmin: vi.fn()... }))`
-  - Add after existing mocks (~line 263)
-  - Verification: `npm run test:run -- src/app/api/cases/cases.test.ts`
-
-### Phase 1 Checkpoint
-```bash
-npm run test:run  # Expected: 974/977 passing
-npm run build     # Expected: Success
+```
+Tests:  1,293 passed | 3 skipped | 0 failures
+Build:  Passes
+Lint:   0 errors | 149 warnings (unused vars in E2E tests)
+Console: 0 statements in production code
 ```
 
 ---
 
-## Phase 2: Console Migration - Jobs & Cron (16 statements)
+## Open Work Streams (Available for New Agents)
 
-**Estimated Time:** 1-2 hours
-**Files:** 2
-**Can run parallel with Phase 3**
+### WS-1: Billing UI (READY)
+**Status:** Backend complete, frontend needed
+**Files:** `src/app/dashboard/billing/`, `src/components/billing/`
+**Tasks:**
+- [ ] Build subscription management page
+- [ ] Build checkout flow component
+- [ ] Build usage meter display
+- [ ] Build plan comparison table
+- [ ] Build upgrade/downgrade flow
+- [ ] Test Stripe webhook integration end-to-end
 
-### Tasks
+### WS-2: Multi-Tenancy UI (READY)
+**Status:** DB/API complete, frontend needed
+**Files:** `src/app/dashboard/firm/`, `src/components/firm/`
+**Tasks:**
+- [ ] Build firm switcher component
+- [ ] Build team invitation flow
+- [ ] Build firm settings page
+- [ ] Build member management UI
 
-- [ ] **2.1** Migrate `src/lib/jobs/cleanup.ts` (12 statements)
-  - Add: `import { createLogger } from '@/lib/logger'; const log = createLogger('jobs:cleanup');`
-  - Replace 12 console.* calls with log.* calls
-  - See EXECUTION_PLAN.md for line-by-line details
+### WS-3: Email Notifications (BLOCKED on WS-1)
+**Status:** Resend integration exists, templates needed
+**Files:** `src/lib/email/`
+**Tasks:**
+- [ ] Create email templates (welcome, case update, deadline, invitation)
+- [ ] Configure Resend for production
+- [ ] Wire up notification triggers
+- [ ] Build notification preferences UI
 
-- [ ] **2.2** Migrate `src/app/api/cron/deadline-alerts/route.ts` (4 statements)
-  - Add: `import { createLogger } from '@/lib/logger'; const log = createLogger('cron:deadline-alerts');`
-  - Replace 4 console.* calls with log.* calls
+### WS-BASESERVICE: BaseService Migration (COMPLETE)
+**Status:** All 12 services migrated to BaseService pattern
+**Files:** `src/lib/db/*.ts`
+**Tasks:**
+- [x] Migrate activities.ts to BaseService
+- [x] Migrate case-messages.ts to BaseService
+- [x] Migrate cases.ts to BaseService
+- [x] Migrate conversations.ts to BaseService (preserved backward-compatible function exports)
+- [x] Migrate document-requests.ts to BaseService
+- [x] Migrate documents.ts to BaseService (preserved encryption/audit logic)
+- [x] Migrate forms.ts to BaseService
+- [x] Migrate notifications.ts to BaseService (preserved graceful degradation in getUnreadCount)
+- [x] Migrate profiles.ts to BaseService (preserved graceful degradation in searchProfiles)
+- [x] Migrate subscriptions.ts to BaseService (preserved backward-compatible function exports)
+- [x] Fix analyze route tests for CAS protection mock compatibility
+- [x] Verify all 1,293 tests pass and build succeeds
 
-### Phase 2 Checkpoint
-```bash
-npm run build
-npm run test:run
-```
+### WS-PLANFIX: Plan-and-Fix Backlog (COMPLETE)
+**Status:** All 3 groups implemented, build + tests pass
+**Tasks:**
+- [x] Group A: fetchWithTimeout in two-factor-setup.tsx, client-dashboard.tsx, document-checklist.tsx
+- [x] Group B: Form data sync fix in forms/[id]/page.tsx (isInitialized flag)
+- [x] Group C: Document upload partial failure (Promise.allSettled + retry)
 
----
+### WS-AUDIT-FIXES: Production Readiness Audit Findings (READY)
+**Status:** Audit complete (79/100), fixes available
+**Tasks:**
+- [ ] Migrate admin dashboard pages to fetchWithTimeout
+- [ ] Fix forms list N+1 aggregation query
+- [ ] Add tests for 6 untested lib modules
+- [ ] Include documents/AI conversations in GDPR data export
+- [ ] Review Redis fail-closed behavior for production safety
 
-## Phase 3: Console Migration - Stripe (6 statements)
+### WS-UI: Missing UI Components (LOW PRIORITY)
+**Tasks:**
+- [ ] Client portal view
+- [ ] Analytics dashboard
+- [ ] Document request UI
+- [ ] Task management UI
 
-**Estimated Time:** 30 minutes
-**Files:** 1
-**Can run parallel with Phase 2**
-
-### Tasks
-
-- [ ] **3.1** Migrate `src/lib/stripe/webhooks.ts` (6 statements)
-  - Add: `import { createLogger } from '@/lib/logger'; const log = createLogger('stripe:webhooks');`
-  - Replace 6 console.* calls with log.* calls
-  - Lines: 59, 103, 125, 155, 262, 341
-
----
-
-## Phase 4: Console Migration - File Validation (6 statements)
-
-**Estimated Time:** 30 minutes
-**Files:** 1
-
-### Tasks
-
-- [ ] **4.1** Migrate `src/lib/file-validation/index.ts` (6 statements)
-  - Add: `import { createLogger } from '@/lib/logger'; const log = createLogger('security:file-validation');`
-  - Replace 6 console.* calls with log.* calls
-  - Lines: 263, 284, 303, 324, 400, 417-420
-
----
-
-## Phase 5: Console Migration - API Routes (~150 statements)
-
-**Estimated Time:** 4-6 hours
-**Files:** 47
-
-### Pattern
-```typescript
-import { createLogger } from '@/lib/logger';
-const log = createLogger('api:route-name');
-
-// console.error('Error:', error) → log.logError('Error', error)
-// console.log('message', data) → log.info('message', { data })
-```
-
-### Tasks (Tier 1 - Auth/Security)
-- [ ] **5.1** `src/app/api/auth/login/route.ts`
-- [ ] **5.2** `src/app/api/auth/register/route.ts`
-- [ ] **5.3** `src/app/api/2fa/setup/route.ts`
-- [ ] **5.4** `src/app/api/2fa/verify/route.ts`
-
-### Tasks (Tier 2 - Billing)
-- [ ] **5.5** `src/app/api/billing/checkout/route.ts`
-- [ ] **5.6** `src/app/api/billing/subscription/route.ts`
-- [ ] **5.7** `src/app/api/billing/webhooks/route.ts`
-- [ ] **5.8** `src/app/api/billing/portal/route.ts`
-- [ ] **5.9** `src/app/api/billing/quota/route.ts`
-
-### Tasks (Tier 3 - Cases/Documents)
-- [ ] **5.10** `src/app/api/cases/[id]/route.ts`
-- [ ] **5.11** `src/app/api/cases/[id]/documents/route.ts`
-- [ ] **5.12** `src/app/api/documents/[id]/route.ts`
-- [ ] **5.13** `src/app/api/documents/[id]/analyze/route.ts`
-- [ ] **5.14** `src/app/api/forms/[id]/route.ts`
-- [ ] **5.15** `src/app/api/forms/[id]/autofill/route.ts`
-
-### Tasks (Tier 4 - Remaining)
-- [ ] **5.16** All other API routes with console statements
-  - Use grep to find: `grep -r "console\." src/app/api --include="*.ts"`
-
-### Phase 5 Checkpoint
-```bash
-npm run build
-grep -r "console\." src/app/api --include="*.ts" | wc -l  # Should be 0
-```
-
----
-
-## Phase 6: Console Migration - Lib/Components (~55 statements)
-
-**Estimated Time:** 2-3 hours
-**Files:** 23
-
-### Tasks (Lib Files)
-- [ ] **6.1** `src/lib/auth/api-helpers.ts` (3 statements)
-- [ ] **6.2** `src/lib/supabase/middleware.ts` (3 statements)
-- [ ] **6.3** `src/lib/config/env.ts` (4 statements)
-- [ ] **6.4** `src/lib/rate-limit/index.ts` (3 statements)
-- [ ] **6.5** `src/lib/audit/index.ts` (6 statements)
-- [ ] **6.6** `src/lib/ai/natural-search.ts` (2 statements)
-- [ ] **6.7** `src/lib/ai/utils.ts` (1 statement)
-- [ ] **6.8** `src/lib/ai/document-completeness.ts` (2 statements)
-- [ ] **6.9** `src/lib/email/index.ts` (4 statements)
-- [ ] **6.10** `src/lib/email/client.ts` (1 statement)
-- [ ] **6.11** `src/lib/2fa/qr-code.ts` (2 statements)
-- [ ] **6.12** `src/lib/pdf/index.ts` (1 statement)
-- [ ] **6.13** `src/lib/crypto/index.ts` (1 statement)
-- [ ] **6.14** `src/lib/csrf/index.ts` (1 statement)
-- [ ] **6.15** `src/lib/scoring/success-probability.ts` (1 statement)
-
-### Tasks (Component/Provider Files)
-- [ ] **6.16** `src/providers/auth-provider.tsx` (1 statement)
-- [ ] **6.17** `src/providers/query-provider.tsx` (1 statement)
-- [ ] **6.18** `src/components/session/session-expiry-warning.tsx` (2 statements)
-- [ ] **6.19** `src/components/settings/two-factor-setup.tsx` (1 statement)
-- [ ] **6.20** `src/components/error/error-boundary.tsx` (1 statement)
-- [ ] **6.21** `src/app/error.tsx` (1 statement)
-- [ ] **6.22** `src/app/dashboard/error.tsx` (1 statement)
-
-### Phase 6 Checkpoint
-```bash
-npm run build
-grep -r "console\." src --include="*.ts" --include="*.tsx" | grep -v ".test." | grep -v "__mocks__" | wc -l
-# Expected: Near 0
-```
-
----
-
-## Phase 7: ESLint Cleanup
-
-**Estimated Time:** 2-3 hours
-**Files:** ~20
-
-### Tasks
-
-- [ ] **7.1** Fix anonymous default exports (7 files)
-  - `src/__mocks__/anthropic.ts:195`
-  - `src/__mocks__/openai.ts:91`
-  - `src/__mocks__/stripe.ts:164`
-  - `src/__mocks__/supabase.ts:152`
-  - `src/__mocks__/upstash.ts:93`
-  - `src/lib/api/handler.ts:180`
-  - `src/lib/validation/index.ts:164`
-
-- [ ] **7.2** Remove unused imports
-  - Run: `npm run lint -- --fix`
-  - Manually fix remaining warnings
-
-- [ ] **7.3** Fix `<img>` element in `src/components/settings/two-factor-setup.tsx`
-  - Replace with `<Image>` from next/image
-
-### Phase 7 Checkpoint
-```bash
-npm run lint 2>&1 | grep -c "warning"  # Expected: <10
-npm run build
-npm run test:run
-```
-
----
-
-## Final Verification
-
-```bash
-# All tests passing
-npm run test:run
-# Expected: 974/977 passing (3 skipped)
-
-# Build succeeds
-npm run build
-
-# No console statements in production code
-grep -r "console\." src --include="*.ts" --include="*.tsx" | grep -v ".test." | grep -v "__mocks__" | wc -l
-# Expected: 0
-
-# Minimal ESLint warnings
-npm run lint 2>&1 | grep -c "warning"
-# Expected: <10
-```
-
----
-
-## Success Criteria
-
-- [ ] All 974 tests passing (20 fixed, 3 skipped)
-- [ ] Build succeeds with no errors
-- [ ] 0 console statements in production code
-- [ ] <10 ESLint warnings (intentional only)
-- [ ] All changes committed with conventional commits
+### WS-LINT: ESLint Warnings (LOW PRIORITY)
+**Tasks:**
+- [ ] Fix 149 remaining warnings (mostly @typescript-eslint/no-unused-vars in E2E tests)
 
 ---
 
 ## Completed Work Streams (Reference)
 
-### WS-AUDIT: Production Readiness Audit
+### WS-AUDIT: Production Readiness Audit (COMPLETE)
 - [x] Verify security (.gitignore, Next.js version)
 - [x] Verify auth timeouts (use-user.ts, use-auth.ts)
 - [x] Enhance env validation for production
 - [x] Fix React purity violation in ai-loading.tsx
 - [x] Migrate cases.ts to structured logger
 
-### WS-CRITICAL-BUGS: Production Critical Bug Fixes
+### WS-CRITICAL-BUGS: Production Critical Bug Fixes (COMPLETE)
 - [x] P0-1: Fix auth loading bug
 - [x] P0-2: Fix 401 errors
 - [x] P0-3: Add login timeout
-- [x] P0-4: Fix test mocks (89→20 failures)
+- [x] P0-4: Fix test mocks (89 to 20 failures)
 - [x] P0-5: Next.js upgrade
 
-### WS-REMEDIATION: Codebase Audit (Phases 1-3)
+### WS-REMEDIATION: Codebase Audit Phases 1-3 (COMPLETE)
 - [x] 6/6 Critical issues fixed
 - [x] 8/8 High priority issues fixed
 - [x] Rate limiting added to 24+ routes
 - [x] Unified permissions system created
+
+### WS-CONSOLE: Console Migration (COMPLETE)
+- [x] All 7 phases complete
+- [x] 0 console.* statements in production code
+
+### WS-BUGFIX: Bug Fix Plan (COMPLETE)
+- [x] 7/7 bug fixes implemented and verified
+
+### WS-GRILL: Staff Engineer Review Fixes (COMPLETE)
+- [x] 9/9 issues fixed and verified
 
 ---
 
 ## Notes for Agents
 
 ### Before Starting Work
-1. Read this TODO.md to find your next task
-2. Read `.claude/agents/EXECUTION_PLAN.md` for detailed implementation steps
-3. Check current phase status and pick up where previous agent left off
-4. Run `npm run build && npm run test:run` to verify starting state
-
-### During Work
-1. Mark task as started: Change `[ ]` to `[~]`
-2. Follow the exact code changes in EXECUTION_PLAN.md
-3. Run verification after each task
-
-### After Completing Work
-1. Mark task as done: Change `[~]` to `[x]`
-2. Update phase status in Progress Tracker table
-3. Create session log in `.claude/agents/sessions/`
-4. Run full verification before handing off
+1. Read `.claude/CONTEXT.md` for current project state
+2. Read this TODO.md to find available work
+3. Run `ALLOW_IN_MEMORY_RATE_LIMIT=true npm run build && npm run test:run` to verify starting state
+4. Claim a work stream before starting
 
 ### Key Commands
 ```bash
 npm run dev          # Start dev server
-npm run build        # Production build (must pass)
-npm run test:run     # Run tests
-npm run lint         # Check for lint issues
+npm run build        # Production build
+npm run test:run     # Run tests (1,293 passing)
+npm run lint         # Check lint issues
 
 # Build requires this env var if Redis not configured:
 ALLOW_IN_MEMORY_RATE_LIMIT=true npm run build

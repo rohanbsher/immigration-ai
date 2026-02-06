@@ -1,18 +1,20 @@
 'use client';
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { fetchWithTimeout } from '@/lib/api/fetch-with-timeout';
 import type { SearchResponse, SearchResult } from '@/lib/ai/natural-search';
 
 /**
  * Perform natural language search.
  */
 async function performSearch(query: string): Promise<SearchResponse> {
-  const response = await fetch('/api/cases/search', {
+  const response = await fetchWithTimeout('/api/cases/search', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({ query }),
+    timeout: 'AI',
   });
 
   if (!response.ok) {

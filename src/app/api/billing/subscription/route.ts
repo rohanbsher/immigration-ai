@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { serverAuth } from '@/lib/auth';
 import { getSubscriptionByUserId, getUserPlanLimits, getAllPlanLimits } from '@/lib/db/subscriptions';
 import { getCustomerWithSubscription } from '@/lib/stripe';
+import { getStripeClient } from '@/lib/stripe/client';
 import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 import { createLogger } from '@/lib/logger';
 
@@ -24,9 +25,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const stripeConfigured = !!getStripeClient();
+
     const [subscription, customerData, limits, allPlans] = await Promise.all([
       getSubscriptionByUserId(user.id),
-      getCustomerWithSubscription(user.id),
+      stripeConfigured ? getCustomerWithSubscription(user.id) : Promise.resolve(null),
       getUserPlanLimits(user.id),
       getAllPlanLimits(),
     ]);
@@ -55,6 +58,7 @@ export async function GET(request: NextRequest) {
           : null,
         limits,
         availablePlans: allPlans,
+        stripeConfigured,
       },
     });
   } catch (error) {

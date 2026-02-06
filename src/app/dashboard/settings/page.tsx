@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   User,
@@ -17,11 +16,14 @@ import {
   Loader2,
   Eye,
   EyeOff,
+  Shield,
 } from 'lucide-react';
 import { useUser } from '@/hooks/use-user';
 import { useAuth } from '@/hooks/use-auth';
 import { toast } from 'sonner';
 import { TwoFactorSetup } from '@/components/settings/two-factor-setup';
+import { GdprDataManagement } from '@/components/settings/gdpr-data-management';
+import { NotificationPreferences } from '@/components/settings/notification-preferences';
 
 export default function SettingsPage() {
   const { profile, isLoading, refetch } = useUser();
@@ -139,6 +141,10 @@ export default function SettingsPage() {
           <TabsTrigger value="notifications" className="gap-2">
             <Bell size={16} />
             Notifications
+          </TabsTrigger>
+          <TabsTrigger value="privacy" className="gap-2">
+            <Shield size={16} />
+            Privacy
           </TabsTrigger>
         </TabsList>
 
@@ -399,55 +405,12 @@ export default function SettingsPage() {
 
         {/* Notifications Tab */}
         <TabsContent value="notifications" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Email Notifications</CardTitle>
-              <CardDescription>
-                Choose what emails you want to receive.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Case Updates</p>
-                  <p className="text-sm text-slate-500">
-                    Receive notifications when case status changes.
-                  </p>
-                </div>
-                <input type="checkbox" defaultChecked className="h-4 w-4" />
-              </div>
-              <Separator />
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Document Uploads</p>
-                  <p className="text-sm text-slate-500">
-                    Get notified when clients upload documents.
-                  </p>
-                </div>
-                <input type="checkbox" defaultChecked className="h-4 w-4" />
-              </div>
-              <Separator />
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Deadline Reminders</p>
-                  <p className="text-sm text-slate-500">
-                    Receive reminders for upcoming deadlines.
-                  </p>
-                </div>
-                <input type="checkbox" defaultChecked className="h-4 w-4" />
-              </div>
-              <Separator />
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Marketing Emails</p>
-                  <p className="text-sm text-slate-500">
-                    Product updates and announcements.
-                  </p>
-                </div>
-                <input type="checkbox" className="h-4 w-4" />
-              </div>
-            </CardContent>
-          </Card>
+          <NotificationPreferences />
+        </TabsContent>
+
+        {/* Privacy Tab */}
+        <TabsContent value="privacy" className="space-y-6">
+          <GdprDataManagement />
         </TabsContent>
       </Tabs>
     </div>

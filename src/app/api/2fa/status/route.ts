@@ -9,7 +9,7 @@ const log = createLogger('api:2fa-status');
 export async function GET(request: NextRequest) {
   try {
     const ip = request.headers.get('x-forwarded-for') || 'unknown';
-    const rateLimitResult = await rateLimit(RATE_LIMITS.STANDARD, ip);
+    const rateLimitResult = await rateLimit(RATE_LIMITS.SENSITIVE, ip);
 
     if (!rateLimitResult.success) {
       return NextResponse.json(

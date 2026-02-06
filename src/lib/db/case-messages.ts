@@ -1,7 +1,4 @@
-import { createClient } from '@/lib/supabase/server';
-import { createLogger } from '@/lib/logger';
-
-const logger = createLogger('db:case-messages');
+import { BaseService } from './base-service';
 
 export interface CaseMessage {
   id: string;
@@ -46,250 +43,213 @@ export interface CreateAttachmentData {
   mime_type: string;
 }
 
-export const caseMessagesService = {
-  /**
-   * Get all messages for a case
-   */
+const MESSAGE_SELECT = `
+  *,
+  sender:profiles!sender_id (
+    id,
+    first_name,
+    last_name,
+    email,
+    role,
+    avatar_url
+  ),
+  attachments:message_attachments (*)
+`;
+
+const MESSAGE_SELECT_NO_ATTACHMENTS = `
+  *,
+  sender:profiles!sender_id (
+    id,
+    first_name,
+    last_name,
+    email,
+    role,
+    avatar_url
+  )
+`;
+
+class CaseMessagesService extends BaseService {
+  constructor() {
+    super('case-messages');
+  }
+
   async getMessages(
     caseId: string,
     options: { limit?: number; offset?: number } = {}
   ): Promise<{ data: CaseMessage[]; total: number }> {
-    const supabase = await createClient();
-    const { limit = 50, offset = 0 } = options;
+    return this.withErrorHandling(async () => {
+      const supabase = await this.getSupabaseClient();
+      const { limit = 50, offset = 0 } = options;
 
-    // Get total count
-    const { count } = await supabase
-      .from('case_messages')
-      .select('*', { count: 'exact', head: true })
-      .eq('case_id', caseId)
-      .is('deleted_at', null);
+      // Get total count
+      const { count } = await supabase
+        .from('case_messages')
+        .select('*', { count: 'exact', head: true })
+        .eq('case_id', caseId)
+        .is('deleted_at', null);
 
-    // Get messages with sender info
-    const { data, error } = await supabase
-      .from('case_messages')
-      .select(`
-        *,
-        sender:profiles!sender_id (
-          id,
-          first_name,
-          last_name,
-          email,
-          role,
-          avatar_url
-        ),
-        attachments:message_attachments (*)
-      `)
-      .eq('case_id', caseId)
-      .is('deleted_at', null)
-      .order('created_at', { ascending: true })
-      .range(offset, offset + limit - 1);
+      // Get messages with sender info
+      const { data, error } = await supabase
+        .from('case_messages')
+        .select(MESSAGE_SELECT)
+        .eq('case_id', caseId)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: true })
+        .range(offset, offset + limit - 1);
 
-    if (error) {
-      logger.logError('Error fetching messages', error, { caseId });
-      throw error;
-    }
+      if (error) throw error;
 
-    return {
-      data: data as CaseMessage[],
-      total: count || 0,
-    };
-  },
+      return {
+        data: data as CaseMessage[],
+        total: count || 0,
+      };
+    }, 'getMessages', { caseId });
+  }
 
-  /**
-   * Get a single message by ID
-   */
   async getMessage(messageId: string): Promise<CaseMessage | null> {
-    const supabase = await createClient();
+    return this.withErrorHandling(async () => {
+      const supabase = await this.getSupabaseClient();
 
-    const { data, error } = await supabase
-      .from('case_messages')
-      .select(`
-        *,
-        sender:profiles!sender_id (
-          id,
-          first_name,
-          last_name,
-          email,
-          role,
-          avatar_url
-        ),
-        attachments:message_attachments (*)
-      `)
-      .eq('id', messageId)
-      .is('deleted_at', null)
-      .single();
+      const { data, error } = await supabase
+        .from('case_messages')
+        .select(MESSAGE_SELECT)
+        .eq('id', messageId)
+        .is('deleted_at', null)
+        .single();
 
-    if (error) {
-      if (error.code === 'PGRST116') return null;
-      logger.logError('Error fetching message', error, { messageId });
-      throw error;
-    }
+      if (error) {
+        if (error.code === 'PGRST116') return null;
+        throw error;
+      }
 
-    return data as CaseMessage;
-  },
+      return data as CaseMessage;
+    }, 'getMessage', { messageId });
+  }
 
-  /**
-   * Create a new message
-   */
   async createMessage(data: CreateMessageData): Promise<CaseMessage> {
-    const supabase = await createClient();
+    return this.withErrorHandling(async () => {
+      const supabase = await this.getSupabaseClient();
 
-    const { data: message, error } = await supabase
-      .from('case_messages')
-      .insert(data)
-      .select(`
-        *,
-        sender:profiles!sender_id (
-          id,
-          first_name,
-          last_name,
-          email,
-          role,
-          avatar_url
-        )
-      `)
-      .single();
+      const { data: message, error } = await supabase
+        .from('case_messages')
+        .insert(data)
+        .select(MESSAGE_SELECT_NO_ATTACHMENTS)
+        .single();
 
-    if (error) {
-      logger.logError('Error creating message', error, { caseId: data.case_id, senderId: data.sender_id });
-      throw error;
-    }
+      if (error) throw error;
 
-    return message as CaseMessage;
-  },
+      return message as CaseMessage;
+    }, 'createMessage', { caseId: data.case_id, senderId: data.sender_id });
+  }
 
-  /**
-   * Add an attachment to a message
-   */
   async addAttachment(data: CreateAttachmentData): Promise<MessageAttachment> {
-    const supabase = await createClient();
+    return this.withErrorHandling(async () => {
+      const supabase = await this.getSupabaseClient();
 
-    const { data: attachment, error } = await supabase
-      .from('message_attachments')
-      .insert(data)
-      .select()
-      .single();
+      const { data: attachment, error } = await supabase
+        .from('message_attachments')
+        .insert(data)
+        .select()
+        .single();
 
-    if (error) {
-      logger.logError('Error adding attachment', error, { messageId: data.message_id, fileName: data.file_name });
-      throw error;
-    }
+      if (error) throw error;
 
-    return attachment as MessageAttachment;
-  },
+      return attachment as MessageAttachment;
+    }, 'addAttachment', { messageId: data.message_id, fileName: data.file_name });
+  }
 
-  /**
-   * Mark a message as read
-   */
   async markAsRead(messageId: string): Promise<void> {
-    const supabase = await createClient();
+    return this.withErrorHandling(async () => {
+      const supabase = await this.getSupabaseClient();
 
-    const { error } = await supabase
-      .from('case_messages')
-      .update({ read_at: new Date().toISOString() })
-      .eq('id', messageId)
-      .is('read_at', null);
+      const { error } = await supabase
+        .from('case_messages')
+        .update({ read_at: new Date().toISOString() })
+        .eq('id', messageId)
+        .is('read_at', null);
 
-    if (error) {
-      logger.logError('Error marking message as read', error, { messageId });
-      throw error;
-    }
-  },
+      if (error) throw error;
+    }, 'markAsRead', { messageId });
+  }
 
-  /**
-   * Mark all messages in a case as read for a user
-   */
   async markAllAsRead(caseId: string, userId: string): Promise<void> {
-    const supabase = await createClient();
+    return this.withErrorHandling(async () => {
+      const supabase = await this.getSupabaseClient();
 
-    const { error } = await supabase
-      .from('case_messages')
-      .update({ read_at: new Date().toISOString() })
-      .eq('case_id', caseId)
-      .neq('sender_id', userId)
-      .is('read_at', null);
+      const { error } = await supabase
+        .from('case_messages')
+        .update({ read_at: new Date().toISOString() })
+        .eq('case_id', caseId)
+        .neq('sender_id', userId)
+        .is('read_at', null);
 
-    if (error) {
-      logger.logError('Error marking all messages as read', error, { caseId, userId });
-      throw error;
-    }
-  },
+      if (error) throw error;
+    }, 'markAllAsRead', { caseId, userId });
+  }
 
-  /**
-   * Soft delete a message
-   */
   async deleteMessage(messageId: string): Promise<void> {
-    const supabase = await createClient();
+    return this.withErrorHandling(async () => {
+      const supabase = await this.getSupabaseClient();
 
-    const { error } = await supabase
-      .from('case_messages')
-      .update({ deleted_at: new Date().toISOString() })
-      .eq('id', messageId);
+      const { error } = await supabase
+        .from('case_messages')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', messageId);
 
-    if (error) {
-      logger.logError('Error deleting message', error, { messageId });
-      throw error;
-    }
-  },
+      if (error) throw error;
+    }, 'deleteMessage', { messageId });
+  }
 
-  /**
-   * Get unread message count for a user across all their cases
-   */
   async getUnreadCount(userId: string): Promise<number> {
-    const supabase = await createClient();
+    return this.withErrorHandling(async () => {
+      const supabase = await this.getSupabaseClient();
 
-    // Get cases where user is client or attorney
-    const { data: cases, error: casesError } = await supabase
-      .from('cases')
-      .select('id')
-      .or(`client_id.eq.${userId},attorney_id.eq.${userId}`)
-      .is('deleted_at', null);
+      // Get cases where user is client or attorney
+      const { data: cases, error: casesError } = await supabase
+        .from('cases')
+        .select('id')
+        .or(`client_id.eq.${userId},attorney_id.eq.${userId}`)
+        .is('deleted_at', null);
 
-    if (casesError) {
-      logger.logError('Error fetching cases for unread count', casesError, { userId });
-      return 0;
-    }
+      if (casesError) throw casesError;
 
-    if (!cases || cases.length === 0) return 0;
+      if (!cases || cases.length === 0) return 0;
 
-    const caseIds = cases.map((c) => c.id);
+      const caseIds = cases.map((c) => c.id);
 
-    // Count unread messages (not sent by user)
-    const { count, error } = await supabase
-      .from('case_messages')
-      .select('*', { count: 'exact', head: true })
-      .in('case_id', caseIds)
-      .neq('sender_id', userId)
-      .is('read_at', null)
-      .is('deleted_at', null);
+      // Count unread messages (not sent by user)
+      const { count, error } = await supabase
+        .from('case_messages')
+        .select('*', { count: 'exact', head: true })
+        .in('case_id', caseIds)
+        .neq('sender_id', userId)
+        .is('read_at', null)
+        .is('deleted_at', null);
 
-    if (error) {
-      logger.logError('Error fetching unread count', error, { userId });
-      return 0;
-    }
+      if (error) throw error;
 
-    return count || 0;
-  },
+      return count || 0;
+    }, 'getUnreadCount', { userId });
+  }
 
-  /**
-   * Get unread count for a specific case
-   */
   async getUnreadCountForCase(caseId: string, userId: string): Promise<number> {
-    const supabase = await createClient();
+    return this.withErrorHandling(async () => {
+      const supabase = await this.getSupabaseClient();
 
-    const { count, error } = await supabase
-      .from('case_messages')
-      .select('*', { count: 'exact', head: true })
-      .eq('case_id', caseId)
-      .neq('sender_id', userId)
-      .is('read_at', null)
-      .is('deleted_at', null);
+      const { count, error } = await supabase
+        .from('case_messages')
+        .select('*', { count: 'exact', head: true })
+        .eq('case_id', caseId)
+        .neq('sender_id', userId)
+        .is('read_at', null)
+        .is('deleted_at', null);
 
-    if (error) {
-      logger.logError('Error fetching unread count for case', error, { caseId, userId });
-      return 0;
-    }
+      if (error) throw error;
 
-    return count || 0;
-  },
-};
+      return count || 0;
+    }, 'getUnreadCountForCase', { caseId, userId });
+  }
+}
+
+// Export singleton instance
+export const caseMessagesService = new CaseMessagesService();

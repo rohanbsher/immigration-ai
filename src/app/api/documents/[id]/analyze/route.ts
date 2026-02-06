@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { analyzeDocument, type DocumentAnalysisResult } from '@/lib/ai';
 import { aiRateLimiter } from '@/lib/rate-limit';
 import { createLogger } from '@/lib/logger';
+import { enforceQuota, trackUsage, QuotaExceededError } from '@/lib/billing/quota';
 import { validateStorageUrl } from '@/lib/security';
 import { isValidTransition, getValidNextStates, isTerminalState } from '@/lib/documents/state-machine';
 
@@ -36,6 +37,19 @@ export async function POST(
     const rateLimitResult = await aiRateLimiter.limit(request, user.id);
     if (!rateLimitResult.allowed) {
       return rateLimitResult.response;
+    }
+
+    // Quota enforcement
+    try {
+      await enforceQuota(user.id, 'ai_requests');
+    } catch (error) {
+      if (error instanceof QuotaExceededError) {
+        return NextResponse.json(
+          { error: 'AI request limit reached. Please upgrade your plan.', code: 'QUOTA_EXCEEDED' },
+          { status: 402 }
+        );
+      }
+      throw error;
     }
 
     // Get the document
@@ -95,8 +109,24 @@ export async function POST(
       );
     }
 
-    // Update status to processing - track that we changed it
-    await documentsService.updateDocument(id, { status: 'processing' });
+    // CAS (Compare-and-Swap) protection against concurrent analysis:
+    // Only transition to 'processing' if status hasn't changed since we read it.
+    // This prevents two concurrent requests from both starting analysis.
+    const previousStatus = document.status;
+    const { data: casResult, error: casError } = await supabase
+      .from('documents')
+      .update({ status: 'processing', updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .eq('status', previousStatus) // CAS condition: only update if status is still what we read
+      .select('id')
+      .single();
+
+    if (casError || !casResult) {
+      return NextResponse.json(
+        { error: 'Document analysis is already in progress. Please try again later.' },
+        { status: 409 } // Conflict
+      );
+    }
     statusWasSet = true;
 
     let analysisResult: DocumentAnalysisResult;
@@ -188,6 +218,8 @@ export async function POST(
       ai_extracted_data: extractedData,
       ai_confidence_score: analysisResult.overall_confidence,
     });
+
+    trackUsage(user.id, 'ai_requests').catch(() => {});
 
     return NextResponse.json({
       document: updatedDocument,

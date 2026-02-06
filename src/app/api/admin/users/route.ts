@@ -3,26 +3,9 @@ import { serverAuth } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 import { createLogger } from '@/lib/logger';
+import { sanitizeSearchInput } from '@/lib/db/base-service';
 
 const log = createLogger('api:admin-users');
-
-/**
- * Sanitize search input for use in Supabase ILIKE patterns.
- * Escapes special characters and limits length to prevent injection and DoS.
- */
-function sanitizeSearchInput(input: string): string {
-  // Limit length to prevent DoS
-  const truncated = input.slice(0, 100);
-
-  // Escape SQL LIKE wildcards (% and _) so they're treated as literals
-  // Remove PostgREST filter special characters that could manipulate the query
-  const sanitized = truncated
-    .replace(/[%_]/g, '\\$&') // Escape SQL LIKE wildcards
-    .replace(/[,.'"\(\)]/g, '') // Remove PostgREST special chars
-    .trim();
-
-  return sanitized;
-}
 
 export async function GET(request: NextRequest) {
   try {

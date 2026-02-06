@@ -27,6 +27,7 @@ interface SubscriptionData {
   customer: Customer | null;
   limits: PlanLimits;
   availablePlans: PlanLimits[];
+  stripeConfigured?: boolean;
 }
 
 interface CheckoutParams {

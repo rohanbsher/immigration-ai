@@ -1,62 +1,81 @@
 # Immigration AI - Features
 
-> Last updated: 2026-01-28
+> Last updated: 2026-02-05 (Verified)
 
 ## Shipped Features
 
-| Feature | Description | Shipped |
-|---------|-------------|---------|
-| User Authentication | Supabase Auth with MFA support | 2026-01 |
-| Case Management | Create, view, update immigration cases | 2026-01 |
-| Document Upload | Secure document storage with Supabase | 2026-01 |
-| AI Document Analysis | Claude vision for passport/document parsing | 2026-01 |
-| Form Auto-Fill | AI-assisted USCIS form completion | 2026-01 |
-| Role-Based Access | Attorney, paralegal, client roles | 2026-01 |
-| Dashboard | Case overview, deadlines, activity | 2026-01 |
-| File Validation | Magic bytes + virus scanning | 2026-01-26 |
-| AI Confidence Thresholds | Attorney review for low-confidence AI | 2026-01-26 |
-| Rate Limiting | Upstash Redis with fail-closed safety | 2026-01-27 |
-| Error Tracking | Sentry integration | 2026-01-27 |
-| PDF Generation | USCIS form PDF export | 2026-01-27 |
-| Frontend RBAC | Route-level permission guards | 2026-01-27 |
+| Feature | Description | Key Files | Shipped |
+|---------|-------------|-----------|---------|
+| User Authentication | Email/password + OAuth + session management | `src/app/api/auth/`, `src/lib/auth/` | 2026-01 |
+| Two-Factor Auth (MFA) | TOTP + backup codes (128-bit NIST) | `src/lib/2fa/`, `src/app/api/2fa/` | 2026-01 |
+| Case Management | CRUD with 16 visa types, 10 statuses, filtering | `src/app/api/cases/`, `src/lib/db/cases.ts` | 2026-01 |
+| Document Upload | Drag-drop, magic bytes validation, virus scanning | `src/components/documents/`, `src/lib/file-validation/` | 2026-01 |
+| AI Document Analysis | GPT-4 Vision OCR with confidence scoring | `src/lib/ai/document-analysis.ts` | 2026-01 |
+| AI Form Autofill | Claude-powered field mapping + consistency checks | `src/lib/ai/form-autofill.ts` | 2026-01 |
+| AI Chat | SSE streaming with tool use and conversation history | `src/app/api/chat/`, `src/components/chat/` | 2026-01 |
+| Role-Based Access | Attorney, client, admin roles with route guards | `src/lib/rbac/`, `src/hooks/use-role-guard.ts` | 2026-01 |
+| Dashboard | Case overview, animated counters, deadline widgets | `src/app/dashboard/page.tsx` | 2026-01 |
+| File Validation | Magic bytes + virus scanning (ClamAV/VirusTotal) | `src/lib/file-validation/` | 2026-01-26 |
+| AI Confidence Thresholds | Attorney review for low-confidence AI results | `src/lib/form-validation/` | 2026-01-26 |
+| Rate Limiting | Upstash Redis on 24+ routes with fail-closed safety | `src/lib/rate-limit/` | 2026-01-27 |
+| Error Tracking | Sentry integration (server + client + edge) | `sentry.*.config.ts` | 2026-01-27 |
+| PDF Generation | USCIS form PDF filling via pdf-lib | `src/lib/pdf/` | 2026-01-27 |
+| Frontend RBAC | Route-level permission guards with redirect | `src/hooks/use-role-guard.ts` | 2026-01-27 |
+| Stripe Billing (Backend) | Subscriptions, webhooks, quota enforcement | `src/app/api/billing/`, `src/lib/stripe/` | 2026-01-28 |
+| Multi-Tenancy (Backend) | Firms, members, invitations with RLS | `src/app/api/firms/`, `src/lib/db/firms.ts` | 2026-01-28 |
+| Structured Logging | createLogger across entire codebase | `src/lib/logger/` | 2026-02-02 |
+| SSE Keepalive | Configurable keepalive for Vercel timeout | `src/lib/api/sse.ts` | 2026-02-02 |
+| SSRF Protection | URL validation with encoding bypass prevention | `src/lib/security/url-validation.ts` | 2026-02-02 |
+| PII Encryption | AES-256-GCM for extracted document data | `src/lib/crypto/` | 2026-01-27 |
+| Audit Logging | Activity tracking for compliance | `src/lib/audit/` | 2026-01-27 |
+| GDPR Compliance | Data export and deletion endpoints | `src/app/api/gdpr/` | 2026-01-28 |
+| Deadline Alerts | Vercel cron job (daily 6 AM UTC) | `src/app/api/cron/deadline-alerts/` | 2026-01-28 |
+| Document Checklists | Visa-specific document requirements | `src/app/api/document-checklists/` | 2026-01-28 |
+| Security Headers | CSP, HSTS, X-Frame-Options, Permissions-Policy | `next.config.ts` | 2026-01-27 |
 
-## In Development
+## In Development (UI Needed)
 
-| Feature | Description | Status | Work Stream |
-|---------|-------------|--------|-------------|
-| Stripe Billing | Subscription plans, usage limits | Ready to start | WS-1 |
-| Multi-Tenancy | Organization/firm management | Ready to start | WS-2 |
+| Feature | Backend Status | Frontend Status | Work Stream |
+|---------|---------------|-----------------|-------------|
+| Stripe Billing UI | Complete (API + webhooks) | Not started | WS-1 |
+| Multi-Tenancy UI | Complete (API + RLS) | Not started | WS-2 |
+| Email Notifications | Resend integration exists | Templates needed | WS-3 |
 
 ## Planned
 
 | Feature | Description | Priority | Blocked By |
 |---------|-------------|----------|------------|
-| Email Notifications | Transactional emails via Resend | High | WS-1 |
-| Deadline Reminders | Automated deadline alerts | Medium | WS-3 |
-| Client Portal | Limited client access to cases | Medium | WS-2 |
+| Client Portal | Limited client access to own cases | Medium | WS-2 |
+| Analytics Dashboard | Case outcomes, processing time metrics | Medium | - |
+| Task Management UI | Task list and assignment | Low | - |
+| Document Request UI | Request docs from clients | Low | - |
 
-## Deferred (Not This Sprint)
+## Deferred
 
 - Accessibility (WCAG 2.1)
 - Internationalization (i18n)
 - Upload progress indicators
 - AI prompt versioning
+- Real-time notifications (WebSocket)
 
 ---
 
-## Feature Notes
+## Verified Quality (2026-02-05)
 
-### AI Document Analysis
-- **Status:** Shipped
-- **Files:** `/src/lib/ai/`, `/src/app/api/documents/`
-- **Notes:** Uses Claude vision API. Confidence thresholds require attorney review for values < 0.8.
+### Bug Fixes Verified
+- updateMessage metadata: Atomic JSONB merge (PROVEN)
+- Document status race condition: statusWasSet flag (PROVEN)
+- SSE keepalive: Configurable intervals + cleanup (PROVEN)
+- Quota triggers: SECURITY DEFINER with safe search_path (PROVEN)
+- Email normalization: trim().toLowerCase() (PROVEN)
+- URL validation: Shared module, no duplication (PROVEN)
+- Placeholder tests: All removed (PROVEN)
 
-### Billing (WS-1)
-- **Status:** Ready to start
-- **Files:** `/src/lib/stripe/`, `/src/app/api/billing/`
-- **Notes:** Free/Pro/Enterprise tiers. Usage limits on cases, documents, AI calls.
-
-### Multi-Tenancy (WS-2)
-- **Status:** Ready to start
-- **Files:** `/src/lib/organizations/`, `/src/app/api/organizations/`
-- **Notes:** Firms can have multiple members. RLS policies for data isolation.
+### Code Quality (Staff Engineer Review)
+- URL Validation: A- grade
+- SSE Keepalive: A grade
+- Test Utilities: A- grade
+- Stripe Webhooks: B+ grade
+- updateMessage: B+ grade
+- Quota Enforcement: B grade
+- Document Analyze: B- grade (concurrent protection recommended)

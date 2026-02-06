@@ -1,6 +1,6 @@
 # Immigration AI - Current Project State
 
-> Last updated: 2026-02-02 21:14 by Grill Review Fix Agent
+> Last updated: 2026-02-05 by Plan-and-Fix + Production Readiness Agent
 
 ## Project Overview
 
@@ -8,112 +8,221 @@ AI-powered immigration case management platform for attorneys. Built with Next.j
 
 ## Current Status: Production-Ready (Core)
 
-**Overall Grade: A-** (improved from B+ after grill review fixes)
+**Overall Grade: A-**
 
 | Category | Score | Notes |
 |----------|-------|-------|
-| Code Quality | A | BaseService pattern, unified error handling |
+| Code Quality | A | BaseService pattern, unified error handling, structured logging |
 | Architecture | A | Well-organized, proper separation, unified RBAC |
-| Security | A- | Rate limiting, auth patterns unified, SSE leak fixed |
-| Feature Implementation | B+ | Most features built, some UI incomplete |
-| Production Readiness | B+ | External config needed, core is solid |
-| Test Coverage | A | 1070 tests passing |
+| Security | A- | Rate limiting, SSRF protection, SECURITY DEFINER, AES-256 encryption |
+| Feature Implementation | B+ | Core features complete, some UI gaps |
+| Production Readiness | B+ | External service config needed (Stripe, Resend, Upstash) |
+| Test Coverage | A | 1,293 tests passing, 86%+ coverage |
 
-## What's Working
+## What's Working (Verified 2026-02-05)
 
-- Authentication with timeouts and error handling
-- Environment validation with production requirements
-- Structured logging infrastructure
-- **Rate limiting on 24+ API routes**
-- **Unified permissions system**
-- **BaseService pattern for DB services** (new)
-- 20+ database tables with RLS
-- AI document analysis and form autofill
-- Multi-tenancy with firm management
-- 2FA/MFA fully implemented
-- Document checklists by visa type
-- **SSE streaming with proper cleanup** (new)
+### Core Features
+- Authentication with timeouts, rate limiting (5/min per IP), error handling
+- TOTP-based 2FA with NIST-compliant 128-bit backup codes
+- RBAC with 3 roles (attorney, client, admin)
+- Case management with 16 visa types and 10 status stages
+- Document vault with drag-drop upload, magic bytes validation, virus scanning
+- AI document analysis (GPT-4 Vision OCR) with confidence scoring
+- AI form autofill (Claude) with cross-document consistency checking
+- AI chat with SSE streaming, tool use, and conversation history
+- Stripe billing integration (Free/Pro/Enterprise) with quota enforcement
+- Multi-tenancy with firm management and team invitations
+- PDF generation for USCIS forms
+- Deadline tracking and alerts (Vercel cron)
+- GDPR compliance (data export/deletion)
 
-## Recent Major Changes (2026-02-02)
+### Infrastructure
+- 50+ API endpoints across 18 groups
+- 27 SQL migrations with comprehensive RLS
+- Rate limiting on 24+ routes (Upstash Redis)
+- Structured logging (createLogger) across entire codebase
+- Sentry error tracking (server + client)
+- Security headers (CSP, HSTS, X-Frame-Options)
+- SSE streaming with keepalive (Vercel 25s timeout mitigation)
+- AES-256-GCM encryption for PII at rest
+- CSRF protection and SSRF prevention
 
-### Grill Review Fixes
+## Verification Results (2026-02-05)
 
-#### SSE Timer Leak Fix
-- Added `cancel()` handler to ReadableStream in `src/lib/api/sse.ts`
-- Cleans up keepalive timer when client disconnects (closes browser tab)
-- Prevents memory leaks from orphaned intervals
+### All Plans 100% Complete
 
-#### Auth Pattern Unification
-- Migrated `cases/stats/route.ts` from `requireAttorneyOrAdmin` to `withAuth`
-- Uses `{ roles: ['attorney', 'admin'] }` option pattern
-- All routes now use consistent `withAuth` higher-order function
+**Bug Fix Implementation Plan (7/7 PROVEN):**
 
-#### Type Safety Improvements
-- Added field validation in `toConversation()` and `toMessage()` transformers
-- Throws descriptive errors if required fields are missing
-- Prevents type assertion bugs from propagating
+| # | Priority | Fix | Verdict |
+|---|----------|-----|---------|
+| 1 | P0 | updateMessage metadata — atomic JSONB merge via RPC | PROVEN |
+| 2 | P0 | Document status race condition — statusWasSet flag | PROVEN |
+| 3 | P1 | validateStorageUrl extracted to shared module | PROVEN |
+| 4 | P1 | SSE keepalive with configurable intervals + cleanup | PROVEN |
+| 5 | P1 | SECURITY DEFINER on quota triggers + safe search_path | PROVEN |
+| 6 | P2 | Email normalization — trim().toLowerCase() | PROVEN |
+| 7 | P3 | Placeholder tests removed — all assertions real | PROVEN |
 
-#### BaseService Migration (Proof of Concept)
-- Migrated `clients.ts` and `tasks.ts` to extend `BaseService`
-- Eliminates duplicate Supabase client initialization
-- Consistent error handling via `withErrorHandling()` wrapper
-- Renamed `getClient()` to `getSupabaseClient()` to avoid conflicts
-- 8 more services can be migrated in future
+**Grill Fix Plan (9/9 DONE):**
 
-## Tech Stack Quick Reference
+| # | Fix | Status |
+|---|-----|--------|
+| 1 | MockFile/MockBlob — stream(), bytes(), webkitRelativePath | DONE |
+| 2 | test-utils barrel export | DONE |
+| 3 | Deterministic createMockNavItems (no Math.random) | DONE |
+| 4 | vercel.json cache headers scoped to API routes | DONE |
+| 5 | Stripe webhook types properly handled | DONE |
+| 6 | RPC fallback path tests | DONE |
+| 7 | Blob polyfill moved to setupTests.ts | DONE |
+| 8 | Magic bytes — single FILE_SIGNATURES export | DONE |
+| 9 | Consistent log.logError in Stripe webhooks | DONE |
+
+**Execution Plan Phases (7/7 COMPLETE):**
+
+| Phase | Description | Status |
+|-------|-------------|--------|
+| 1 | Fix 20 test failures | COMPLETE |
+| 2 | Console migration — Jobs/Cron | COMPLETE |
+| 3 | Console migration — Stripe | COMPLETE |
+| 4 | Console migration — File Validation | COMPLETE |
+| 5 | Console migration — API Routes (30+ files) | COMPLETE |
+| 6 | Console migration — Lib/Components (20+ files) | COMPLETE |
+| 7 | ESLint cleanup (exports, Image, unused imports) | COMPLETE |
+
+### Test & Build Status
+```
+Tests:  1,293 passed | 3 skipped | 0 failures
+Build:  Passes (no TypeScript errors)
+Lint:   0 errors | 149 warnings (unused vars in E2E tests)
+Console: 0 statements in production code (only in logger fallbacks)
+```
+
+## Staff Engineer Review Findings (2026-02-05)
+
+Grades from critical /grill review:
+
+| Component | Grade | Key Finding |
+|-----------|-------|-------------|
+| updateMessage | B+ | Fallback path has read-then-write race (acceptable for current scale) |
+| Document Analyze Route | B- | No protection against concurrent analyze requests |
+| URL Validation | A- | Comprehensive SSRF protection, minor Unicode normalization gap |
+| SSE Keepalive | A | Proper cleanup, well-documented limitations |
+| Quota Enforcement | B | TOCTOU race in trigger (acceptable, soft enforcement) |
+| Test Utilities | A- | Complete MockFile/MockBlob, deterministic factories |
+| Stripe Webhooks | B+ | Idempotent via upsert, but duplicate emails possible on retries |
+
+### Future Improvements Identified
+- Add optimistic locking for concurrent document analysis
+- Unicode normalization in URL validation
+- Job queue for email sending (prevent duplicates on webhook retries)
+- Pessimistic locking in quota triggers (or post-insert validation)
+
+## Tech Stack
 
 | Layer | Technology | Version |
 |-------|-----------|---------|
 | Framework | Next.js | 16.1.6 |
-| Language | TypeScript | 5.x |
+| Language | TypeScript | 5.x (strict) |
 | Database | Supabase PostgreSQL | Latest |
 | Auth | Supabase Auth + TOTP | Latest |
-| AI | Anthropic Claude | 0.52.0 |
+| AI | Anthropic Claude SDK | 0.72.0 |
 | AI | OpenAI | 4.100.0 |
 | Payments | Stripe | 20.2.0 |
 | Email | Resend | 6.8.0 |
+| Rate Limiting | Upstash Redis | 2.0.8 |
+| Error Tracking | Sentry | 10.37.0 |
+| Testing | Vitest + Playwright | 4.0.18 / 1.58.0 |
+| UI | Tailwind CSS v4 + shadcn/ui | Latest |
 
-## Key Files to Know
+## Key Files
 
 | Purpose | Location |
 |---------|----------|
-| **BaseService class** | `src/lib/db/base-service.ts` (new pattern) |
-| **SSE utilities** | `src/lib/api/sse.ts` (with cancel handler) |
-| **Auth helpers** | `src/lib/auth/api-helpers.ts` (withAuth pattern) |
+| BaseService class | `src/lib/db/base-service.ts` |
+| SSE utilities | `src/lib/api/sse.ts` |
+| Auth helpers | `src/lib/auth/api-helpers.ts` |
+| URL validation (SSRF) | `src/lib/security/url-validation.ts` |
 | Env validation | `src/lib/config/env.ts` |
 | Structured logger | `src/lib/logger/index.ts` |
-| Permissions (RBAC) | `src/hooks/use-permissions.ts` |
-| Auth hooks | `src/hooks/use-auth.ts`, `src/hooks/use-user.ts` |
-| DB services | `src/lib/db/*.ts` |
-| AI integration | `src/lib/ai/index.ts` |
+| Permissions (RBAC) | `src/lib/rbac/index.ts` |
 | Rate limiting | `src/lib/rate-limit/index.ts` |
+| Encryption | `src/lib/crypto/index.ts` |
+| Test factories | `src/test-utils/factories.ts` |
 
 ## Commands
 
 ```bash
-npm run dev          # Start dev server
+npm run dev          # Start dev server (localhost:3000)
 npm run build        # Production build
-npm test             # Run all tests (1070 passing)
+npm run test:run     # Run all tests (1,293 passing)
 npm run lint         # Run ESLint
 
-# Note: Build requires this env var if Redis not configured:
+# Build requires this env var if Redis not configured:
 ALLOW_IN_MEMORY_RATE_LIMIT=true npm run build
 ```
 
+## Production Launch Progress (2026-02-05)
+
+### Phase 1: Code Changes (COMPLETE)
+- **1.1 GDPR Privacy UI** — Created settings Privacy tab with data export + account deletion UI
+- **1.2 Activity Timeline** — Replaced placeholder with real timeline component + API route
+- **1.3 Middleware Deprecation** — Renamed middleware.ts to proxy.ts (Next.js 16 convention)
+
+### Phase 2: External Services (User Action Required)
+- [ ] Run migrations 033 + 034 in Supabase SQL Editor
+- [ ] Configure Upstash Redis for production rate limiting
+- [ ] Deploy ClamAV or configure VirusTotal for file scanning
+- [ ] Set real AI API keys (OpenAI + Anthropic) with usage limits
+- [ ] Configure Sentry DSN for error tracking
+- [ ] Configure Resend for email notifications (requires DNS verification)
+- [ ] Configure Stripe (optional, for monetization)
+- [ ] Set custom domain in Vercel + update NEXT_PUBLIC_APP_URL
+
+## Plan-and-Fix Backlog (COMPLETE — 2026-02-05)
+
+### Group A: fetchWithTimeout Migration (3 files)
+- [x] `src/components/settings/two-factor-setup.tsx` — 5 fetch calls migrated
+- [x] `src/components/client/client-dashboard.tsx` — 1 fetch call migrated
+- [x] `src/components/client/document-checklist.tsx` — 1 fetch call migrated
+
+### Group B: Form Data Sync Fix
+- [x] `src/app/dashboard/forms/[id]/page.tsx` — Added `isInitialized` flag to prevent background refetch overwriting unsaved edits
+
+### Group C: Document Upload Partial Failure
+- [x] `src/components/documents/document-upload.tsx` — Promise.allSettled for per-file tracking, failed files retained for retry
+
+## Production Readiness Audit (2026-02-05)
+
+**Overall Score: 79/100**
+
+| Category | Score | Notes |
+|----------|-------|-------|
+| Feature Completeness | 75% | Core solid, Billing/Multi-Tenancy UI missing |
+| Infrastructure | 72% | Redis fail-closed, external services need config |
+| Security | 87% | No critical issues, PostgREST injection fixed |
+| Reliability | 78% | Redis fail-closed blocks production |
+| Testing | 88% | 1,293 tests, 6 lib modules untested |
+| Frontend | 82% | Admin pages still use direct fetch() |
+
+### Critical Blockers
+1. External services not configured (Stripe, Resend, Upstash, Sentry)
+2. Redis fail-closed — production blocks all requests if Redis unavailable
+3. Billing UI not built — can't monetize
+
+### High Priority
+- Admin dashboard pages still use direct fetch() (no timeouts)
+- Forms list page does N+1 aggregation
+- 6 lib modules have 0 test coverage
+- GDPR data export lacks documents/AI conversations
+
 ## Remaining Work
 
-See `.claude/agents/TODO.md` for detailed task list. Key items:
+### Ready to Start
+- **WS-1: Billing UI** — Backend complete, needs frontend checkout flow, usage display
+- **WS-2: Multi-Tenancy UI** — DB/API complete, needs firm switcher component
+- **WS-3: Email Notifications** — Resend integration exists, needs production API key + templates
 
-### Code Tasks
-- **WS-BASESERVICE**: Migrate remaining 8 services to BaseService pattern
-  - activities, case-messages, cases, document-requests, documents, forms, notifications, profiles
-- WS-LOGGER: Migrate remaining DB modules to structured logger
-- WS-TECHNICAL-DEBT: Phase 4 low priority items
-- WS-LINT: Clean up ESLint warnings (~110 warnings)
-- WS-SDK: Upgrade AI SDKs (OpenAI pending)
-- WS-UI: Build missing UI components for existing APIs
-- WS-TESTS: Continue improving test coverage
-
-### Production Deployment (User Action Required)
-- **Phase 2: Environment Configuration** - Set up Stripe, Upstash, Resend, Sentry
-- **Phase 3: Feature Completion** - Invitation emails, billing usage display, firm switcher
+### Code Quality (Non-Blocking)
+- **WS-BASESERVICE**: COMPLETE — All 12 DB services now extend BaseService
+- **WS-LINT**: 149 ESLint warnings (mostly unused vars in E2E tests)
+- **WS-SDK**: Upgrade OpenAI SDK

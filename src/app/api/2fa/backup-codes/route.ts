@@ -14,7 +14,7 @@ const regenerateSchema = z.object({
 export async function POST(request: NextRequest) {
   try {
     const ip = request.headers.get('x-forwarded-for') || 'unknown';
-    const rateLimitResult = await rateLimit(RATE_LIMITS.SENSITIVE, ip);
+    const rateLimitResult = await rateLimit(RATE_LIMITS.AUTH, ip);
 
     if (!rateLimitResult.success) {
       return NextResponse.json(

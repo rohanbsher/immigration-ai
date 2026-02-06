@@ -3,6 +3,7 @@ import { analyzeDocumentCompleteness } from '@/lib/ai/document-completeness';
 import { calculateSuccessScore } from '@/lib/scoring/success-probability';
 import { getRecommendations } from '@/lib/db/recommendations';
 import { getUpcomingDeadlines } from '@/lib/deadline';
+import { sanitizeSearchInput } from '@/lib/db/base-service';
 
 /**
  * Tool definitions for Claude function calling.
@@ -354,7 +355,10 @@ export async function executeTool(
           queryBuilder = queryBuilder.eq('status', status);
         }
         if (query) {
-          queryBuilder = queryBuilder.or(`title.ilike.%${query}%`);
+          const sanitized = sanitizeSearchInput(query);
+          if (sanitized.length > 0) {
+            queryBuilder = queryBuilder.or(`title.ilike.%${sanitized}%`);
+          }
         }
 
         const { data, error } = await queryBuilder.limit(10);

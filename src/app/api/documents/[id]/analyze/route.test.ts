@@ -69,11 +69,28 @@ const mockAnalysisResult = {
   raw_text: 'Extracted passport text...',
 };
 
+// Mock CAS query result (used for concurrent analysis protection)
+const mockCasResult = { data: { id: mockDocumentId }, error: null };
+
+// Chainable query builder for supabase.from('documents').update(...).eq(...).eq(...).select(...).single()
+function createChainableMock(result = mockCasResult) {
+  const chain = {
+    update: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockReturnThis(),
+    select: vi.fn().mockReturnThis(),
+    single: vi.fn().mockResolvedValue(result),
+  };
+  return chain;
+}
+
+let mockQueryChain = createChainableMock();
+
 // Mock the supabase client
 const mockSupabaseClient = {
   auth: {
     getUser: vi.fn(),
   },
+  from: vi.fn(() => mockQueryChain),
 };
 
 // Mock createClient
@@ -126,6 +143,18 @@ vi.mock('@/lib/security', () => ({
   validateStorageUrl: vi.fn().mockReturnValue(true),
 }));
 
+// Mock billing quota
+vi.mock('@/lib/billing/quota', () => ({
+  enforceQuota: vi.fn().mockResolvedValue(undefined),
+  trackUsage: vi.fn().mockResolvedValue(undefined),
+  QuotaExceededError: class QuotaExceededError extends Error {
+    constructor(public metric: string, public limit: number, public current: number) {
+      super(`Quota exceeded for ${metric}: ${current}/${limit}`);
+      this.name = 'QuotaExceededError';
+    }
+  },
+}));
+
 // Import handlers after mocks
 import { POST } from './route';
 import { documentsService, casesService } from '@/lib/db';
@@ -169,6 +198,10 @@ function createMockParams(id: string = mockDocumentId): Promise<{ id: string }> 
 describe('POST /api/documents/[id]/analyze', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+
+    // Reset CAS query chain mock for each test
+    mockQueryChain = createChainableMock();
+    mockSupabaseClient.from = vi.fn(() => mockQueryChain);
 
     // Default: authenticated as attorney
     mockSupabaseClient.auth.getUser.mockResolvedValue({
@@ -446,11 +479,13 @@ describe('POST /api/documents/[id]/analyze', () => {
       const request = createMockRequest('POST', `/api/documents/${mockDocumentId}/analyze`);
       await POST(request, { params: createMockParams() });
 
-      // Should be called twice: once for 'processing', once for final status
-      expect(documentsService.updateDocument).toHaveBeenCalledWith(
-        mockDocumentId,
+      // CAS sets status to 'processing' via direct supabase call (not documentsService)
+      expect(mockSupabaseClient.from).toHaveBeenCalledWith('documents');
+      expect(mockQueryChain.update).toHaveBeenCalledWith(
         expect.objectContaining({ status: 'processing' })
       );
+
+      // Final status update uses documentsService
       expect(documentsService.updateDocument).toHaveBeenCalledWith(
         mockDocumentId,
         expect.objectContaining({ status: 'analyzed' })
@@ -499,9 +534,9 @@ describe('POST /api/documents/[id]/analyze', () => {
     });
 
     it('resets status on unexpected errors after processing started', async () => {
-      // Make the final update fail to trigger error handler
+      // Make the final status update fail to trigger outer error handler
+      // CAS succeeds (via mockQueryChain), then documentsService.updateDocument throws
       vi.mocked(documentsService.updateDocument)
-        .mockResolvedValueOnce({ ...mockDocument, status: 'processing' } as any)
         .mockRejectedValueOnce(new Error('Database error'));
 
       const request = createMockRequest('POST', `/api/documents/${mockDocumentId}/analyze`);

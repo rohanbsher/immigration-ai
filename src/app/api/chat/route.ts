@@ -11,6 +11,7 @@ import {
 } from '@/lib/db/conversations';
 import { createLogger } from '@/lib/logger';
 import { createSSEStream, SSE_CONFIG } from '@/lib/api/sse';
+import { enforceQuota, trackUsage, QuotaExceededError } from '@/lib/billing/quota';
 
 const log = createLogger('api:chat');
 
@@ -52,6 +53,19 @@ export async function POST(request: NextRequest): Promise<Response> {
     const limitResult = await rateLimiter.limit(request, user.id);
     if (!limitResult.allowed) {
       return limitResult.response;
+    }
+
+    // Quota enforcement
+    try {
+      await enforceQuota(user.id, 'ai_requests');
+    } catch (error) {
+      if (error instanceof QuotaExceededError) {
+        return NextResponse.json(
+          { error: 'AI request limit reached. Please upgrade your plan.', code: 'QUOTA_EXCEEDED' },
+          { status: 402 }
+        );
+      }
+      throw error;
     }
 
     // Parse request body
@@ -153,6 +167,8 @@ export async function POST(request: NextRequest): Promise<Response> {
         });
 
         sse.send({ type: 'done' });
+
+        trackUsage(user.id, 'ai_requests').catch(() => {});
       } catch (error) {
         log.logError('Chat streaming error', error, logContext);
 

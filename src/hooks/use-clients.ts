@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import type { ClientWithCases, Client, UpdateClientData } from '@/lib/db/clients';
+import type { ClientWithCases, Client, CreateClientData, UpdateClientData } from '@/lib/db/clients';
 import { fetchWithTimeout } from '@/lib/api/fetch-with-timeout';
 
 // Fetch all clients
@@ -54,6 +54,20 @@ async function updateClient({
   return response.json();
 }
 
+// Create client
+async function createClient(data: CreateClientData): Promise<Client> {
+  const response = await fetchWithTimeout('/api/clients', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to create client');
+  }
+  return response.json();
+}
+
 // Search clients
 async function searchClients(query: string): Promise<Client[]> {
   const response = await fetchWithTimeout(
@@ -98,6 +112,17 @@ export function useUpdateClient() {
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['clients'] });
       queryClient.invalidateQueries({ queryKey: ['clients', variables.id] });
+    },
+  });
+}
+
+export function useCreateClient() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: createClient,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
     },
   });
 }

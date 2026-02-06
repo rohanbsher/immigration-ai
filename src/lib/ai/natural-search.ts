@@ -10,6 +10,7 @@ import { createClient } from '@/lib/supabase/server';
 import { parseClaudeJSON } from './utils';
 import { createLogger } from '@/lib/logger';
 import { serverEnv, features } from '@/lib/config';
+import { sanitizeSearchInput } from '@/lib/db/base-service';
 
 const log = createLogger('natural-search');
 
@@ -243,7 +244,10 @@ export async function executeSearch(
 
   // Apply text search
   if (filters.textSearch) {
-    query = query.or(`title.ilike.%${filters.textSearch}%,description.ilike.%${filters.textSearch}%`);
+    const sanitized = sanitizeSearchInput(filters.textSearch);
+    if (sanitized.length > 0) {
+      query = query.or(`title.ilike.%${sanitized}%,description.ilike.%${sanitized}%`);
+    }
   }
 
   // Execute query

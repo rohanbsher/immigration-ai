@@ -13,10 +13,14 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
-import { Users, MoreHorizontal, UserMinus, Shield } from 'lucide-react';
+import { Users, MoreHorizontal, UserMinus, Shield, LogOut } from 'lucide-react';
 import { toast } from 'sonner';
 import { useRemoveMember, useUpdateMember } from '@/hooks/use-firm-members';
 import type { FirmMember, FirmRole } from '@/types/firms';
+
+interface LeaveFirmState {
+  showDialog: boolean;
+}
 
 interface MemberListProps {
   firmId: string;
@@ -42,11 +46,13 @@ const ROLE_LABELS: Record<FirmRole, string> = {
 export function MemberList({ firmId, members, currentUserRole, currentUserId }: MemberListProps) {
   const [selectedMember, setSelectedMember] = useState<FirmMember | null>(null);
   const [showRemoveDialog, setShowRemoveDialog] = useState(false);
+  const [leaveFirm, setLeaveFirm] = useState<LeaveFirmState>({ showDialog: false });
 
   const removeMember = useRemoveMember();
   const updateMember = useUpdateMember();
 
   const canManage = currentUserRole === 'owner' || currentUserRole === 'admin';
+  const canLeave = currentUserRole !== 'owner';
 
   const handleRemoveMember = () => {
     if (!selectedMember) return;
@@ -61,6 +67,22 @@ export function MemberList({ firmId, members, currentUserRole, currentUserId }: 
         },
         onError: (error) => {
           toast.error(error.message || 'Failed to remove member');
+        },
+      }
+    );
+  };
+
+  const handleLeaveFirm = () => {
+    removeMember.mutate(
+      { firmId, userId: currentUserId },
+      {
+        onSuccess: () => {
+          toast.success('You have left the firm');
+          setLeaveFirm({ showDialog: false });
+          window.location.href = '/dashboard/firm';
+        },
+        onError: (error) => {
+          toast.error(error.message || 'Failed to leave firm');
         },
       }
     );
@@ -171,7 +193,20 @@ export function MemberList({ firmId, members, currentUserRole, currentUserId }: 
                       </DropdownMenu>
                     )}
                     {member.userId === currentUserId && (
-                      <span className="text-xs text-slate-400">(You)</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-slate-400">(You)</span>
+                        {canLeave && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50 h-7 text-xs"
+                            onClick={() => setLeaveFirm({ showDialog: true })}
+                          >
+                            <LogOut size={12} className="mr-1" />
+                            Leave
+                          </Button>
+                        )}
+                      </div>
                     )}
                   </div>
                 </div>
@@ -188,6 +223,17 @@ export function MemberList({ firmId, members, currentUserRole, currentUserId }: 
         description={`Are you sure you want to remove ${selectedMember ? getMemberName(selectedMember) : 'this member'} from your firm? They will lose access to all firm resources.`}
         confirmLabel="Remove Member"
         onConfirm={handleRemoveMember}
+        isLoading={removeMember.isPending}
+        variant="destructive"
+      />
+
+      <ConfirmationDialog
+        open={leaveFirm.showDialog}
+        onOpenChange={(open) => setLeaveFirm({ showDialog: open })}
+        title="Leave Firm"
+        description="Are you sure you want to leave this firm? You will lose access to all firm cases and resources. This action cannot be undone."
+        confirmLabel="Leave Firm"
+        onConfirm={handleLeaveFirm}
         isLoading={removeMember.isPending}
         variant="destructive"
       />

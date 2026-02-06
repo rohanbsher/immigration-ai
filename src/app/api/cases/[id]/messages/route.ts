@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { z } from 'zod';
 import { createLogger } from '@/lib/logger';
 import { standardRateLimiter } from '@/lib/rate-limit';
+import { sendCaseUpdateEmail } from '@/lib/email/notifications';
 
 const log = createLogger('api:case-messages');
 
@@ -128,6 +129,10 @@ export async function POST(
     });
 
     log.info('Message sent', { caseId, senderId: user.id, messageId: message.id });
+
+    // Notify the other party (fire-and-forget)
+    sendCaseUpdateEmail(caseId, 'note_added', 'New message received', user.id)
+      .catch((err) => log.logError('Failed to send message notification', err));
 
     return NextResponse.json(message, { status: 201 });
   } catch (error) {

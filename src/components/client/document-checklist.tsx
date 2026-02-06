@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { CheckCircle, Circle, Upload, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { fetchWithTimeout } from '@/lib/api/fetch-with-timeout';
 
 interface DocumentRequirement {
   id: string;
@@ -21,7 +22,7 @@ interface DocumentChecklistProps {
 }
 
 async function fetchDocumentRequirements(caseId: string): Promise<DocumentRequirement[]> {
-  const response = await fetch(`/api/cases/${caseId}/checklist`);
+  const response = await fetchWithTimeout(`/api/cases/${caseId}/checklist`, { timeout: 'STANDARD' });
   if (!response.ok) {
     throw new Error('Failed to fetch document checklist');
   }

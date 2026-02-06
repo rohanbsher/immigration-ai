@@ -2,8 +2,9 @@
 
 import { useState } from 'react';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Loader2 } from 'lucide-react';
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Loader2, CreditCard, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   useSubscription,
@@ -94,6 +95,7 @@ export default function BillingPage() {
   const currentPlanType = data?.subscription?.planType || 'free';
   const subscription = data?.subscription;
   const limits = data?.limits;
+  const stripeConfigured = data?.stripeConfigured !== false;
 
   return (
     <div className="space-y-8">
@@ -102,6 +104,19 @@ export default function BillingPage() {
         <h1 className="text-2xl font-bold text-slate-900">Billing & Subscription</h1>
         <p className="text-slate-600">Manage your plan and billing information</p>
       </div>
+
+      {/* Stripe Not Configured Notice */}
+      {!stripeConfigured && (
+        <Alert>
+          <Info className="h-4 w-4" />
+          <AlertTitle>Billing Not Configured</AlertTitle>
+          <AlertDescription>
+            Stripe payment processing is not configured for this environment.
+            Plan upgrades and subscription management are unavailable.
+            You are currently on the Free plan.
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Current Plan */}
       {subscription && (
@@ -174,6 +189,7 @@ export default function BillingPage() {
               billingPeriod={billingPeriod}
               onSelect={handleUpgrade}
               isLoading={checkout.isPending}
+              disabled={!stripeConfigured}
             />
           ))}
         </div>

@@ -9,6 +9,7 @@ import {
 } from '@/lib/ai';
 import { aiRateLimiter } from '@/lib/rate-limit';
 import { createLogger } from '@/lib/logger';
+import { enforceQuota, trackUsage, QuotaExceededError } from '@/lib/billing/quota';
 
 const log = createLogger('api:forms-autofill');
 
@@ -29,6 +30,19 @@ export async function POST(
     const rateLimitResult = await aiRateLimiter.limit(request, user.id);
     if (!rateLimitResult.allowed) {
       return rateLimitResult.response;
+    }
+
+    // Quota enforcement
+    try {
+      await enforceQuota(user.id, 'ai_requests');
+    } catch (error) {
+      if (error instanceof QuotaExceededError) {
+        return NextResponse.json(
+          { error: 'AI request limit reached. Please upgrade your plan.', code: 'QUOTA_EXCEEDED' },
+          { status: 402 }
+        );
+      }
+      throw error;
     }
 
     // Get the form
@@ -173,6 +187,8 @@ export async function POST(
         { status: 500 }
       );
     }
+
+    trackUsage(user.id, 'ai_requests').catch(() => {});
 
     return NextResponse.json({
       form: updatedForm,

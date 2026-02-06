@@ -122,6 +122,18 @@ vi.mock('@/lib/ai', () => ({
   autofillForm: vi.fn(),
 }));
 
+// Mock billing quota
+vi.mock('@/lib/billing/quota', () => ({
+  enforceQuota: vi.fn().mockResolvedValue(undefined),
+  trackUsage: vi.fn().mockResolvedValue(undefined),
+  QuotaExceededError: class QuotaExceededError extends Error {
+    constructor(public metric: string, public limit: number, public current: number) {
+      super(`Quota exceeded for ${metric}: ${current}/${limit}`);
+      this.name = 'QuotaExceededError';
+    }
+  },
+}));
+
 // Mock rate limiter
 vi.mock('@/lib/rate-limit', () => ({
   rateLimit: vi.fn().mockResolvedValue({ success: true }),

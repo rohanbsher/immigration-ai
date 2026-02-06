@@ -1,4 +1,4 @@
-import { BaseService } from './base-service';
+import { BaseService, sanitizeSearchInput } from './base-service';
 
 export type TaskStatus = 'pending' | 'in_progress' | 'completed' | 'cancelled';
 export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
@@ -159,7 +159,10 @@ class TasksService extends BaseService {
       }
 
       if (filters.search) {
-        query = query.ilike('title', `%${filters.search}%`);
+        const search = sanitizeSearchInput(filters.search);
+        if (search.length > 0) {
+          query = query.ilike('title', `%${search}%`);
+        }
       }
 
       const { data, error } = await query;

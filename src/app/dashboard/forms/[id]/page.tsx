@@ -234,16 +234,18 @@ export default function FormDetailPage({ params }: { params: Promise<{ id: strin
   const { mutate: autofillForm, isPending: isAutofilling } = useAutofillForm();
 
   const [formValues, setFormValues] = useState<Record<string, unknown>>({});
+  const [isInitialized, setIsInitialized] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [activeTab, setActiveTab] = useState('edit');
 
-  // Load form data when available - sync server data to local state for editing
+  // Load form data on initial mount only — avoid overwriting unsaved edits on background refetches
   useEffect(() => {
-    if (form?.form_data) {
+    if (form?.form_data && !isInitialized) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional sync from server data
       setFormValues(form.form_data as Record<string, unknown>);
+      setIsInitialized(true);
     }
-  }, [form]);
+  }, [form?.form_data, isInitialized]);
 
   const handleFieldChange = (fieldId: string, value: unknown) => {
     setFormValues((prev) => ({ ...prev, [fieldId]: value }));

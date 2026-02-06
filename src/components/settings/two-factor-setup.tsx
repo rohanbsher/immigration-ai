@@ -24,6 +24,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Shield, Loader2, Check, Copy, AlertTriangle, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { createLogger } from '@/lib/logger';
+import { fetchWithTimeout } from '@/lib/api/fetch-with-timeout';
 
 const log = createLogger('two-factor-setup');
 
@@ -49,7 +50,7 @@ export function TwoFactorSetup() {
 
   const fetchStatus = useCallback(async () => {
     try {
-      const response = await fetch('/api/2fa/status');
+      const response = await fetchWithTimeout('/api/2fa/status', { timeout: 'STANDARD' });
       const data = await response.json();
       if (data.success) {
         setStatus(data.data);
@@ -70,7 +71,7 @@ export function TwoFactorSetup() {
     setError(null);
 
     try {
-      const response = await fetch('/api/2fa/setup', { method: 'POST' });
+      const response = await fetchWithTimeout('/api/2fa/setup', { method: 'POST', timeout: 'STANDARD' });
       const data = await response.json();
 
       if (!response.ok) {
@@ -99,13 +100,14 @@ export function TwoFactorSetup() {
     setError(null);
 
     try {
-      const response = await fetch('/api/2fa/verify', {
+      const response = await fetchWithTimeout('/api/2fa/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           token: verificationCode,
           isSetup: step === 'verify',
         }),
+        timeout: 'STANDARD',
       });
       const data = await response.json();
 
@@ -143,10 +145,11 @@ export function TwoFactorSetup() {
     setError(null);
 
     try {
-      const response = await fetch('/api/2fa/disable', {
+      const response = await fetchWithTimeout('/api/2fa/disable', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token: verificationCode }),
+        timeout: 'STANDARD',
       });
       const data = await response.json();
 
@@ -176,10 +179,11 @@ export function TwoFactorSetup() {
     setError(null);
 
     try {
-      const response = await fetch('/api/2fa/backup-codes', {
+      const response = await fetchWithTimeout('/api/2fa/backup-codes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token: verificationCode }),
+        timeout: 'STANDARD',
       });
       const data = await response.json();
 

@@ -14,6 +14,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader2 } from 'lucide-react';
 import { useCreateCase } from '@/hooks/use-cases';
+import { useQuota } from '@/hooks/use-quota';
+import { UpgradePromptDialog, UpgradePromptBanner } from '@/components/billing/upgrade-prompt';
 import { toast } from 'sonner';
 import type { VisaType } from '@/types';
 
@@ -39,6 +41,8 @@ interface CreateCaseDialogProps {
 export function CreateCaseDialog({ open, onOpenChange }: CreateCaseDialogProps) {
   const router = useRouter();
   const { mutate: createCase, isPending } = useCreateCase();
+  const { data: caseQuota } = useQuota('cases');
+  const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
     client_id: '',
@@ -47,8 +51,15 @@ export function CreateCaseDialog({ open, onOpenChange }: CreateCaseDialogProps) 
     deadline: '',
   });
 
+  const isAtLimit = caseQuota && !caseQuota.isUnlimited && !caseQuota.allowed;
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (isAtLimit) {
+      setShowUpgradeDialog(true);
+      return;
+    }
 
     if (!formData.title || !formData.client_id || !formData.visa_type) {
       toast.error('Please fill in all required fields');
@@ -70,7 +81,11 @@ export function CreateCaseDialog({ open, onOpenChange }: CreateCaseDialogProps) 
           router.push(`/dashboard/cases/${newCase.id}`);
         },
         onError: (error) => {
-          toast.error(error.message || 'Failed to create case');
+          if (error.message?.includes('quota') || error.message?.includes('limit')) {
+            setShowUpgradeDialog(true);
+          } else {
+            toast.error(error.message || 'Failed to create case');
+          }
         },
       }
     );
@@ -92,6 +107,10 @@ export function CreateCaseDialog({ open, onOpenChange }: CreateCaseDialogProps) 
             Start a new immigration case for your client.
           </DialogDescription>
         </DialogHeader>
+
+        {caseQuota && (
+          <UpgradePromptBanner metric="cases" quota={caseQuota} className="mt-2" />
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4 mt-4">
           <div className="space-y-2">
@@ -197,6 +216,15 @@ export function CreateCaseDialog({ open, onOpenChange }: CreateCaseDialogProps) 
           </div>
         </form>
       </DialogContent>
+
+      {caseQuota && (
+        <UpgradePromptDialog
+          open={showUpgradeDialog}
+          onOpenChange={setShowUpgradeDialog}
+          metric="cases"
+          quota={caseQuota}
+        />
+      )}
     </Dialog>
   );
 }

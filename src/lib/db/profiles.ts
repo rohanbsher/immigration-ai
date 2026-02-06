@@ -1,8 +1,5 @@
-import { createClient } from '@/lib/supabase/server';
-import { createLogger } from '@/lib/logger';
+import { BaseService, sanitizeSearchInput } from './base-service';
 import type { UserRole } from '@/types';
-
-const logger = createLogger('db:profiles');
 
 export interface Profile {
   id: string;
@@ -38,100 +35,116 @@ export interface UpdateProfileData {
   alien_number?: string | null;
 }
 
-export const profilesService = {
+class ProfilesService extends BaseService {
+  constructor() {
+    super('profiles');
+  }
+
   async getProfile(userId: string): Promise<Profile | null> {
-    const supabase = await createClient();
+    return this.withErrorHandling(async () => {
+      const supabase = await this.getSupabaseClient();
 
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single();
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
 
-    if (error) {
-      logger.logError('Error fetching profile', error, { userId });
-      return null;
-    }
+      if (error) {
+        return null;
+      }
 
-    return data;
-  },
+      return data;
+    }, 'getProfile', { userId });
+  }
 
   async getCurrentProfile(): Promise<Profile | null> {
-    const supabase = await createClient();
+    return this.withErrorHandling(async () => {
+      const supabase = await this.getSupabaseClient();
 
-    const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await supabase.auth.getUser();
 
-    if (!user) {
-      return null;
-    }
+      if (!user) {
+        return null;
+      }
 
-    return this.getProfile(user.id);
-  },
+      return this.getProfile(user.id);
+    }, 'getCurrentProfile');
+  }
 
   async updateProfile(userId: string, data: UpdateProfileData): Promise<Profile | null> {
-    const supabase = await createClient();
+    return this.withErrorHandling(async () => {
+      const supabase = await this.getSupabaseClient();
 
-    const { data: profile, error } = await supabase
-      .from('profiles')
-      .update(data)
-      .eq('id', userId)
-      .select()
-      .single();
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .update(data)
+        .eq('id', userId)
+        .select()
+        .single();
 
-    if (error) {
-      logger.logError('Error updating profile', error, { userId });
-      throw error;
-    }
+      if (error) throw error;
 
-    return profile;
-  },
+      return profile;
+    }, 'updateProfile', { userId });
+  }
 
   async getClientsByAttorney(attorneyId: string): Promise<Profile[]> {
-    const supabase = await createClient();
+    return this.withErrorHandling(async () => {
+      const supabase = await this.getSupabaseClient();
 
-    const { data: cases } = await supabase
-      .from('cases')
-      .select('client_id')
-      .eq('attorney_id', attorneyId);
+      const { data: cases } = await supabase
+        .from('cases')
+        .select('client_id')
+        .eq('attorney_id', attorneyId);
 
-    if (!cases || cases.length === 0) {
-      return [];
-    }
+      if (!cases || cases.length === 0) {
+        return [];
+      }
 
-    const clientIds = [...new Set(cases.map(c => c.client_id))];
+      const clientIds = [...new Set(cases.map(c => c.client_id))];
 
-    const { data: profiles, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .in('id', clientIds);
+      const { data: profiles, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .in('id', clientIds);
 
-    if (error) {
-      logger.logError('Error fetching clients', error, { attorneyId });
-      return [];
-    }
+      if (error) throw error;
 
-    return profiles || [];
-  },
+      return profiles || [];
+    }, 'getClientsByAttorney', { attorneyId });
+  }
 
   async searchProfiles(query: string, role?: UserRole): Promise<Profile[]> {
-    const supabase = await createClient();
+    try {
+      const sanitized = sanitizeSearchInput(query);
+      if (sanitized.length === 0) return [];
 
-    let queryBuilder = supabase
-      .from('profiles')
-      .select('*')
-      .or(`first_name.ilike.%${query}%,last_name.ilike.%${query}%,email.ilike.%${query}%`);
+      const supabase = await this.getSupabaseClient();
 
-    if (role) {
-      queryBuilder = queryBuilder.eq('role', role);
-    }
+      let queryBuilder = supabase
+        .from('profiles')
+        .select('*')
+        .or(`first_name.ilike.%${sanitized}%,last_name.ilike.%${sanitized}%,email.ilike.%${sanitized}%`);
 
-    const { data, error } = await queryBuilder.limit(20);
+      if (role) {
+        queryBuilder = queryBuilder.eq('role', role);
+      }
 
-    if (error) {
-      logger.logError('Error searching profiles', error, { query, role });
+      const { data, error } = await queryBuilder.limit(20);
+
+      if (error) {
+        this.logger.logError('Error in searchProfiles', error, { query, role });
+        return [];
+      }
+
+      return data || [];
+    } catch (error) {
+      this.logger.logError('Error in searchProfiles', error, { query, role });
       return [];
     }
+  }
+}
 
-    return data || [];
-  },
-};
+// Export singleton instance
+export const profilesService = new ProfilesService();

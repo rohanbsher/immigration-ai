@@ -1,8 +1,5 @@
-import { createClient } from '@/lib/supabase/server';
-import { createLogger } from '@/lib/logger';
+import { BaseService } from './base-service';
 import type { FormType, FormStatus } from '@/types';
-
-const logger = createLogger('db:forms');
 
 export interface Form {
   id: string;
@@ -42,174 +39,167 @@ export interface UpdateFormData {
   review_notes?: string | null;
 }
 
-export const formsService = {
+const FORM_SELECT = `
+  *,
+  reviewer:profiles!forms_reviewed_by_fkey(id, first_name, last_name)
+`;
+
+class FormsService extends BaseService {
+  constructor() {
+    super('forms');
+  }
+
   async getFormsByCase(caseId: string): Promise<FormWithReviewer[]> {
-    const supabase = await createClient();
+    return this.withErrorHandling(async () => {
+      const supabase = await this.getSupabaseClient();
 
-    const { data, error } = await supabase
-      .from('forms')
-      .select(`
-        *,
-        reviewer:profiles!forms_reviewed_by_fkey(id, first_name, last_name)
-      `)
-      .eq('case_id', caseId)
-      .is('deleted_at', null)
-      .order('created_at', { ascending: false });
+      const { data, error } = await supabase
+        .from('forms')
+        .select(FORM_SELECT)
+        .eq('case_id', caseId)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false });
 
-    if (error) {
-      logger.logError('Error fetching forms', error, { caseId });
-      throw error;
-    }
+      if (error) throw error;
 
-    return data as FormWithReviewer[];
-  },
+      return data as FormWithReviewer[];
+    }, 'getFormsByCase', { caseId });
+  }
 
   async getForm(id: string): Promise<FormWithReviewer | null> {
-    const supabase = await createClient();
+    return this.withErrorHandling(async () => {
+      const supabase = await this.getSupabaseClient();
 
-    const { data, error } = await supabase
-      .from('forms')
-      .select(`
-        *,
-        reviewer:profiles!forms_reviewed_by_fkey(id, first_name, last_name)
-      `)
-      .eq('id', id)
-      .is('deleted_at', null)
-      .single();
+      const { data, error } = await supabase
+        .from('forms')
+        .select(FORM_SELECT)
+        .eq('id', id)
+        .is('deleted_at', null)
+        .single();
 
-    if (error) {
-      logger.logError('Error fetching form', error, { formId: id });
-      return null;
-    }
+      if (error) {
+        return null;
+      }
 
-    return data as FormWithReviewer;
-  },
+      return data as FormWithReviewer;
+    }, 'getForm', { formId: id });
+  }
 
   async createForm(data: CreateFormData): Promise<Form> {
-    const supabase = await createClient();
+    return this.withErrorHandling(async () => {
+      const supabase = await this.getSupabaseClient();
 
-    const { data: newForm, error } = await supabase
-      .from('forms')
-      .insert({
-        ...data,
-        form_data: data.form_data || {},
-        status: 'draft',
-      })
-      .select()
-      .single();
+      const { data: newForm, error } = await supabase
+        .from('forms')
+        .insert({
+          ...data,
+          form_data: data.form_data || {},
+          status: 'draft',
+        })
+        .select()
+        .single();
 
-    if (error) {
-      logger.logError('Error creating form', error, { caseId: data.case_id, formType: data.form_type });
-      throw error;
-    }
+      if (error) throw error;
 
-    return newForm;
-  },
+      return newForm;
+    }, 'createForm', { caseId: data.case_id, formType: data.form_type });
+  }
 
   async updateForm(id: string, data: UpdateFormData): Promise<Form> {
-    const supabase = await createClient();
+    return this.withErrorHandling(async () => {
+      const supabase = await this.getSupabaseClient();
 
-    const { data: updatedForm, error } = await supabase
-      .from('forms')
-      .update(data)
-      .eq('id', id)
-      .select()
-      .single();
+      const { data: updatedForm, error } = await supabase
+        .from('forms')
+        .update(data)
+        .eq('id', id)
+        .select()
+        .single();
 
-    if (error) {
-      logger.logError('Error updating form', error, { formId: id });
-      throw error;
-    }
+      if (error) throw error;
 
-    return updatedForm;
-  },
+      return updatedForm;
+    }, 'updateForm', { formId: id });
+  }
 
   async reviewForm(id: string, notes: string): Promise<Form> {
-    const supabase = await createClient();
+    return this.withErrorHandling(async () => {
+      const supabase = await this.getSupabaseClient();
 
-    const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await supabase.auth.getUser();
 
-    if (!user) {
-      throw new Error('Unauthorized');
-    }
+      if (!user) {
+        throw new Error('Unauthorized');
+      }
 
-    const { data: updatedForm, error } = await supabase
-      .from('forms')
-      .update({
-        status: 'approved',
-        review_notes: notes,
-        reviewed_by: user.id,
-        reviewed_at: new Date().toISOString(),
-      })
-      .eq('id', id)
-      .select()
-      .single();
+      const { data: updatedForm, error } = await supabase
+        .from('forms')
+        .update({
+          status: 'approved',
+          review_notes: notes,
+          reviewed_by: user.id,
+          reviewed_at: new Date().toISOString(),
+        })
+        .eq('id', id)
+        .select()
+        .single();
 
-    if (error) {
-      logger.logError('Error reviewing form', error, { formId: id });
-      throw error;
-    }
+      if (error) throw error;
 
-    return updatedForm;
-  },
+      return updatedForm;
+    }, 'reviewForm', { formId: id });
+  }
 
   async markAsFiled(id: string): Promise<Form> {
-    const supabase = await createClient();
+    return this.withErrorHandling(async () => {
+      const supabase = await this.getSupabaseClient();
 
-    const { data: updatedForm, error } = await supabase
-      .from('forms')
-      .update({
-        status: 'filed',
-        filed_at: new Date().toISOString(),
-      })
-      .eq('id', id)
-      .select()
-      .single();
+      const { data: updatedForm, error } = await supabase
+        .from('forms')
+        .update({
+          status: 'filed',
+          filed_at: new Date().toISOString(),
+        })
+        .eq('id', id)
+        .select()
+        .single();
 
-    if (error) {
-      logger.logError('Error marking form as filed', error, { formId: id });
-      throw error;
-    }
+      if (error) throw error;
 
-    return updatedForm;
-  },
+      return updatedForm;
+    }, 'markAsFiled', { formId: id });
+  }
 
-  /**
-   * Soft delete a form by setting deleted_at timestamp.
-   * The form is not permanently removed from the database.
-   */
   async deleteForm(id: string): Promise<void> {
-    const supabase = await createClient();
+    return this.withErrorHandling(async () => {
+      const supabase = await this.getSupabaseClient();
 
-    const { error } = await supabase
-      .from('forms')
-      .update({ deleted_at: new Date().toISOString() })
-      .eq('id', id);
+      const { error } = await supabase
+        .from('forms')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', id);
 
-    if (error) {
-      logger.logError('Error deleting form', error, { formId: id });
-      throw error;
-    }
-  },
+      if (error) throw error;
+    }, 'deleteForm', { formId: id });
+  }
 
-  /**
-   * Restore a soft-deleted form.
-   */
   async restoreForm(id: string): Promise<Form> {
-    const supabase = await createClient();
+    return this.withErrorHandling(async () => {
+      const supabase = await this.getSupabaseClient();
 
-    const { data: restoredForm, error } = await supabase
-      .from('forms')
-      .update({ deleted_at: null })
-      .eq('id', id)
-      .select()
-      .single();
+      const { data: restoredForm, error } = await supabase
+        .from('forms')
+        .update({ deleted_at: null })
+        .eq('id', id)
+        .select()
+        .single();
 
-    if (error) {
-      logger.logError('Error restoring form', error, { formId: id });
-      throw error;
-    }
+      if (error) throw error;
 
-    return restoredForm;
-  },
-};
+      return restoredForm;
+    }, 'restoreForm', { formId: id });
+  }
+}
+
+// Export singleton instance
+export const formsService = new FormsService();

@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { sensitiveRateLimiter } from '@/lib/rate-limit';
 import { auditService } from '@/lib/audit';
 import { createLogger } from '@/lib/logger';
+import { SIGNED_URL_EXPIRATION } from '@/lib/storage';
 
 const log = createLogger('api:documents');
 
@@ -87,7 +88,22 @@ export async function GET(
       },
     });
 
-    return NextResponse.json(accessResult.document);
+    // Generate a signed URL so the client can access the file securely
+    const document = { ...accessResult.document };
+    if (document.file_url) {
+      try {
+        const { data, error: signedUrlError } = await supabase.storage
+          .from('documents')
+          .createSignedUrl(document.file_url, SIGNED_URL_EXPIRATION.PREVIEW);
+        if (!signedUrlError && data) {
+          document.file_url = data.signedUrl;
+        }
+      } catch {
+        log.warn('Failed to generate signed URL for document', { documentId: id });
+      }
+    }
+
+    return NextResponse.json(document);
   } catch (error) {
     log.logError('Error fetching document', error);
     return NextResponse.json(
@@ -165,11 +181,12 @@ export async function DELETE(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Extract file path from URL and delete from storage
+    // Delete file from storage using the stored path directly
     try {
-      const fileUrl = new URL(accessResult.document!.file_url);
-      const filePath = fileUrl.pathname.split('/').slice(-2).join('/');
-      await supabase.storage.from('documents').remove([filePath]);
+      const storagePath = accessResult.document!.file_url;
+      if (storagePath) {
+        await supabase.storage.from('documents').remove([storagePath]);
+      }
     } catch (storageError) {
       log.logError('Error deleting file from storage', storageError);
       // Continue with document deletion even if storage deletion fails

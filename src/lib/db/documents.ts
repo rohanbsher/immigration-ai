@@ -290,24 +290,16 @@ class DocumentsService extends BaseService {
     required: boolean;
     description: string | null;
   }[]> {
-    try {
+    const result = await this.withNullableResult(async () => {
       const supabase = await this.getSupabaseClient();
 
-      const { data, error } = await supabase
+      return supabase
         .from('document_checklists')
         .select('document_type, required, description')
         .eq('visa_type', visaType);
+    }, 'getDocumentChecklist', { visaType });
 
-      if (error) {
-        this.logger.logError('Error in getDocumentChecklist', error, { visaType });
-        return [];
-      }
-
-      return data || [];
-    } catch (error) {
-      this.logger.logError('Error in getDocumentChecklist', error, { visaType });
-      return [];
-    }
+    return result ?? [];
   }
 }
 

@@ -25,7 +25,7 @@ const mockDocument = {
   document_type: 'passport',
   status: 'uploaded',
   file_name: 'passport.pdf',
-  file_url: 'https://test.supabase.co/storage/v1/object/public/documents/passport.pdf',
+  file_url: `${mockCaseId}/1234567890-abc123.pdf`,
   file_size: 1024,
   mime_type: 'application/pdf',
   ai_extracted_data: null,
@@ -85,12 +85,25 @@ function createChainableMock(result = mockCasResult) {
 
 let mockQueryChain = createChainableMock();
 
+// Mock storage for signed URL generation
+const mockCreateSignedUrl = vi.fn().mockResolvedValue({
+  data: { signedUrl: 'https://test.supabase.co/storage/v1/object/sign/documents/signed-url' },
+  error: null,
+});
+
+const mockStorageFrom = vi.fn().mockReturnValue({
+  createSignedUrl: mockCreateSignedUrl,
+});
+
 // Mock the supabase client
 const mockSupabaseClient = {
   auth: {
     getUser: vi.fn(),
   },
   from: vi.fn(() => mockQueryChain),
+  storage: {
+    from: mockStorageFrom,
+  },
 };
 
 // Mock createClient
@@ -202,6 +215,16 @@ describe('POST /api/documents/[id]/analyze', () => {
     // Reset CAS query chain mock for each test
     mockQueryChain = createChainableMock();
     mockSupabaseClient.from = vi.fn(() => mockQueryChain);
+
+    // Reset storage mock for signed URL generation
+    mockCreateSignedUrl.mockResolvedValue({
+      data: { signedUrl: 'https://test.supabase.co/storage/v1/object/sign/documents/signed-url' },
+      error: null,
+    });
+    mockStorageFrom.mockReturnValue({
+      createSignedUrl: mockCreateSignedUrl,
+    });
+    mockSupabaseClient.storage = { from: mockStorageFrom };
 
     // Default: authenticated as attorney
     mockSupabaseClient.auth.getUser.mockResolvedValue({

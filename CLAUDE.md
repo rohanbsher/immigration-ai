@@ -144,7 +144,7 @@ When building/fixing features:
 
 ## Architecture Documentation
 
-**For comprehensive architecture details, see `/ARCHITECTURE.md`**
+**For comprehensive architecture details, see `docs/ARCHITECTURE.md`**
 
 This document covers:
 - High-level system overview with diagrams

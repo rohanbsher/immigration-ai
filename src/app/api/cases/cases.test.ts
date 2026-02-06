@@ -91,7 +91,7 @@ const mockDocument = {
   document_type: 'passport',
   status: 'uploaded',
   file_name: 'passport.pdf',
-  file_url: 'https://example.com/passport.pdf',
+  file_url: `${CASE_ID}/1234567890-abc123.pdf`,
   file_size: 1024,
   mime_type: 'application/pdf',
   ai_extracted_data: null,
@@ -152,7 +152,7 @@ const mockSupabaseClient = {
   storage: {
     from: vi.fn().mockReturnValue({
       upload: vi.fn().mockResolvedValue({ data: { path: 'test/path' }, error: null }),
-      getPublicUrl: vi.fn().mockReturnValue({ data: { publicUrl: 'https://example.com/file.pdf' } }),
+      createSignedUrl: vi.fn().mockResolvedValue({ data: { signedUrl: 'https://example.com/signed/file.pdf' }, error: null }),
     }),
   },
 };

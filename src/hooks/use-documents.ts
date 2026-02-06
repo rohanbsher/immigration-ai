@@ -39,6 +39,18 @@ interface Document {
   } | null;
 }
 
+async function safeParseErrorJson(response: Response): Promise<{ error?: string }> {
+  try {
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      return await response.json();
+    }
+  } catch {
+    // Response body is not valid JSON
+  }
+  return { error: response.statusText || `Request failed with status ${response.status}` };
+}
+
 interface UploadDocumentData {
   case_id: string;
   document_type: DocumentType;
@@ -83,7 +95,7 @@ async function uploadDocument(data: UploadDocumentData): Promise<Document> {
   );
 
   if (!response.ok) {
-    const error = await response.json();
+    const error = await safeParseErrorJson(response);
     throw new Error(error.error || 'Failed to upload document');
   }
   return response.json();
@@ -96,7 +108,7 @@ async function updateDocument(id: string, data: UpdateDocumentData): Promise<Doc
     body: JSON.stringify(data),
   });
   if (!response.ok) {
-    const error = await response.json();
+    const error = await safeParseErrorJson(response);
     throw new Error(error.error || 'Failed to update document');
   }
   return response.json();
@@ -107,7 +119,7 @@ async function verifyDocument(id: string): Promise<Document> {
     method: 'POST',
   });
   if (!response.ok) {
-    const error = await response.json();
+    const error = await safeParseErrorJson(response);
     throw new Error(error.error || 'Failed to verify document');
   }
   return response.json();
@@ -119,7 +131,7 @@ async function analyzeDocument(id: string): Promise<Document> {
     method: 'POST',
   });
   if (!response.ok) {
-    const error = await response.json();
+    const error = await safeParseErrorJson(response);
     throw new Error(error.error || 'Failed to analyze document');
   }
   return response.json();
@@ -130,7 +142,7 @@ async function deleteDocument(id: string): Promise<void> {
     method: 'DELETE',
   });
   if (!response.ok) {
-    const error = await response.json();
+    const error = await safeParseErrorJson(response);
     throw new Error(error.error || 'Failed to delete document');
   }
 }

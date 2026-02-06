@@ -1,5 +1,6 @@
 'use client';
 
+import * as Sentry from '@sentry/nextjs';
 import { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import {
@@ -26,8 +27,7 @@ export default function DashboardError({ error, reset }: DashboardErrorProps) {
     // Log error to monitoring service
     log.logError('Dashboard Error', error, { digest: error.digest });
 
-    // Future: Sentry integration with dashboard tag
-    // Sentry.captureException(error, { tags: { area: 'dashboard' } });
+    Sentry.captureException(error, { tags: { area: 'dashboard' } });
   }, [error]);
 
   return (

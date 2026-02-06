@@ -10,8 +10,6 @@ const log = createLogger('api:billing-checkout');
 const checkoutSchema = z.object({
   planType: z.enum(['pro', 'enterprise']),
   billingPeriod: z.enum(['monthly', 'yearly']),
-  successUrl: z.string().url().optional(),
-  cancelUrl: z.string().url().optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -41,15 +39,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { planType, billingPeriod, successUrl, cancelUrl } = validation.data;
-    const origin = request.headers.get('origin') || process.env.NEXT_PUBLIC_APP_URL || '';
+    const { planType, billingPeriod } = validation.data;
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
     const session = await createCheckoutSession({
       userId: user.id,
       planType: planType as PlanType,
       billingPeriod: billingPeriod as BillingPeriod,
-      successUrl: successUrl || `${origin}/dashboard/settings/billing?success=true`,
-      cancelUrl: cancelUrl || `${origin}/dashboard/settings/billing?canceled=true`,
+      successUrl: `${appUrl}/dashboard/settings/billing?success=true`,
+      cancelUrl: `${appUrl}/dashboard/settings/billing?canceled=true`,
     });
 
     return NextResponse.json({

@@ -6,6 +6,7 @@ import { validateFile } from '@/lib/file-validation';
 import { sendDocumentUploadedEmail } from '@/lib/email/notifications';
 import { enforceQuota, enforceQuotaForCase, QuotaExceededError } from '@/lib/billing/quota';
 import { createLogger } from '@/lib/logger';
+import { SIGNED_URL_EXPIRATION } from '@/lib/storage';
 import type { CaseAccessResult } from '@/types';
 
 const log = createLogger('api:case-documents');
@@ -45,7 +46,23 @@ export async function GET(
 
     const documents = await documentsService.getDocumentsByCase(caseId);
 
-    return NextResponse.json(documents);
+    // Generate signed URLs for each document so the frontend can access them
+    const documentsWithSignedUrls = await Promise.all(
+      documents.map(async (doc) => {
+        if (!doc.file_url) return doc;
+        try {
+          const { data, error } = await supabase.storage
+            .from('documents')
+            .createSignedUrl(doc.file_url, SIGNED_URL_EXPIRATION.PREVIEW);
+          if (error || !data) return doc;
+          return { ...doc, file_url: data.signedUrl };
+        } catch {
+          return doc;
+        }
+      })
+    );
+
+    return NextResponse.json(documentsWithSignedUrls);
   } catch (error) {
     log.logError('Error fetching documents', error);
     return NextResponse.json(
@@ -185,17 +202,16 @@ export async function POST(
       );
     }
 
-    // Get public URL
-    const { data: { publicUrl } } = supabase.storage
-      .from('documents')
-      .getPublicUrl(fileName);
+    // Store the storage path (not a public URL) to prevent public access.
+    // Signed URLs are generated at read time in GET endpoints.
+    const storagePath = fileName;
 
     // Create document record
     const document = await documentsService.createDocument({
       case_id: caseId,
       document_type: documentType as Parameters<typeof documentsService.createDocument>[0]['document_type'],
       file_name: file.name,
-      file_url: publicUrl,
+      file_url: storagePath,
       file_size: file.size,
       mime_type: file.type,
       expiration_date: expirationDate || undefined,

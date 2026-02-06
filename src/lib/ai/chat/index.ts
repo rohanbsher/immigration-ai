@@ -3,11 +3,23 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { buildChatContext, formatContextForPrompt } from './context-builder';
 import { CHAT_TOOLS, executeTool } from './tools';
+import { createLogger } from '@/lib/logger';
 
-// Initialize Anthropic client
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY!,
-});
+const log = createLogger('ai:chat');
+
+// Lazy-initialize Anthropic client to avoid crash when API key is unset
+let anthropicInstance: Anthropic | null = null;
+
+function getAnthropicClient(): Anthropic {
+  if (!anthropicInstance) {
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) {
+      throw new Error('Anthropic API is not configured (ANTHROPIC_API_KEY not set)');
+    }
+    anthropicInstance = new Anthropic({ apiKey });
+  }
+  return anthropicInstance;
+}
 
 /**
  * Chat message interface.
@@ -38,7 +50,7 @@ export async function* streamChatResponse(
   }));
 
   // Create streaming message with tools
-  const stream = await anthropic.messages.stream({
+  const stream = await getAnthropicClient().messages.stream({
     model: 'claude-sonnet-4-20250514',
     max_tokens: 2048,
     system: systemPrompt,
@@ -98,7 +110,7 @@ export async function* streamChatResponse(
         ];
 
         // Stream the follow-up response
-        const followUpStream = await anthropic.messages.stream({
+        const followUpStream = await getAnthropicClient().messages.stream({
           model: 'claude-sonnet-4-20250514',
           max_tokens: 2048,
           system: systemPrompt,
@@ -113,7 +125,8 @@ export async function* streamChatResponse(
           }
         }
       } catch (error) {
-        yield `\n[Error executing tool: ${error instanceof Error ? error.message : 'Unknown error'}]\n`;
+        log.logError('Chat tool execution failed', error instanceof Error ? error : new Error(String(error)));
+        yield `\n[Tool execution failed. Please try again.]\n`;
       }
 
       currentToolUse = null;
@@ -143,7 +156,7 @@ export async function getChatResponse(
  */
 export async function generateConversationTitle(firstMessage: string): Promise<string> {
   try {
-    const response = await anthropic.messages.create({
+    const response = await getAnthropicClient().messages.create({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 50,
       messages: [

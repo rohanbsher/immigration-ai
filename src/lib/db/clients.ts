@@ -1,5 +1,6 @@
 import { BaseService, sanitizeSearchInput } from './base-service';
 import { getAdminClient } from '@/lib/supabase/admin';
+import type { CaseStatus } from '@/types';
 
 export interface Client {
   id: string;
@@ -39,8 +40,14 @@ export interface UpdateClientData {
   nationality?: string | null;
 }
 
-// Statuses that indicate an inactive/completed case
-const INACTIVE_STATUSES = ['closed', 'denied', 'approved'] as const;
+// Single source of truth for inactive case statuses.
+// A case is "active" if its status is NOT in this list.
+// Keep in sync with CaseStatus in src/types/index.ts.
+const INACTIVE_CASE_STATUSES: readonly CaseStatus[] = ['closed', 'denied', 'approved'];
+
+function isCaseActive(status: string): boolean {
+  return !INACTIVE_CASE_STATUSES.includes(status as CaseStatus);
+}
 
 class ClientsService extends BaseService {
   constructor() {
@@ -105,7 +112,7 @@ class ClientsService extends BaseService {
         const clientData = clientRaw as Client;
 
         const existing = clientMap.get(clientData.id);
-        const isActive = !INACTIVE_STATUSES.includes(row.status as typeof INACTIVE_STATUSES[number]);
+        const isActive = isCaseActive(row.status);
 
         if (existing) {
           existing.total++;
@@ -151,8 +158,7 @@ class ClientsService extends BaseService {
         .eq('client_id', id)
         .is('deleted_at', null);
 
-      const activeStatuses = ['intake', 'document_collection', 'in_review', 'forms_preparation', 'ready_for_filing', 'filed', 'pending_response'];
-      const activeCases = (cases || []).filter((c) => activeStatuses.includes(c.status)).length;
+      const activeCases = (cases || []).filter((c) => isCaseActive(c.status)).length;
 
       return {
         ...client,

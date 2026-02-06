@@ -54,10 +54,14 @@ export async function POST(request: NextRequest) {
       immediately
     );
 
-    // Access the current_period_end from the subscription object
-    const currentPeriodEnd = 'current_period_end' in updatedSubscription
-      ? new Date((updatedSubscription as { current_period_end: number }).current_period_end * 1000).toISOString()
-      : null;
+    // Access the current_period_end from the subscription object with safe type checking
+    let currentPeriodEnd: string | null = null;
+    if (
+      'current_period_end' in updatedSubscription &&
+      typeof updatedSubscription.current_period_end === 'number'
+    ) {
+      currentPeriodEnd = new Date(updatedSubscription.current_period_end * 1000).toISOString();
+    }
 
     return NextResponse.json({
       success: true,

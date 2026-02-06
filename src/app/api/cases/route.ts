@@ -41,8 +41,8 @@ export const GET = withAuth(async (request, _context, auth) => {
     };
 
     const pagination = {
-      page: parseInt(searchParams.get('page') || '1'),
-      limit: parseInt(searchParams.get('limit') || '10'),
+      page: parseInt(searchParams.get('page') || '1', 10) || 1,
+      limit: Math.min(parseInt(searchParams.get('limit') || '10', 10) || 10, 100),
       sortBy: searchParams.get('sortBy') || 'created_at',
       sortOrder: (searchParams.get('sortOrder') || 'desc') as 'asc' | 'desc',
     };

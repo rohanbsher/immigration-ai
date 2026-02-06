@@ -123,7 +123,7 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     log.logError('GDPR export error', error);
-    const message = error instanceof Error ? error.message : 'Failed to create export';
+    const message = 'Failed to create export. Please try again later.';
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

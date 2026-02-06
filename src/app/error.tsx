@@ -1,5 +1,6 @@
 'use client';
 
+import * as Sentry from '@sentry/nextjs';
 import { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import {
@@ -26,8 +27,7 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
     // Log error to monitoring service
     log.logError('App Error', error, { digest: error.digest });
 
-    // Future: Sentry integration
-    // Sentry.captureException(error);
+    Sentry.captureException(error);
   }, [error]);
 
   return (

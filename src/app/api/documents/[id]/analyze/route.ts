@@ -7,6 +7,7 @@ import { createLogger } from '@/lib/logger';
 import { enforceQuota, trackUsage, QuotaExceededError } from '@/lib/billing/quota';
 import { validateStorageUrl } from '@/lib/security';
 import { isValidTransition, getValidNextStates, isTerminalState } from '@/lib/documents/state-machine';
+import { SIGNED_URL_EXPIRATION } from '@/lib/storage';
 
 const log = createLogger('api:documents-analyze');
 
@@ -132,16 +133,30 @@ export async function POST(
     let analysisResult: DocumentAnalysisResult;
 
     try {
-      // Use the file URL directly (it's already a signed URL from Supabase storage)
-      const fileUrl = document.file_url;
+      // Generate a temporary signed URL from the stored storage path
+      const { data: signedUrlData, error: signedUrlError } = await supabase.storage
+        .from('documents')
+        .createSignedUrl(document.file_url, SIGNED_URL_EXPIRATION.AI_PROCESSING);
 
-      // SSRF protection: validate URL is from our Supabase storage
-      if (!validateStorageUrl(fileUrl)) {
-        // Reset status since we set it to 'processing' above
+      if (signedUrlError || !signedUrlData) {
         await documentsService.updateDocument(id, { status: 'uploaded' });
-        log.logError('Invalid document URL - possible SSRF attempt', null, {
+        log.logError('Failed to generate signed URL for analysis', signedUrlError, {
           documentId: id,
-          url: document.file_url
+        });
+        return NextResponse.json(
+          { error: 'Failed to access document file' },
+          { status: 500 }
+        );
+      }
+
+      const fileUrl = signedUrlData.signedUrl;
+
+      // SSRF protection: validate signed URL is from our Supabase storage
+      if (!validateStorageUrl(fileUrl)) {
+        await documentsService.updateDocument(id, { status: 'uploaded' });
+        log.logError('Invalid signed URL - possible SSRF attempt', null, {
+          documentId: id,
+          storagePath: document.file_url,
         });
         return NextResponse.json(
           { error: 'Invalid document URL' },
@@ -219,7 +234,9 @@ export async function POST(
       ai_confidence_score: analysisResult.overall_confidence,
     });
 
-    trackUsage(user.id, 'ai_requests').catch(() => {});
+    trackUsage(user.id, 'ai_requests').catch((err) => {
+      log.warn('Usage tracking failed', { error: err instanceof Error ? err.message : String(err) });
+    });
 
     return NextResponse.json({
       document: updatedDocument,

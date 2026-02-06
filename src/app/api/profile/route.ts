@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { z } from 'zod';
 import { standardRateLimiter } from '@/lib/rate-limit';
 import { createLogger } from '@/lib/logger';
+import { encryptSensitiveFields } from '@/lib/crypto';
 
 const log = createLogger('api:profile');
 
@@ -70,7 +71,10 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json();
     const validatedData = updateProfileSchema.parse(body);
 
-    const updatedProfile = await profilesService.updateProfile(user.id, validatedData);
+    // Encrypt sensitive PII fields (e.g., alien_number) before storage
+    const dataToStore = encryptSensitiveFields(validatedData as Record<string, unknown>);
+
+    const updatedProfile = await profilesService.updateProfile(user.id, dataToStore);
 
     return NextResponse.json(updatedProfile);
   } catch (error) {

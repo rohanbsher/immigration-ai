@@ -168,7 +168,9 @@ export async function POST(request: NextRequest): Promise<Response> {
 
         sse.send({ type: 'done' });
 
-        trackUsage(user.id, 'ai_requests').catch(() => {});
+        trackUsage(user.id, 'ai_requests').catch((err) => {
+          log.warn('Usage tracking failed', { error: err instanceof Error ? err.message : String(err) });
+        });
       } catch (error) {
         log.logError('Chat streaming error', error, logContext);
 

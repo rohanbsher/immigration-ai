@@ -228,7 +228,9 @@ export async function POST(
       );
     }
 
-    trackUsage(user.id, 'ai_requests').catch(() => {});
+    trackUsage(user.id, 'ai_requests').catch((err) => {
+      log.warn('Usage tracking failed', { error: err instanceof Error ? err.message : String(err) });
+    });
 
     return NextResponse.json({
       form: updatedForm,

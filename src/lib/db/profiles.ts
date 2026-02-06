@@ -116,10 +116,10 @@ class ProfilesService extends BaseService {
   }
 
   async searchProfiles(query: string, role?: UserRole): Promise<Profile[]> {
-    try {
-      const sanitized = sanitizeSearchInput(query);
-      if (sanitized.length === 0) return [];
+    const sanitized = sanitizeSearchInput(query);
+    if (sanitized.length === 0) return [];
 
+    try {
       const supabase = await this.getSupabaseClient();
 
       let queryBuilder = supabase

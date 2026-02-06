@@ -10,7 +10,11 @@ const log = createLogger('stripe:webhooks');
 /**
  * Idempotent email sending for webhook events.
  * Prevents duplicate emails when Stripe retries webhook delivery.
- * Uses the email_log table with a unique idempotency_key per event+email_type.
+ *
+ * Uses INSERT + UNIQUE constraint on idempotency_key for atomic duplicate
+ * detection. This is safe against concurrent webhook retries because the
+ * database enforces uniqueness at the row level -- only one INSERT can
+ * succeed for a given key, and the loser gets a unique_violation (23505).
  */
 async function sendIdempotentBillingEmail(
   eventId: string,
@@ -21,30 +25,36 @@ async function sendIdempotentBillingEmail(
   const supabase = await createClient();
   const idempotencyKey = `stripe:${eventId}:${eventType}`;
 
-  // Check if we already sent an email for this event
-  const { data: existing } = await supabase
+  // Attempt to claim this event by inserting a sentinel row.
+  // The UNIQUE constraint on idempotency_key ensures only one concurrent
+  // request can succeed. If the insert fails with a duplicate key error,
+  // another process already handled (or is handling) this event.
+  const { error: insertError } = await supabase
     .from('email_log')
-    .select('id')
-    .eq('idempotency_key', idempotencyKey)
-    .limit(1)
-    .maybeSingle();
+    .insert({
+      user_id: userId,
+      email_to: 'pending',
+      email_from: 'system',
+      subject: `idempotency:${eventType}`,
+      template_name: 'billing_update',
+      idempotency_key: idempotencyKey,
+      status: 'pending' as const,
+    });
 
-  if (existing) {
-    log.info('Skipping duplicate email', { eventId, eventType, userId });
+  if (insertError) {
+    // Postgres unique_violation code is 23505. Supabase surfaces this as
+    // error.code === '23505'. Any other error is unexpected and should
+    // be logged but should not cause the webhook to fail.
+    if (insertError.code === '23505') {
+      log.info('Skipping duplicate email', { eventId, eventType, userId });
+      return;
+    }
+    log.logError('Failed to insert idempotency record', insertError);
     return;
   }
 
+  // We won the race -- send the email.
   await sendBillingUpdateEmail(userId, eventType, details);
-
-  // Mark this event+email_type as sent for idempotency
-  await supabase
-    .from('email_log')
-    .update({ idempotency_key: idempotencyKey })
-    .eq('user_id', userId)
-    .eq('template_name', 'billing_update')
-    .is('idempotency_key', null)
-    .order('created_at', { ascending: false })
-    .limit(1);
 }
 
 /**

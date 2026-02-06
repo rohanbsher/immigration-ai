@@ -281,7 +281,9 @@ export async function GET(
     );
 
     // Track AI usage for freshly generated recommendations
-    trackUsage(user.id, 'ai_requests').catch(() => {});
+    trackUsage(user.id, 'ai_requests').catch((err) => {
+      log.warn('Usage tracking failed', { error: err instanceof Error ? err.message : String(err) });
+    });
 
     // Cache the recommendations
     await cacheRecommendations(caseId, recommendations);

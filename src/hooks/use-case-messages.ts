@@ -176,21 +176,3 @@ export function useSendMessage(caseId: string | undefined) {
   });
 }
 
-/**
- * Hook for getting unread message count
- */
-export function useUnreadMessageCount() {
-  return useQuery({
-    queryKey: ['unread-message-count'],
-    queryFn: async () => {
-      const response = await fetchWithTimeout('/api/messages/unread-count');
-      if (!response.ok) {
-        // Return 0 if endpoint doesn't exist yet
-        return 0;
-      }
-      const data = await response.json();
-      return data.count || 0;
-    },
-    refetchInterval: 60000, // Refresh every minute
-  });
-}

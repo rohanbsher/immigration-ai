@@ -103,17 +103,13 @@ export function validateCsrf(request: NextRequest): {
     };
   }
 
-  // Get allowed origins
+  // Get allowed origins from configured environment variables only
+  // Do NOT trust the Host header — it can be spoofed behind misconfigured proxies
   const allowedOrigins = getAllowedOrigins();
 
-  // Also allow the current host
-  const host = request.headers.get('host');
-  if (host) {
-    // Determine protocol based on x-forwarded-proto or assume https in production
-    const proto =
-      request.headers.get('x-forwarded-proto') ||
-      (process.env.NODE_ENV === 'development' ? 'http' : 'https');
-    allowedOrigins.push(`${proto}://${host}`);
+  // Add NEXT_PUBLIC_APP_URL if not already included via SITE_URL
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    allowedOrigins.push(process.env.NEXT_PUBLIC_APP_URL);
   }
 
   // Check if the request origin matches any allowed origin

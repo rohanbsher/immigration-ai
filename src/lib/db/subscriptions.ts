@@ -160,9 +160,10 @@ class SubscriptionsService extends BaseService {
       const limits = await this.getPlanLimits(planType);
 
       if (!limits) {
+        // Fallback free-plan limits. Source of truth: src/lib/billing/limits.ts (PLAN_FEATURES.free)
         return {
           planType: 'free',
-          maxCases: 3,
+          maxCases: 5,
           maxDocumentsPerCase: 10,
           maxAiRequestsPerMonth: 25,
           maxStorageGb: 1,

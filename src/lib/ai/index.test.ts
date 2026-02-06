@@ -801,7 +801,8 @@ describe('AI Module', () => {
 
       it('should handle 429 rate limit error', async () => {
         const apiError = new OpenAIAPIError(429, 'Rate limit exceeded');
-        openaiMockState.completionsCreate.mockRejectedValueOnce(apiError);
+        // Must reject on all attempts (initial + 2 retries) since 429 is retryable
+        openaiMockState.completionsCreate.mockRejectedValue(apiError);
 
         const { analyzeDocumentWithVision } = await import('./openai');
 
@@ -810,6 +811,9 @@ describe('AI Module', () => {
             imageUrl: 'https://example.com/doc.jpg',
           })
         ).rejects.toThrow('OpenAI rate limit exceeded');
+
+        // Reset mock for subsequent tests
+        openaiMockState.completionsCreate.mockReset();
       });
 
       it('should handle 400 bad request error', async () => {
@@ -1090,7 +1094,8 @@ describe('AI Module', () => {
 
       it('should handle 429 rate limit error', async () => {
         const apiError = new AnthropicAPIError(429, 'Rate limit exceeded');
-        anthropicMockState.messagesCreate.mockRejectedValueOnce(apiError);
+        // Must reject on all attempts (initial + 2 retries) since 429 is retryable
+        anthropicMockState.messagesCreate.mockRejectedValue(apiError);
 
         const { generateFormAutofill } = await import('./anthropic');
 
@@ -1100,6 +1105,9 @@ describe('AI Module', () => {
             extractedData: [],
           })
         ).rejects.toThrow('Anthropic rate limit exceeded');
+
+        // Reset mock for subsequent tests
+        anthropicMockState.messagesCreate.mockReset();
       });
 
       it('should include case context when provided', async () => {

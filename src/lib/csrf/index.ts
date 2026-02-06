@@ -171,8 +171,9 @@ export function generateCsrfToken(): string {
     return crypto.randomUUID();
   }
 
-  // Simple fallback for environments without crypto.randomUUID
-  return `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
+  // Cryptographically secure fallback for environments without crypto.randomUUID
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
 }
 
 /**

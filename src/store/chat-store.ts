@@ -64,7 +64,8 @@ interface ChatState {
  * Generate unique ID.
  */
 function generateId(): string {
-  return `msg_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+  const randomPart = crypto.randomUUID().replace(/-/g, '').substring(0, 8);
+  return `msg_${Date.now()}_${randomPart}`;
 }
 
 /**

@@ -62,10 +62,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     log.logError('Error syncing deadline alerts', error);
 
     return NextResponse.json(
-      {
-        error: 'Failed to sync deadline alerts',
-        message: error instanceof Error ? error.message : 'Unknown error',
-      },
+      { error: 'Failed to sync deadline alerts' },
       { status: 500 }
     );
   }

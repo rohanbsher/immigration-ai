@@ -51,7 +51,7 @@ export function StatusChart({ data, className = '', showLegend = true }: StatusC
               content={({ active, payload }) => {
                 if (active && payload && payload.length) {
                   const data = payload[0].payload;
-                  const percentage = ((data.value / total) * 100).toFixed(0);
+                  const percentage = (total === 0 ? 0 : (data.value / total) * 100).toFixed(0);
                   return (
                     <div className="bg-popover text-popover-foreground rounded-lg border border-border px-3 py-2 shadow-lg">
                       <p className="font-medium">{data.name}</p>

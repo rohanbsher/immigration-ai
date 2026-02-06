@@ -257,11 +257,11 @@ describe('updateSession (Supabase Middleware)', () => {
         expect(response.status).toBe(307);
         const location = response.headers.get('location');
         expect(location).toContain('/login');
-        expect(location).toContain(`redirectTo=${encodeURIComponent(path)}`);
+        expect(location).toContain(`returnUrl=${encodeURIComponent(path)}`);
       }
     );
 
-    it('should include redirectTo parameter in login redirect', async () => {
+    it('should include returnUrl parameter in login redirect', async () => {
       mockSupabaseClient.auth.getUser.mockResolvedValueOnce({
         data: { user: null },
         error: null,
@@ -272,7 +272,7 @@ describe('updateSession (Supabase Middleware)', () => {
       const response = await updateSession(request);
 
       const location = response.headers.get('location');
-      expect(location).toContain('redirectTo=%2Fdashboard%2Fcases%2F123');
+      expect(location).toContain('returnUrl=%2Fdashboard%2Fcases%2F123');
     });
 
     it('should allow authenticated users to access protected routes', async () => {
@@ -506,7 +506,7 @@ describe('updateSession (Supabase Middleware)', () => {
       expect(location).toContain('/dashboard');
     });
 
-    it('should preserve original pathname in redirectTo', async () => {
+    it('should preserve original pathname in returnUrl', async () => {
       mockSupabaseClient.auth.getUser.mockResolvedValueOnce({
         data: { user: null },
         error: null,
@@ -517,7 +517,7 @@ describe('updateSession (Supabase Middleware)', () => {
       const response = await updateSession(request);
 
       const location = response.headers.get('location');
-      expect(location).toContain('redirectTo=%2Fsettings%2Fprofile');
+      expect(location).toContain('returnUrl=%2Fsettings%2Fprofile');
     });
 
     it('should handle requests with various HTTP methods', async () => {

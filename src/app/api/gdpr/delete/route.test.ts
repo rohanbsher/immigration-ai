@@ -190,7 +190,7 @@ describe('GDPR Delete API', () => {
       const data = await response.json();
 
       expect(response.status).toBe(500);
-      expect(data.error).toContain('Failed to create deletion request');
+      expect(data.error).toContain('Failed to request deletion');
     });
   });
 
@@ -251,7 +251,7 @@ describe('GDPR Delete API', () => {
       const data = await response.json();
 
       expect(response.status).toBe(500);
-      expect(data.error).toContain('Failed to cancel deletion request');
+      expect(data.error).toContain('Failed to cancel deletion');
     });
   });
 });

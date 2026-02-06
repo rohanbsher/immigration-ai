@@ -37,7 +37,6 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     log.logError('2FA setup error', error);
-    const message = error instanceof Error ? error.message : 'Failed to setup 2FA';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to setup 2FA' }, { status: 500 });
   }
 }

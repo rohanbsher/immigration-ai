@@ -5,6 +5,7 @@ import { FormAutofillResult, ExtractedField, FormField } from './types';
 import { FORM_AUTOFILL_SYSTEM_PROMPT, getAutofillPrompt } from './prompts';
 import { parseClaudeJSON, extractTextContent } from './utils';
 import { serverEnv, features } from '@/lib/config';
+import { withRetry, AI_RETRY_OPTIONS, RetryExhaustedError } from '@/lib/utils/retry';
 
 // Lazy-initialize Anthropic client to avoid errors during build
 let anthropicInstance: Anthropic | null = null;
@@ -56,17 +57,20 @@ ${input.existingFormData ? JSON.stringify(input.existingFormData, null, 2) : 'No
 `;
 
   try {
-    const message = await getAnthropicClient().messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 4096,
-      system: FORM_AUTOFILL_SYSTEM_PROMPT,
-      messages: [
-        {
-          role: 'user',
-          content: `${autofillPrompt}\n\n${dataContext}`,
-        },
-      ],
-    });
+    const message = await withRetry(
+      () => getAnthropicClient().messages.create({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 4096,
+        system: FORM_AUTOFILL_SYSTEM_PROMPT,
+        messages: [
+          {
+            role: 'user',
+            content: `${autofillPrompt}\n\n${dataContext}`,
+          },
+        ],
+      }),
+      AI_RETRY_OPTIONS
+    );
 
     // Extract text content and parse JSON from the response
     const content = extractTextContent(message.content);
@@ -82,11 +86,14 @@ ${input.existingFormData ? JSON.stringify(input.existingFormData, null, 2) : 'No
       processing_time_ms: Date.now() - startTime,
     };
   } catch (error) {
-    if (error instanceof Anthropic.APIError) {
-      if (error.status === 401) {
+    // Unwrap RetryExhaustedError to check the original API error
+    const cause = error instanceof RetryExhaustedError ? error.lastError : error;
+
+    if (cause instanceof Anthropic.APIError) {
+      if (cause.status === 401) {
         throw new Error('Invalid Anthropic API key');
       }
-      if (error.status === 429) {
+      if (cause.status === 429) {
         throw new Error('Anthropic rate limit exceeded. Please try again later.');
       }
     }
@@ -108,14 +115,15 @@ export async function validateFormData(
   warnings: string[];
   suggestions: string[];
 }> {
-  const message = await getAnthropicClient().messages.create({
-    model: 'claude-sonnet-4-20250514',
-    max_tokens: 2048,
-    system: `You are an expert immigration attorney reviewing form data for errors and inconsistencies. Be thorough but practical.`,
-    messages: [
-      {
-        role: 'user',
-        content: `Review this ${formType} form data for potential issues:
+  const message = await withRetry(
+    () => getAnthropicClient().messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 2048,
+      system: `You are an expert immigration attorney reviewing form data for errors and inconsistencies. Be thorough but practical.`,
+      messages: [
+        {
+          role: 'user',
+          content: `Review this ${formType} form data for potential issues:
 
 Form Data:
 ${JSON.stringify(formData, null, 2)}
@@ -135,9 +143,11 @@ Respond with JSON:
   "warnings": ["list of warnings"],
   "suggestions": ["list of suggestions"]
 }`,
-      },
-    ],
-  });
+        },
+      ],
+    }),
+    AI_RETRY_OPTIONS
+  );
 
   const content = extractTextContent(message.content);
 
@@ -174,13 +184,14 @@ export async function explainFormRequirements(
   formType: string,
   visaType: string
 ): Promise<string> {
-  const message = await getAnthropicClient().messages.create({
-    model: 'claude-sonnet-4-20250514',
-    max_tokens: 2048,
-    messages: [
-      {
-        role: 'user',
-        content: `Explain the requirements for completing form ${formType} for a ${visaType} case.
+  const message = await withRetry(
+    () => getAnthropicClient().messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 2048,
+      messages: [
+        {
+          role: 'user',
+          content: `Explain the requirements for completing form ${formType} for a ${visaType} case.
 
 Include:
 1. Purpose of the form
@@ -191,9 +202,11 @@ Include:
 6. Processing times (approximate)
 
 Keep the explanation clear and concise, suitable for an attorney reviewing with their client.`,
-      },
-    ],
-  });
+        },
+      ],
+    }),
+    AI_RETRY_OPTIONS
+  );
 
   return extractTextContent(message.content);
 }
@@ -214,14 +227,15 @@ export async function analyzeDataConsistency(
     recommendation: string;
   }>;
 }> {
-  const message = await getAnthropicClient().messages.create({
-    model: 'claude-sonnet-4-20250514',
-    max_tokens: 2048,
-    system: `You are an expert at identifying data discrepancies in immigration documents.`,
-    messages: [
-      {
-        role: 'user',
-        content: `Analyze these documents for data consistency:
+  const message = await withRetry(
+    () => getAnthropicClient().messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 2048,
+      system: `You are an expert at identifying data discrepancies in immigration documents.`,
+      messages: [
+        {
+          role: 'user',
+          content: `Analyze these documents for data consistency:
 
 ${JSON.stringify(documents, null, 2)}
 
@@ -241,9 +255,11 @@ Respond with JSON:
     }
   ]
 }`,
-      },
-    ],
-  });
+        },
+      ],
+    }),
+    AI_RETRY_OPTIONS
+  );
 
   const content = extractTextContent(message.content);
 
@@ -288,13 +304,14 @@ export async function suggestNextSteps(
     reason: string;
   }>;
 }> {
-  const message = await getAnthropicClient().messages.create({
-    model: 'claude-sonnet-4-20250514',
-    max_tokens: 1024,
-    messages: [
-      {
-        role: 'user',
-        content: `Based on this immigration case status, suggest the next steps:
+  const message = await withRetry(
+    () => getAnthropicClient().messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1024,
+      messages: [
+        {
+          role: 'user',
+          content: `Based on this immigration case status, suggest the next steps:
 
 Visa Type: ${caseData.visa_type}
 Current Status: ${caseData.status}
@@ -311,9 +328,11 @@ Respond with JSON:
     }
   ]
 }`,
-      },
-    ],
-  });
+        },
+      ],
+    }),
+    AI_RETRY_OPTIONS
+  );
 
   const content = extractTextContent(message.content);
 

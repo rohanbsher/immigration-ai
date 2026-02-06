@@ -125,14 +125,19 @@ export interface NavItemConfig {
  * Main navigation items configuration.
  */
 export const MAIN_NAV_ITEMS: NavItemConfig[] = [
-  { label: 'Dashboard', href: '/dashboard', allowedRoles: ['attorney', 'client', 'admin'] },
-  { label: 'Cases', href: '/dashboard/cases', allowedRoles: ['attorney', 'client', 'admin'] },
-  { label: 'Documents', href: '/dashboard/documents', allowedRoles: ['attorney', 'client', 'admin'] },
-  { label: 'Forms', href: '/dashboard/forms', allowedRoles: ['attorney', 'client', 'admin'] },
+  // Attorney & admin main nav
+  { label: 'Dashboard', href: '/dashboard', allowedRoles: ['attorney', 'admin'] },
+  { label: 'Cases', href: '/dashboard/cases', allowedRoles: ['attorney', 'admin'] },
+  { label: 'Documents', href: '/dashboard/documents', allowedRoles: ['attorney', 'admin'] },
+  { label: 'Forms', href: '/dashboard/forms', allowedRoles: ['attorney', 'admin'] },
   { label: 'Tasks', href: '/dashboard/tasks', allowedRoles: ['attorney', 'admin'] },
   { label: 'Analytics', href: '/dashboard/analytics', allowedRoles: ['attorney', 'admin'] },
   { label: 'Clients', href: '/dashboard/clients', allowedRoles: ['attorney', 'admin'] },
   { label: 'Firm', href: '/dashboard/firm', allowedRoles: ['attorney', 'admin'] },
+
+  // Client-specific nav
+  { label: 'My Cases', href: '/dashboard/client', allowedRoles: ['client'] },
+  { label: 'My Documents', href: '/dashboard/client/documents', allowedRoles: ['client'] },
 ];
 
 /**

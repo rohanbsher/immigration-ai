@@ -73,6 +73,7 @@ export function useNotifications(unreadOnly: boolean = false) {
     queryKey: ['notifications', unreadOnly],
     queryFn: () => fetchNotifications(unreadOnly),
     refetchInterval: 30000, // Refresh every 30 seconds
+    refetchIntervalInBackground: false, // Pause when tab is inactive
   });
 }
 
@@ -81,6 +82,7 @@ export function useUnreadCount() {
     queryKey: ['notificationsCount'],
     queryFn: fetchUnreadCount,
     refetchInterval: 30000,
+    refetchIntervalInBackground: false, // Pause when tab is inactive
   });
 }
 

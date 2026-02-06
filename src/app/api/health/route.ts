@@ -176,19 +176,14 @@ function checkEnvironment(): HealthCheck {
   if (missingRequired.length > 0) {
     return {
       status: 'fail',
-      message: 'Required environment variables missing',
-      details: { missing: missingRequired },
+      message: `${missingRequired.length} required environment variable(s) missing`,
     };
   }
 
   if (missingOptional.length > 0) {
     return {
       status: 'warn',
-      message: 'Optional environment variables not configured',
-      details: {
-        missing: missingOptional,
-        note: 'Some features may be unavailable',
-      },
+      message: `${missingOptional.length} optional service(s) not configured`,
     };
   }
 

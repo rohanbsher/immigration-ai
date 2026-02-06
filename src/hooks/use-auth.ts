@@ -107,7 +107,12 @@ export function useAuth() {
         timeout: 'STANDARD',
       });
 
-      const result = await response.json();
+      let result;
+      try {
+        result = await response.json();
+      } catch {
+        throw new Error('Server returned an invalid response. Please try again.');
+      }
 
       if (!response.ok) {
         throw new Error(result.error || 'Registration failed');
@@ -128,6 +133,8 @@ export function useAuth() {
       }
       setState(prev => ({ ...prev, error: error as Error, isLoading: false }));
       throw error;
+    } finally {
+      setState(prev => ({ ...prev, isLoading: false }));
     }
   }, [router]);
 

@@ -3,6 +3,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { SuccessScore } from '@/lib/scoring/success-probability';
 import { fetchWithTimeout } from '@/lib/api/fetch-with-timeout';
+import { safeParseErrorJson } from '@/lib/api/safe-json';
 
 /**
  * Fetch success probability score for a case.
@@ -16,7 +17,7 @@ async function fetchSuccessScore(caseId: string): Promise<SuccessScore> {
   });
 
   if (!response.ok) {
-    const error = await response.json();
+    const error = await safeParseErrorJson(response);
     throw new Error(error.message || 'Failed to fetch success score');
   }
 

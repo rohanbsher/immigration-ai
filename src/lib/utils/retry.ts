@@ -61,6 +61,36 @@ function delay(ms: number): Promise<void> {
 }
 
 /**
+ * Predicate: retryable AI/Stripe errors (429 rate limit, 5xx server errors, network errors).
+ */
+export function isRetryableAIError(error: unknown): boolean {
+  if (isNetworkError(error)) return true;
+  if (error && typeof error === 'object' && 'status' in error) {
+    const status = (error as { status: number }).status;
+    return status === 429 || status >= 500;
+  }
+  return false;
+}
+
+/** Standard retry options for AI API calls */
+export const AI_RETRY_OPTIONS: RetryOptions = {
+  maxRetries: 2,
+  initialDelayMs: 1000,
+  backoffMultiplier: 2,
+  maxDelayMs: 5000,
+  isRetryable: isRetryableAIError,
+};
+
+/** Standard retry options for Stripe API calls */
+export const STRIPE_RETRY_OPTIONS: RetryOptions = {
+  maxRetries: 2,
+  initialDelayMs: 500,
+  backoffMultiplier: 2,
+  maxDelayMs: 3000,
+  isRetryable: isRetryableAIError,
+};
+
+/**
  * Execute a function with retry logic and exponential backoff.
  *
  * @param fn - The async function to execute

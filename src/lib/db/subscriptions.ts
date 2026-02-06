@@ -163,7 +163,7 @@ class SubscriptionsService extends BaseService {
         // Fallback free-plan limits. Source of truth: src/lib/billing/limits.ts (PLAN_FEATURES.free)
         return {
           planType: 'free',
-          maxCases: 5,
+          maxCases: 3,
           maxDocumentsPerCase: 10,
           maxAiRequestsPerMonth: 25,
           maxStorageGb: 1,

@@ -551,12 +551,13 @@ describe('Database Services', () => {
 
         const result = await clientsService.getClients();
 
-        expect(result).toHaveLength(2);
-        expect(result[0]).toHaveProperty('cases_count');
-        expect(result[0]).toHaveProperty('active_cases_count');
+        expect(result.data).toHaveLength(2);
+        expect(result.total).toBe(2);
+        expect(result.data[0]).toHaveProperty('cases_count');
+        expect(result.data[0]).toHaveProperty('active_cases_count');
         // Verify case counts are aggregated correctly
-        const alice = result.find((c) => c.first_name === 'Alice');
-        const bob = result.find((c) => c.first_name === 'Bob');
+        const alice = result.data.find((c) => c.first_name === 'Alice');
+        const bob = result.data.find((c) => c.first_name === 'Bob');
         expect(alice?.cases_count).toBe(2);
         expect(alice?.active_cases_count).toBe(1); // intake is active, approved is not
         expect(bob?.cases_count).toBe(1);
@@ -569,7 +570,7 @@ describe('Database Services', () => {
 
         const result = await clientsService.getClients();
 
-        expect(result).toEqual([]);
+        expect(result).toEqual({ data: [], total: 0 });
       });
 
       it('should throw error when user not authenticated', async () => {
@@ -2329,7 +2330,7 @@ describe('Database Services', () => {
         const result = await subscriptionsService.getUserPlanLimits('user-123');
 
         expect(result.planType).toBe('free');
-        expect(result.maxCases).toBe(5);
+        expect(result.maxCases).toBe(3);
         expect(result.features.documentAnalysis).toBe(true);
         expect(result.features.formAutofill).toBe(false);
       });

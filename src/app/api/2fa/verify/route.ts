@@ -64,7 +64,6 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     log.logError('2FA verify error', error);
-    const message = error instanceof Error ? error.message : 'Verification failed';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: 'Verification failed' }, { status: 500 });
   }
 }

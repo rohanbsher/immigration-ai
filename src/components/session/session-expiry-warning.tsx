@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import {
@@ -29,6 +29,9 @@ export function SessionExpiryWarning() {
   const pathname = usePathname();
   const supabase = createClient();
 
+  const showWarningRef = useRef(showWarning);
+  useEffect(() => { showWarningRef.current = showWarning; }, [showWarning]);
+
   const checkSessionExpiry = useCallback(async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -51,16 +54,16 @@ export function SessionExpiryWarning() {
         return;
       }
 
-      if (remaining <= WARNING_TIME_MS && !showWarning) {
+      if (remaining <= WARNING_TIME_MS && !showWarningRef.current) {
         setShowWarning(true);
         setTimeRemaining(remaining);
-      } else if (remaining > WARNING_TIME_MS && showWarning) {
+      } else if (remaining > WARNING_TIME_MS && showWarningRef.current) {
         setShowWarning(false);
       }
     } catch (error) {
       log.logError('Error checking session', error);
     }
-  }, [pathname, router, showWarning, supabase.auth]);
+  }, [pathname, router, supabase.auth]);
 
   useEffect(() => {
     checkSessionExpiry();
@@ -85,7 +88,7 @@ export function SessionExpiryWarning() {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [showWarning, timeRemaining, pathname, router]);
+  }, [showWarning, pathname, router]);
 
   const handleExtendSession = async () => {
     setIsExtending(true);

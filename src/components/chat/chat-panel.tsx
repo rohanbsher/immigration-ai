@@ -49,6 +49,15 @@ export function ChatPanel({ className }: ChatPanelProps) {
   const [showHistory, setShowHistory] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const isSubmittingRef = useRef(false);
+  const submitTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Clean up submit timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (submitTimeoutRef.current) clearTimeout(submitTimeoutRef.current);
+    };
+  }, []);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -58,7 +67,8 @@ export function ChatPanel({ className }: ChatPanelProps) {
   // Focus input when panel opens
   useEffect(() => {
     if (isOpen && !showHistory) {
-      setTimeout(() => inputRef.current?.focus(), 100);
+      const timeoutId = setTimeout(() => inputRef.current?.focus(), 100);
+      return () => clearTimeout(timeoutId);
     }
   }, [isOpen, showHistory]);
 
@@ -67,10 +77,13 @@ export function ChatPanel({ className }: ChatPanelProps) {
     (e: FormEvent) => {
       e.preventDefault();
       const trimmed = inputValue.trim();
-      if (!trimmed || isSending) return;
-
+      if (!trimmed || isSending || isSubmittingRef.current) return;
+      isSubmittingRef.current = true;
       sendMessage(trimmed);
       setInputValue('');
+      // Reset after a brief delay to allow mutation to start
+      const id = setTimeout(() => { isSubmittingRef.current = false; }, 500);
+      submitTimeoutRef.current = id;
     },
     [inputValue, isSending, sendMessage]
   );

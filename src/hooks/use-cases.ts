@@ -3,6 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { CaseStatus, VisaType } from '@/types';
 import { fetchWithTimeout, TimeoutError } from '@/lib/api/fetch-with-timeout';
+import { safeParseErrorJson } from '@/lib/api/safe-json';
 
 interface Case {
   id: string;
@@ -89,8 +90,8 @@ async function fetchCases(
   }
 
   if (filters.search) params.set('search', filters.search);
-  if (pagination.page) params.set('page', pagination.page.toString());
-  if (pagination.limit) params.set('limit', pagination.limit.toString());
+  if (pagination.page != null) params.set('page', pagination.page.toString());
+  if (pagination.limit != null) params.set('limit', pagination.limit.toString());
   if (pagination.sortBy) params.set('sortBy', pagination.sortBy);
   if (pagination.sortOrder) params.set('sortOrder', pagination.sortOrder);
 
@@ -116,7 +117,7 @@ async function createCase(data: CreateCaseData): Promise<Case> {
     body: JSON.stringify(data),
   });
   if (!response.ok) {
-    const error = await response.json();
+    const error = await safeParseErrorJson(response);
     throw new Error(error.error || 'Failed to create case');
   }
   return response.json();
@@ -129,7 +130,7 @@ async function updateCase(id: string, data: UpdateCaseData): Promise<Case> {
     body: JSON.stringify(data),
   });
   if (!response.ok) {
-    const error = await response.json();
+    const error = await safeParseErrorJson(response);
     throw new Error(error.error || 'Failed to update case');
   }
   return response.json();
@@ -140,7 +141,7 @@ async function deleteCase(id: string): Promise<void> {
     method: 'DELETE',
   });
   if (!response.ok) {
-    const error = await response.json();
+    const error = await safeParseErrorJson(response);
     throw new Error(error.error || 'Failed to delete case');
   }
 }

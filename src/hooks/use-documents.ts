@@ -8,6 +8,7 @@ import {
   fetchAI,
   TimeoutError,
 } from '@/lib/api/fetch-with-timeout';
+import { safeParseErrorJson } from '@/lib/api/safe-json';
 
 interface Document {
   id: string;
@@ -37,18 +38,6 @@ interface Document {
     first_name: string;
     last_name: string;
   } | null;
-}
-
-async function safeParseErrorJson(response: Response): Promise<{ error?: string }> {
-  try {
-    const contentType = response.headers.get('content-type');
-    if (contentType && contentType.includes('application/json')) {
-      return await response.json();
-    }
-  } catch {
-    // Response body is not valid JSON
-  }
-  return { error: response.statusText || `Request failed with status ${response.status}` };
 }
 
 interface UploadDocumentData {
@@ -217,9 +206,9 @@ export function useDeleteDocument() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: deleteDocument,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['documents'] });
+    mutationFn: ({ id }: { id: string; caseId: string }) => deleteDocument(id),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['documents', variables.caseId] });
       queryClient.invalidateQueries({ queryKey: ['billing-usage'] });
     },
   });

@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchWithTimeout } from '@/lib/api/fetch-with-timeout';
+import { safeParseErrorJson } from '@/lib/api/safe-json';
 
 export type TaskStatus = 'pending' | 'in_progress' | 'completed' | 'cancelled';
 export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
@@ -103,7 +104,7 @@ async function createTask(data: CreateTaskData): Promise<Task> {
     body: JSON.stringify(data),
   });
   if (!response.ok) {
-    const error = await response.json();
+    const error = await safeParseErrorJson(response);
     throw new Error(error.error || 'Failed to create task');
   }
   const result = await response.json();
@@ -117,7 +118,7 @@ async function updateTask(id: string, data: UpdateTaskData): Promise<Task> {
     body: JSON.stringify(data),
   });
   if (!response.ok) {
-    const error = await response.json();
+    const error = await safeParseErrorJson(response);
     throw new Error(error.error || 'Failed to update task');
   }
   const result = await response.json();
@@ -129,7 +130,7 @@ async function deleteTask(id: string): Promise<void> {
     method: 'DELETE',
   });
   if (!response.ok) {
-    const error = await response.json();
+    const error = await safeParseErrorJson(response);
     throw new Error(error.error || 'Failed to delete task');
   }
 }

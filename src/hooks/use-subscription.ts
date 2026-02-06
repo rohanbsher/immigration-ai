@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { PlanType, BillingPeriod, PlanLimits } from '@/lib/db/subscriptions';
 import type { UsageData } from '@/types/billing';
 import { fetchWithTimeout } from '@/lib/api/fetch-with-timeout';
+import { safeParseErrorJson } from '@/lib/api/safe-json';
 
 interface Subscription {
   id: string;
@@ -54,7 +55,7 @@ async function createCheckout(params: CheckoutParams): Promise<{ url: string }> 
   });
 
   if (!response.ok) {
-    const error = await response.json();
+    const error = await safeParseErrorJson(response);
     throw new Error(error.error || 'Failed to create checkout');
   }
 
@@ -69,7 +70,7 @@ async function createPortalSession(): Promise<{ url: string }> {
   });
 
   if (!response.ok) {
-    const error = await response.json();
+    const error = await safeParseErrorJson(response);
     throw new Error(error.error || 'Failed to create portal session');
   }
 
@@ -85,7 +86,7 @@ async function cancelSubscription(immediately = false): Promise<void> {
   });
 
   if (!response.ok) {
-    const error = await response.json();
+    const error = await safeParseErrorJson(response);
     throw new Error(error.error || 'Failed to cancel subscription');
   }
 }
@@ -97,7 +98,7 @@ async function resumeSubscription(): Promise<void> {
   });
 
   if (!response.ok) {
-    const error = await response.json();
+    const error = await safeParseErrorJson(response);
     throw new Error(error.error || 'Failed to resume subscription');
   }
 }

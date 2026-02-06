@@ -3,6 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { FormType, FormStatus } from '@/types';
 import { fetchWithTimeout, fetchAI, TimeoutError } from '@/lib/api/fetch-with-timeout';
+import { safeParseErrorJson } from '@/lib/api/safe-json';
 
 interface Form {
   id: string;
@@ -60,7 +61,7 @@ async function createForm(data: CreateFormData): Promise<Form> {
     body: JSON.stringify(data),
   });
   if (!response.ok) {
-    const error = await response.json();
+    const error = await safeParseErrorJson(response);
     throw new Error(error.error || 'Failed to create form');
   }
   return response.json();
@@ -73,7 +74,7 @@ async function updateForm(id: string, data: UpdateFormData): Promise<Form> {
     body: JSON.stringify(data),
   });
   if (!response.ok) {
-    const error = await response.json();
+    const error = await safeParseErrorJson(response);
     throw new Error(error.error || 'Failed to update form');
   }
   return response.json();
@@ -85,7 +86,7 @@ async function autofillForm(id: string): Promise<Form> {
     method: 'POST',
   });
   if (!response.ok) {
-    const error = await response.json();
+    const error = await safeParseErrorJson(response);
     throw new Error(error.error || 'Failed to autofill form');
   }
   return response.json();
@@ -98,7 +99,7 @@ async function reviewForm(id: string, notes: string): Promise<Form> {
     body: JSON.stringify({ notes }),
   });
   if (!response.ok) {
-    const error = await response.json();
+    const error = await safeParseErrorJson(response);
     throw new Error(error.error || 'Failed to review form');
   }
   return response.json();
@@ -109,7 +110,7 @@ async function fileForm(id: string): Promise<Form> {
     method: 'POST',
   });
   if (!response.ok) {
-    const error = await response.json();
+    const error = await safeParseErrorJson(response);
     throw new Error(error.error || 'Failed to mark form as filed');
   }
   return response.json();
@@ -120,7 +121,7 @@ async function deleteForm(id: string): Promise<void> {
     method: 'DELETE',
   });
   if (!response.ok) {
-    const error = await response.json();
+    const error = await safeParseErrorJson(response);
     throw new Error(error.error || 'Failed to delete form');
   }
 }
@@ -207,9 +208,9 @@ export function useDeleteForm() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: deleteForm,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['forms'] });
+    mutationFn: ({ id }: { id: string; caseId: string }) => deleteForm(id),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['forms', variables.caseId] });
     },
   });
 }

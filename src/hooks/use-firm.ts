@@ -3,6 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { Firm, FirmRole, CreateFirmInput, UpdateFirmInput } from '@/types/firms';
 import { fetchWithTimeout } from '@/lib/api/fetch-with-timeout';
+import { safeParseErrorJson } from '@/lib/api/safe-json';
 
 interface FirmWithRole extends Firm {
   userRole: FirmRole;
@@ -38,7 +39,7 @@ async function createFirm(input: CreateFirmInput): Promise<Firm> {
   });
 
   if (!response.ok) {
-    const error = await response.json();
+    const error = await safeParseErrorJson(response);
     throw new Error(error.error || 'Failed to create firm');
   }
 
@@ -60,7 +61,7 @@ async function updateFirm({
   });
 
   if (!response.ok) {
-    const error = await response.json();
+    const error = await safeParseErrorJson(response);
     throw new Error(error.error || 'Failed to update firm');
   }
 
@@ -74,7 +75,7 @@ async function deleteFirm(firmId: string): Promise<void> {
   });
 
   if (!response.ok) {
-    const error = await response.json();
+    const error = await safeParseErrorJson(response);
     throw new Error(error.error || 'Failed to delete firm');
   }
 }

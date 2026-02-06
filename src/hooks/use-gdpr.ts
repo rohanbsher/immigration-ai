@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchWithTimeout } from '@/lib/api/fetch-with-timeout';
+import { safeParseErrorJson } from '@/lib/api/safe-json';
 
 interface ExportJob {
   id: string;
@@ -34,7 +35,7 @@ async function requestExport(): Promise<{ jobId: string; exportData: unknown }> 
     method: 'POST',
   });
   if (!response.ok) {
-    const error = await response.json();
+    const error = await safeParseErrorJson(response);
     throw new Error(error.error || 'Failed to request export');
   }
   const result = await response.json();
@@ -57,7 +58,7 @@ async function requestDeletion(reason?: string): Promise<{ id: string; scheduled
     body: JSON.stringify({ reason }),
   });
   if (!response.ok) {
-    const error = await response.json();
+    const error = await safeParseErrorJson(response);
     throw new Error(error.error || 'Failed to request deletion');
   }
   const result = await response.json();
@@ -71,7 +72,7 @@ async function cancelDeletion(reason?: string): Promise<void> {
     body: JSON.stringify({ reason }),
   });
   if (!response.ok) {
-    const error = await response.json();
+    const error = await safeParseErrorJson(response);
     throw new Error(error.error || 'Failed to cancel deletion');
   }
 }

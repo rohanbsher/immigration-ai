@@ -68,7 +68,7 @@ export default function AdminLayout({
         const response = await fetchWithTimeout('/api/profile', { timeout: 'QUICK' });
         const data = await response.json();
 
-        if (data.success && data.data?.role === 'admin') {
+        if (response.ok && data.role === 'admin') {
           setIsAuthorized(true);
         } else {
           router.push('/dashboard');

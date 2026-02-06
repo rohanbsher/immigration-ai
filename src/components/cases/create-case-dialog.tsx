@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Dialog,
@@ -12,8 +12,9 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2 } from 'lucide-react';
+import { Loader2, X } from 'lucide-react';
 import { useCreateCase } from '@/hooks/use-cases';
+import { useSearchClients } from '@/hooks/use-clients';
 import { useQuota } from '@/hooks/use-quota';
 import { UpgradePromptDialog, UpgradePromptBanner } from '@/components/billing/upgrade-prompt';
 import { toast } from 'sonner';
@@ -50,6 +51,58 @@ export function CreateCaseDialog({ open, onOpenChange }: CreateCaseDialogProps) 
     description: '',
     deadline: '',
   });
+
+  // Client search state
+  const [clientSearch, setClientSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [selectedClient, setSelectedClient] = useState<{ id: string; name: string; email: string } | null>(null);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const { data: searchResults, isLoading: isSearching } = useSearchClients(debouncedSearch);
+
+  // Debounce the search input by 300ms (only when dialog is open)
+  useEffect(() => {
+    if (!open) return;
+    const timer = setTimeout(() => {
+      setDebouncedSearch(clientSearch);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [clientSearch, open]);
+
+  // Open dropdown when search results arrive
+  useEffect(() => {
+    if (debouncedSearch.length >= 2 && !selectedClient) {
+      setIsDropdownOpen(true);
+    }
+  }, [debouncedSearch, searchResults, selectedClient]);
+
+  // Close dropdown on outside click (only when dialog is open)
+  useEffect(() => {
+    if (!open) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [open]);
+
+  const handleClientSelect = (client: { id: string; first_name: string; last_name: string; email: string }) => {
+    const name = `${client.first_name} ${client.last_name}`;
+    setSelectedClient({ id: client.id, name, email: client.email });
+    setFormData((prev) => ({ ...prev, client_id: client.id }));
+    setClientSearch('');
+    setIsDropdownOpen(false);
+  };
+
+  const handleClearClient = () => {
+    setSelectedClient(null);
+    setFormData((prev) => ({ ...prev, client_id: '' }));
+    setClientSearch('');
+    setDebouncedSearch('');
+  };
 
   const isAtLimit = caseQuota && !caseQuota.isUnlimited && !caseQuota.allowed;
 
@@ -129,21 +182,80 @@ export function CreateCaseDialog({ open, onOpenChange }: CreateCaseDialogProps) 
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="client_id">
-              Client ID <span className="text-red-500">*</span>
+            <Label htmlFor="client_search">
+              Client <span className="text-red-500">*</span>
             </Label>
-            <Input
-              id="client_id"
-              name="client_id"
-              placeholder="Enter client UUID"
-              value={formData.client_id}
-              onChange={handleInputChange}
-              required
-              disabled={isPending}
-            />
-            <p className="text-xs text-slate-500">
-              Enter the client&apos;s user ID from the system
-            </p>
+
+            {selectedClient ? (
+              <div className="flex items-center justify-between rounded-md border border-input bg-slate-50 px-3 py-2">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-slate-900 truncate">
+                    {selectedClient.name}
+                  </p>
+                  <p className="text-xs text-slate-500 truncate">
+                    {selectedClient.email}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleClearClient}
+                  disabled={isPending}
+                  className="ml-2 shrink-0 rounded-full p-1 text-slate-400 hover:bg-slate-200 hover:text-slate-600 disabled:opacity-50"
+                  aria-label="Clear client selection"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            ) : (
+              <div className="relative" ref={dropdownRef}>
+                <Input
+                  id="client_search"
+                  placeholder="Search by name or email..."
+                  value={clientSearch}
+                  onChange={(e) => setClientSearch(e.target.value)}
+                  onFocus={() => {
+                    if (debouncedSearch.length >= 2) setIsDropdownOpen(true);
+                  }}
+                  disabled={isPending}
+                  autoComplete="off"
+                />
+
+                {isDropdownOpen && (
+                  <div className="absolute z-50 mt-1 w-full rounded-md border border-slate-200 bg-white shadow-lg max-h-48 overflow-y-auto">
+                    {isSearching ? (
+                      <div className="flex items-center justify-center py-4">
+                        <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+                        <span className="ml-2 text-sm text-slate-500">Searching...</span>
+                      </div>
+                    ) : searchResults && searchResults.length > 0 ? (
+                      searchResults.map((client) => (
+                        <button
+                          key={client.id}
+                          type="button"
+                          className="w-full px-3 py-2 text-left hover:bg-slate-50 focus:bg-slate-50 focus:outline-none"
+                          onClick={() => handleClientSelect(client)}
+                        >
+                          <p className="text-sm font-medium text-slate-900">
+                            {client.first_name} {client.last_name}
+                          </p>
+                          <p className="text-xs text-slate-500">{client.email}</p>
+                        </button>
+                      ))
+                    ) : debouncedSearch.length >= 2 ? (
+                      <div className="px-3 py-4 text-center text-sm text-slate-500">
+                        No clients found for &ldquo;{debouncedSearch}&rdquo;
+                      </div>
+                    ) : null}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {!selectedClient && (
+              <p className="text-xs text-slate-500">
+                Type at least 2 characters to search
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">

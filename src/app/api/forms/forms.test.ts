@@ -173,6 +173,14 @@ vi.mock('@/lib/rate-limit', () => ({
   isRedisRateLimitingEnabled: vi.fn().mockReturnValue(false),
 }));
 
+// Mock auth helpers (verifyFormAccess used in file route)
+vi.mock('@/lib/auth/api-helpers', () => ({
+  verifyFormAccess: vi.fn().mockResolvedValue({
+    success: true,
+    access: { isAttorney: true, isClient: false },
+  }),
+}));
+
 // Import handlers after mocks are set up
 import { GET, PATCH, DELETE } from './[id]/route';
 import { POST as autofillPOST } from './[id]/autofill/route';

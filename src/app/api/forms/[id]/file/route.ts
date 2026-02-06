@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { validateFormReadyForFiling } from '@/lib/form-validation';
 import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 import { createLogger } from '@/lib/logger';
+import { verifyFormAccess } from '@/lib/auth/api-helpers';
 
 const log = createLogger('api:forms-file');
 
@@ -41,6 +42,21 @@ export async function POST(
     if (profile?.role !== 'attorney') {
       return NextResponse.json(
         { error: 'Only attorneys can mark forms as filed' },
+        { status: 403 }
+      );
+    }
+
+    // Verify the attorney owns the case this form belongs to
+    const formAccess = await verifyFormAccess(user.id, id);
+    if (!formAccess.success) {
+      return NextResponse.json(
+        { error: formAccess.error },
+        { status: formAccess.status }
+      );
+    }
+    if (!formAccess.access.isAttorney) {
+      return NextResponse.json(
+        { error: 'Only the case attorney can file forms' },
         { status: 403 }
       );
     }

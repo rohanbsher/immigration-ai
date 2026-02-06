@@ -3,6 +3,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { CompletenessResult } from '@/lib/ai/document-completeness';
 import { fetchWithTimeout } from '@/lib/api/fetch-with-timeout';
+import { safeParseErrorJson } from '@/lib/api/safe-json';
 
 /**
  * Fetch document completeness analysis for a case.
@@ -16,7 +17,7 @@ async function fetchCompleteness(caseId: string): Promise<CompletenessResult> {
   });
 
   if (!response.ok) {
-    const error = await response.json();
+    const error = await safeParseErrorJson(response);
     throw new Error(error.message || 'Failed to fetch completeness');
   }
 

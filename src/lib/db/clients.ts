@@ -40,6 +40,12 @@ export interface UpdateClientData {
   nationality?: string | null;
 }
 
+export interface ClientPaginationOptions {
+  page?: number;
+  limit?: number;
+  search?: string;
+}
+
 // Single source of truth for inactive case statuses.
 // A case is "active" if its status is NOT in this list.
 // Keep in sync with CaseStatus in src/types/index.ts.
@@ -54,9 +60,12 @@ class ClientsService extends BaseService {
     super('clients');
   }
 
-  async getClients(): Promise<ClientWithCases[]> {
+  async getClients(
+    options: ClientPaginationOptions = {}
+  ): Promise<{ data: ClientWithCases[]; total: number }> {
     return this.withErrorHandling(async () => {
       const supabase = await this.getSupabaseClient();
+      const { page = 1, limit = 20, search } = options;
 
       // Get the current user to filter clients they're associated with
       const { data: { user } } = await supabase.auth.getUser();
@@ -94,7 +103,7 @@ class ClientsService extends BaseService {
       }
 
       if (!casesWithClients || casesWithClients.length === 0) {
-        return [];
+        return { data: [], total: 0 };
       }
 
       // Aggregate case counts per client in memory
@@ -127,13 +136,31 @@ class ClientsService extends BaseService {
       }
 
       // Convert map to array and sort by first_name
-      return Array.from(clientMap.values())
+      let allClients = Array.from(clientMap.values())
         .map(({ client, total, active }) => ({
           ...client,
           cases_count: total,
           active_cases_count: active,
         }))
         .sort((a, b) => a.first_name.localeCompare(b.first_name));
+
+      // Apply search filter in memory
+      if (search) {
+        const searchLower = search.toLowerCase();
+        allClients = allClients.filter((c) =>
+          c.first_name.toLowerCase().includes(searchLower) ||
+          c.last_name.toLowerCase().includes(searchLower) ||
+          c.email.toLowerCase().includes(searchLower)
+        );
+      }
+
+      const total = allClients.length;
+
+      // Apply pagination
+      const offset = (page - 1) * limit;
+      const paginated = allClients.slice(offset, offset + limit);
+
+      return { data: paginated, total };
     }, 'getClients');
   }
 

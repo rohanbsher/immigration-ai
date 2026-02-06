@@ -28,7 +28,18 @@ async function fetchClientCases(): Promise<ClientCase[]> {
     throw new Error('Failed to fetch cases');
   }
   const data = await response.json();
-  return data.data || [];
+  return (data.cases || []).map((c: Record<string, unknown>) => ({
+    id: c.id as string,
+    title: c.title as string,
+    visaType: c.visa_type as string,
+    status: c.status as string,
+    deadline: (c.deadline as string) || null,
+    createdAt: c.created_at as string,
+    documentsUploaded: (c.documents_count as number) || 0,
+    documentsRequired: 0,
+    formsCompleted: 0,
+    formsTotal: (c.forms_count as number) || 0,
+  }));
 }
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.ElementType }> = {

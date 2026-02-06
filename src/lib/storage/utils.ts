@@ -4,7 +4,7 @@
 // Helper to generate unique file paths
 export function generateFilePath(caseId: string, fileName: string): string {
   const timestamp = Date.now();
-  const randomStr = Math.random().toString(36).substring(7);
+  const randomStr = crypto.randomUUID().replace(/-/g, '').substring(0, 12);
   const ext = fileName.split('.').pop();
   const sanitizedName = fileName
     .split('.')

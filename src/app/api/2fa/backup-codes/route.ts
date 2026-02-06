@@ -50,7 +50,6 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     log.logError('Backup codes regeneration error', error);
-    const message = error instanceof Error ? error.message : 'Failed to regenerate backup codes';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to regenerate backup codes' }, { status: 500 });
   }
 }

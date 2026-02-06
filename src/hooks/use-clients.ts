@@ -3,12 +3,47 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { ClientWithCases, Client, CreateClientData, UpdateClientData } from '@/lib/db/clients';
 import { fetchWithTimeout } from '@/lib/api/fetch-with-timeout';
+import { safeParseErrorJson } from '@/lib/api/safe-json';
 
-// Fetch all clients
+export interface ClientsPaginationMeta {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+export interface ClientsResponse {
+  data: ClientWithCases[];
+  pagination: ClientsPaginationMeta;
+}
+
+// Fetch all clients (unpaginated - fetches with high limit for backward compatibility)
 async function fetchClients(): Promise<ClientWithCases[]> {
-  const response = await fetchWithTimeout('/api/clients');
+  const response = await fetchWithTimeout('/api/clients?limit=100');
   if (!response.ok) {
-    const error = await response.json();
+    const error = await safeParseErrorJson(response);
+    throw new Error(error.error || 'Failed to fetch clients');
+  }
+  const json: ClientsResponse = await response.json();
+  return json.data;
+}
+
+// Fetch clients with pagination
+async function fetchClientsPaginated(
+  page: number,
+  limit: number,
+  search?: string
+): Promise<ClientsResponse> {
+  const params = new URLSearchParams({
+    page: String(page),
+    limit: String(limit),
+  });
+  if (search) {
+    params.set('search', search);
+  }
+  const response = await fetchWithTimeout(`/api/clients?${params.toString()}`);
+  if (!response.ok) {
+    const error = await safeParseErrorJson(response);
     throw new Error(error.error || 'Failed to fetch clients');
   }
   return response.json();
@@ -18,7 +53,7 @@ async function fetchClients(): Promise<ClientWithCases[]> {
 async function fetchClient(id: string): Promise<ClientWithCases> {
   const response = await fetchWithTimeout(`/api/clients/${id}`);
   if (!response.ok) {
-    const error = await response.json();
+    const error = await safeParseErrorJson(response);
     throw new Error(error.error || 'Failed to fetch client');
   }
   return response.json();
@@ -28,7 +63,7 @@ async function fetchClient(id: string): Promise<ClientWithCases> {
 async function fetchClientCases(clientId: string) {
   const response = await fetchWithTimeout(`/api/clients/${clientId}/cases`);
   if (!response.ok) {
-    const error = await response.json();
+    const error = await safeParseErrorJson(response);
     throw new Error(error.error || 'Failed to fetch client cases');
   }
   return response.json();
@@ -48,7 +83,7 @@ async function updateClient({
     body: JSON.stringify(data),
   });
   if (!response.ok) {
-    const error = await response.json();
+    const error = await safeParseErrorJson(response);
     throw new Error(error.error || 'Failed to update client');
   }
   return response.json();
@@ -62,7 +97,7 @@ async function createClient(data: CreateClientData): Promise<Client> {
     body: JSON.stringify(data),
   });
   if (!response.ok) {
-    const error = await response.json();
+    const error = await safeParseErrorJson(response);
     throw new Error(error.error || 'Failed to create client');
   }
   return response.json();
@@ -75,7 +110,7 @@ async function searchClients(query: string): Promise<Client[]> {
     { timeout: 'QUICK' }
   );
   if (!response.ok) {
-    const error = await response.json();
+    const error = await safeParseErrorJson(response);
     throw new Error(error.error || 'Failed to search clients');
   }
   return response.json();
@@ -132,5 +167,12 @@ export function useSearchClients(query: string) {
     queryKey: ['clients', 'search', query],
     queryFn: () => searchClients(query),
     enabled: query.length >= 2,
+  });
+}
+
+export function useClientsPaginated(page: number, limit: number, search?: string) {
+  return useQuery({
+    queryKey: ['clients', 'paginated', page, limit, search],
+    queryFn: () => fetchClientsPaginated(page, limit, search),
   });
 }

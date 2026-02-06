@@ -78,7 +78,7 @@ export function DocumentList({ caseId }: DocumentListProps) {
   const handleConfirmDelete = () => {
     if (!documentToDelete) return;
 
-    deleteDocument(documentToDelete.id, {
+    deleteDocument({ id: documentToDelete.id, caseId }, {
       onSuccess: () => {
         toast.success('Document deleted');
         setDeleteDialogOpen(false);
@@ -142,7 +142,7 @@ export function DocumentList({ caseId }: DocumentListProps) {
                       <span>{typeLabels[doc.document_type as DocumentType] || doc.document_type}</span>
                       <span>-</span>
                       <span>{formatFileSize(doc.file_size)}</span>
-                      {doc.ai_confidence_score && (
+                      {doc.ai_confidence_score != null && (
                         <>
                           <span>-</span>
                           <span className="flex items-center gap-1">

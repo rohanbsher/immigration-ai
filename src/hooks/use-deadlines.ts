@@ -3,6 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { DeadlineAlert } from '@/lib/deadline';
 import { fetchWithTimeout } from '@/lib/api/fetch-with-timeout';
+import { safeParseErrorJson } from '@/lib/api/safe-json';
 
 /**
  * Response from the deadlines API.
@@ -36,7 +37,7 @@ async function fetchDeadlines(days: number = 60): Promise<DeadlinesResponse> {
   });
 
   if (!response.ok) {
-    const error = await response.json();
+    const error = await safeParseErrorJson(response);
     throw new Error(error.message || 'Failed to fetch deadlines');
   }
 
@@ -60,7 +61,7 @@ async function updateAlert(
   });
 
   if (!response.ok) {
-    const error = await response.json();
+    const error = await safeParseErrorJson(response);
     throw new Error(error.message || 'Failed to update alert');
   }
 
@@ -192,12 +193,19 @@ export function getSeverityColors(severity: DeadlineAlert['severity']): {
  * Format days remaining for display.
  */
 export function formatDaysRemaining(days: number): string {
-  if (days < 0) return `${Math.abs(days)} days overdue`;
+  if (days < 0) {
+    const absDays = Math.abs(days);
+    return `${absDays} ${absDays === 1 ? 'day' : 'days'} overdue`;
+  }
   if (days === 0) return 'Today';
   if (days === 1) return 'Tomorrow';
   if (days <= 7) return `${days} days`;
-  if (days <= 30) return `${Math.ceil(days / 7)} weeks`;
-  return `${Math.ceil(days / 30)} months`;
+  if (days <= 30) {
+    const weeks = Math.ceil(days / 7);
+    return `${weeks} ${weeks === 1 ? 'week' : 'weeks'}`;
+  }
+  const months = Math.ceil(days / 30);
+  return `${months} ${months === 1 ? 'month' : 'months'}`;
 }
 
 /**

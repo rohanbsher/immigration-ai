@@ -54,10 +54,10 @@ export default function DashboardPage() {
       change: 'Need review',
     },
     {
-      label: 'Total Clients',
-      value: casesData?.cases?.length || 0,
+      label: 'Recent Cases',
+      value: casesData?.total || 0,
       icon: Users,
-      change: 'Unique clients',
+      change: 'Total cases',
     },
     {
       label: 'Upcoming Deadlines',
@@ -285,17 +285,17 @@ export default function DashboardPage() {
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <QuickAction
-                href="/dashboard/documents/upload"
+                href="/dashboard/documents"
                 icon={FileUp}
                 label="Upload Documents"
               />
               <QuickAction
-                href="/dashboard/forms/new"
+                href="/dashboard/forms"
                 icon={FileText}
                 label="Create Form"
               />
               <QuickAction
-                href="/dashboard/clients/new"
+                href="/dashboard/clients"
                 icon={Users}
                 label="Add Client"
               />

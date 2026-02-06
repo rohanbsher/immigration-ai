@@ -113,8 +113,7 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     log.logError('GDPR delete request error', error);
-    const message = error instanceof Error ? error.message : 'Failed to request deletion';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to request deletion' }, { status: 500 });
   }
 }
 
@@ -165,7 +164,6 @@ export async function DELETE(request: NextRequest) {
     });
   } catch (error) {
     log.logError('GDPR cancel delete error', error);
-    const message = error instanceof Error ? error.message : 'Failed to cancel deletion';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to cancel deletion' }, { status: 500 });
   }
 }

@@ -13,12 +13,16 @@ const createFormSchema = z.object({
 });
 
 /**
- * Verify user has access to this case (is attorney or client)
+ * Verify user has access to this case (is attorney or client).
+ * Returns null if no access, otherwise returns role info.
  */
-async function verifyCaseAccess(userId: string, caseId: string): Promise<boolean> {
+async function verifyCaseAccess(userId: string, caseId: string): Promise<{ hasAccess: boolean; isAttorney: boolean } | null> {
   const caseData = await casesService.getCase(caseId);
-  if (!caseData) return false;
-  return caseData.attorney_id === userId || caseData.client_id === userId;
+  if (!caseData) return null;
+  const isAttorney = caseData.attorney_id === userId;
+  const isClient = caseData.client_id === userId;
+  if (!isAttorney && !isClient) return null;
+  return { hasAccess: true, isAttorney };
 }
 
 export async function GET(
@@ -41,8 +45,8 @@ export async function GET(
     }
 
     // Verify user has access to this case
-    const hasAccess = await verifyCaseAccess(user.id, caseId);
-    if (!hasAccess) {
+    const access = await verifyCaseAccess(user.id, caseId);
+    if (!access) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -78,9 +82,17 @@ export async function POST(
     }
 
     // Verify user has access to this case
-    const hasAccess = await verifyCaseAccess(user.id, caseId);
-    if (!hasAccess) {
+    const access = await verifyCaseAccess(user.id, caseId);
+    if (!access) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    // Only the case's attorney can create forms
+    if (!access.isAttorney) {
+      return NextResponse.json(
+        { error: 'Only the case attorney can create forms' },
+        { status: 403 }
+      );
     }
 
     const body = await request.json();

@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useCallback, useRef } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
 import { fetchWithTimeout } from '@/lib/api/fetch-with-timeout';
+import { safeParseErrorJson } from '@/lib/api/safe-json';
 
 interface MessageSender {
   id: string;
@@ -67,7 +68,7 @@ async function sendMessage(caseId: string, content: string): Promise<CaseMessage
     body: JSON.stringify({ content }),
   });
   if (!response.ok) {
-    const error = await response.json();
+    const error = await safeParseErrorJson(response);
     throw new Error(error.error || 'Failed to send message');
   }
   return response.json();
@@ -85,6 +86,7 @@ export function useCaseMessages(caseId: string | undefined) {
     queryFn: () => fetchMessages(caseId!),
     enabled: !!caseId,
     refetchInterval: 30000, // Polling fallback every 30 seconds
+    refetchIntervalInBackground: false, // Pause polling when tab is inactive
   });
 
   // Set up Supabase Realtime subscription
@@ -134,8 +136,8 @@ export function useCaseMessages(caseId: string | undefined) {
     channelRef.current = channel;
 
     return () => {
-      if (channelRef.current) {
-        supabase.removeChannel(channelRef.current);
+      supabase.removeChannel(channel);
+      if (channelRef.current === channel) {
         channelRef.current = null;
       }
     };

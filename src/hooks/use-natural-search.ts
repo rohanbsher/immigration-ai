@@ -2,6 +2,7 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchWithTimeout } from '@/lib/api/fetch-with-timeout';
+import { safeParseErrorJson } from '@/lib/api/safe-json';
 import type { SearchResponse, SearchResult } from '@/lib/ai/natural-search';
 
 /**
@@ -18,7 +19,7 @@ async function performSearch(query: string): Promise<SearchResponse> {
   });
 
   if (!response.ok) {
-    const error = await response.json();
+    const error = await safeParseErrorJson(response);
     throw new Error(error.message || 'Failed to perform search');
   }
 

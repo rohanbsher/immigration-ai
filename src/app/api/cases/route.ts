@@ -30,21 +30,27 @@ export const GET = withAuth(async (request, _context, auth) => {
   try {
     const { searchParams } = new URL(request.url);
 
+    const statusValues = searchParams.getAll('status').filter(s => s !== '');
     const filters = {
-      status: searchParams.getAll('status').length > 0
-        ? searchParams.getAll('status')
-        : searchParams.get('status') || undefined,
+      status: statusValues.length > 0
+        ? statusValues
+        : undefined,
       visa_type: searchParams.getAll('visa_type').length > 0
         ? searchParams.getAll('visa_type')
         : searchParams.get('visa_type') || undefined,
       search: searchParams.get('search') || undefined,
     };
 
+    const SORT_BY_ALLOWLIST = ['created_at', 'updated_at', 'title', 'status', 'visa_type'];
+    const rawSortBy = searchParams.get('sortBy');
+    const sortBy = rawSortBy && SORT_BY_ALLOWLIST.includes(rawSortBy) ? rawSortBy : 'created_at';
+    const sortOrder: 'asc' | 'desc' = searchParams.get('sortOrder') === 'asc' ? 'asc' : 'desc';
+
     const pagination = {
       page: parseInt(searchParams.get('page') || '1', 10) || 1,
       limit: Math.min(parseInt(searchParams.get('limit') || '10', 10) || 10, 100),
-      sortBy: searchParams.get('sortBy') || 'created_at',
-      sortOrder: (searchParams.get('sortOrder') || 'desc') as 'asc' | 'desc',
+      sortBy,
+      sortOrder,
     };
 
     log.debug('Fetching cases', { userId: auth.user.id, filters, pagination });

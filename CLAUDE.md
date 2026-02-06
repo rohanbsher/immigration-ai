@@ -189,9 +189,9 @@ This document covers:
 |-------------|--------|
 | Phase 1-2 (Security, Hardening) | COMPLETE |
 | Phase 3 (Testing) | COMPLETE (86%+ coverage) |
-| **WS-1: Billing** | READY - Can start |
-| **WS-2: Multi-Tenancy** | READY - Can start |
-| WS-3: Email | BLOCKED (needs WS-1) |
+| **WS-1: Billing** | COMPLETE |
+| **WS-2: Multi-Tenancy** | COMPLETE |
+| WS-3: Email | COMPLETE |
 
 **WS-1 and WS-2 can run in parallel** - they own different files.
 
@@ -237,7 +237,7 @@ Limits are defined in THREE places that MUST stay synchronized:
 
 | Plan | maxCases | maxDocumentsPerCase | maxAiRequests | maxStorage | maxTeamMembers |
 |------|----------|---------------------|---------------|------------|----------------|
-| Free | 5 | 10 | 25 | 1 GB | 1 |
+| Free | 3 | 10 | 25 | 1 GB | 1 |
 | Pro | 50 | 50 | 500 | 25 GB | 5 |
 | Enterprise | ∞ | ∞ | ∞ | 500 GB | ∞ |
 

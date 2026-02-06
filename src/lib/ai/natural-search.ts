@@ -11,6 +11,7 @@ import { parseClaudeJSON } from './utils';
 import { createLogger } from '@/lib/logger';
 import { serverEnv, features } from '@/lib/config';
 import { sanitizeSearchInput } from '@/lib/db/base-service';
+import { withRetry, AI_RETRY_OPTIONS } from '@/lib/utils/retry';
 
 const log = createLogger('natural-search');
 
@@ -141,21 +142,24 @@ export async function parseSearchQuery(
   }
 
   try {
-    const message = await getAnthropicClient().messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 1024,
-      system: SEARCH_PARSE_PROMPT,
-      messages: [
-        {
-          role: 'user',
-          content: `Parse this search query: "${query}"
+    const message = await withRetry(
+      () => getAnthropicClient().messages.create({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1024,
+        system: SEARCH_PARSE_PROMPT,
+        messages: [
+          {
+            role: 'user',
+            content: `Parse this search query: "${query}"
 
 Today's date is ${new Date().toISOString().split('T')[0]}.
 
 Respond with JSON only.`,
-        },
-      ],
-    });
+          },
+        ],
+      }),
+      AI_RETRY_OPTIONS
+    );
 
     const textContent = message.content.find((block) => block.type === 'text');
     const content = textContent?.type === 'text' ? textContent.text : '';

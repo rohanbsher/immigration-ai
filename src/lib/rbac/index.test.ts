@@ -87,19 +87,24 @@ describe('RBAC Service', () => {
     test('should filter navigation items for client role', () => {
       const items = getNavItemsForRole('client', MAIN_NAV_ITEMS);
 
-      // Client should see Dashboard, Cases, Documents, Forms but NOT Tasks or Clients
-      expect(items.some(i => i.label === 'Dashboard')).toBe(true);
-      expect(items.some(i => i.label === 'Cases')).toBe(true);
-      expect(items.some(i => i.label === 'Documents')).toBe(true);
+      // Client should see client-specific nav items but NOT attorney/admin items
+      expect(items.some(i => i.label === 'My Cases')).toBe(true);
+      expect(items.some(i => i.label === 'My Documents')).toBe(true);
+      expect(items.some(i => i.label === 'Dashboard')).toBe(false);
+      expect(items.some(i => i.label === 'Cases')).toBe(false);
+      expect(items.some(i => i.label === 'Documents')).toBe(false);
       expect(items.some(i => i.label === 'Tasks')).toBe(false);
       expect(items.some(i => i.label === 'Clients')).toBe(false);
     });
 
-    test('should return all items for admin role', () => {
+    test('should return all attorney/admin items for admin role', () => {
       const items = getNavItemsForRole('admin', MAIN_NAV_ITEMS);
 
-      // Admin should see everything
-      expect(items.length).toBe(MAIN_NAV_ITEMS.length);
+      // Admin should see all attorney/admin items but not client-specific items
+      const adminItems = MAIN_NAV_ITEMS.filter(i => i.allowedRoles.includes('admin'));
+      expect(items.length).toBe(adminItems.length);
+      expect(items.some(i => i.label === 'My Cases')).toBe(false);
+      expect(items.some(i => i.label === 'My Documents')).toBe(false);
     });
 
     test('should return empty array for null/undefined role', () => {

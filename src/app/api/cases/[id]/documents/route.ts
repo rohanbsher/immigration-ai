@@ -188,7 +188,7 @@ export async function POST(
 
     // Upload file to Supabase Storage
     const fileExt = file.name.split('.').pop();
-    const fileName = `${caseId}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+    const fileName = `${caseId}/${Date.now()}-${crypto.randomUUID().replace(/-/g, '').substring(0, 12)}.${fileExt}`;
 
     const { error: uploadError } = await supabase.storage
       .from('documents')

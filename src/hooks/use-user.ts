@@ -38,6 +38,7 @@ interface UseUserReturn {
   isLoading: boolean;
   error: Error | null;
   authError: AuthTimeoutError | null;
+  profileError: Error | null;
   refetch: () => Promise<void>;
 }
 
@@ -46,6 +47,7 @@ export function useUser(): UseUserReturn {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [authError, setAuthError] = useState<AuthTimeoutError | null>(null);
+  const [profileError, setProfileError] = useState<Error | null>(null);
 
   // Memoize Supabase client to prevent recreation on every render
   const supabase = useMemo(() => createClient(), []);
@@ -54,7 +56,10 @@ export function useUser(): UseUserReturn {
     setIsLoading(true);
     setError(null);
     setAuthError(null);
+    setProfileError(null);
 
+    // Step 1: Auth check (own try-catch)
+    let user: Awaited<ReturnType<typeof supabase.auth.getUser>>['data']['user'] = null;
     try {
       const userResult = await Promise.race([
         supabase.auth.getUser(),
@@ -63,16 +68,30 @@ export function useUser(): UseUserReturn {
         ),
       ]);
 
-      const { data: { user }, error: userError } = userResult;
+      const { data: { user: authUser }, error: userError } = userResult;
 
       if (userError) throw userError;
 
-      if (!user) {
+      if (!authUser) {
         setProfile(null);
         setIsLoading(false);
         return;
       }
 
+      user = authUser;
+    } catch (err) {
+      if (err instanceof AuthTimeoutError) {
+        setAuthError(err);
+      } else {
+        setError(err as Error);
+      }
+      setProfile(null);
+      setIsLoading(false);
+      return;
+    }
+
+    // Step 2: Profile fetch (own try-catch -- auth succeeded)
+    try {
       const profileResult = await Promise.race([
         supabase.from('profiles').select('*').eq('id', user.id).single(),
         new Promise<never>((_, reject) =>
@@ -80,19 +99,13 @@ export function useUser(): UseUserReturn {
         ),
       ]);
 
-      const { data: profileData, error: profileError } = profileResult;
+      const { data: profileData, error: profError } = profileResult;
 
-      if (profileError) throw profileError;
+      if (profError) throw profError;
 
       setProfile(profileData);
     } catch (err) {
-      if (err instanceof AuthTimeoutError) {
-        setAuthError(err);
-        setProfile(null);
-      } else {
-        setError(err as Error);
-        setProfile(null);
-      }
+      setProfileError(err as Error);
     } finally {
       setIsLoading(false);
     }
@@ -122,6 +135,7 @@ export function useUser(): UseUserReturn {
     isLoading,
     error,
     authError,
+    profileError,
     refetch: fetchProfile,
   };
 }

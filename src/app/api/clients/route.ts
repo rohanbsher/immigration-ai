@@ -7,12 +7,26 @@ import { createLogger } from '@/lib/logger';
 const log = createLogger('api:clients');
 
 /**
- * GET /api/clients - Get all clients (attorney only)
+ * GET /api/clients - Get all clients with pagination (attorney only)
  */
-export const GET = withAttorneyAuth(async () => {
+export const GET = withAttorneyAuth(async (request) => {
   try {
-    const clients = await clientsService.getClients();
-    return NextResponse.json(clients);
+    const { searchParams } = new URL(request.url);
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
+    const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '20', 10)));
+    const search = searchParams.get('search') || undefined;
+
+    const { data: clients, total } = await clientsService.getClients({ page, limit, search });
+
+    return NextResponse.json({
+      data: clients,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    });
   } catch (error) {
     log.logError('Error fetching clients', error);
     return errorResponse('Failed to fetch clients', 500);
@@ -40,13 +54,12 @@ export const POST = withAttorneyAuth(async (request) => {
     const client = await clientsService.createClient(parsed.data);
     return NextResponse.json(client, { status: 201 });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to create client';
     log.logError('Error creating client', error);
 
-    if (message.includes('already exists')) {
-      return errorResponse(message, 409);
+    if (error instanceof Error && error.message.includes('already exists')) {
+      return errorResponse('A user with this email already exists', 409);
     }
 
-    return errorResponse(message, 500);
+    return errorResponse('Failed to create client', 500);
   }
 });

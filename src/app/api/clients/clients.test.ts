@@ -318,16 +318,29 @@ describe('Clients API Routes', () => {
         user: { id: mockAttorneyId, email: 'attorney@example.com' } as any,
         profile: mockAttorneyProfile as any,
       });
-      vi.mocked(clientsService.getClients).mockResolvedValue(mockClients as any);
+      vi.mocked(clientsService.getClients).mockResolvedValue({
+        data: mockClients as any,
+        total: 2,
+      });
 
       const request = createMockRequest('GET', '/api/clients');
       const response = await getClients(request);
-      const data = await response.json();
+      const json = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data).toHaveLength(2);
-      expect(data[0].email).toBe('john.doe@example.com');
-      expect(clientsService.getClients).toHaveBeenCalled();
+      expect(json.data).toHaveLength(2);
+      expect(json.data[0].email).toBe('john.doe@example.com');
+      expect(json.pagination).toEqual({
+        page: 1,
+        limit: 20,
+        total: 2,
+        totalPages: 1,
+      });
+      expect(clientsService.getClients).toHaveBeenCalledWith({
+        page: 1,
+        limit: 20,
+        search: undefined,
+      });
     });
 
     it('should return empty array when attorney has no clients', async () => {
@@ -336,14 +349,76 @@ describe('Clients API Routes', () => {
         user: { id: mockAttorneyId, email: 'attorney@example.com' } as any,
         profile: mockAttorneyProfile as any,
       });
-      vi.mocked(clientsService.getClients).mockResolvedValue([]);
+      vi.mocked(clientsService.getClients).mockResolvedValue({
+        data: [],
+        total: 0,
+      });
 
       const request = createMockRequest('GET', '/api/clients');
       const response = await getClients(request);
-      const data = await response.json();
+      const json = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data).toHaveLength(0);
+      expect(json.data).toHaveLength(0);
+      expect(json.pagination.total).toBe(0);
+    });
+
+    it('should pass pagination params to service', async () => {
+      vi.mocked(authenticate).mockResolvedValue({
+        success: true,
+        user: { id: mockAttorneyId, email: 'attorney@example.com' } as any,
+        profile: mockAttorneyProfile as any,
+      });
+      vi.mocked(clientsService.getClients).mockResolvedValue({
+        data: [mockClients[0]] as any,
+        total: 2,
+      });
+
+      const request = createMockRequest('GET', '/api/clients', undefined, {
+        page: '2',
+        limit: '1',
+        search: 'john',
+      });
+      const response = await getClients(request);
+      const json = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(json.data).toHaveLength(1);
+      expect(json.pagination).toEqual({
+        page: 2,
+        limit: 1,
+        total: 2,
+        totalPages: 2,
+      });
+      expect(clientsService.getClients).toHaveBeenCalledWith({
+        page: 2,
+        limit: 1,
+        search: 'john',
+      });
+    });
+
+    it('should clamp pagination params to valid ranges', async () => {
+      vi.mocked(authenticate).mockResolvedValue({
+        success: true,
+        user: { id: mockAttorneyId, email: 'attorney@example.com' } as any,
+        profile: mockAttorneyProfile as any,
+      });
+      vi.mocked(clientsService.getClients).mockResolvedValue({
+        data: [],
+        total: 0,
+      });
+
+      const request = createMockRequest('GET', '/api/clients', undefined, {
+        page: '-5',
+        limit: '999',
+      });
+      await getClients(request);
+
+      expect(clientsService.getClients).toHaveBeenCalledWith({
+        page: 1,
+        limit: 100,
+        search: undefined,
+      });
     });
 
     it('should handle database errors gracefully', async () => {
@@ -356,10 +431,10 @@ describe('Clients API Routes', () => {
 
       const request = createMockRequest('GET', '/api/clients');
       const response = await getClients(request);
-      const data = await response.json();
+      const json = await response.json();
 
       expect(response.status).toBe(500);
-      expect(data.error).toBe('Failed to fetch clients');
+      expect(json.error).toBe('Failed to fetch clients');
     });
   });
 

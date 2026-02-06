@@ -3,6 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { FirmMember, FirmInvitation, FirmRole } from '@/types/firms';
 import { fetchWithTimeout } from '@/lib/api/fetch-with-timeout';
+import { safeParseErrorJson } from '@/lib/api/safe-json';
 
 interface UpdateMemberInput {
   userId: string;
@@ -41,7 +42,7 @@ async function updateMember({
   });
 
   if (!response.ok) {
-    const error = await response.json();
+    const error = await safeParseErrorJson(response);
     throw new Error(error.error || 'Failed to update member');
   }
 
@@ -63,7 +64,7 @@ async function removeMember({
   });
 
   if (!response.ok) {
-    const error = await response.json();
+    const error = await safeParseErrorJson(response);
     throw new Error(error.error || 'Failed to remove member');
   }
 }
@@ -93,7 +94,7 @@ async function createInvitation({
   });
 
   if (!response.ok) {
-    const error = await response.json();
+    const error = await safeParseErrorJson(response);
     throw new Error(error.error || 'Failed to create invitation');
   }
 
@@ -115,7 +116,7 @@ async function revokeInvitation({
   });
 
   if (!response.ok) {
-    const error = await response.json();
+    const error = await safeParseErrorJson(response);
     throw new Error(error.error || 'Failed to revoke invitation');
   }
 }
@@ -131,7 +132,7 @@ async function fetchInvitation(token: string): Promise<{
   const response = await fetchWithTimeout(`/api/firms/invitations/${token}`);
 
   if (!response.ok) {
-    const error = await response.json();
+    const error = await safeParseErrorJson(response);
     throw new Error(error.error || 'Failed to fetch invitation');
   }
 
@@ -145,7 +146,7 @@ async function acceptInvitation(token: string): Promise<FirmMember> {
   });
 
   if (!response.ok) {
-    const error = await response.json();
+    const error = await safeParseErrorJson(response);
     throw new Error(error.error || 'Failed to accept invitation');
   }
 

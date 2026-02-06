@@ -7,6 +7,7 @@ import {
   getExtractionPrompt,
 } from './prompts';
 import { serverEnv, features } from '@/lib/config';
+import { withRetry, AI_RETRY_OPTIONS, RetryExhaustedError } from '@/lib/utils/retry';
 
 // Lazy-initialize OpenAI client to avoid errors during build
 let openaiInstance: OpenAI | null = null;
@@ -67,28 +68,31 @@ export async function analyzeDocumentWithVision(
   );
 
   try {
-    const response = await getOpenAIClient().chat.completions.create({
-      model: 'gpt-4o',
-      messages: [
-        {
-          role: 'system',
-          content: DOCUMENT_ANALYSIS_SYSTEM_PROMPT,
-        },
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'text',
-              text: extractionPrompt,
-            },
-            imageContent,
-          ],
-        },
-      ],
-      max_tokens: 4096,
-      temperature: 0.1, // Low temperature for more consistent extractions
-      response_format: { type: 'json_object' },
-    });
+    const response = await withRetry(
+      () => getOpenAIClient().chat.completions.create({
+        model: 'gpt-4o',
+        messages: [
+          {
+            role: 'system',
+            content: DOCUMENT_ANALYSIS_SYSTEM_PROMPT,
+          },
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: extractionPrompt,
+              },
+              imageContent,
+            ],
+          },
+        ],
+        max_tokens: 4096,
+        temperature: 0.1, // Low temperature for more consistent extractions
+        response_format: { type: 'json_object' },
+      }),
+      AI_RETRY_OPTIONS
+    );
 
     const content = response.choices[0]?.message?.content;
 
@@ -111,15 +115,18 @@ export async function analyzeDocumentWithVision(
       processing_time_ms: Date.now() - startTime,
     };
   } catch (error) {
+    // Unwrap RetryExhaustedError to check the original API error
+    const cause = error instanceof RetryExhaustedError ? error.lastError : error;
+
     // Handle specific OpenAI errors
-    if (error instanceof OpenAI.APIError) {
-      if (error.status === 401) {
+    if (cause instanceof OpenAI.APIError) {
+      if (cause.status === 401) {
         throw new Error('Invalid OpenAI API key');
       }
-      if (error.status === 429) {
+      if (cause.status === 429) {
         throw new Error('OpenAI rate limit exceeded. Please try again later.');
       }
-      if (error.status === 400) {
+      if (cause.status === 400) {
         throw new Error(
           'Invalid image format or size. Please ensure the image is a valid JPEG, PNG, GIF, or WebP under 20MB.'
         );
@@ -136,29 +143,32 @@ export async function analyzeDocumentWithVision(
 export async function extractTextFromImage(
   imageUrl: string
 ): Promise<{ text: string; confidence: number }> {
-  const response = await getOpenAIClient().chat.completions.create({
-    model: 'gpt-4o',
-    messages: [
-      {
-        role: 'user',
-        content: [
-          {
-            type: 'text',
-            text: 'Extract all text from this document image. Return the text exactly as it appears, preserving line breaks and formatting where possible. Only return the extracted text, nothing else.',
-          },
-          {
-            type: 'image_url',
-            image_url: {
-              url: imageUrl,
-              detail: 'high',
+  const response = await withRetry(
+    () => getOpenAIClient().chat.completions.create({
+      model: 'gpt-4o',
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: 'Extract all text from this document image. Return the text exactly as it appears, preserving line breaks and formatting where possible. Only return the extracted text, nothing else.',
             },
-          },
-        ],
-      },
-    ],
-    max_tokens: 4096,
-    temperature: 0,
-  });
+            {
+              type: 'image_url',
+              image_url: {
+                url: imageUrl,
+                detail: 'high',
+              },
+            },
+          ],
+        },
+      ],
+      max_tokens: 4096,
+      temperature: 0,
+    }),
+    AI_RETRY_OPTIONS
+  );
 
   const text = response.choices[0]?.message?.content || '';
 
@@ -174,15 +184,16 @@ export async function extractTextFromImage(
 export async function detectDocumentType(
   imageUrl: string
 ): Promise<{ type: string; confidence: number }> {
-  const response = await getOpenAIClient().chat.completions.create({
-    model: 'gpt-4o',
-    messages: [
-      {
-        role: 'user',
-        content: [
-          {
-            type: 'text',
-            text: `Identify the type of document in this image. Common types include:
+  const response = await withRetry(
+    () => getOpenAIClient().chat.completions.create({
+      model: 'gpt-4o',
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: `Identify the type of document in this image. Common types include:
 - passport
 - birth_certificate
 - marriage_certificate
@@ -200,21 +211,23 @@ export async function detectDocumentType(
 - other
 
 Respond with JSON: { "type": "document_type", "confidence": 0.95 }`,
-          },
-          {
-            type: 'image_url',
-            image_url: {
-              url: imageUrl,
-              detail: 'low',
             },
-          },
-        ],
-      },
-    ],
-    max_tokens: 100,
-    temperature: 0,
-    response_format: { type: 'json_object' },
-  });
+            {
+              type: 'image_url',
+              image_url: {
+                url: imageUrl,
+                detail: 'low',
+              },
+            },
+          ],
+        },
+      ],
+      max_tokens: 100,
+      temperature: 0,
+      response_format: { type: 'json_object' },
+    }),
+    AI_RETRY_OPTIONS
+  );
 
   const content = response.choices[0]?.message?.content;
 
@@ -243,15 +256,16 @@ export async function validateDocumentImage(
   reason?: string;
   suggestedType?: string;
 }> {
-  const response = await getOpenAIClient().chat.completions.create({
-    model: 'gpt-4o',
-    messages: [
-      {
-        role: 'user',
-        content: [
-          {
-            type: 'text',
-            text: `Analyze this image and determine if it's a valid document image suitable for immigration case processing.
+  const response = await withRetry(
+    () => getOpenAIClient().chat.completions.create({
+      model: 'gpt-4o',
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: `Analyze this image and determine if it's a valid document image suitable for immigration case processing.
 
 Invalid images include:
 - Blank or mostly blank images
@@ -266,21 +280,23 @@ Respond with JSON:
   "reason": "explanation if invalid",
   "suggestedType": "document type if valid"
 }`,
-          },
-          {
-            type: 'image_url',
-            image_url: {
-              url: imageUrl,
-              detail: 'low',
             },
-          },
-        ],
-      },
-    ],
-    max_tokens: 200,
-    temperature: 0,
-    response_format: { type: 'json_object' },
-  });
+            {
+              type: 'image_url',
+              image_url: {
+                url: imageUrl,
+                detail: 'low',
+              },
+            },
+          ],
+        },
+      ],
+      max_tokens: 200,
+      temperature: 0,
+      response_format: { type: 'json_object' },
+    }),
+    AI_RETRY_OPTIONS
+  );
 
   const content = response.choices[0]?.message?.content;
 

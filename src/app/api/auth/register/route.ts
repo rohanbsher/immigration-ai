@@ -9,7 +9,12 @@ const log = createLogger('api:auth-register');
 
 const registerSchema = z.object({
   email: z.string().email('Invalid email address'),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
+  password: z.string()
+    .min(8, 'Password must be at least 8 characters')
+    .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+    .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
+    .regex(/[0-9]/, 'Password must contain at least one number')
+    .regex(/[!@#$%^&*(),.?":{}|<>]/, 'Password must contain at least one special character'),
   firstName: z.string().min(1, 'First name is required'),
   lastName: z.string().min(1, 'Last name is required'),
   role: z.enum(['attorney', 'client']),
@@ -38,6 +43,8 @@ export async function POST(request: NextRequest) {
 
     const supabase = await createClient();
 
+    // Attempt signup - the handle_new_user trigger should create the profile.
+    // If the trigger fails, signUp returns a "Database error saving new user" error.
     const { data, error } = await supabase.auth.signUp({
       email: validatedData.email,
       password: validatedData.password,
@@ -53,6 +60,11 @@ export async function POST(request: NextRequest) {
     });
 
     if (error) {
+      log.logError('Supabase signUp failed', {
+        message: error.message,
+        code: error.code,
+        status: error.status,
+      });
       return NextResponse.json(
         { error: 'Registration could not be completed. Please try again.' },
         { status: 400 }

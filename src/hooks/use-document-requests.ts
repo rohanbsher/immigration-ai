@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchWithTimeout } from '@/lib/api/fetch-with-timeout';
+import { safeParseErrorJson } from '@/lib/api/safe-json';
 import type { DocumentType } from '@/types';
 
 export type DocumentRequestStatus = 'pending' | 'uploaded' | 'fulfilled' | 'expired' | 'cancelled';
@@ -77,7 +78,7 @@ async function createDocumentRequest(
     body: JSON.stringify(data),
   });
   if (!response.ok) {
-    const error = await response.json();
+    const error = await safeParseErrorJson(response);
     throw new Error(error.error || 'Failed to create document request');
   }
   return response.json();
@@ -93,7 +94,7 @@ async function updateDocumentRequest(
     body: JSON.stringify(data),
   });
   if (!response.ok) {
-    const error = await response.json();
+    const error = await safeParseErrorJson(response);
     throw new Error(error.error || 'Failed to update document request');
   }
   return response.json();
@@ -104,7 +105,7 @@ async function deleteDocumentRequest(id: string): Promise<void> {
     method: 'DELETE',
   });
   if (!response.ok) {
-    const error = await response.json();
+    const error = await safeParseErrorJson(response);
     throw new Error(error.error || 'Failed to delete document request');
   }
 }

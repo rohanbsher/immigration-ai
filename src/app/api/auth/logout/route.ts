@@ -8,11 +8,21 @@ export async function POST() {
   try {
     const supabase = await createClient();
 
+    // Verify user is actually logged in before signing out
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Not authenticated' },
+        { status: 401 }
+      );
+    }
+
     const { error } = await supabase.auth.signOut();
 
     if (error) {
+      log.warn('Logout failed', { userId: user.id });
       return NextResponse.json(
-        { error: error.message },
+        { error: 'Logout failed' },
         { status: 400 }
       );
     }

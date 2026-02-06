@@ -19,7 +19,7 @@ const updateTaskSchema = z.object({
 /**
  * GET /api/tasks/[id] - Get a single task
  */
-export const GET = withAuth(async (_request, context, _auth) => {
+export const GET = withAuth(async (_request, context, auth) => {
   try {
     const { id } = await context.params!;
 
@@ -27,6 +27,25 @@ export const GET = withAuth(async (_request, context, _auth) => {
 
     if (!task) {
       return errorResponse('Task not found', 404);
+    }
+
+    // Check if user has permission to view
+    const canView =
+      task.created_by === auth.user.id ||
+      task.assigned_to === auth.user.id;
+
+    if (!canView) {
+      // Check if admin
+      const supabase = await createClient();
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', auth.user.id)
+        .single();
+
+      if (profile?.role !== 'admin') {
+        return errorResponse('Forbidden', 403);
+      }
     }
 
     return successResponse(task);

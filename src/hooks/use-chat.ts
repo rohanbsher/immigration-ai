@@ -4,6 +4,7 @@ import { useCallback, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useChatStore } from '@/store/chat-store';
 import { fetchWithTimeout } from '@/lib/api/fetch-with-timeout';
+import { safeParseErrorJson } from '@/lib/api/safe-json';
 
 /**
  * Chat hook for sending messages and managing chat state.
@@ -11,6 +12,7 @@ import { fetchWithTimeout } from '@/lib/api/fetch-with-timeout';
 export function useChat() {
   const queryClient = useQueryClient();
   const abortControllerRef = useRef<AbortController | null>(null);
+  const readerRef = useRef<ReadableStreamDefaultReader<Uint8Array> | null>(null);
 
   const {
     isOpen,
@@ -77,7 +79,7 @@ export function useChat() {
         setConversationId(conversationId);
 
         // Add messages to store
-        data.messages.forEach((msg: { role: 'user' | 'assistant'; content: string }) => {
+        (data.messages || []).forEach((msg: { role: 'user' | 'assistant'; content: string }) => {
           addMessage({
             role: msg.role,
             content: msg.content,
@@ -139,7 +141,7 @@ export function useChat() {
       }
 
       if (!response.ok) {
-        const error = await response.json();
+        const error = await safeParseErrorJson(response);
         throw new Error(error.message || 'Failed to send message');
       }
 
@@ -149,38 +151,44 @@ export function useChat() {
         throw new Error('No response stream');
       }
 
+      readerRef.current = reader;
       const decoder = new TextDecoder();
       let assistantContent = '';
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
 
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split('\n');
+          const chunk = decoder.decode(value, { stream: true });
+          const lines = chunk.split('\n');
 
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue;
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue;
 
-          let data;
-          try {
-            data = JSON.parse(line.slice(6));
-          } catch {
-            // Skip invalid JSON lines (e.g. keepalive comments)
-            continue;
-          }
+            let data;
+            try {
+              data = JSON.parse(line.slice(6));
+            } catch {
+              // Skip invalid JSON lines (e.g. keepalive comments)
+              continue;
+            }
 
-          if (data.type === 'conversation') {
-            setConversationId(data.id);
-          } else if (data.type === 'content') {
-            assistantContent += data.text;
-            updateMessage(assistantMsgId, assistantContent);
-          } else if (data.type === 'error') {
-            throw new Error(data.message);
-          } else if (data.type === 'done') {
-            setMessageStreaming(assistantMsgId, false);
+            if (data.type === 'conversation') {
+              setConversationId(data.id);
+            } else if (data.type === 'content') {
+              assistantContent += data.text;
+              updateMessage(assistantMsgId, assistantContent);
+            } else if (data.type === 'error') {
+              throw new Error(data.message);
+            } else if (data.type === 'done') {
+              setMessageStreaming(assistantMsgId, false);
+            }
           }
         }
+      } finally {
+        readerRef.current = null;
+        reader.cancel().catch(() => {});
       }
 
       // Refresh conversations list
@@ -189,7 +197,11 @@ export function useChat() {
       return assistantContent;
     },
     onError: (error) => {
-      if (error.name === 'AbortError') return;
+      if (error.name === 'AbortError') {
+        readerRef.current?.cancel().catch(() => {});
+        readerRef.current = null;
+        return;
+      }
       setError(error instanceof Error ? error.message : 'Failed to send message');
     },
     onSettled: () => {
@@ -225,6 +237,8 @@ export function useChat() {
   const cancelRequest = useCallback(() => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
+      readerRef.current?.cancel().catch(() => {});
+      readerRef.current = null;
       setLoading(false);
     }
   }, [setLoading]);

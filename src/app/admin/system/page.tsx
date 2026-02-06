@@ -51,6 +51,7 @@ export default function AdminSystemPage() {
     queryKey: ['admin-system-health'],
     queryFn: fetchHealth,
     refetchInterval: 30_000,
+    refetchIntervalInBackground: false,
   });
 
   if (isLoading) {

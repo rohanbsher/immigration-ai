@@ -13,8 +13,9 @@ function generateRequestId(): string {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
     return crypto.randomUUID();
   }
-  // Fallback for environments without crypto.randomUUID
-  return `${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 15)}`;
+  // Cryptographically secure fallback for environments without crypto.randomUUID
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
 }
 
 export async function updateSession(request: NextRequest) {
@@ -92,7 +93,7 @@ export async function updateSession(request: NextRequest) {
   if (isProtectedPath && !user) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
-    url.searchParams.set('redirectTo', request.nextUrl.pathname);
+    url.searchParams.set('returnUrl', request.nextUrl.pathname);
     const redirectResponse = NextResponse.redirect(url);
     redirectResponse.headers.set('x-request-id', requestId);
     return redirectResponse;
@@ -108,14 +109,20 @@ export async function updateSession(request: NextRequest) {
   }
 
   // Fetch user profile for role-based routing
-  const { data: profile } = user
+  const { data: profile, error: profileError } = user
     ? await supabase.from('profiles').select('role').eq('id', user.id).single()
-    : { data: null };
+    : { data: null, error: null };
+
+  if (profileError) {
+    log.warn('Profile query failed in middleware, deferring to layout auth check', {
+      requestId,
+      error: profileError.message,
+    });
+  }
 
   // Admin route protection - check user role
   if (isAdminPath && user) {
-    // Redirect non-admins to dashboard
-    if (!profile || profile.role !== 'admin') {
+    if (!profileError && (!profile || profile.role !== 'admin')) {
       log.warn(`Non-admin user attempted to access admin route: ${request.nextUrl.pathname}`, { requestId });
       const url = request.nextUrl.clone();
       url.pathname = profile?.role === 'client' ? '/dashboard/client' : '/dashboard';

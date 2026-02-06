@@ -11,6 +11,7 @@ import { ChatButton } from '@/components/chat/chat-button';
 import { ChatPanel } from '@/components/chat/chat-panel';
 import { SessionExpiryWarning } from '@/components/session/session-expiry-warning';
 import { Button } from '@/components/ui/button';
+import { createBrowserClient } from '@supabase/ssr';
 
 /** Master timeout to prevent infinite loading spinner (5 seconds) */
 const AUTH_LOADING_TIMEOUT_MS = 5_000;
@@ -23,7 +24,7 @@ interface DashboardLayoutProps {
 export function DashboardLayout({ children, title }: DashboardLayoutProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [timedOut, setTimedOut] = useState(false);
-  const { profile, isLoading, authError, refetch } = useUser();
+  const { profile, isLoading, authError, profileError, refetch } = useUser();
   const router = useRouter();
 
   // Master timeout to prevent infinite loading state
@@ -85,7 +86,14 @@ export function DashboardLayout({ children, title }: DashboardLayoutProps) {
             </Button>
             <Button
               variant="outline"
-              onClick={() => router.push('/login')}
+              onClick={async () => {
+                const supabase = createBrowserClient(
+                  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+                  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+                );
+                await supabase.auth.signOut();
+                router.push('/login');
+              }}
               className="w-full"
             >
               Go to Login
@@ -109,7 +117,14 @@ export function DashboardLayout({ children, title }: DashboardLayoutProps) {
           </p>
           <div className="space-y-3">
             <Button
-              onClick={() => router.push('/login')}
+              onClick={async () => {
+                const supabase = createBrowserClient(
+                  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+                  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+                );
+                await supabase.auth.signOut();
+                router.push('/login');
+              }}
               className="w-full"
             >
               Go to Login
@@ -123,6 +138,31 @@ export function DashboardLayout({ children, title }: DashboardLayoutProps) {
             </Button>
           </div>
         </div>
+      </div>
+    );
+  }
+
+  if (profileError) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 gap-4">
+        <AlertCircle className="h-12 w-12 text-orange-500" />
+        <h2 className="text-xl font-bold">Unable to Load Profile</h2>
+        <p className="text-slate-600 text-center max-w-md">
+          We couldn&apos;t load your profile data. This is usually temporary.
+        </p>
+        <Button onClick={() => refetch()}>
+          Try Again
+        </Button>
+        <Button variant="outline" onClick={async () => {
+          const supabase = createBrowserClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+          );
+          await supabase.auth.signOut();
+          router.push('/login');
+        }}>
+          Go to Login
+        </Button>
       </div>
     );
   }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { serverAuth } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
+import { getAdminClient } from '@/lib/supabase/admin';
 import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 import { createLogger } from '@/lib/logger';
 import { sanitizeSearchInput } from '@/lib/db/base-service';
@@ -51,6 +52,24 @@ export async function GET(request: NextRequest) {
       throw new Error(`Failed to fetch users: ${error.message}`);
     }
 
+    const adminClient = getAdminClient();
+    const userIds = (users || []).map((u) => u.id);
+
+    const bannedUserIds = new Set<string>();
+    for (const uid of userIds) {
+      try {
+        const { data: authUser } = await adminClient.auth.admin.getUserById(uid);
+        if (authUser?.user?.banned_until) {
+          const bannedUntil = new Date(authUser.user.banned_until);
+          if (bannedUntil > new Date()) {
+            bannedUserIds.add(uid);
+          }
+        }
+      } catch {
+        // If we can't check a user's ban status, default to not suspended
+      }
+    }
+
     const mappedUsers = (users || []).map((user) => ({
       id: user.id,
       email: user.email,
@@ -59,7 +78,7 @@ export async function GET(request: NextRequest) {
       role: user.role,
       createdAt: user.created_at,
       lastSignIn: user.updated_at,
-      suspended: false,
+      suspended: bannedUserIds.has(user.id),
     }));
 
     return NextResponse.json({

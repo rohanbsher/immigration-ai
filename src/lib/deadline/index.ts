@@ -6,6 +6,7 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { getProcessingTime, formatProcessingTime } from './processing-times';
+import { formatDocumentType } from '@/lib/ai/utils';
 
 /**
  * Deadline alert structure.
@@ -391,13 +392,6 @@ export async function syncDeadlineAlerts(caseId?: string): Promise<number> {
 /**
  * Format document type for display.
  */
-function formatDocumentType(docType: string): string {
-  return docType
-    .split('_')
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
-}
-
 /**
  * Get severity color configuration.
  */

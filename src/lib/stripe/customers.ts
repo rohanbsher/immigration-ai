@@ -1,6 +1,7 @@
 import { stripe } from './client';
 import { createClient } from '@/lib/supabase/server';
 import type Stripe from 'stripe';
+import { withRetry, STRIPE_RETRY_OPTIONS } from '@/lib/utils/retry';
 
 export interface CreateCustomerParams {
   userId: string;
@@ -26,14 +27,17 @@ export interface CustomerWithSubscription {
 export async function createStripeCustomer(params: CreateCustomerParams): Promise<Stripe.Customer> {
   const { userId, email, name, metadata = {} } = params;
 
-  const customer = await stripe.customers.create({
-    email,
-    name: name || undefined,
-    metadata: {
-      supabase_user_id: userId,
-      ...metadata,
-    },
-  });
+  const customer = await withRetry(
+    () => stripe.customers.create({
+      email,
+      name: name || undefined,
+      metadata: {
+        supabase_user_id: userId,
+        ...metadata,
+      },
+    }),
+    STRIPE_RETRY_OPTIONS
+  );
 
   return customer;
 }
@@ -144,9 +148,15 @@ export async function updateStripeCustomer(
   stripeCustomerId: string,
   updates: Stripe.CustomerUpdateParams
 ): Promise<Stripe.Customer> {
-  return stripe.customers.update(stripeCustomerId, updates);
+  return withRetry(
+    () => stripe.customers.update(stripeCustomerId, updates),
+    STRIPE_RETRY_OPTIONS
+  );
 }
 
 export async function deleteStripeCustomer(stripeCustomerId: string): Promise<Stripe.DeletedCustomer> {
-  return stripe.customers.del(stripeCustomerId);
+  return withRetry(
+    () => stripe.customers.del(stripeCustomerId),
+    STRIPE_RETRY_OPTIONS
+  );
 }

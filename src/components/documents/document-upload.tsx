@@ -38,6 +38,7 @@ interface DocumentUploadProps {
 }
 
 interface SelectedFile {
+  id: string;
   file: File;
   documentType: DocumentType;
   expirationDate?: string;
@@ -79,6 +80,7 @@ export function DocumentUpload({ caseId, onSuccess }: DocumentUploadProps) {
     });
 
     const newFiles: SelectedFile[] = validFiles.map((file) => ({
+      id: crypto.randomUUID(),
       file,
       documentType: 'other' as DocumentType,
     }));
@@ -232,7 +234,7 @@ export function DocumentUpload({ caseId, onSuccess }: DocumentUploadProps) {
             Selected Files ({selectedFiles.length})
           </h4>
           {selectedFiles.map((selectedFile, index) => (
-            <Card key={index}>
+            <Card key={selectedFile.id}>
               <CardContent className="p-4">
                 <div className="flex items-start gap-4">
                   <FileText className="h-8 w-8 text-blue-600 flex-shrink-0" />

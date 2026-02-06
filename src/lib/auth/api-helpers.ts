@@ -245,9 +245,8 @@ export async function authenticate(
       success: false,
       error: 'Profile not found',
       response: errorResponse(
-        'Profile not found. User authenticated but profile record is missing.',
-        401,
-        { userId: user.id, hint: 'Ensure profile row exists in profiles table' }
+        'Profile not found',
+        401
       ),
     };
   }
@@ -504,10 +503,7 @@ export function withAuth(
       return await handler(request, context, auth);
     } catch (error) {
       log.logError('API error', error);
-      return errorResponse(
-        error instanceof Error ? error.message : 'Internal server error',
-        500
-      );
+      return errorResponse('Internal server error', 500);
     }
   };
 }

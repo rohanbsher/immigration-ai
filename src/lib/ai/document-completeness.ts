@@ -8,6 +8,7 @@
 
 import { createClient } from '@/lib/supabase/server';
 import type { DocumentType, DocumentStatus } from '@/types';
+import { formatDocumentType } from '@/lib/ai/utils';
 import { createLogger } from '@/lib/logger';
 
 const log = createLogger('document-completeness');
@@ -63,13 +64,6 @@ export interface UploadedDocumentInfo {
 /**
  * Format a document type enum value for display.
  */
-function formatDocumentType(docType: string): string {
-  return docType
-    .split('_')
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
-}
-
 /**
  * Map document status to simplified status.
  */

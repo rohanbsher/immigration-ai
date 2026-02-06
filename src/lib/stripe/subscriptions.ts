@@ -3,6 +3,7 @@ import { getOrCreateStripeCustomer } from './customers';
 import { createClient } from '@/lib/supabase/server';
 import { createLogger } from '@/lib/logger';
 import type Stripe from 'stripe';
+import { withRetry, STRIPE_RETRY_OPTIONS } from '@/lib/utils/retry';
 
 const log = createLogger('stripe:subscriptions');
 
@@ -43,32 +44,35 @@ export async function createCheckoutSession(params: CreateCheckoutParams): Promi
   const stripeCustomerId = await getOrCreateStripeCustomer(userId);
   const priceId = getPriceId(planType, billingPeriod);
 
-  const session = await stripe.checkout.sessions.create({
-    customer: stripeCustomerId,
-    mode: 'subscription',
-    payment_method_types: ['card'],
-    line_items: [
-      {
-        price: priceId,
-        quantity: 1,
+  const session = await withRetry(
+    () => stripe.checkout.sessions.create({
+      customer: stripeCustomerId,
+      mode: 'subscription',
+      payment_method_types: ['card'],
+      line_items: [
+        {
+          price: priceId,
+          quantity: 1,
+        },
+      ],
+      success_url: `${successUrl}?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: cancelUrl,
+      subscription_data: {
+        metadata: {
+          supabase_user_id: userId,
+          plan_type: planType,
+          billing_period: billingPeriod,
+        },
       },
-    ],
-    success_url: `${successUrl}?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: cancelUrl,
-    subscription_data: {
-      metadata: {
-        supabase_user_id: userId,
-        plan_type: planType,
-        billing_period: billingPeriod,
+      allow_promotion_codes: true,
+      billing_address_collection: 'required',
+      customer_update: {
+        address: 'auto',
+        name: 'auto',
       },
-    },
-    allow_promotion_codes: true,
-    billing_address_collection: 'required',
-    customer_update: {
-      address: 'auto',
-      name: 'auto',
-    },
-  });
+    }),
+    STRIPE_RETRY_OPTIONS
+  );
 
   return session;
 }
@@ -78,32 +82,47 @@ export async function createBillingPortalSession(params: CreatePortalParams): Pr
 
   const stripeCustomerId = await getOrCreateStripeCustomer(userId);
 
-  const session = await stripe.billingPortal.sessions.create({
-    customer: stripeCustomerId,
-    return_url: returnUrl,
-  });
+  const session = await withRetry(
+    () => stripe.billingPortal.sessions.create({
+      customer: stripeCustomerId,
+      return_url: returnUrl,
+    }),
+    STRIPE_RETRY_OPTIONS
+  );
 
   return session;
 }
 
 export async function cancelSubscription(subscriptionId: string, cancelImmediately = false): Promise<Stripe.Subscription> {
   if (cancelImmediately) {
-    return stripe.subscriptions.cancel(subscriptionId);
+    return withRetry(
+      () => stripe.subscriptions.cancel(subscriptionId),
+      STRIPE_RETRY_OPTIONS
+    );
   }
 
-  return stripe.subscriptions.update(subscriptionId, {
-    cancel_at_period_end: true,
-  });
+  return withRetry(
+    () => stripe.subscriptions.update(subscriptionId, {
+      cancel_at_period_end: true,
+    }),
+    STRIPE_RETRY_OPTIONS
+  );
 }
 
 export async function resumeSubscription(subscriptionId: string): Promise<Stripe.Subscription> {
-  return stripe.subscriptions.update(subscriptionId, {
-    cancel_at_period_end: false,
-  });
+  return withRetry(
+    () => stripe.subscriptions.update(subscriptionId, {
+      cancel_at_period_end: false,
+    }),
+    STRIPE_RETRY_OPTIONS
+  );
 }
 
 export async function getSubscription(subscriptionId: string): Promise<Stripe.Subscription> {
-  return stripe.subscriptions.retrieve(subscriptionId);
+  return withRetry(
+    () => stripe.subscriptions.retrieve(subscriptionId),
+    STRIPE_RETRY_OPTIONS
+  );
 }
 
 export async function getUserSubscription(userId: string) {

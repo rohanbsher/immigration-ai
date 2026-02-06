@@ -33,7 +33,7 @@ export function sanitizeSearchInput(input: string): string {
   const truncated = input.slice(0, 100);
   const sanitized = truncated
     .replace(/[%_]/g, '\\$&')
-    .replace(/[,.'"\(\)]/g, '')
+    .replace(/[,.'"\(\)|]/g, '')
     .trim();
   return sanitized;
 }

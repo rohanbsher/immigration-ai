@@ -9,18 +9,19 @@ import {
 describe('Storage Utils', () => {
   describe('generateFilePath', () => {
     let originalDateNow: () => number;
-    let originalMathRandom: () => number;
 
     beforeEach(() => {
       originalDateNow = Date.now;
-      originalMathRandom = Math.random;
       Date.now = vi.fn(() => 1700000000000);
-      Math.random = vi.fn(() => 0.123456789);
+      vi.stubGlobal('crypto', {
+        ...crypto,
+        randomUUID: vi.fn(() => '550e8400-e29b-41d4-a716-446655440000'),
+      });
     });
 
     afterEach(() => {
       Date.now = originalDateNow;
-      Math.random = originalMathRandom;
+      vi.unstubAllGlobals();
     });
 
     it('should generate path with caseId, timestamp, random string, and sanitized name', () => {

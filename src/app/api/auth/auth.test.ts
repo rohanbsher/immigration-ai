@@ -124,6 +124,7 @@ describe('Auth API Routes', () => {
   let mockSignOut: ReturnType<typeof vi.fn>;
   let mockExchangeCodeForSession: ReturnType<typeof vi.fn>;
   let mockGetSession: ReturnType<typeof vi.fn>;
+  let mockGetUser: ReturnType<typeof vi.fn>;
   let mockFromSelect: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
@@ -135,6 +136,7 @@ describe('Auth API Routes', () => {
     mockSignOut = vi.fn();
     mockExchangeCodeForSession = vi.fn();
     mockGetSession = vi.fn();
+    mockGetUser = vi.fn().mockResolvedValue({ data: { user: mockUser }, error: null });
     mockFromSelect = vi.fn();
 
     // Setup createClient mock
@@ -145,6 +147,7 @@ describe('Auth API Routes', () => {
         signOut: mockSignOut,
         exchangeCodeForSession: mockExchangeCodeForSession,
         getSession: mockGetSession,
+        getUser: mockGetUser,
       },
       from: vi.fn(() => ({
         select: vi.fn(() => ({
@@ -317,7 +320,7 @@ describe('Auth API Routes', () => {
         url: 'http://localhost:3000/api/auth/register',
         body: {
           email: 'attorney@example.com',
-          password: 'securePassword123',
+          password: 'Secure@Password123',
           firstName: 'John',
           lastName: 'Doe',
           role: 'attorney',
@@ -335,7 +338,7 @@ describe('Auth API Routes', () => {
       expect(data.session).toEqual(mockSession);
       expect(mockSignUp).toHaveBeenCalledWith({
         email: 'attorney@example.com',
-        password: 'securePassword123',
+        password: 'Secure@Password123',
         options: {
           data: {
             first_name: 'John',
@@ -358,7 +361,7 @@ describe('Auth API Routes', () => {
         url: 'http://localhost:3000/api/auth/register',
         body: {
           email: 'client@example.com',
-          password: 'securePassword123',
+          password: 'Secure@Password123',
           firstName: 'Jane',
           lastName: 'Smith',
           role: 'client',
@@ -377,7 +380,7 @@ describe('Auth API Routes', () => {
         url: 'http://localhost:3000/api/auth/register',
         body: {
           email: 'not-an-email',
-          password: 'securePassword123',
+          password: 'Secure@Password123',
           firstName: 'John',
           lastName: 'Doe',
           role: 'attorney',
@@ -417,7 +420,7 @@ describe('Auth API Routes', () => {
         url: 'http://localhost:3000/api/auth/register',
         body: {
           email: 'test@example.com',
-          password: 'securePassword123',
+          password: 'Secure@Password123',
           firstName: '',
           lastName: 'Doe',
           role: 'attorney',
@@ -437,7 +440,7 @@ describe('Auth API Routes', () => {
         url: 'http://localhost:3000/api/auth/register',
         body: {
           email: 'test@example.com',
-          password: 'securePassword123',
+          password: 'Secure@Password123',
           firstName: 'John',
           lastName: '',
           role: 'attorney',
@@ -457,7 +460,7 @@ describe('Auth API Routes', () => {
         url: 'http://localhost:3000/api/auth/register',
         body: {
           email: 'test@example.com',
-          password: 'securePassword123',
+          password: 'Secure@Password123',
           firstName: 'John',
           lastName: 'Doe',
           role: 'admin',
@@ -477,7 +480,7 @@ describe('Auth API Routes', () => {
         url: 'http://localhost:3000/api/auth/register',
         body: {
           email: 'attorney@example.com',
-          password: 'securePassword123',
+          password: 'Secure@Password123',
           firstName: 'John',
           lastName: 'Doe',
           role: 'attorney',
@@ -501,7 +504,7 @@ describe('Auth API Routes', () => {
         url: 'http://localhost:3000/api/auth/register',
         body: {
           email: 'attorney@example.com',
-          password: 'securePassword123',
+          password: 'Secure@Password123',
           firstName: 'John',
           lastName: 'Doe',
           role: 'attorney',
@@ -527,7 +530,7 @@ describe('Auth API Routes', () => {
         url: 'http://localhost:3000/api/auth/register',
         body: {
           email: 'existing@example.com',
-          password: 'securePassword123',
+          password: 'Secure@Password123',
           firstName: 'John',
           lastName: 'Doe',
           role: 'attorney',
@@ -556,7 +559,7 @@ describe('Auth API Routes', () => {
         url: 'http://localhost:3000/api/auth/register',
         body: {
           email: 'test@example.com',
-          password: 'securePassword123',
+          password: 'Secure@Password123',
           firstName: 'John',
           lastName: 'Doe',
           role: 'client',
@@ -575,7 +578,7 @@ describe('Auth API Routes', () => {
         url: 'http://localhost:3000/api/auth/register',
         body: {
           email: 'test@example.com',
-          password: 'securePassword123',
+          password: 'Secure@Password123',
           firstName: 'John',
           lastName: 'Doe',
           role: 'client',
@@ -592,6 +595,7 @@ describe('Auth API Routes', () => {
 
   describe('POST /api/auth/logout', () => {
     it('should successfully log out a user', async () => {
+      mockGetUser.mockResolvedValue({ data: { user: mockUser }, error: null });
       mockSignOut.mockResolvedValue({ error: null });
 
       const response = await logoutHandler();
@@ -602,7 +606,19 @@ describe('Auth API Routes', () => {
       expect(mockSignOut).toHaveBeenCalled();
     });
 
+    it('should return 401 when not authenticated', async () => {
+      mockGetUser.mockResolvedValue({ data: { user: null }, error: null });
+
+      const response = await logoutHandler();
+      const data = await response.json();
+
+      expect(response.status).toBe(401);
+      expect(data.error).toBe('Not authenticated');
+      expect(mockSignOut).not.toHaveBeenCalled();
+    });
+
     it('should return 400 for Supabase sign out errors', async () => {
+      mockGetUser.mockResolvedValue({ data: { user: mockUser }, error: null });
       mockSignOut.mockResolvedValue({
         error: { message: 'Session not found' },
       });
@@ -611,10 +627,11 @@ describe('Auth API Routes', () => {
       const data = await response.json();
 
       expect(response.status).toBe(400);
-      expect(data.error).toBe('Session not found');
+      expect(data.error).toBe('Logout failed');
     });
 
     it('should return 500 for unexpected errors', async () => {
+      mockGetUser.mockResolvedValue({ data: { user: mockUser }, error: null });
       mockSignOut.mockRejectedValue(new Error('Connection reset'));
 
       const response = await logoutHandler();
@@ -899,7 +916,7 @@ describe('Auth API Validation Edge Cases', () => {
         url: 'http://localhost:3000/api/auth/register',
         body: {
           email: 'test@example.com',
-          password: 'securePassword123',
+          password: 'Secure@Password123',
           firstName: "O'Brien",
           lastName: 'Van der Berg',
           role: 'client',
@@ -921,7 +938,7 @@ describe('Auth API Validation Edge Cases', () => {
       );
     });
 
-    it('should accept exactly 8 character password', async () => {
+    it('should accept exactly 8 character password meeting complexity requirements', async () => {
       mockSignUp.mockResolvedValue({
         data: { user: { id: 'user-123' }, session: { access_token: 'token' } },
         error: null,
@@ -931,7 +948,7 @@ describe('Auth API Validation Edge Cases', () => {
         url: 'http://localhost:3000/api/auth/register',
         body: {
           email: 'test@example.com',
-          password: '12345678',
+          password: 'Ab1!xyzw',
           firstName: 'John',
           lastName: 'Doe',
           role: 'client',

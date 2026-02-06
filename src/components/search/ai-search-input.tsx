@@ -38,7 +38,9 @@ export function AISearchInput({
     if (typeof window === 'undefined') return [];
     try {
       const stored = localStorage.getItem('recentSearches');
-      return stored ? JSON.parse(stored).slice(0, 5) : [];
+      if (!stored) return [];
+      const parsed = JSON.parse(stored);
+      return Array.isArray(parsed) ? parsed.slice(0, 5) : [];
     } catch {
       return [];
     }

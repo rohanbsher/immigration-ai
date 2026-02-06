@@ -47,6 +47,8 @@ const navIcons: Record<string, React.ElementType> = {
   Billing: CreditCard,
   Notifications: Bell,
   Settings: Settings,
+  'My Cases': LayoutDashboard,
+  'My Documents': FolderOpen,
 };
 
 interface SidebarProps {
@@ -83,8 +85,8 @@ export function Sidebar({ user }: SidebarProps) {
   }, [user?.role]);
 
   const isActive = (href: string) => {
-    if (href === '/dashboard') {
-      return pathname === '/dashboard';
+    if (href === '/dashboard' || href === '/dashboard/client') {
+      return pathname === href;
     }
     return pathname.startsWith(href);
   };
@@ -146,7 +148,7 @@ export function Sidebar({ user }: SidebarProps) {
               key={item.href}
               href={item.href}
               className={cn(
-                'flex items-center gap-3 px-3 py-2 rounded-lg transition-colors',
+                'flex items-center gap-3 px-3 py-2 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900',
                 active
                   ? 'bg-sidebar-primary text-sidebar-primary-foreground'
                   : 'text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent'
@@ -169,7 +171,7 @@ export function Sidebar({ user }: SidebarProps) {
               key={item.href}
               href={item.href}
               className={cn(
-                'flex items-center gap-3 px-3 py-2 rounded-lg transition-colors',
+                'flex items-center gap-3 px-3 py-2 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900',
                 active
                   ? 'bg-sidebar-primary text-sidebar-primary-foreground'
                   : 'text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent'

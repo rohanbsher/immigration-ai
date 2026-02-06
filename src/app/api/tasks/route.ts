@@ -31,7 +31,7 @@ export const GET = withAuth(async (request, _context, auth) => {
 
     const filters = {
       case_id: searchParams.get('case_id') || undefined,
-      assigned_to: searchParams.get('assigned_to') || searchParams.get('my') === 'true' ? auth.user.id : undefined,
+      assigned_to: searchParams.get('assigned_to') || (searchParams.get('my') === 'true' ? auth.user.id : undefined),
       status: searchParams.get('status') || undefined,
       priority: searchParams.get('priority') || undefined,
       search: searchParams.get('search') || undefined,

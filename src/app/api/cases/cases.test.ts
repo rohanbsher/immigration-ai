@@ -874,7 +874,7 @@ describe('Cases API Routes', () => {
       });
     });
 
-    it('should create form for case client', async () => {
+    it('should return 403 when client tries to create form', async () => {
       setCurrentUser(mockClientUser, mockClientProfile);
 
       const { POST } = await import('./[id]/forms/route');
@@ -885,7 +885,7 @@ describe('Cases API Routes', () => {
 
       const response = await POST(request, { params: Promise.resolve({ id: CASE_ID }) });
 
-      expect(response.status).toBe(201);
+      expect(response.status).toBe(403);
     });
 
     it('should return 401 for unauthenticated user', async () => {

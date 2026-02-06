@@ -98,6 +98,7 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
               >
                 Try Again
               </button>
+              {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- Next.js Link unavailable in global-error (no layout/router) */}
               <a
                 href="/"
                 style={{

@@ -84,8 +84,8 @@ const serverEnvSchema = z.object({
 
   // Email
   RESEND_API_KEY: z.string().optional(),
-  EMAIL_FROM: z.string().email().optional(),
-  EMAIL_REPLY_TO: z.string().email().optional(),
+  EMAIL_FROM: z.string().min(1).optional(),
+  EMAIL_REPLY_TO: z.string().min(1).optional(),
 
   // Rate Limiting (optional - falls back to in-memory)
   UPSTASH_REDIS_REST_URL: z.string().url().optional(),

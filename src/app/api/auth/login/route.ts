@@ -63,6 +63,39 @@ export async function POST(request: NextRequest) {
       .eq('id', data.user.id)
       .single();
 
+    // Defensive fallback: create profile if auth succeeded but profile is missing
+    if (!profile && data.user) {
+      log.warn('Profile missing for authenticated user, creating from metadata', {
+        userId: data.user.id,
+      });
+      const meta = data.user.user_metadata;
+      const { data: newProfile, error: upsertError } = await supabase
+        .from('profiles')
+        .upsert({
+          id: data.user.id,
+          email: data.user.email || '',
+          first_name: meta?.first_name || '',
+          last_name: meta?.last_name || '',
+          role: meta?.role || 'client',
+        }, { onConflict: 'id' })
+        .select('id, role, first_name, last_name, email, avatar_url')
+        .single();
+
+      if (upsertError) {
+        log.error('Failed to create profile on-the-fly', {
+          userId: data.user.id,
+          error: upsertError.message,
+        });
+      }
+
+      return NextResponse.json({
+        message: 'Login successful',
+        user: data.user,
+        session: sessionData.session ?? data.session,
+        profile: newProfile ?? null,
+      });
+    }
+
     return NextResponse.json({
       message: 'Login successful',
       user: data.user,

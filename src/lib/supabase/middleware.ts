@@ -120,6 +120,13 @@ export async function updateSession(request: NextRequest) {
     });
   }
 
+  if (user && !profile && !profileError) {
+    log.warn('Authenticated user has no profile row, deferring to layout', {
+      requestId,
+      userId: user.id,
+    });
+  }
+
   // Admin route protection - check user role
   if (isAdminPath && user) {
     if (!profileError && (!profile || profile.role !== 'admin')) {

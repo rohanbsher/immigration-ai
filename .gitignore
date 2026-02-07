@@ -45,5 +45,8 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# supabase CLI temp files
+supabase/.temp/
+
 # Private strategy documents
 ../.strategy/

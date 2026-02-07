@@ -126,6 +126,7 @@ describe('Auth API Routes', () => {
   let mockGetSession: ReturnType<typeof vi.fn>;
   let mockGetUser: ReturnType<typeof vi.fn>;
   let mockFromSelect: ReturnType<typeof vi.fn>;
+  let mockUpsertSelect: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -138,6 +139,7 @@ describe('Auth API Routes', () => {
     mockGetSession = vi.fn();
     mockGetUser = vi.fn().mockResolvedValue({ data: { user: mockUser }, error: null });
     mockFromSelect = vi.fn();
+    mockUpsertSelect = vi.fn().mockResolvedValue({ data: null, error: null });
 
     // Setup createClient mock
     mockedCreateClient.mockResolvedValue({
@@ -153,6 +155,11 @@ describe('Auth API Routes', () => {
         select: vi.fn(() => ({
           eq: vi.fn(() => ({
             single: mockFromSelect,
+          })),
+        })),
+        upsert: vi.fn(() => ({
+          select: vi.fn(() => ({
+            single: mockUpsertSelect,
           })),
         })),
       })),
@@ -285,13 +292,23 @@ describe('Auth API Routes', () => {
       expect(data.error).toBe('An unexpected error occurred');
     });
 
-    it('should handle login without profile gracefully', async () => {
+    it('should create profile on-the-fly when profile is missing after login', async () => {
+      const upsertedProfile = {
+        id: 'user-123',
+        role: 'attorney',
+        first_name: 'John',
+        last_name: 'Doe',
+        email: 'test@example.com',
+        avatar_url: null,
+      };
+
       mockSignInWithPassword.mockResolvedValue({
         data: { user: mockUser, session: mockSession },
         error: null,
       });
       mockGetSession.mockResolvedValue({ data: { session: mockSession }, error: null });
       mockFromSelect.mockResolvedValue({ data: null, error: null });
+      mockUpsertSelect.mockResolvedValue({ data: upsertedProfile, error: null });
 
       const request = createMockRequest({
         body: {
@@ -305,7 +322,7 @@ describe('Auth API Routes', () => {
 
       expect(response.status).toBe(200);
       expect(data.message).toBe('Login successful');
-      expect(data.profile).toBeNull();
+      expect(data.profile).toEqual(upsertedProfile);
     });
   });
 

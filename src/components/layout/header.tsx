@@ -48,7 +48,7 @@ export function Header({ title, onMenuClick, user }: HeaderProps) {
     .join('')
     .toUpperCase() || 'U';
 
-  const recentNotifications = notifications?.slice(0, 3) || [];
+  const recentNotifications = Array.isArray(notifications) ? notifications.slice(0, 3) : [];
 
   return (
     <header className="h-16 border-b border-border bg-card flex items-center justify-between px-4 lg:px-6">

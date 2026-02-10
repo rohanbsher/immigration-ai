@@ -1,6 +1,6 @@
 'use client';
 
-import { use, useState, useEffect, Suspense } from 'react';
+import { use, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -111,8 +111,8 @@ function CaseDetailContent({
     notes: '',
   });
 
-  useEffect(() => {
-    if (caseData && !isEditDialogOpen) {
+  const openEditDialog = () => {
+    if (caseData) {
       setEditData({
         title: caseData.title || '',
         description: caseData.description || '',
@@ -122,7 +122,8 @@ function CaseDetailContent({
         notes: caseData.notes || '',
       });
     }
-  }, [caseData, isEditDialogOpen]);
+    setIsEditDialogOpen(true);
+  };
 
   const handleStatusChange = (newStatus: CaseStatus) => {
     updateCase(
@@ -256,7 +257,7 @@ function CaseDetailContent({
               </option>
             ))}
           </select>
-          <Button variant="outline" size="icon" aria-label="Edit case details" onClick={() => setIsEditDialogOpen(true)}>
+          <Button variant="outline" size="icon" aria-label="Edit case details" onClick={openEditDialog}>
             <Edit className="h-4 w-4" />
           </Button>
         </div>

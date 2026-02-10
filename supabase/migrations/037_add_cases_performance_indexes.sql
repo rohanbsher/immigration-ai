@@ -5,14 +5,14 @@
 -- 3. Composite index on (client_id, status) for client portal case lists
 -- All partial indexes exclude soft-deleted rows for efficiency.
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_cases_visa_type
+CREATE INDEX IF NOT EXISTS idx_cases_visa_type
   ON cases(visa_type)
   WHERE deleted_at IS NULL;
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_cases_attorney_status
+CREATE INDEX IF NOT EXISTS idx_cases_attorney_status
   ON cases(attorney_id, status)
   WHERE deleted_at IS NULL;
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_cases_client_status
+CREATE INDEX IF NOT EXISTS idx_cases_client_status
   ON cases(client_id, status)
   WHERE deleted_at IS NULL;

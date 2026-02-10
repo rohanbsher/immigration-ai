@@ -1,0 +1,1139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Immigration AI - Redesign Prototype: Landing Page</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --ink: #1a1a2e;
+    --paper: #fafaf8;
+    --stone: #e8e6e1;
+    --graphite: #6b6b7b;
+    --text-secondary: #4a4a5a;
+    --counsel-blue: #2563eb;
+    --counsel-blue-hover: #1d4ed8;
+    --signal-green: #16a34a;
+    --alert-amber: #d97706;
+    --white: #ffffff;
+  }
+
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    color: var(--ink);
+    background: var(--paper);
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.6;
+  }
+
+  /* ===== NAVIGATION ===== */
+  nav {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: var(--paper);
+    border-bottom: 1px solid var(--stone);
+  }
+
+  .nav-inner {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 0 32px;
+    height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .nav-logo {
+    font-weight: 600;
+    font-size: 18px;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+    text-decoration: none;
+  }
+
+  .nav-links {
+    display: flex;
+    align-items: center;
+    gap: 32px;
+  }
+
+  .nav-links a {
+    font-size: 14px;
+    font-weight: 450;
+    color: var(--graphite);
+    text-decoration: none;
+    transition: color 150ms ease;
+  }
+
+  .nav-links a:hover {
+    color: var(--ink);
+  }
+
+  .nav-actions {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+  }
+
+  .nav-actions .sign-in {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--graphite);
+    text-decoration: none;
+    transition: color 150ms ease;
+  }
+
+  .nav-actions .sign-in:hover {
+    color: var(--ink);
+  }
+
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    padding: 10px 24px;
+    background: var(--ink);
+    color: var(--white);
+    font-size: 14px;
+    font-weight: 500;
+    font-family: inherit;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background 150ms ease;
+    letter-spacing: -0.01em;
+  }
+
+  .btn-primary:hover {
+    background: #2a2a3e;
+  }
+
+  .btn-outline {
+    display: inline-flex;
+    align-items: center;
+    padding: 10px 24px;
+    background: transparent;
+    color: var(--ink);
+    font-size: 14px;
+    font-weight: 500;
+    font-family: inherit;
+    border: 1px solid var(--stone);
+    border-radius: 6px;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 150ms ease;
+  }
+
+  .btn-outline:hover {
+    border-color: var(--ink);
+  }
+
+  /* ===== HERO ===== */
+  .hero {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 120px 32px 80px;
+    text-align: center;
+  }
+
+  .hero-overline {
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--graphite);
+    margin-bottom: 24px;
+  }
+
+  .hero h1 {
+    font-size: 56px;
+    font-weight: 600;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+    max-width: 720px;
+    margin: 0 auto 24px;
+    color: var(--ink);
+  }
+
+  .hero p {
+    font-size: 18px;
+    line-height: 1.7;
+    color: var(--graphite);
+    max-width: 520px;
+    margin: 0 auto 40px;
+    font-weight: 400;
+  }
+
+  .hero-cta {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    margin-bottom: 80px;
+  }
+
+  .hero-cta .btn-primary {
+    padding: 14px 32px;
+    font-size: 15px;
+  }
+
+  .hero-note {
+    font-size: 13px;
+    color: var(--graphite);
+    margin-top: 12px;
+  }
+
+  /* ===== PRODUCT SCREENSHOT ===== */
+  .product-preview {
+    max-width: 1080px;
+    margin: 0 auto 120px;
+    padding: 0 32px;
+  }
+
+  .product-preview .screenshot {
+    width: 100%;
+    aspect-ratio: 16 / 10;
+    background: var(--white);
+    border: 1px solid var(--stone);
+    border-radius: 8px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .screenshot-inner {
+    width: 100%;
+    height: 100%;
+    display: flex;
+  }
+
+  .screenshot-sidebar {
+    width: 220px;
+    background: var(--paper);
+    border-right: 1px solid var(--stone);
+    padding: 20px 16px;
+    flex-shrink: 0;
+  }
+
+  .screenshot-sidebar .logo {
+    font-weight: 600;
+    font-size: 14px;
+    margin-bottom: 32px;
+    color: var(--ink);
+  }
+
+  .screenshot-sidebar .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    margin-bottom: 4px;
+    border-radius: 4px;
+    font-size: 13px;
+    color: var(--graphite);
+  }
+
+  .screenshot-sidebar .nav-item.active {
+    background: var(--white);
+    color: var(--ink);
+    font-weight: 500;
+    border-left: 2px solid var(--counsel-blue);
+  }
+
+  .screenshot-sidebar .nav-icon {
+    width: 16px;
+    height: 16px;
+    background: var(--stone);
+    border-radius: 3px;
+  }
+
+  .screenshot-sidebar .nav-item.active .nav-icon {
+    background: var(--counsel-blue);
+    opacity: 0.3;
+  }
+
+  .screenshot-main {
+    flex: 1;
+    padding: 24px 32px;
+    overflow: hidden;
+  }
+
+  .screenshot-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+  }
+
+  .screenshot-header h2 {
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+
+  .screenshot-stats {
+    font-size: 12px;
+    color: var(--graphite);
+  }
+
+  .screenshot-stats span {
+    margin-left: 16px;
+  }
+
+  .screenshot-row {
+    display: flex;
+    align-items: center;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--stone);
+    font-size: 13px;
+  }
+
+  .screenshot-row:first-child {
+    border-top: 1px solid var(--stone);
+  }
+
+  .row-name {
+    flex: 1;
+    font-weight: 500;
+    color: var(--ink);
+  }
+
+  .row-type {
+    width: 100px;
+    color: var(--graphite);
+  }
+
+  .row-status {
+    width: 120px;
+  }
+
+  .status-pill {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
+  }
+
+  .status-pill.active {
+    background: #dcfce7;
+    color: #166534;
+  }
+
+  .status-pill.review {
+    background: #fef3c7;
+    color: #92400e;
+  }
+
+  .status-pill.filed {
+    background: #dbeafe;
+    color: #1e40af;
+  }
+
+  .row-deadline {
+    width: 100px;
+    color: var(--graphite);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+  }
+
+  /* ===== PRODUCT SECTIONS ===== */
+  .product-section {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 80px 32px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 80px;
+    align-items: center;
+  }
+
+  .product-section:nth-child(even) .product-text {
+    order: 2;
+  }
+
+  .product-section:nth-child(even) .product-visual {
+    order: 1;
+  }
+
+  .product-text .section-label {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--counsel-blue);
+    margin-bottom: 16px;
+  }
+
+  .product-text h2 {
+    font-size: 36px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    margin-bottom: 16px;
+  }
+
+  .product-text p {
+    font-size: 16px;
+    line-height: 1.7;
+    color: var(--graphite);
+    margin-bottom: 8px;
+  }
+
+  .product-visual {
+    background: var(--white);
+    border: 1px solid var(--stone);
+    border-radius: 8px;
+    padding: 32px;
+    min-height: 320px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  /* Document extraction visual */
+  .extraction-demo {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .extraction-source {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: var(--paper);
+    border-radius: 6px;
+  }
+
+  .doc-icon {
+    width: 36px;
+    height: 36px;
+    background: var(--stone);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--graphite);
+    flex-shrink: 0;
+  }
+
+  .doc-info {
+    flex: 1;
+  }
+
+  .doc-info .name {
+    font-size: 13px;
+    font-weight: 500;
+  }
+
+  .doc-info .meta {
+    font-size: 12px;
+    color: var(--graphite);
+  }
+
+  .extraction-arrow {
+    text-align: center;
+    color: var(--stone);
+    font-size: 20px;
+  }
+
+  .extraction-result {
+    padding: 16px;
+    border: 1px solid var(--stone);
+    border-radius: 6px;
+  }
+
+  .extraction-result .label {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--graphite);
+    margin-bottom: 8px;
+  }
+
+  .extracted-fields {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .extracted-field .field-label {
+    font-size: 11px;
+    color: var(--graphite);
+    margin-bottom: 2px;
+  }
+
+  .extracted-field .field-value {
+    font-size: 13px;
+    font-weight: 500;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* Deadline visual */
+  .deadline-demo {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .deadline-item {
+    display: flex;
+    align-items: center;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--stone);
+  }
+
+  .deadline-item:last-child {
+    border-bottom: none;
+  }
+
+  .deadline-date {
+    width: 64px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+
+  .deadline-date .day {
+    font-size: 20px;
+    font-weight: 600;
+    line-height: 1.2;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .deadline-date .month {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--graphite);
+  }
+
+  .deadline-info {
+    flex: 1;
+    padding-left: 16px;
+    border-left: 1px solid var(--stone);
+    margin-left: 16px;
+  }
+
+  .deadline-info .title {
+    font-size: 13px;
+    font-weight: 500;
+    margin-bottom: 2px;
+  }
+
+  .deadline-info .subtitle {
+    font-size: 12px;
+    color: var(--graphite);
+  }
+
+  .deadline-urgency {
+    font-size: 11px;
+    font-weight: 500;
+    padding: 2px 8px;
+    border-radius: 3px;
+  }
+
+  .deadline-urgency.urgent {
+    color: #b45309;
+    background: #fef3c7;
+  }
+
+  .deadline-urgency.soon {
+    color: #1e40af;
+    background: #dbeafe;
+  }
+
+  .deadline-urgency.ok {
+    color: #166534;
+    background: #dcfce7;
+  }
+
+  /* Portal visual */
+  .portal-demo {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .portal-step {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: var(--paper);
+    border-radius: 6px;
+  }
+
+  .step-number {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--ink);
+    color: var(--white);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+
+  .step-number.done {
+    background: var(--signal-green);
+  }
+
+  .step-text {
+    flex: 1;
+  }
+
+  .step-text .step-title {
+    font-size: 13px;
+    font-weight: 500;
+    margin-bottom: 1px;
+  }
+
+  .step-text .step-desc {
+    font-size: 12px;
+    color: var(--graphite);
+  }
+
+  .step-check {
+    color: var(--signal-green);
+    font-size: 16px;
+  }
+
+  /* ===== SOCIAL PROOF ===== */
+  .social-proof {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 80px 32px;
+    text-align: center;
+    border-top: 1px solid var(--stone);
+  }
+
+  .social-proof p {
+    font-size: 13px;
+    color: var(--graphite);
+    margin-bottom: 32px;
+    letter-spacing: 0.02em;
+  }
+
+  .firm-logos {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 48px;
+    opacity: 0.4;
+  }
+
+  .firm-logo {
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+  }
+
+  /* ===== PRICING ===== */
+  .pricing {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 120px 32px;
+  }
+
+  .pricing h2 {
+    font-size: 36px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    text-align: center;
+    margin-bottom: 12px;
+  }
+
+  .pricing > p {
+    text-align: center;
+    color: var(--graphite);
+    margin-bottom: 48px;
+    font-size: 16px;
+  }
+
+  .pricing-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+
+  .pricing-card {
+    border: 1px solid var(--stone);
+    border-radius: 8px;
+    padding: 32px;
+  }
+
+  .pricing-card.recommended {
+    border-color: var(--ink);
+    border-width: 2px;
+    position: relative;
+  }
+
+  .pricing-card.recommended::before {
+    content: 'Most popular';
+    position: absolute;
+    top: -12px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--ink);
+    color: var(--white);
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 12px;
+    border-radius: 4px;
+    letter-spacing: 0.02em;
+  }
+
+  .pricing-card h3 {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+
+  .pricing-card .price {
+    font-size: 36px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    margin-bottom: 4px;
+  }
+
+  .pricing-card .price span {
+    font-size: 16px;
+    font-weight: 400;
+    color: var(--graphite);
+  }
+
+  .pricing-card .desc {
+    font-size: 14px;
+    color: var(--graphite);
+    margin-bottom: 24px;
+  }
+
+  .pricing-features {
+    list-style: none;
+    margin-bottom: 32px;
+  }
+
+  .pricing-features li {
+    font-size: 14px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--stone);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .pricing-features li:last-child {
+    border-bottom: none;
+  }
+
+  .pricing-features .check {
+    color: var(--signal-green);
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+
+  .pricing-contact {
+    text-align: center;
+    margin-top: 40px;
+    font-size: 14px;
+    color: var(--graphite);
+  }
+
+  .pricing-contact a {
+    color: var(--counsel-blue);
+    text-decoration: none;
+    font-weight: 500;
+  }
+
+  .pricing-contact a:hover {
+    text-decoration: underline;
+  }
+
+  /* ===== FOOTER ===== */
+  footer {
+    border-top: 1px solid var(--stone);
+    padding: 32px;
+  }
+
+  .footer-inner {
+    max-width: 1280px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .footer-left {
+    font-size: 13px;
+    color: var(--graphite);
+  }
+
+  .footer-links {
+    display: flex;
+    gap: 24px;
+  }
+
+  .footer-links a {
+    font-size: 13px;
+    color: var(--graphite);
+    text-decoration: none;
+    transition: color 150ms ease;
+  }
+
+  .footer-links a:hover {
+    color: var(--ink);
+  }
+
+  /* ===== DIVIDER ===== */
+  .section-divider {
+    max-width: 1280px;
+    margin: 0 auto;
+    border-top: 1px solid var(--stone);
+  }
+
+  /* ===== RESPONSIVE ===== */
+  @media (max-width: 768px) {
+    .hero h1 { font-size: 36px; }
+    .hero { padding: 80px 24px 60px; }
+    .product-section { grid-template-columns: 1fr; gap: 40px; }
+    .product-section:nth-child(even) .product-text { order: 1; }
+    .product-section:nth-child(even) .product-visual { order: 2; }
+    .pricing-grid { grid-template-columns: 1fr; }
+    .nav-links { display: none; }
+    .screenshot-sidebar { display: none; }
+    .firm-logos { flex-wrap: wrap; gap: 24px; }
+    .hero-cta { flex-direction: column; }
+  }
+
+  /* ===== PROTOTYPE LABEL ===== */
+  .prototype-banner {
+    position: fixed;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--ink);
+    color: var(--white);
+    padding: 8px 20px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    z-index: 1000;
+    letter-spacing: 0.02em;
+  }
+</style>
+</head>
+<body>
+
+<!-- Navigation -->
+<nav>
+  <div class="nav-inner">
+    <a href="#" class="nav-logo">Immigration AI</a>
+    <div class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#pricing">Pricing</a>
+    </div>
+    <div class="nav-actions">
+      <a href="#" class="sign-in">Sign in</a>
+      <a href="#" class="btn-primary">Get started</a>
+    </div>
+  </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero">
+  <div class="hero-overline">Case management for immigration law</div>
+  <h1>The platform immigration attorneys actually want to use.</h1>
+  <p>Upload documents. Extract data automatically. Fill USCIS forms in minutes, not hours. Track every case and deadline in one place.</p>
+  <div class="hero-cta">
+    <a href="#" class="btn-primary">Start for free</a>
+    <a href="#" class="btn-outline">See how it works</a>
+  </div>
+  <p class="hero-note">Free for up to 3 cases. No credit card required.</p>
+</section>
+
+<!-- Product Screenshot -->
+<div class="product-preview">
+  <div class="screenshot">
+    <div class="screenshot-inner">
+      <div class="screenshot-sidebar">
+        <div class="logo">Immigration AI</div>
+        <div class="nav-item active"><div class="nav-icon"></div> Cases</div>
+        <div class="nav-item"><div class="nav-icon"></div> Documents</div>
+        <div class="nav-item"><div class="nav-icon"></div> Forms</div>
+        <div class="nav-item"><div class="nav-icon"></div> Calendar</div>
+        <div class="nav-item"><div class="nav-icon"></div> Settings</div>
+      </div>
+      <div class="screenshot-main">
+        <div class="screenshot-header">
+          <h2>Active Cases</h2>
+          <div class="screenshot-stats">
+            12 active<span>3 due this week</span><span>2 need review</span>
+          </div>
+        </div>
+        <div class="screenshot-row">
+          <div class="row-name">Martinez, Elena</div>
+          <div class="row-type">H-1B</div>
+          <div class="row-status"><span class="status-pill review">In review</span></div>
+          <div class="row-deadline">Mar 15</div>
+        </div>
+        <div class="screenshot-row">
+          <div class="row-name">Chen, Wei</div>
+          <div class="row-type">I-485</div>
+          <div class="row-status"><span class="status-pill active">Active</span></div>
+          <div class="row-deadline">Apr 02</div>
+        </div>
+        <div class="screenshot-row">
+          <div class="row-name">Patel, Arun</div>
+          <div class="row-type">L-1A</div>
+          <div class="row-status"><span class="status-pill filed">Filed</span></div>
+          <div class="row-deadline">Apr 18</div>
+        </div>
+        <div class="screenshot-row">
+          <div class="row-name">Nakamura, Yuki</div>
+          <div class="row-type">O-1B</div>
+          <div class="row-status"><span class="status-pill active">Active</span></div>
+          <div class="row-deadline">May 01</div>
+        </div>
+        <div class="screenshot-row">
+          <div class="row-name">Okafor, Chidera</div>
+          <div class="row-type">EB-2</div>
+          <div class="row-status"><span class="status-pill review">In review</span></div>
+          <div class="row-deadline">May 12</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Feature Sections -->
+<div id="features">
+  <div class="section-divider"></div>
+
+  <section class="product-section">
+    <div class="product-text">
+      <div class="section-label">Document Intelligence</div>
+      <h2>Upload a passport. Watch it become a form.</h2>
+      <p>Drop in any immigration document - passports, I-94s, visa stamps, employment letters. Key data is extracted and mapped to the right USCIS form fields automatically.</p>
+      <p>Review what was found, correct anything that needs it, and move on. No more retyping information that's already on paper.</p>
+    </div>
+    <div class="product-visual">
+      <div class="extraction-demo">
+        <div class="extraction-source">
+          <div class="doc-icon">PDF</div>
+          <div class="doc-info">
+            <div class="name">passport_elena_martinez.pdf</div>
+            <div class="meta">Uploaded 2 min ago &middot; 2.4 MB</div>
+          </div>
+        </div>
+        <div class="extraction-arrow">&darr;</div>
+        <div class="extraction-result">
+          <div class="label">Extracted fields</div>
+          <div class="extracted-fields">
+            <div class="extracted-field">
+              <div class="field-label">Full Name</div>
+              <div class="field-value">Elena Martinez</div>
+            </div>
+            <div class="extracted-field">
+              <div class="field-label">Passport No.</div>
+              <div class="field-value">PA4821903</div>
+            </div>
+            <div class="extracted-field">
+              <div class="field-label">Date of Birth</div>
+              <div class="field-value">1988-03-14</div>
+            </div>
+            <div class="extracted-field">
+              <div class="field-label">Nationality</div>
+              <div class="field-value">Mexico</div>
+            </div>
+            <div class="extracted-field">
+              <div class="field-label">Expiry Date</div>
+              <div class="field-value">2029-06-20</div>
+            </div>
+            <div class="extracted-field">
+              <div class="field-label">Issue Date</div>
+              <div class="field-value">2019-06-20</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <section class="product-section">
+    <div class="product-text">
+      <div class="section-label">Case Management</div>
+      <h2>Every deadline. Every document. One view.</h2>
+      <p>See exactly where each case stands. What's been filed, what's pending, what needs your attention this week.</p>
+      <p>No more spreadsheets. No more sticky notes. No more waking up worried you missed something.</p>
+    </div>
+    <div class="product-visual">
+      <div class="deadline-demo">
+        <div class="deadline-item">
+          <div class="deadline-date">
+            <div class="day">15</div>
+            <div class="month">Mar</div>
+          </div>
+          <div class="deadline-info">
+            <div class="title">H-1B Filing Deadline</div>
+            <div class="subtitle">Martinez, Elena &middot; 4 documents pending</div>
+          </div>
+          <span class="deadline-urgency urgent">3 days</span>
+        </div>
+        <div class="deadline-item">
+          <div class="deadline-date">
+            <div class="day">02</div>
+            <div class="month">Apr</div>
+          </div>
+          <div class="deadline-info">
+            <div class="title">I-485 Response Due</div>
+            <div class="subtitle">Chen, Wei &middot; RFE received</div>
+          </div>
+          <span class="deadline-urgency soon">21 days</span>
+        </div>
+        <div class="deadline-item">
+          <div class="deadline-date">
+            <div class="day">18</div>
+            <div class="month">Apr</div>
+          </div>
+          <div class="deadline-info">
+            <div class="title">L-1A Interview Prep</div>
+            <div class="subtitle">Patel, Arun &middot; All documents ready</div>
+          </div>
+          <span class="deadline-urgency ok">37 days</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <section class="product-section">
+    <div class="product-text">
+      <div class="section-label">Client Experience</div>
+      <h2>Your clients see progress, not your inbox.</h2>
+      <p>Give clients their own portal to upload documents, check case status, and see what's next - without calling your office.</p>
+      <p>Fewer status update emails. Fewer phone calls. Happier clients who feel informed every step of the way.</p>
+    </div>
+    <div class="product-visual">
+      <div class="portal-demo">
+        <div class="portal-step">
+          <div class="step-number done">&#10003;</div>
+          <div class="step-text">
+            <div class="step-title">Documents uploaded</div>
+            <div class="step-desc">Passport, I-94, Employment letter</div>
+          </div>
+          <div class="step-check">&#10003;</div>
+        </div>
+        <div class="portal-step">
+          <div class="step-number done">&#10003;</div>
+          <div class="step-text">
+            <div class="step-title">Forms prepared</div>
+            <div class="step-desc">I-129 auto-filled, pending attorney review</div>
+          </div>
+          <div class="step-check">&#10003;</div>
+        </div>
+        <div class="portal-step">
+          <div class="step-number">3</div>
+          <div class="step-text">
+            <div class="step-title">Attorney review</div>
+            <div class="step-desc">Your attorney is reviewing the application</div>
+          </div>
+        </div>
+        <div class="portal-step" style="opacity: 0.5;">
+          <div class="step-number" style="background: var(--stone);">4</div>
+          <div class="step-text">
+            <div class="step-title">Filing</div>
+            <div class="step-desc">Application submitted to USCIS</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- Social Proof -->
+<div class="section-divider"></div>
+<section class="social-proof">
+  <p>Trusted by immigration practices across the country</p>
+  <div class="firm-logos">
+    <span class="firm-logo">Chen Law Group</span>
+    <span class="firm-logo">Rodriguez & Associates</span>
+    <span class="firm-logo">Pacific Immigration</span>
+    <span class="firm-logo">Liberty Legal</span>
+    <span class="firm-logo">Atlas Law Firm</span>
+  </div>
+</section>
+
+<!-- Pricing -->
+<div class="section-divider"></div>
+<section id="pricing" class="pricing">
+  <h2>Simple pricing</h2>
+  <p>Start free. Upgrade when you're ready.</p>
+
+  <div class="pricing-grid">
+    <div class="pricing-card">
+      <h3>Free</h3>
+      <div class="price">$0</div>
+      <div class="desc">For solo practitioners getting started</div>
+      <ul class="pricing-features">
+        <li><span class="check">&#10003;</span> Up to 3 active cases</li>
+        <li><span class="check">&#10003;</span> Document extraction</li>
+        <li><span class="check">&#10003;</span> Basic form auto-fill</li>
+        <li><span class="check">&#10003;</span> Client portal</li>
+        <li><span class="check">&#10003;</span> Email support</li>
+      </ul>
+      <a href="#" class="btn-outline" style="width: 100%; justify-content: center;">Get started</a>
+    </div>
+
+    <div class="pricing-card recommended">
+      <h3>Pro</h3>
+      <div class="price">$99<span>/month</span></div>
+      <div class="desc">For growing practices</div>
+      <ul class="pricing-features">
+        <li><span class="check">&#10003;</span> Up to 50 active cases</li>
+        <li><span class="check">&#10003;</span> Advanced extraction & analysis</li>
+        <li><span class="check">&#10003;</span> All USCIS form types</li>
+        <li><span class="check">&#10003;</span> Team collaboration (5 seats)</li>
+        <li><span class="check">&#10003;</span> Priority support</li>
+        <li><span class="check">&#10003;</span> Deadline alerts</li>
+      </ul>
+      <a href="#" class="btn-primary" style="width: 100%; justify-content: center;">Start free trial</a>
+    </div>
+  </div>
+
+  <div class="pricing-contact">
+    Large firm with custom needs? <a href="#">Talk to our team</a>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer>
+  <div class="footer-inner">
+    <div class="footer-left">&copy; 2026 Immigration AI. All rights reserved.</div>
+    <div class="footer-links">
+      <a href="#">Privacy</a>
+      <a href="#">Terms</a>
+      <a href="#">Contact</a>
+    </div>
+  </div>
+</footer>
+
+<div class="prototype-banner">PROTOTYPE &mdash; Landing Page Redesign</div>
+
+</body>
+</html>

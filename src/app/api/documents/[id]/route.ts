@@ -183,7 +183,7 @@ export async function DELETE(
 
     // Delete file from storage using the stored path directly
     try {
-      const storagePath = accessResult.document!.file_url;
+      const storagePath = accessResult.document?.file_url;
       if (storagePath) {
         await supabase.storage.from('documents').remove([storagePath]);
       }

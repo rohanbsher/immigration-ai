@@ -120,7 +120,12 @@ export async function POST(
     // Convert document data to the format expected by the AI service
     const documentAnalyses: DocumentAnalysisResult[] = analyzedDocuments.map(
       (doc) => {
-        const extractedData = doc.ai_extracted_data as Record<string, unknown>;
+        const extractedData =
+          (doc.ai_extracted_data != null &&
+            typeof doc.ai_extracted_data === 'object' &&
+            !Array.isArray(doc.ai_extracted_data))
+            ? (doc.ai_extracted_data as Record<string, unknown>)
+            : {};
         const extractedFields: ExtractedField[] = [];
 
         // Convert stored data back to ExtractedField format
@@ -161,7 +166,12 @@ export async function POST(
         formType: form.form_type,
         caseId: form.case_id,
         documentAnalyses,
-        existingFormData: form.form_data as Record<string, string> || {},
+        existingFormData:
+          (form.form_data != null &&
+            typeof form.form_data === 'object' &&
+            !Array.isArray(form.form_data))
+            ? (form.form_data as Record<string, string>)
+            : {},
         visaType: caseData.visa_type,
       });
     } catch (aiError) {

@@ -1,6 +1,6 @@
 # Immigration AI - Agent Task List
 
-> Last updated: 2026-02-05 (Plan-and-Fix + Production Readiness Audit)
+> Last updated: 2026-02-09 (Production Readiness Audit Complete)
 
 ## Completed Execution Plans
 
@@ -37,107 +37,69 @@ All three implementation plans have been verified as 100% complete.
 
 ---
 
-## Current State
+## Current State (2026-02-09)
 
 ```
-Tests:  1,589 passed | 3 skipped | 0 failures
-Build:  Passes
+Tests:  1,591 passed | 3 skipped | 0 failures
+Build:  Passes (68 routes, no TypeScript errors)
 Lint:   1 error (pre-existing) | 153 warnings (unused vars in E2E tests)
-Console: 0 statements in production code
+Coverage: 82.96% statements | 71.61% branches | 85.19% functions
 ```
 
 ---
 
-## Open Work Streams (Available for New Agents)
+## Open Work Streams
 
-### WS-1: Billing UI (COMPLETE)
-**Status:** Shipped 2026-02-05
-**Files:** `src/app/dashboard/billing/`, `src/components/billing/`
+### WS-TESTS-P1: Security-Critical API Route Tests (HIGH PRIORITY)
+**Status:** Not started
+**Assigned Agent:** Unassigned
+**Estimated Effort:** 15-20 hours
 **Tasks:**
-- [x] Build subscription management page
-- [x] Build checkout flow component
-- [x] Build usage meter display
-- [x] Build plan comparison table
-- [x] Build upgrade/downgrade flow
-- [x] Test Stripe webhook integration end-to-end
+- [ ] 2FA route tests (5 endpoints: setup, verify, status, backup-codes, disable)
+- [ ] Admin route tests (5 endpoints: stats, users, user detail, suspend, unsuspend)
+- [ ] Billing route tests (7 endpoints: checkout, portal, cancel, resume, subscription, quota, webhooks)
 
-### WS-2: Multi-Tenancy UI (COMPLETE)
-**Status:** Shipped 2026-02-05
-**Files:** `src/app/dashboard/firm/`, `src/components/firm/`
+### WS-TESTS-P2: Feature API Route Tests (MEDIUM PRIORITY)
+**Status:** Not started
+**Assigned Agent:** Unassigned
+**Estimated Effort:** 12-16 hours
 **Tasks:**
-- [x] Build firm switcher component
-- [x] Build team invitation flow
-- [x] Build firm settings page
-- [x] Build member management UI
+- [ ] Chat route tests (2 endpoints: POST /api/chat, GET /api/chat/[conversationId])
+- [ ] Notification route tests (5 endpoints)
+- [ ] Cron route tests (deadline-alerts)
+- [ ] Health endpoint tests
+- [ ] Profile endpoint tests
+- [ ] Task management route tests
+- [ ] Document request route tests
 
-### WS-3: Email Notifications (COMPLETE)
-**Status:** Shipped 2026-02-05
-**Files:** `src/lib/email/`
+### WS-TESTS-P3: Frontend Tests (LOW PRIORITY)
+**Status:** Not started
+**Assigned Agent:** Unassigned
+**Estimated Effort:** 30-40 hours
 **Tasks:**
-- [x] Create email templates (welcome, case update, deadline, invitation)
-- [x] Configure Resend for production
-- [x] Wire up notification triggers
-- [x] Build notification preferences UI
+- [ ] Component unit tests (target top 20 critical components first)
+- [ ] Hook tests (target top 10 custom hooks first)
+- [ ] Target: 40%+ component coverage, 60%+ hook coverage
 
-### WS-BASESERVICE: BaseService Migration (COMPLETE)
-**Status:** All 12 services migrated to BaseService pattern
-**Files:** `src/lib/db/*.ts`
+### WS-INFRA: Infrastructure Setup (USER ACTION + GUIDANCE)
+**Status:** In progress — user setting up prod instances
 **Tasks:**
-- [x] Migrate activities.ts to BaseService
-- [x] Migrate case-messages.ts to BaseService
-- [x] Migrate cases.ts to BaseService
-- [x] Migrate conversations.ts to BaseService (preserved backward-compatible function exports)
-- [x] Migrate document-requests.ts to BaseService
-- [x] Migrate documents.ts to BaseService (preserved encryption/audit logic)
-- [x] Migrate forms.ts to BaseService
-- [x] Migrate notifications.ts to BaseService (preserved graceful degradation in getUnreadCount)
-- [x] Migrate profiles.ts to BaseService (preserved graceful degradation in searchProfiles)
-- [x] Migrate subscriptions.ts to BaseService (preserved backward-compatible function exports)
-- [x] Fix analyze route tests for CAS protection mock compatibility
-- [x] Verify all 1,293 tests pass and build succeeds
+- [ ] Supabase production instance + run 39 migrations
+- [ ] Generate ENCRYPTION_KEY and CRON_SECRET
+- [ ] Configure virus scanner (ClamAV or VirusTotal)
+- [ ] Set AI API keys (OpenAI + Anthropic)
+- [ ] Set NEXT_PUBLIC_APP_URL to production domain
+- [ ] Configure Upstash Redis for rate limiting
+- [ ] Configure Resend for email
+- [ ] Configure Sentry for error tracking
+- [ ] Configure Stripe (if monetizing)
+- [ ] Deploy to Vercel
 
-### WS-PLANFIX: Plan-and-Fix Backlog (COMPLETE)
-**Status:** All 3 groups implemented, build + tests pass
+### WS-REMAINING: Non-Blocking Improvements
 **Tasks:**
-- [x] Group A: fetchWithTimeout in two-factor-setup.tsx, client-dashboard.tsx, document-checklist.tsx
-- [x] Group B: Form data sync fix in forms/[id]/page.tsx (isInitialized flag)
-- [x] Group C: Document upload partial failure (Promise.allSettled + retry)
-
-### WS-PROD-FIXES: Production Readiness Fixes (COMPLETE)
-**Status:** Shipped 2026-02-06 — Score 83→~92/100
-**Tasks:**
-- [x] Fix 1: AI API timeout configuration (OpenAI + Anthropic constructors)
-- [x] Fix 2: Admin/settings bare fetch → fetchWithTimeout (6 call sites)
-- [x] Fix 3: Form autofill CAS race condition (autofilling status + rollback)
-- [x] Fix 4: Missing admin pages (subscriptions, audit-logs, system)
-- [x] Fix 5: Auth error message standardization (prevent enumeration)
-- [x] Fix 6: N+1 quota query → Supabase RPC with fallback
-- [x] Fix 7: Update stale documentation
-
-### WS-AUDIT-FIXES: Production Readiness Audit Findings (MOSTLY COMPLETE)
-**Status:** Core fixes done via WS-PROD-FIXES + WS-PROD-READINESS. Remaining items below.
-**Tasks:**
-- [x] Migrate admin dashboard pages to fetchWithTimeout
-- [x] Fix forms list N+1 aggregation query
-- [x] Add tests for success-probability scoring (30 tests)
-- [x] Add tests for GDPR routes (27 tests)
-- [x] Add retry utility with tests (21 tests)
-- [x] Add error boundaries with Sentry integration
-- [x] Add loading states for 5 dashboard routes
-- [x] Add migrations README documentation
 - [ ] Include documents/AI conversations in GDPR data export
-- [ ] Review Redis fail-closed behavior for production safety
-
-### WS-UI: Missing UI Components (LOW PRIORITY)
-**Tasks:**
-- [ ] Client portal view
-- [ ] Analytics dashboard
-- [ ] Document request UI
-- [ ] Task management UI
-
-### WS-LINT: ESLint Warnings (LOW PRIORITY)
-**Tasks:**
-- [ ] Fix 149 remaining warnings (mostly @typescript-eslint/no-unused-vars in E2E tests)
+- [ ] Fix 149 ESLint warnings (mostly unused vars in E2E tests)
+- [ ] Add Dockerfile for self-hosted deployments
 
 ---
 

@@ -63,7 +63,7 @@ export interface ReviewedFieldsData {
 function isMandatoryReviewField(fieldName: string): boolean {
   const normalizedName = fieldName.toLowerCase().replace(/[_\s-]/g, '');
   return MANDATORY_REVIEW_FIELDS.some(field =>
-    normalizedName.includes(field.toLowerCase().replace(/[_\s-]/g, ''))
+    normalizedName === field.toLowerCase().replace(/[_\s-]/g, '')
   );
 }
 

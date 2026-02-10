@@ -1,6 +1,6 @@
 # Immigration AI - Features
 
-> Last updated: 2026-02-06 (Verified)
+> Last updated: 2026-02-09 (Verified via production readiness audit)
 
 ## Shipped Features
 
@@ -39,15 +39,19 @@
 | Deadline Alerts | Vercel cron job (daily 6 AM UTC) | `src/app/api/cron/deadline-alerts/` | 2026-01-28 |
 | Document Checklists | Visa-specific document requirements | `src/app/api/document-checklists/` | 2026-01-28 |
 | Security Headers | CSP, HSTS, X-Frame-Options, Permissions-Policy | `next.config.ts` | 2026-01-27 |
+| Client Portal | Limited client access to own cases/documents | `src/app/dashboard/client/` | 2026-02-06 |
+| Analytics Dashboard | Case outcomes, processing time metrics (lazy-loaded charts) | `src/app/dashboard/analytics/` | 2026-02-06 |
+| Task Management | Task CRUD with assignment and filtering | `src/app/api/tasks/`, `src/app/dashboard/tasks/` | 2026-01-28 |
+| Document Requests | Request docs from clients, track fulfillment | `src/app/api/document-requests/` | 2026-01-28 |
+| Cookie Consent Banner | GDPR-compliant with Accept/Reject | `src/components/consent/cookie-consent-banner.tsx` | 2026-02-07 |
+| AI Consent Modal | Separate consent for OpenAI/Anthropic processing | `src/components/ai/ai-consent-modal.tsx` | 2026-02-07 |
+| Legal Pages | Privacy policy, terms, AI disclaimer | `src/app/(legal)/` | 2026-02-07 |
+| SEO | Sitemap, robots.txt, Open Graph metadata | `src/app/sitemap.ts`, `src/app/robots.ts` | 2026-02-06 |
+| Session Expiry Warning | 5-min countdown + extend option | `src/components/session/session-expiry-warning.tsx` | 2026-02-06 |
 
 ## Planned
 
-| Feature | Description | Priority | Blocked By |
-|---------|-------------|----------|------------|
-| Client Portal | Limited client access to own cases | Medium | WS-2 |
-| Analytics Dashboard | Case outcomes, processing time metrics | Medium | - |
-| Task Management UI | Task list and assignment | Low | - |
-| Document Request UI | Request docs from clients | Low | - |
+_No features currently planned. All 30+ features shipped._
 
 ## Deferred
 

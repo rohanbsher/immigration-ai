@@ -193,6 +193,7 @@ export async function POST(
     // Convert extracted fields to a record format for storage
     const extractedData: Record<string, unknown> = {};
     for (const field of analysisResult.extracted_fields) {
+      if (!field.field_name) continue;
       extractedData[field.field_name] = {
         value: field.value,
         confidence: field.confidence,

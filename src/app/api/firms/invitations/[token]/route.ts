@@ -123,9 +123,8 @@ export async function POST(request: NextRequest, { params }: Params) {
     });
   } catch (error) {
     log.logError('Accept invitation error', error);
-    const message = error instanceof Error ? error.message : 'Failed to accept invitation';
     return NextResponse.json(
-      { error: message },
+      { error: 'Failed to accept invitation' },
       { status: 500 }
     );
   }

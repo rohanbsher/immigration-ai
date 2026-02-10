@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: error.issues[0].message },
+        { error: error.issues.map(i => i.message).join('; ') },
         { status: 400 }
       );
     }

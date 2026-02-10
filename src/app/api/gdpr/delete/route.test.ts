@@ -173,7 +173,7 @@ describe('GDPR Delete API', () => {
         error: { message: 'Deletion request already pending for this user' },
       });
 
-      const response = await POST(createRequest('POST'));
+      const response = await POST(createRequest('POST', {}));
       const data = await response.json();
 
       expect(response.status).toBe(400);
@@ -186,7 +186,7 @@ describe('GDPR Delete API', () => {
         error: { message: 'Database timeout' },
       });
 
-      const response = await POST(createRequest('POST'));
+      const response = await POST(createRequest('POST', {}));
       const data = await response.json();
 
       expect(response.status).toBe(500);
@@ -234,7 +234,7 @@ describe('GDPR Delete API', () => {
     it('returns 404 when RPC returns null (no pending request)', async () => {
       mockSupabase.rpc.mockResolvedValue({ data: null, error: null });
 
-      const response = await DELETE(createRequest('DELETE'));
+      const response = await DELETE(createRequest('DELETE', {}));
       const data = await response.json();
 
       expect(response.status).toBe(404);
@@ -247,7 +247,7 @@ describe('GDPR Delete API', () => {
         error: { message: 'RPC function failed' },
       });
 
-      const response = await DELETE(createRequest('DELETE'));
+      const response = await DELETE(createRequest('DELETE', {}));
       const data = await response.json();
 
       expect(response.status).toBe(500);

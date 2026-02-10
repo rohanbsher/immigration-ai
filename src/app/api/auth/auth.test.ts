@@ -429,7 +429,7 @@ describe('Auth API Routes', () => {
       const data = await response.json();
 
       expect(response.status).toBe(400);
-      expect(data.error).toBe('Password must be at least 8 characters');
+      expect(data.error).toContain('Password must be at least 8 characters');
     });
 
     it('should return 400 for missing first name', async () => {

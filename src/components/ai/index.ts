@@ -32,3 +32,6 @@ export {
   RecommendationItem,
   CompactRecommendationItem,
 } from './next-steps-panel';
+
+// AI Consent
+export { AIConsentModal } from './ai-consent-modal';

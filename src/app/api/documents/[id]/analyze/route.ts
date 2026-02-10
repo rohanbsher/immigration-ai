@@ -8,6 +8,7 @@ import { enforceQuota, trackUsage, QuotaExceededError } from '@/lib/billing/quot
 import { validateStorageUrl } from '@/lib/security';
 import { isValidTransition, getValidNextStates, isTerminalState } from '@/lib/documents/state-machine';
 import { SIGNED_URL_EXPIRATION } from '@/lib/storage';
+import { logAIRequest } from '@/lib/audit/ai-audit';
 
 const log = createLogger('api:documents-analyze');
 
@@ -232,6 +233,17 @@ export async function POST(
       status: newStatus,
       ai_extracted_data: extractedData,
       ai_confidence_score: analysisResult.overall_confidence,
+    });
+
+    logAIRequest({
+      operation: 'document_analysis',
+      provider: 'openai',
+      userId: user.id,
+      caseId: document.case_id,
+      documentId: id,
+      dataFieldsSent: ['document_image', 'document_type'],
+      model: 'gpt-4-vision',
+      processingTimeMs: analysisResult.processing_time_ms,
     });
 
     trackUsage(user.id, 'ai_requests').catch((err) => {

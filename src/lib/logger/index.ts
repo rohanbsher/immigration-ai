@@ -109,7 +109,11 @@ function formatLogEntry(entry: LogEntry): string {
     let output = `${color}[${entry.level.toUpperCase()}]${reset} ${entry.message}`;
 
     if (entry.context && Object.keys(entry.context).length > 0) {
-      output += ` ${JSON.stringify(entry.context)}`;
+      try {
+        output += ` ${JSON.stringify(entry.context)}`;
+      } catch {
+        output += ` [Circular or unserializable context]`;
+      }
     }
 
     if (entry.error) {
@@ -123,7 +127,17 @@ function formatLogEntry(entry: LogEntry): string {
   }
 
   // JSON format for production (better for log aggregation)
-  return JSON.stringify(entry);
+  try {
+    return JSON.stringify(entry);
+  } catch {
+    return JSON.stringify({
+      level: entry.level,
+      message: entry.message,
+      timestamp: entry.timestamp,
+      environment: entry.environment,
+      context: '[Unserializable]',
+    });
+  }
 }
 
 /**

@@ -11,19 +11,32 @@ import { CaseCardSkeleton, ListSkeleton } from '@/components/ui/skeletons';
 import { toast } from 'sonner';
 import type { VisaType, CaseStatus } from '@/types';
 
+const PAGE_SIZE = 20;
+
 export default function CasesPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'filed' | 'closed'>('all');
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [page, setPage] = useState(1);
 
   const statuses = getStatusesForFilter(statusFilter);
+
+  const handleSearchChange = (value: string) => {
+    setSearch(value);
+    setPage(1);
+  };
+
+  const handleStatusFilterChange = (value: 'all' | 'active' | 'filed' | 'closed') => {
+    setStatusFilter(value);
+    setPage(1);
+  };
 
   const { data, isLoading, error } = useCases(
     {
       search: search || undefined,
       status: statuses,
     },
-    { page: 1, limit: 50 }
+    { page, limit: PAGE_SIZE }
   );
 
   const { mutate: deleteCase } = useDeleteCase();
@@ -60,9 +73,9 @@ export default function CasesPage() {
         <CardContent className="p-4">
           <CaseFilters
             search={search}
-            onSearchChange={setSearch}
+            onSearchChange={handleSearchChange}
             statusFilter={statusFilter}
-            onStatusFilterChange={setStatusFilter}
+            onStatusFilterChange={handleStatusFilterChange}
           />
         </CardContent>
       </Card>
@@ -102,6 +115,34 @@ export default function CasesPage() {
             <CasesEmptyState onCreateCase={() => setCreateDialogOpen(true)} />
           </CardContent>
         </Card>
+      )}
+
+      {/* Pagination */}
+      {data && data.total > PAGE_SIZE && (
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-muted-foreground">
+            Showing {(page - 1) * PAGE_SIZE + 1} to{' '}
+            {Math.min(page * PAGE_SIZE, data.total)} of {data.total} cases
+          </p>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+            >
+              Previous
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage((p) => p + 1)}
+              disabled={page * PAGE_SIZE >= data.total}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
       )}
 
       {/* Create Case Dialog */}

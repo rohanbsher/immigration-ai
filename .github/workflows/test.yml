@@ -33,12 +33,6 @@ jobs:
       - name: Run type check
         run: npx tsc --noEmit
 
-      - name: Run tests
-        run: npm run test:run
-        env:
-          NODE_ENV: test
-          ENCRYPTION_KEY: ${{ secrets.TEST_ENCRYPTION_KEY || '0000000000000000000000000000000000000000000000000000000000000000' }}
-
       - name: Run tests with coverage
         run: npm run test:coverage
         env:
@@ -75,6 +69,7 @@ jobs:
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co' }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key' }}
+          ALLOW_IN_MEMORY_RATE_LIMIT: 'true'
 
   e2e:
     runs-on: ubuntu-latest

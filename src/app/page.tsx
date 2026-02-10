@@ -296,17 +296,15 @@ export default function Home() {
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li><Link href="/privacy" className="hover:text-foreground transition-colors">Privacy Policy</Link></li>
                 <li><Link href="/terms" className="hover:text-foreground transition-colors">Terms of Service</Link></li>
-                <li><a href="#" className="hover:text-foreground transition-colors">Security</a></li>
-                <li><a href="#" className="hover:text-foreground transition-colors">Compliance</a></li>
+                <li><Link href="/ai-disclaimer" className="hover:text-foreground transition-colors">AI & Security</Link></li>
+                <li><Link href="/privacy" className="hover:text-foreground transition-colors">Compliance</Link></li>
               </ul>
             </div>
             <div>
               <h4 className="font-semibold text-foreground mb-4">Support</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><a href="#" className="hover:text-foreground transition-colors">Help Center</a></li>
-                <li><a href="#" className="hover:text-foreground transition-colors">Contact Us</a></li>
-                <li><a href="#" className="hover:text-foreground transition-colors">Status</a></li>
-                <li><a href="#" className="hover:text-foreground transition-colors">API Docs</a></li>
+                <li><a href="mailto:support@immigrationai.app" className="hover:text-foreground transition-colors">Help Center</a></li>
+                <li><a href="mailto:support@immigrationai.app" className="hover:text-foreground transition-colors">Contact Us</a></li>
               </ul>
             </div>
           </div>
@@ -315,9 +313,8 @@ export default function Home() {
               &copy; {new Date().getFullYear()} Immigration AI. All rights reserved.
             </p>
             <div className="flex items-center gap-6 text-sm text-muted-foreground">
-              <a href="#" className="hover:text-foreground transition-colors">Twitter</a>
-              <a href="#" className="hover:text-foreground transition-colors">LinkedIn</a>
-              <a href="#" className="hover:text-foreground transition-colors">GitHub</a>
+              <Link href="/terms" className="hover:text-foreground transition-colors">Terms</Link>
+              <Link href="/privacy" className="hover:text-foreground transition-colors">Privacy</Link>
             </div>
           </div>
         </div>

@@ -38,7 +38,20 @@ export function hashBackupCodes(codes: string[]): string[] {
 
 export function verifyBackupCode(code: string, hashedCodes: string[]): boolean {
   const codeHash = hashBackupCode(code);
-  return hashedCodes.includes(codeHash);
+  const codeHashBuffer = Buffer.from(codeHash, 'hex');
+  let found = false;
+
+  for (const storedHash of hashedCodes) {
+    const storedBuffer = Buffer.from(storedHash, 'hex');
+    if (
+      codeHashBuffer.length === storedBuffer.length &&
+      crypto.timingSafeEqual(codeHashBuffer, storedBuffer)
+    ) {
+      found = true;
+    }
+  }
+
+  return found;
 }
 
 export function formatBackupCode(code: string): string {

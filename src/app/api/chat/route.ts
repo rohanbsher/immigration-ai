@@ -12,6 +12,8 @@ import {
 import { createLogger } from '@/lib/logger';
 import { createSSEStream, SSE_CONFIG } from '@/lib/api/sse';
 import { enforceQuota, trackUsage, QuotaExceededError } from '@/lib/billing/quota';
+import { z } from 'zod';
+import { logAIRequest } from '@/lib/audit/ai-audit';
 
 const log = createLogger('api:chat');
 
@@ -68,23 +70,25 @@ export async function POST(request: NextRequest): Promise<Response> {
       throw error;
     }
 
-    // Parse request body
-    const body = await request.json();
-    const { conversationId, caseId, message } = body as {
-      conversationId?: string;
-      caseId?: string;
-      message: string;
-    };
+    // Parse and validate request body
+    const chatSchema = z.object({
+      conversationId: z.string().uuid().optional(),
+      caseId: z.string().uuid().optional(),
+      message: z.string().min(1, 'Message cannot be empty').max(4000),
+    });
 
-    // Validate required fields
-    if (!message || typeof message !== 'string') {
+    const body = await request.json();
+    const parseResult = chatSchema.safeParse(body);
+
+    if (!parseResult.success) {
       return NextResponse.json(
-        { error: 'Bad Request', message: 'Message is required' },
+        { error: 'Bad Request', message: parseResult.error.issues[0].message },
         { status: 400 }
       );
     }
 
-    const trimmedMessage = message.trim().slice(0, 4000);
+    const { conversationId, caseId, message } = parseResult.data;
+    const trimmedMessage = message.trim();
 
     if (trimmedMessage.length < 1) {
       return NextResponse.json(
@@ -167,6 +171,15 @@ export async function POST(request: NextRequest): Promise<Response> {
         });
 
         sse.send({ type: 'done' });
+
+        logAIRequest({
+          operation: 'chat',
+          provider: 'anthropic',
+          userId: user.id,
+          caseId: activeCaseId,
+          dataFieldsSent: ['message_content', 'conversation_history', 'case_context'],
+          model: 'claude-sonnet-4-20250514',
+        });
 
         trackUsage(user.id, 'ai_requests').catch((err) => {
           log.warn('Usage tracking failed', { error: err instanceof Error ? err.message : String(err) });

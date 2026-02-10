@@ -17,14 +17,20 @@ import {
   Calendar,
   Plus,
 } from 'lucide-react';
-import { useClients } from '@/hooks/use-clients';
+import { useClientsPaginated } from '@/hooks/use-clients';
 import { useRoleGuard } from '@/hooks/use-role-guard';
 import { ClientsEmptyState, SearchEmptyState } from '@/components/ui/empty-state';
 import { Skeleton, ClientCardSkeleton, GridSkeleton, StatsCardSkeleton } from '@/components/ui/skeletons';
 
+const PAGE_SIZE = 20;
+
 export default function ClientsPage() {
   const [search, setSearch] = useState('');
-  const { data: clients, isLoading: isClientsLoading, error } = useClients();
+  const [page, setPage] = useState(1);
+  const { data, isLoading: isClientsLoading, error } = useClientsPaginated(page, PAGE_SIZE, search || undefined);
+
+  const clients = data?.data;
+  const pagination = data?.pagination;
 
   // Protect this page - only attorneys and admins can access
   const { isLoading: isAuthLoading, hasAccess } = useRoleGuard({
@@ -32,6 +38,11 @@ export default function ClientsPage() {
   });
 
   const _isLoading = isAuthLoading || isClientsLoading;
+
+  const handleSearchChange = (value: string) => {
+    setSearch(value);
+    setPage(1);
+  };
 
   // If still checking access or redirecting, show loading
   if (isAuthLoading || !hasAccess) {
@@ -41,16 +52,6 @@ export default function ClientsPage() {
       </div>
     );
   }
-
-  const filteredClients = clients?.filter((client) => {
-    if (!search) return true;
-    const searchLower = search.toLowerCase();
-    return (
-      client.first_name.toLowerCase().includes(searchLower) ||
-      client.last_name.toLowerCase().includes(searchLower) ||
-      client.email.toLowerCase().includes(searchLower)
-    );
-  });
 
   if (isClientsLoading) {
     return (
@@ -101,7 +102,7 @@ export default function ClientsPage() {
             <Input
               placeholder="Search clients by name or email..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => handleSearchChange(e.target.value)}
               className="pl-10"
             />
           </div>
@@ -116,7 +117,7 @@ export default function ClientsPage() {
               <Users className="text-blue-600" size={24} />
             </div>
             <div>
-              <p className="text-2xl font-bold">{clients?.length || 0}</p>
+              <p className="text-2xl font-bold">{pagination?.total ?? 0}</p>
               <p className="text-sm text-muted-foreground">Total Clients</p>
             </div>
           </CardContent>
@@ -156,9 +157,9 @@ export default function ClientsPage() {
             <p className="text-muted-foreground">Failed to load clients. Please try again.</p>
           </CardContent>
         </Card>
-      ) : filteredClients && filteredClients.length > 0 ? (
+      ) : clients && clients.length > 0 ? (
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredClients.map((client) => (
+          {clients.map((client) => (
             <Link key={client.id} href={`/dashboard/clients/${client.id}`}>
               <Card className="h-full hover:border-blue-400 hover:shadow-md transition-all cursor-pointer">
                 <CardContent className="p-6">
@@ -201,18 +202,46 @@ export default function ClientsPage() {
             </Link>
           ))}
         </div>
-      ) : clients && clients.length === 0 ? (
+      ) : pagination && pagination.total === 0 && !search ? (
         <Card>
           <CardContent className="p-6">
             <ClientsEmptyState />
           </CardContent>
         </Card>
-      ) : (
+      ) : clients && clients.length === 0 ? (
         <Card>
           <CardContent className="p-6">
             <SearchEmptyState query={search} />
           </CardContent>
         </Card>
+      ) : null}
+
+      {/* Pagination */}
+      {pagination && pagination.total > PAGE_SIZE && (
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-muted-foreground">
+            Showing {(page - 1) * PAGE_SIZE + 1} to{' '}
+            {Math.min(page * PAGE_SIZE, pagination.total)} of {pagination.total} clients
+          </p>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+            >
+              Previous
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage((p) => p + 1)}
+              disabled={page * PAGE_SIZE >= pagination.total}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
       )}
     </div>
   );

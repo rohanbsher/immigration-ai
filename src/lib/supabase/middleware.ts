@@ -129,7 +129,7 @@ export async function updateSession(request: NextRequest) {
 
   // Admin route protection - check user role
   if (isAdminPath && user) {
-    if (!profileError && (!profile || profile.role !== 'admin')) {
+    if (profileError || !profile || profile.role !== 'admin') {
       log.warn(`Non-admin user attempted to access admin route: ${request.nextUrl.pathname}`, { requestId });
       const url = request.nextUrl.clone();
       url.pathname = profile?.role === 'client' ? '/dashboard/client' : '/dashboard';
@@ -139,8 +139,11 @@ export async function updateSession(request: NextRequest) {
     }
   }
 
-  // Client portal routing
-  const isClientPortalPath = request.nextUrl.pathname.startsWith('/dashboard/client');
+  // Client portal routing — match /dashboard/client exactly or /dashboard/client/ subpaths
+  // but NOT /dashboard/clients (attorney's client list page)
+  const isClientPortalPath =
+    request.nextUrl.pathname === '/dashboard/client' ||
+    request.nextUrl.pathname.startsWith('/dashboard/client/');
   const isMainDashboardPath = request.nextUrl.pathname === '/dashboard';
 
   if (user && profile) {

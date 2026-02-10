@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { profilesService } from '@/lib/db/profiles';
 import { z } from 'zod';
 import { standardRateLimiter } from '@/lib/rate-limit';
+import { encryptSensitiveFields } from '@/lib/crypto';
 import { createLogger } from '@/lib/logger';
 
 const log = createLogger('api:clients-detail');
@@ -118,8 +119,9 @@ export async function PATCH(
 
     const body = await request.json();
     const validatedData = updateClientSchema.parse(body);
+    const encryptedData = encryptSensitiveFields(validatedData);
 
-    const client = await clientsService.updateClient(id, validatedData);
+    const client = await clientsService.updateClient(id, encryptedData);
     return NextResponse.json(client);
   } catch (error) {
     if (error instanceof z.ZodError) {

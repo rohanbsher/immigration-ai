@@ -195,10 +195,21 @@ async function getCurrentUsage(userId: string, metric: QuotaMetric): Promise<num
     }
 
     case 'team_members': {
+      const { data: membership, error: membershipError } = await supabase
+        .from('firm_members')
+        .select('firm_id')
+        .eq('user_id', userId)
+        .limit(1)
+        .single();
+
+      if (membershipError || !membership) {
+        return 1;
+      }
+
       const { count, error } = await supabase
         .from('firm_members')
         .select('*', { count: 'exact', head: true })
-        .eq('user_id', userId);
+        .eq('firm_id', membership.firm_id);
 
       if (error) {
         throw new Error(`Failed to get team member count: ${error.message}`);

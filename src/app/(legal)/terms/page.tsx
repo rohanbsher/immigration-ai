@@ -9,7 +9,7 @@ export default function TermsOfServicePage() {
   return (
     <div className="container max-w-4xl py-12">
       <h1 className="text-4xl font-bold mb-8">Terms of Service</h1>
-      <p className="text-muted-foreground mb-8">Last updated: January 2024</p>
+      <p className="text-muted-foreground mb-8">Last updated: February 2026</p>
 
       <div className="prose prose-gray dark:prose-invert max-w-none">
         <section className="mb-8">
@@ -262,7 +262,7 @@ export default function TermsOfServicePage() {
           </p>
           <ul className="list-none mt-2 space-y-1">
             <li>Email: legal@immigrationai.app</li>
-            <li>Address: [Company Address]</li>
+            <li>Address: Immigration AI, Inc.</li>
           </ul>
         </section>
       </div>

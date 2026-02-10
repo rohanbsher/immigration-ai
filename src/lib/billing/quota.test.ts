@@ -741,13 +741,33 @@ describe('getCurrentUsage error handling', () => {
   it('throws when team_members query fails', async () => {
     vi.mocked(getUserPlanLimits).mockResolvedValue(createMockPlanLimits('free'));
 
-    mockSupabase.from.mockReturnValue({
-      select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockResolvedValue({
-          count: null,
-          error: { message: 'Team query failed' },
+    let callCount = 0;
+    mockSupabase.from.mockImplementation(() => {
+      callCount++;
+      if (callCount === 1) {
+        // First call: lookup user's firm membership
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              limit: vi.fn().mockReturnValue({
+                single: vi.fn().mockResolvedValue({
+                  data: { firm_id: 'firm-1' },
+                  error: null,
+                }),
+              }),
+            }),
+          }),
+        } as ReturnType<typeof mockSupabase.from>;
+      }
+      // Second call: count members in firm - this one fails
+      return {
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockResolvedValue({
+            count: null,
+            error: { message: 'Team query failed' },
+          }),
         }),
-      }),
+      } as ReturnType<typeof mockSupabase.from>;
     });
 
     await expect(checkQuota('user-123', 'team_members')).rejects.toThrow(

@@ -321,13 +321,15 @@ describe('Logger Module', () => {
       expect(consoleLogSpy).toHaveBeenCalled();
     });
 
-    it('should handle circular references by throwing', () => {
+    it('should handle circular references gracefully', () => {
       const circular: Record<string, unknown> = { name: 'test' };
       circular.self = circular;
 
       expect(() => {
         logger.info('Circular', circular);
-      }).toThrow();
+      }).not.toThrow();
+
+      expect(consoleLogSpy).toHaveBeenCalled();
     });
 
     it('should handle very long messages', () => {

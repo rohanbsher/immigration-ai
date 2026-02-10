@@ -47,6 +47,9 @@ const publicEnvSchema = z.object({
   // Analytics (optional)
   NEXT_PUBLIC_POSTHOG_KEY: z.string().optional(),
   NEXT_PUBLIC_POSTHOG_HOST: z.string().url().optional(),
+
+  // Error tracking (optional)
+  NEXT_PUBLIC_SENTRY_DSN: z.string().optional(),
 });
 
 /**
@@ -129,6 +132,7 @@ function validatePublicEnv() {
       process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,
     NEXT_PUBLIC_POSTHOG_KEY: process.env.NEXT_PUBLIC_POSTHOG_KEY,
     NEXT_PUBLIC_POSTHOG_HOST: process.env.NEXT_PUBLIC_POSTHOG_HOST,
+    NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN,
   });
 
   if (!result.success) {
@@ -234,6 +238,11 @@ function validateProductionRequirements(env: z.infer<typeof serverEnvSchema>) {
   // Critical: Cron jobs require authentication
   if (!env.CRON_SECRET) {
     errors.push('CRON_SECRET is required in production for scheduled task authentication');
+  }
+
+  // Warning: Error tracking not configured
+  if (!process.env.NEXT_PUBLIC_SENTRY_DSN) {
+    warnings.push('SENTRY_DSN not configured - error tracking and monitoring will be disabled in production');
   }
 
   // Warning: Virus scanner not configured

@@ -1,12 +1,14 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { Upload, X, FileText, Loader2 } from 'lucide-react';
 import { useUploadDocument } from '@/hooks/use-documents';
 import { useQuota } from '@/hooks/use-quota';
+import { useAiConsent } from '@/hooks/use-ai-consent';
+import { AIConsentModal } from '@/components/ai';
 import { UpgradePromptDialog, UpgradePromptBanner } from '@/components/billing/upgrade-prompt';
 import { formatFileSize, isAllowedFileType } from '@/lib/storage/utils';
 import { toast } from 'sonner';
@@ -49,9 +51,17 @@ export function DocumentUpload({ caseId, onSuccess }: DocumentUploadProps) {
   const [selectedFiles, setSelectedFiles] = useState<SelectedFile[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
+  const [pendingUpload, setPendingUpload] = useState(false);
   const { mutate: uploadDocument, isPending } = useUploadDocument();
   const { data: docQuota } = useQuota('documents');
   const { data: storageQuota } = useQuota('storage');
+  const {
+    hasConsented: hasAiConsent,
+    showConsentModal,
+    grantConsent,
+    openConsentDialog,
+    closeConsentDialog,
+  } = useAiConsent();
 
   const isAtDocLimit = docQuota && !docQuota.isUnlimited && !docQuota.allowed;
   const isAtStorageLimit = storageQuota && !storageQuota.isUnlimited && !storageQuota.allowed;
@@ -113,7 +123,7 @@ export function DocumentUpload({ caseId, onSuccess }: DocumentUploadProps) {
     setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const handleUpload = async () => {
+  const executeUpload = useCallback(async () => {
     if (selectedFiles.length === 0) return;
 
     if (isAtDocLimit || isAtStorageLimit) {
@@ -172,13 +182,44 @@ export function DocumentUpload({ caseId, onSuccess }: DocumentUploadProps) {
     if (succeeded.length > 0) {
       onSuccess?.();
     }
-  };
+  }, [selectedFiles, isAtDocLimit, isAtStorageLimit, uploadDocument, caseId, onSuccess]);
+
+  const handleUpload = useCallback(() => {
+    if (!hasAiConsent) {
+      openConsentDialog();
+      return;
+    }
+    executeUpload();
+  }, [hasAiConsent, openConsentDialog, executeUpload]);
+
+  const handleConsentGranted = useCallback(() => {
+    grantConsent();
+    setPendingUpload(true);
+  }, [grantConsent]);
+
+  // Trigger deferred upload after consent is granted
+  const executeUploadRef = useRef(executeUpload);
+  executeUploadRef.current = executeUpload;
+
+  useEffect(() => {
+    if (pendingUpload) {
+      setPendingUpload(false);
+      executeUploadRef.current();
+    }
+  }, [pendingUpload]);
 
   const activeQuotaMetric = isAtDocLimit ? 'documents' : 'storage';
   const activeQuota = isAtDocLimit ? docQuota : storageQuota;
 
   return (
     <div className="space-y-4">
+      {/* AI Consent Modal */}
+      <AIConsentModal
+        open={showConsentModal}
+        onConsent={handleConsentGranted}
+        onCancel={closeConsentDialog}
+      />
+
       {/* Quota Warning Banner */}
       {docQuota && (
         <UpgradePromptBanner metric="documents" quota={docQuota} />

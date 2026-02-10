@@ -6,8 +6,23 @@
 import * as Sentry from '@sentry/nextjs';
 
 const SENTRY_DSN = process.env.NEXT_PUBLIC_SENTRY_DSN;
+const CONSENT_KEY = 'immigration-ai-consent';
+
+function hasAnalyticsConsent(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    const raw = localStorage.getItem(CONSENT_KEY);
+    if (!raw) return false;
+    const parsed = JSON.parse(raw);
+    return parsed.analytics === true;
+  } catch {
+    return false;
+  }
+}
 
 if (SENTRY_DSN) {
+  const analyticsAllowed = hasAnalyticsConsent();
+
   Sentry.init({
     dsn: SENTRY_DSN,
 
@@ -17,20 +32,20 @@ if (SENTRY_DSN) {
     // Performance monitoring
     tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
 
-    // Session replay for debugging user issues
-    replaysSessionSampleRate: 0.1,
-    replaysOnErrorSampleRate: 1.0,
+    // Session replay only when user consented
+    replaysSessionSampleRate: analyticsAllowed ? 0.1 : 0,
+    replaysOnErrorSampleRate: analyticsAllowed ? 1.0 : 0,
 
-    // Integrations
-    integrations: [
-      Sentry.replayIntegration({
-        // Mask all text content for privacy (immigration data is sensitive)
-        maskAllText: true,
-        // Block all media for privacy
-        blockAllMedia: true,
-      }),
-      Sentry.browserTracingIntegration(),
-    ],
+    // Integrations -- replay only included when user has consented
+    integrations: analyticsAllowed
+      ? [
+          Sentry.browserTracingIntegration(),
+          Sentry.replayIntegration({
+            maskAllText: true,
+            blockAllMedia: true,
+          }),
+        ]
+      : [Sentry.browserTracingIntegration()],
 
     // Filter out noisy errors
     ignoreErrors: [

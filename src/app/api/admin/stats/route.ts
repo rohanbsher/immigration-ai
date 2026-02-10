@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const { data: profile } = await serverAuth.getProfile();
+    const profile = await serverAuth.getProfile();
     if (!profile || profile.role !== 'admin') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }

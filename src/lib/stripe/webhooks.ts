@@ -285,7 +285,7 @@ async function handleInvoicePaid(invoice: Stripe.Invoice, eventId: string): Prom
     : (inv.subscription as Stripe.Subscription | null)?.id;
   const dbSubscriptionId = await lookupDbSubscriptionId(supabase, stripeSubId);
 
-  await supabase.from('invoices').upsert({
+  const { error: invoiceUpsertError } = await supabase.from('invoices').upsert({
     customer_id: customer.id,
     subscription_id: dbSubscriptionId,
     stripe_invoice_id: invoice.id,
@@ -304,12 +304,16 @@ async function handleInvoicePaid(invoice: Stripe.Invoice, eventId: string): Prom
     onConflict: 'stripe_invoice_id',
   });
 
+  if (invoiceUpsertError) {
+    log.logError('Failed to upsert invoice', { stripeInvoiceId: invoice.id, error: invoiceUpsertError.message });
+  }
+
   const paymentIntentId = typeof inv.payment_intent === 'string'
     ? inv.payment_intent
     : inv.payment_intent?.id;
 
   if (paymentIntentId) {
-    await supabase.from('payments').upsert({
+    const { error: paymentUpsertError } = await supabase.from('payments').upsert({
       customer_id: customer.id,
       subscription_id: dbSubscriptionId,
       stripe_payment_intent_id: paymentIntentId,
@@ -322,6 +326,10 @@ async function handleInvoicePaid(invoice: Stripe.Invoice, eventId: string): Prom
     }, {
       onConflict: 'stripe_payment_intent_id',
     });
+
+    if (paymentUpsertError) {
+      log.logError('Failed to upsert payment', { paymentIntentId, error: paymentUpsertError.message });
+    }
   }
 
   // Send payment success email
@@ -375,7 +383,7 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice, eventId: stri
     : (inv.subscription as Stripe.Subscription | null)?.id;
   const dbSubscriptionId = await lookupDbSubscriptionId(supabase, stripeSubId);
 
-  await supabase.from('invoices').upsert({
+  const { error: failedInvoiceError } = await supabase.from('invoices').upsert({
     customer_id: customer.id,
     subscription_id: dbSubscriptionId,
     stripe_invoice_id: invoice.id,
@@ -392,6 +400,10 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice, eventId: stri
     onConflict: 'stripe_invoice_id',
   });
 
+  if (failedInvoiceError) {
+    log.logError('Failed to upsert failed invoice', { stripeInvoiceId: invoice.id, error: failedInvoiceError.message });
+  }
+
   const paymentIntentId = typeof inv.payment_intent === 'string'
     ? inv.payment_intent
     : inv.payment_intent?.id;
@@ -399,7 +411,7 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice, eventId: stri
   if (paymentIntentId) {
     const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
 
-    await supabase.from('payments').upsert({
+    const { error: failedPaymentError } = await supabase.from('payments').upsert({
       customer_id: customer.id,
       stripe_payment_intent_id: paymentIntentId,
       stripe_invoice_id: invoice.id,
@@ -411,6 +423,10 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice, eventId: stri
     }, {
       onConflict: 'stripe_payment_intent_id',
     });
+
+    if (failedPaymentError) {
+      log.logError('Failed to upsert failed payment', { paymentIntentId, error: failedPaymentError.message });
+    }
   }
 
   // Send payment failed email

@@ -9,7 +9,7 @@ export default function PrivacyPolicyPage() {
   return (
     <div className="container max-w-4xl py-12">
       <h1 className="text-4xl font-bold mb-8">Privacy Policy</h1>
-      <p className="text-muted-foreground mb-8">Last updated: January 2024</p>
+      <p className="text-muted-foreground mb-8">Last updated: February 2026</p>
 
       <div className="prose prose-gray dark:prose-invert max-w-none">
         <section className="mb-8">
@@ -106,7 +106,7 @@ export default function PrivacyPolicyPage() {
           </ul>
           <p className="mt-4">
             To exercise these rights, visit your account settings, email us at
-            privacy@immigrationai.app, or call us at [Phone Number].
+            privacy@immigrationai.app, or contact us at support@immigrationai.app.
           </p>
           <p className="mt-2">
             <strong>Categories of Personal Information Collected:</strong> We collect
@@ -223,7 +223,7 @@ export default function PrivacyPolicyPage() {
           </p>
           <ul className="list-none mt-2 space-y-1">
             <li>Email: privacy@immigrationai.app</li>
-            <li>Address: [Company Address]</li>
+            <li>Address: Immigration AI, Inc.</li>
           </ul>
         </section>
       </div>

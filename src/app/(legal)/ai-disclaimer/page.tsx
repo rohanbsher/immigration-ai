@@ -10,7 +10,7 @@ export default function AIDisclaimerPage() {
   return (
     <div className="container max-w-4xl py-12">
       <h1 className="text-4xl font-bold mb-4">AI Technology Disclaimer</h1>
-      <p className="text-muted-foreground mb-8">Last updated: January 2024</p>
+      <p className="text-muted-foreground mb-8">Last updated: February 2026</p>
 
       {/* Critical Warning Banner */}
       <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-6 mb-8">
@@ -191,7 +191,7 @@ export default function AIDisclaimerPage() {
           </p>
           <ul className="list-none mt-2 space-y-1">
             <li>Email: legal@immigrationai.app</li>
-            <li>Address: [Company Address]</li>
+            <li>Address: Immigration AI, Inc.</li>
           </ul>
         </section>
 

@@ -3,7 +3,8 @@
 import { cn } from '@/lib/utils';
 import { useChat } from '@/hooks/use-chat';
 import { ChatMessage as ChatMessageComponent, TypingIndicator } from './chat-message';
-import { AIBadge } from '@/components/ai';
+import { AIBadge, AIConsentModal } from '@/components/ai';
+import { useAiConsent } from '@/hooks/use-ai-consent';
 import type { ChatMessage } from '@/store/chat-store';
 import {
   X,
@@ -45,12 +46,21 @@ export function ChatPanel({ className }: ChatPanelProps) {
     deleteConversation,
   } = useChat();
 
+  const {
+    hasConsented,
+    showConsentModal,
+    grantConsent,
+    openConsentDialog,
+    closeConsentDialog,
+  } = useAiConsent();
+
   const [inputValue, setInputValue] = useState('');
   const [showHistory, setShowHistory] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const isSubmittingRef = useRef(false);
   const submitTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingMessageRef = useRef<string | null>(null);
 
   // Clean up submit timeout on unmount
   useEffect(() => {
@@ -72,20 +82,44 @@ export function ChatPanel({ className }: ChatPanelProps) {
     }
   }, [isOpen, showHistory]);
 
+  // Actually dispatch the message (called after consent is confirmed)
+  const dispatchMessage = useCallback(
+    (text: string) => {
+      isSubmittingRef.current = true;
+      sendMessage(text);
+      setInputValue('');
+      const id = setTimeout(() => { isSubmittingRef.current = false; }, 500);
+      submitTimeoutRef.current = id;
+    },
+    [sendMessage]
+  );
+
+  // Handle consent granted -- send any pending message
+  const handleConsentGranted = useCallback(() => {
+    grantConsent();
+    const pending = pendingMessageRef.current;
+    if (pending) {
+      pendingMessageRef.current = null;
+      dispatchMessage(pending);
+    }
+  }, [grantConsent, dispatchMessage]);
+
   // Handle form submit
   const handleSubmit = useCallback(
     (e: FormEvent) => {
       e.preventDefault();
       const trimmed = inputValue.trim();
       if (!trimmed || isSending || isSubmittingRef.current) return;
-      isSubmittingRef.current = true;
-      sendMessage(trimmed);
-      setInputValue('');
-      // Reset after a brief delay to allow mutation to start
-      const id = setTimeout(() => { isSubmittingRef.current = false; }, 500);
-      submitTimeoutRef.current = id;
+
+      if (!hasConsented) {
+        pendingMessageRef.current = trimmed;
+        openConsentDialog();
+        return;
+      }
+
+      dispatchMessage(trimmed);
     },
-    [inputValue, isSending, sendMessage]
+    [inputValue, isSending, hasConsented, openConsentDialog, dispatchMessage]
   );
 
   // Handle conversation selection
@@ -107,6 +141,13 @@ export function ChatPanel({ className }: ChatPanelProps) {
 
   return (
     <>
+      {/* AI Consent Modal */}
+      <AIConsentModal
+        open={showConsentModal}
+        onConsent={handleConsentGranted}
+        onCancel={closeConsentDialog}
+      />
+
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-black/20 z-40"

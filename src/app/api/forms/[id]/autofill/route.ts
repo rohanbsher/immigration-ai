@@ -11,6 +11,7 @@ import { aiRateLimiter } from '@/lib/rate-limit';
 import { createLogger } from '@/lib/logger';
 import { enforceQuota, trackUsage, QuotaExceededError } from '@/lib/billing/quota';
 import type { FormStatus } from '@/types';
+import { logAIRequest } from '@/lib/audit/ai-audit';
 
 const log = createLogger('api:forms-autofill');
 
@@ -227,6 +228,24 @@ export async function POST(
         { status: 500 }
       );
     }
+
+    const autofillFieldNames = autofillResult.fields.map((f) => f.field_id);
+    logAIRequest({
+      operation: 'form_autofill',
+      provider: 'anthropic',
+      userId: user.id,
+      caseId: form.case_id,
+      formId: id,
+      dataFieldsSent: [
+        'form_type',
+        'visa_type',
+        'existing_form_data_keys',
+        'document_extracted_field_names',
+        ...autofillFieldNames,
+      ],
+      model: 'claude-3',
+      processingTimeMs: autofillResult.processing_time_ms,
+    });
 
     trackUsage(user.id, 'ai_requests').catch((err) => {
       log.warn('Usage tracking failed', { error: err instanceof Error ? err.message : String(err) });

@@ -19,6 +19,7 @@ import { requireAiConsent } from '@/lib/auth/api-helpers';
 const log = createLogger('api:chat');
 
 const rateLimiter = createRateLimiter(RATE_LIMITS.AI_CHAT);
+const standardRateLimiter = createRateLimiter(RATE_LIMITS.STANDARD);
 
 /**
  * POST /api/chat
@@ -246,6 +247,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         { error: 'Unauthorized', message: 'Please log in to continue' },
         { status: 401 }
       );
+    }
+
+    // Rate limiting
+    const limitResult = await standardRateLimiter.limit(request, user.id);
+    if (!limitResult.allowed) {
+      return limitResult.response;
     }
 
     const searchParams = request.nextUrl.searchParams;

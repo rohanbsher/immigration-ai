@@ -59,18 +59,23 @@ export async function GET(request: NextRequest) {
     const adminClient = getAdminClient();
     const userIds = (users || []).map((u) => u.id);
 
+    // Batch ban status checks in parallel to avoid N+1 sequential queries
     const bannedUserIds = new Set<string>();
-    for (const uid of userIds) {
-      try {
+    const banCheckResults = await Promise.allSettled(
+      userIds.map(async (uid) => {
         const { data: authUser } = await adminClient.auth.admin.getUserById(uid);
         if (authUser?.user?.banned_until) {
           const bannedUntil = new Date(authUser.user.banned_until);
           if (bannedUntil > new Date()) {
-            bannedUserIds.add(uid);
+            return uid;
           }
         }
-      } catch {
-        // If we can't check a user's ban status, default to not suspended
+        return null;
+      })
+    );
+    for (const result of banCheckResults) {
+      if (result.status === 'fulfilled' && result.value) {
+        bannedUserIds.add(result.value);
       }
     }
 

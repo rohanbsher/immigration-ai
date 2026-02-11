@@ -1,8 +1,8 @@
 'use client';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useCallback, useRef } from 'react';
-import { createBrowserClient } from '@supabase/ssr';
+import { useEffect, useRef } from 'react';
+import { createClient } from '@/lib/supabase/client';
 import { fetchWithTimeout } from '@/lib/api/fetch-with-timeout';
 import { safeParseErrorJson } from '@/lib/api/safe-json';
 
@@ -79,7 +79,7 @@ async function sendMessage(caseId: string, content: string): Promise<CaseMessage
  */
 export function useCaseMessages(caseId: string | undefined) {
   const queryClient = useQueryClient();
-  const channelRef = useRef<ReturnType<ReturnType<typeof createBrowserClient>['channel']> | null>(null);
+  const channelRef = useRef<ReturnType<ReturnType<typeof createClient>['channel']> | null>(null);
 
   const query = useQuery({
     queryKey: ['case-messages', caseId],
@@ -93,10 +93,7 @@ export function useCaseMessages(caseId: string | undefined) {
   useEffect(() => {
     if (!caseId) return;
 
-    const supabase = createBrowserClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    );
+    const supabase = createClient();
 
     const channel = supabase
       .channel(`case-messages:${caseId}`)

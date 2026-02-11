@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -28,41 +29,19 @@ import { getFormSummaries } from '@/lib/forms/definitions';
 import { FormsEmptyState } from '@/components/ui/empty-state';
 import { Skeleton, FormCardSkeleton, ListSkeleton } from '@/components/ui/skeletons';
 import { toast } from 'sonner';
-import type { FormStatus, FormType } from '@/types';
+import type { FormType } from '@/types';
 
 const formSummaries = getFormSummaries();
 
-// Status colors kept for future implementation
-const _statusColors: Record<FormStatus, string> = {
-  draft: 'bg-slate-100 text-slate-700',
-  autofilling: 'bg-orange-100 text-orange-700',
-  ai_filled: 'bg-purple-100 text-purple-700',
-  in_review: 'bg-yellow-100 text-yellow-700',
-  approved: 'bg-green-100 text-green-700',
-  filed: 'bg-blue-100 text-blue-700',
-  rejected: 'bg-red-100 text-red-700',
-};
 
 export default function FormsPage() {
-  const [_search, _setSearch] = useState('');
-  const [_statusFilter, _setStatusFilter] = useState<'all' | 'draft' | 'review' | 'filed'>('all');
+  const router = useRouter();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [selectedFormType, setSelectedFormType] = useState<string | null>(null);
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
 
   const { data: casesData, isLoading: casesLoading } = useCases({}, { limit: 100 });
   const { mutate: createForm, isPending: isCreating } = useCreateForm();
-
-  // Get all forms across all cases - placeholder for future implementation
-  // The actual implementation would use a dedicated "all forms" query
-  const _allForms: Array<{
-    form: { id: string; form_type: string; status: FormStatus; created_at: string };
-    caseName: string;
-    caseId: string;
-  }> = [];
-
-  // Cases data is loaded but forms aggregation not yet implemented
-  const _cases = casesData?.cases;
 
   const handleCreateForm = () => {
     if (!selectedFormType || !selectedCaseId) {
@@ -78,8 +57,7 @@ export default function FormsPage() {
           setCreateDialogOpen(false);
           setSelectedFormType(null);
           setSelectedCaseId(null);
-          // Navigate to the form editor
-          window.location.href = `/dashboard/forms/${data.id}`;
+          router.push(`/dashboard/forms/${data.id}`);
         },
         onError: (error) => {
           toast.error(error.message || 'Failed to create form');

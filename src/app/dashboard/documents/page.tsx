@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -10,6 +11,7 @@ import { DocumentsEmptyState } from '@/components/ui/empty-state';
 import { Skeleton, StatsCardSkeleton } from '@/components/ui/skeletons';
 
 export default function DocumentsPage() {
+  const router = useRouter();
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
   const { data: casesData, isLoading: casesLoading } = useCases({}, { limit: 100 });
 
@@ -93,7 +95,7 @@ export default function DocumentsPage() {
                   <Button
                     variant="outline"
                     onClick={() =>
-                      (window.location.href = `/dashboard/cases/${caseItem.id}?tab=documents`)
+                      router.push(`/dashboard/cases/${caseItem.id}?tab=documents`)
                     }
                   >
                     <FileText className="mr-2 h-4 w-4" />

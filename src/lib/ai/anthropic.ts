@@ -1,7 +1,7 @@
 // Anthropic Claude client for text reasoning and form autofill logic
 
 import Anthropic from '@anthropic-ai/sdk';
-import { FormAutofillResult, ExtractedField, FormField } from './types';
+import { FormAutofillResult, ExtractedField } from './types';
 import { FORM_AUTOFILL_SYSTEM_PROMPT, getAutofillPrompt } from './prompts';
 import { parseClaudeJSON, extractTextContent } from './utils';
 import { serverEnv, features } from '@/lib/config';

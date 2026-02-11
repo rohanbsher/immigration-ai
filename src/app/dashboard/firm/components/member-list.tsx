@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -44,6 +45,7 @@ const ROLE_LABELS: Record<FirmRole, string> = {
 };
 
 export function MemberList({ firmId, members, currentUserRole, currentUserId }: MemberListProps) {
+  const router = useRouter();
   const [selectedMember, setSelectedMember] = useState<FirmMember | null>(null);
   const [showRemoveDialog, setShowRemoveDialog] = useState(false);
   const [leaveFirm, setLeaveFirm] = useState<LeaveFirmState>({ showDialog: false });
@@ -79,7 +81,7 @@ export function MemberList({ firmId, members, currentUserRole, currentUserId }: 
         onSuccess: () => {
           toast.success('You have left the firm');
           setLeaveFirm({ showDialog: false });
-          window.location.href = '/dashboard/firm';
+          router.push('/dashboard/firm');
         },
         onError: (error) => {
           toast.error(error.message || 'Failed to leave firm');

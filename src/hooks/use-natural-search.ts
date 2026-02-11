@@ -3,7 +3,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchWithTimeout } from '@/lib/api/fetch-with-timeout';
 import { safeParseErrorJson } from '@/lib/api/safe-json';
-import type { SearchResponse, SearchResult } from '@/lib/ai/natural-search';
+import type { SearchResponse } from '@/lib/ai/natural-search';
 
 /**
  * Perform natural language search.

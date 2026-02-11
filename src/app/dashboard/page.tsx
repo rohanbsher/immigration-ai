@@ -1,5 +1,6 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -34,6 +35,7 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default function DashboardPage() {
+  const router = useRouter();
   const { profile, isLoading: profileLoading } = useUser();
   const { data: casesData, isLoading: casesLoading } = useCases({}, { limit: 4 });
   const { data: stats, isLoading: statsLoading } = useCaseStats();
@@ -246,7 +248,7 @@ export default function DashboardPage() {
                   ))}
                 </MotionList>
               ) : (
-                <CasesEmptyState onCreateCase={() => window.location.href = '/dashboard/cases/new'} />
+                <CasesEmptyState onCreateCase={() => router.push('/dashboard/cases/new')} />
               )}
             </CardContent>
           </Card>

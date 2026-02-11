@@ -37,8 +37,6 @@ export default function ClientsPage() {
     requiredRoles: ['attorney', 'admin'],
   });
 
-  const _isLoading = isAuthLoading || isClientsLoading;
-
   const handleSearchChange = (value: string) => {
     setSearch(value);
     setPage(1);

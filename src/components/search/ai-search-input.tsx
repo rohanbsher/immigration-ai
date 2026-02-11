@@ -3,7 +3,7 @@
 import { cn } from '@/lib/utils';
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useNaturalSearch } from '@/hooks/use-natural-search';
-import { AIBadge, AILoading } from '@/components/ai';
+import { AILoading } from '@/components/ai';
 import {
   Search,
   Sparkles,

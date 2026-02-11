@@ -6,8 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { TaskCard } from './task-card';
 import { CreateTaskDialog } from './create-task-dialog';
-import { useTasks, type Task, type TaskStatus, type TaskPriority } from '@/hooks/use-tasks';
-import { Plus, Search, Filter, Loader2 } from 'lucide-react';
+import { useTasks, type TaskStatus, type TaskPriority } from '@/hooks/use-tasks';
+import { Plus, Search, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const STATUS_TABS: { value: TaskStatus | 'all'; label: string }[] = [

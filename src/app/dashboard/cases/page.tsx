@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
@@ -14,6 +15,7 @@ import type { VisaType, CaseStatus } from '@/types';
 const PAGE_SIZE = 20;
 
 export default function CasesPage() {
+  const router = useRouter();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'filed' | 'closed'>('all');
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -87,7 +89,7 @@ export default function CasesPage() {
         <Card>
           <CardContent className="p-8 text-center">
             <p className="text-muted-foreground">Failed to load cases. Please try again.</p>
-            <Button variant="outline" className="mt-4" onClick={() => window.location.reload()}>
+            <Button variant="outline" className="mt-4" onClick={() => router.refresh()}>
               Retry
             </Button>
           </CardContent>

@@ -6,9 +6,8 @@ import {
   getFilterDisplayName,
   formatFilterValue,
 } from '@/hooks/use-natural-search';
-import { AIContentBox, AIBadge } from '@/components/ai';
+import { AIContentBox } from '@/components/ai';
 import {
-  FileText,
   Calendar,
   User,
   Tag,
@@ -30,7 +29,6 @@ interface SearchResultsProps {
  */
 export function SearchResults({ response, className }: SearchResultsProps) {
   const { interpretation, results, suggestions } = response;
-  const confidenceInfo = getConfidenceColor(interpretation.confidence);
 
   return (
     <div className={cn('space-y-4', className)}>

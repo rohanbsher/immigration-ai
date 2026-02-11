@@ -158,7 +158,8 @@ export async function validateAutofill(
  */
 export function getRequiredDocuments(
   formType: string,
-  visaType?: string
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _visaType?: string
 ): string[] {
   const baseDocuments: Record<string, string[]> = {
     'I-130': [

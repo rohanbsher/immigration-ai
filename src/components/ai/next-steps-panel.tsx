@@ -318,7 +318,6 @@ function CompactRecommendationItem({
  * Empty state component.
  */
 function EmptyState({
-  caseId: _caseId,
   onRefresh,
   className,
 }: {

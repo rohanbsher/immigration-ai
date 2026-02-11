@@ -66,7 +66,7 @@ export default function AnalyticsPage() {
   const { data: casesData, isLoading: casesLoading } = useCases({}, { limit: 200 });
 
   const isLoading = guardLoading || statsLoading || casesLoading;
-  const cases = casesData?.cases ?? [];
+  const cases = useMemo(() => casesData?.cases ?? [], [casesData?.cases]);
 
   // Compute derived analytics from cases
   const analytics = useMemo(() => {

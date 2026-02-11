@@ -4,9 +4,6 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
-  CheckCircle,
-  Circle,
-  Clock,
   Calendar,
   User,
   FolderOpen,
@@ -15,18 +12,8 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { useCompleteTask, useDeleteTask, type Task, type TaskStatus, type TaskPriority } from '@/hooks/use-tasks';
+import { useCompleteTask, useDeleteTask, type Task, type TaskPriority } from '@/hooks/use-tasks';
 import { toast } from 'sonner';
-
-const STATUS_CONFIG: Record<
-  TaskStatus,
-  { label: string; icon: React.ElementType; className: string }
-> = {
-  pending: { label: 'To Do', icon: Circle, className: 'text-slate-500' },
-  in_progress: { label: 'In Progress', icon: Clock, className: 'text-blue-500' },
-  completed: { label: 'Done', icon: CheckCircle, className: 'text-green-500' },
-  cancelled: { label: 'Cancelled', icon: Circle, className: 'text-gray-400' },
-};
 
 const PRIORITY_CONFIG: Record<TaskPriority, { label: string; className: string }> = {
   low: { label: 'Low', className: 'bg-slate-100 text-slate-600' },
@@ -46,7 +33,6 @@ export function TaskCard({ task, showCase = false, onDelete, compact = false }: 
   const { mutate: completeTask, isPending: isCompleting } = useCompleteTask();
   const { mutate: deleteTask, isPending: isDeleting } = useDeleteTask();
 
-  const statusConfig = STATUS_CONFIG[task.status];
   const priorityConfig = PRIORITY_CONFIG[task.priority];
 
   const isOverdue = task.due_date && new Date(task.due_date) < new Date() && task.status !== 'completed';

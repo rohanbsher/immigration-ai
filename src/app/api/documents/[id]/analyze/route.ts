@@ -6,7 +6,7 @@ import { aiRateLimiter } from '@/lib/rate-limit';
 import { createLogger } from '@/lib/logger';
 import { enforceQuota, trackUsage, QuotaExceededError } from '@/lib/billing/quota';
 import { validateStorageUrl } from '@/lib/security';
-import { isValidTransition, getValidNextStates, isTerminalState } from '@/lib/documents/state-machine';
+import { isValidTransition, getValidNextStates } from '@/lib/documents/state-machine';
 import { SIGNED_URL_EXPIRATION } from '@/lib/storage';
 import { logAIRequest } from '@/lib/audit/ai-audit';
 import { requireAiConsent } from '@/lib/auth/api-helpers';

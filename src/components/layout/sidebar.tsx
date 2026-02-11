@@ -95,7 +95,7 @@ export function Sidebar({ user }: SidebarProps) {
     try {
       await signOut();
       toast.success('Logged out successfully');
-    } catch (error) {
+    } catch {
       toast.error('Failed to log out');
     }
   };

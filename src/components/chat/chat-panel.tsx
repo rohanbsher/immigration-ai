@@ -40,7 +40,6 @@ export function ChatPanel({ className }: ChatPanelProps) {
     closeChat,
     sendMessage,
     cancelRequest,
-    clearMessages,
     loadConversation,
     startNewConversation,
     deleteConversation,

@@ -88,6 +88,8 @@ export function SessionExpiryWarning() {
     }, 1000);
 
     return () => clearInterval(timer);
+    // timeRemaining is intentionally excluded - including it would restart the interval on every tick
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showWarning, pathname, router]);
 
   const handleExtendSession = async () => {

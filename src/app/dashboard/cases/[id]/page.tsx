@@ -13,7 +13,6 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { CaseStatusBadge } from '@/components/cases';
 import { DocumentUpload } from '@/components/documents/document-upload';
@@ -38,50 +37,9 @@ import { CaseChatButton } from '@/components/chat/chat-button';
 import { CaseMessagesPanel } from '@/components/messaging';
 import { TaskList } from '@/components/tasks';
 import { ActivityTimeline } from '@/components/cases/activity-timeline';
-import type { CaseStatus, FormType, VisaType } from '@/types';
-
-const statusOptions: { value: CaseStatus; label: string }[] = [
-  { value: 'intake', label: 'Intake' },
-  { value: 'document_collection', label: 'Document Collection' },
-  { value: 'in_review', label: 'In Review' },
-  { value: 'forms_preparation', label: 'Forms Preparation' },
-  { value: 'ready_for_filing', label: 'Ready for Filing' },
-  { value: 'filed', label: 'Filed' },
-  { value: 'pending_response', label: 'Pending Response' },
-  { value: 'approved', label: 'Approved' },
-  { value: 'denied', label: 'Denied' },
-  { value: 'closed', label: 'Closed' },
-];
-
-const visaTypeOptions: { value: VisaType; label: string }[] = [
-  { value: 'B1B2', label: 'B-1/B-2 Visitor Visa' },
-  { value: 'F1', label: 'F-1 Student Visa' },
-  { value: 'H1B', label: 'H-1B Specialty Occupation' },
-  { value: 'H4', label: 'H-4 Dependent Visa' },
-  { value: 'L1', label: 'L-1 Intracompany Transferee' },
-  { value: 'O1', label: 'O-1 Extraordinary Ability' },
-  { value: 'EB1', label: 'EB-1 Priority Worker' },
-  { value: 'EB2', label: 'EB-2 Advanced Degree' },
-  { value: 'EB3', label: 'EB-3 Skilled Worker' },
-  { value: 'EB5', label: 'EB-5 Immigrant Investor' },
-  { value: 'I-130', label: 'I-130 Petition for Alien Relative' },
-  { value: 'I-485', label: 'I-485 Adjustment of Status' },
-  { value: 'I-765', label: 'I-765 Employment Authorization' },
-  { value: 'I-131', label: 'I-131 Travel Document' },
-  { value: 'N-400', label: 'N-400 Naturalization' },
-  { value: 'other', label: 'Other' },
-];
-
-const formTypeOptions: { value: FormType; label: string }[] = [
-  { value: 'I-130', label: 'I-130 - Petition for Alien Relative' },
-  { value: 'I-485', label: 'I-485 - Application to Register Permanent Residence' },
-  { value: 'I-765', label: 'I-765 - Application for Employment Authorization' },
-  { value: 'I-131', label: 'I-131 - Application for Travel Document' },
-  { value: 'I-140', label: 'I-140 - Immigrant Petition for Alien Workers' },
-  { value: 'I-129', label: 'I-129 - Petition for Nonimmigrant Worker' },
-  { value: 'I-539', label: 'I-539 - Application to Extend/Change Nonimmigrant Status' },
-  { value: 'N-400', label: 'N-400 - Application for Naturalization' },
-];
+import { EditCaseDialog } from './edit-case-dialog';
+import { statusOptions, formTypeOptions } from './constants';
+import type { CaseStatus, FormType } from '@/types';
 
 function CaseDetailContent({
   id,
@@ -102,28 +60,6 @@ function CaseDetailContent({
   const [isCreateFormDialogOpen, setIsCreateFormDialogOpen] = useState(false);
   const [selectedFormType, setSelectedFormType] = useState<FormType | ''>('');
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [editData, setEditData] = useState({
-    title: '',
-    description: '',
-    visa_type: '',
-    deadline: '',
-    priority_date: '',
-    notes: '',
-  });
-
-  const openEditDialog = () => {
-    if (caseData) {
-      setEditData({
-        title: caseData.title || '',
-        description: caseData.description || '',
-        visa_type: caseData.visa_type || '',
-        deadline: caseData.deadline ? caseData.deadline.split('T')[0] : '',
-        priority_date: caseData.priority_date ? caseData.priority_date.split('T')[0] : '',
-        notes: caseData.notes || '',
-      });
-    }
-    setIsEditDialogOpen(true);
-  };
 
   const handleStatusChange = (newStatus: CaseStatus) => {
     updateCase(
@@ -142,31 +78,6 @@ function CaseDetailContent({
   const handleDocumentUploadSuccess = () => {
     setIsUploadDialogOpen(false);
     toast.success('Documents uploaded successfully');
-  };
-
-  const handleEditSave = () => {
-    updateCase(
-      {
-        id,
-        data: {
-          title: editData.title,
-          description: editData.description || undefined,
-          visa_type: (editData.visa_type as VisaType) || undefined,
-          deadline: editData.deadline || undefined,
-          priority_date: editData.priority_date || undefined,
-          notes: editData.notes || undefined,
-        },
-      },
-      {
-        onSuccess: () => {
-          toast.success('Case updated successfully');
-          setIsEditDialogOpen(false);
-        },
-        onError: (error) => {
-          toast.error(error.message || 'Failed to update case');
-        },
-      }
-    );
   };
 
   const handleCreateForm = () => {
@@ -257,7 +168,7 @@ function CaseDetailContent({
               </option>
             ))}
           </select>
-          <Button variant="outline" size="icon" aria-label="Edit case details" onClick={openEditDialog}>
+          <Button variant="outline" size="icon" aria-label="Edit case details" onClick={() => setIsEditDialogOpen(true)}>
             <Edit className="h-4 w-4" />
           </Button>
         </div>
@@ -283,7 +194,6 @@ function CaseDetailContent({
           <div className="grid md:grid-cols-2 gap-6">
             {/* Left Column: Case Details + Client Info */}
             <div className="space-y-6">
-              {/* Case Details */}
               <Card>
                 <CardHeader>
                   <CardTitle>Case Details</CardTitle>
@@ -322,7 +232,6 @@ function CaseDetailContent({
                 </CardContent>
               </Card>
 
-              {/* Client Info */}
               <Card>
                 <CardHeader>
                   <CardTitle>Client Information</CardTitle>
@@ -342,19 +251,15 @@ function CaseDetailContent({
 
             {/* Right Column: AI Panels */}
             <div className="space-y-6">
-              {/* Document Completeness */}
               <DocumentCompletenessPanel
                 caseId={id}
                 variant="full"
                 onUploadClick={() => setIsUploadDialogOpen(true)}
               />
-
-              {/* Next Steps / Recommendations */}
               <NextStepsPanel caseId={id} variant="full" maxItems={5} />
             </div>
           </div>
 
-          {/* Description */}
           {caseData.description && (
             <Card>
               <CardHeader>
@@ -366,7 +271,6 @@ function CaseDetailContent({
             </Card>
           )}
 
-          {/* Notes */}
           {caseData.notes && (
             <Card>
               <CardHeader>
@@ -387,7 +291,6 @@ function CaseDetailContent({
               Upload Document
             </Button>
           </div>
-
           <DocumentList caseId={id} />
         </TabsContent>
 
@@ -535,94 +438,12 @@ function CaseDetailContent({
       </Dialog>
 
       {/* Edit Case Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Edit Case</DialogTitle>
-            <DialogDescription>
-              Update the case details below.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 pt-4">
-            <div className="space-y-2">
-              <Label htmlFor="edit-title">Title</Label>
-              <Input
-                id="edit-title"
-                value={editData.title}
-                onChange={(e) => setEditData((prev) => ({ ...prev, title: e.target.value }))}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-visa-type">Visa Type</Label>
-              <select
-                id="edit-visa-type"
-                value={editData.visa_type}
-                onChange={(e) => setEditData((prev) => ({ ...prev, visa_type: e.target.value }))}
-                className="w-full h-10 rounded-md border border-input bg-transparent px-3 text-sm"
-              >
-                {visaTypeOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-description">Description</Label>
-              <textarea
-                id="edit-description"
-                value={editData.description}
-                onChange={(e) => setEditData((prev) => ({ ...prev, description: e.target.value }))}
-                className="w-full min-h-[80px] rounded-md border border-input bg-background px-3 py-2 text-sm"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="edit-deadline">Deadline</Label>
-                <Input
-                  id="edit-deadline"
-                  type="date"
-                  value={editData.deadline}
-                  onChange={(e) => setEditData((prev) => ({ ...prev, deadline: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-priority-date">Priority Date</Label>
-                <Input
-                  id="edit-priority-date"
-                  type="date"
-                  value={editData.priority_date}
-                  onChange={(e) => setEditData((prev) => ({ ...prev, priority_date: e.target.value }))}
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-notes">Notes</Label>
-              <textarea
-                id="edit-notes"
-                value={editData.notes}
-                onChange={(e) => setEditData((prev) => ({ ...prev, notes: e.target.value }))}
-                className="w-full min-h-[80px] rounded-md border border-input bg-background px-3 py-2 text-sm"
-              />
-            </div>
-            <div className="flex justify-end gap-2 pt-4">
-              <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleEditSave} disabled={!editData.title || isUpdating}>
-                {isUpdating ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Saving...
-                  </>
-                ) : (
-                  'Save Changes'
-                )}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <EditCaseDialog
+        caseId={id}
+        caseData={caseData}
+        open={isEditDialogOpen}
+        onOpenChange={setIsEditDialogOpen}
+      />
     </div>
   );
 }

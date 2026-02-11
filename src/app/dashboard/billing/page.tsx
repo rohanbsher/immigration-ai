@@ -2,9 +2,9 @@
 
 import { useState } from 'react';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Loader2, CreditCard, Info } from 'lucide-react';
+import { Loader2, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   useSubscription,

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
@@ -51,7 +51,6 @@ export function DocumentUpload({ caseId, onSuccess }: DocumentUploadProps) {
   const [selectedFiles, setSelectedFiles] = useState<SelectedFile[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
-  const [pendingUpload, setPendingUpload] = useState(false);
   const { mutate: uploadDocument, isPending } = useUploadDocument();
   const { data: docQuota } = useQuota('documents');
   const { data: storageQuota } = useQuota('storage');
@@ -194,19 +193,8 @@ export function DocumentUpload({ caseId, onSuccess }: DocumentUploadProps) {
 
   const handleConsentGranted = useCallback(() => {
     grantConsent();
-    setPendingUpload(true);
-  }, [grantConsent]);
-
-  // Trigger deferred upload after consent is granted
-  const executeUploadRef = useRef(executeUpload);
-  executeUploadRef.current = executeUpload;
-
-  useEffect(() => {
-    if (pendingUpload) {
-      setPendingUpload(false);
-      executeUploadRef.current();
-    }
-  }, [pendingUpload]);
+    executeUpload();
+  }, [grantConsent, executeUpload]);
 
   const activeQuotaMetric = isAtDocLimit ? 'documents' : 'storage';
   const activeQuota = isAtDocLimit ? docQuota : storageQuota;

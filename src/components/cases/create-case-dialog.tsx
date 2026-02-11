@@ -70,13 +70,6 @@ export function CreateCaseDialog({ open, onOpenChange }: CreateCaseDialogProps) 
     return () => clearTimeout(timer);
   }, [clientSearch, open]);
 
-  // Open dropdown when search results arrive
-  useEffect(() => {
-    if (debouncedSearch.length >= 2 && !selectedClient) {
-      setIsDropdownOpen(true);
-    }
-  }, [debouncedSearch, searchResults, selectedClient]);
-
   // Close dropdown on outside click (only when dialog is open)
   useEffect(() => {
     if (!open) return;
@@ -212,7 +205,10 @@ export function CreateCaseDialog({ open, onOpenChange }: CreateCaseDialogProps) 
                   id="client_search"
                   placeholder="Search by name or email..."
                   value={clientSearch}
-                  onChange={(e) => setClientSearch(e.target.value)}
+                  onChange={(e) => {
+                    setClientSearch(e.target.value);
+                    if (e.target.value.length >= 2 && !selectedClient) setIsDropdownOpen(true);
+                  }}
                   onFocus={() => {
                     if (debouncedSearch.length >= 2) setIsDropdownOpen(true);
                   }}

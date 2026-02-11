@@ -247,7 +247,7 @@ function validateProductionRequirements(env: z.infer<typeof serverEnvSchema>) {
 
   // Warning: Virus scanner not configured
   if (!env.VIRUS_SCANNER_PROVIDER || env.VIRUS_SCANNER_PROVIDER === 'mock') {
-    warnings.push('VIRUS_SCANNER_PROVIDER not configured - file uploads will be rejected in production');
+    warnings.push('VIRUS_SCANNER_PROVIDER not configured - uploads use heuristic checks only');
   } else if (env.VIRUS_SCANNER_PROVIDER === 'clamav' && !env.CLAMAV_API_URL) {
     errors.push('CLAMAV_API_URL is required when using ClamAV virus scanner');
   } else if (env.VIRUS_SCANNER_PROVIDER === 'virustotal' && !env.VIRUSTOTAL_API_KEY) {

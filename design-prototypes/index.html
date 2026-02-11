@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Immigration AI - Redesign Prototypes</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --ink: #1a1a2e;
+    --paper: #fafaf8;
+    --stone: #e8e6e1;
+    --graphite: #6b6b7b;
+    --counsel-blue: #2563eb;
+    --white: #ffffff;
+  }
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    color: var(--ink);
+    background: var(--paper);
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 48px;
+  }
+  .container {
+    max-width: 640px;
+    width: 100%;
+  }
+  .logo {
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    margin-bottom: 8px;
+  }
+  .subtitle {
+    font-size: 14px;
+    color: var(--graphite);
+    margin-bottom: 48px;
+  }
+  h1 {
+    font-size: 36px;
+    font-weight: 600;
+    letter-spacing: -0.03em;
+    line-height: 1.2;
+    margin-bottom: 12px;
+  }
+  .description {
+    font-size: 16px;
+    line-height: 1.7;
+    color: var(--graphite);
+    margin-bottom: 48px;
+    max-width: 520px;
+  }
+  .prototype-list {
+    list-style: none;
+  }
+  .prototype-link {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 0;
+    border-bottom: 1px solid var(--stone);
+    text-decoration: none;
+    color: var(--ink);
+    transition: all 150ms ease;
+  }
+  .prototype-link:first-child {
+    border-top: 1px solid var(--stone);
+  }
+  .prototype-link:hover {
+    padding-left: 8px;
+  }
+  .prototype-link:hover .link-title {
+    color: var(--counsel-blue);
+  }
+  .link-info { flex: 1; }
+  .link-number {
+    font-size: 12px;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--graphite);
+    margin-bottom: 4px;
+  }
+  .link-title {
+    font-size: 18px;
+    font-weight: 500;
+    transition: color 150ms ease;
+  }
+  .link-desc {
+    font-size: 13px;
+    color: var(--graphite);
+    margin-top: 4px;
+  }
+  .link-arrow {
+    font-size: 18px;
+    color: var(--graphite);
+    margin-left: 16px;
+  }
+  .footer-note {
+    margin-top: 48px;
+    font-size: 13px;
+    color: var(--graphite);
+    line-height: 1.7;
+  }
+  .footer-note code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    background: var(--white);
+    border: 1px solid var(--stone);
+    padding: 2px 6px;
+    border-radius: 3px;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="logo">Immigration AI</div>
+  <div class="subtitle">Design Prototypes</div>
+
+  <h1>Frontend Redesign</h1>
+  <p class="description">
+    Interactive HTML prototypes for the complete UI overhaul. Open each page in your browser to see the new design language: clean typography, purposeful spacing, no purple AI gradients, no card soup.
+  </p>
+
+  <ul class="prototype-list">
+    <a href="01-landing-page.html" class="prototype-link">
+      <div class="link-info">
+        <div class="link-number">01</div>
+        <div class="link-title">Landing Page</div>
+        <div class="link-desc">Hero, product showcase, pricing &mdash; no template sections</div>
+      </div>
+      <span class="link-arrow">&rarr;</span>
+    </a>
+
+    <a href="02-login.html" class="prototype-link">
+      <div class="link-info">
+        <div class="link-number">02</div>
+        <div class="link-title">Login</div>
+        <div class="link-desc">Split layout, brand panel, minimal form</div>
+      </div>
+      <span class="link-arrow">&rarr;</span>
+    </a>
+
+    <a href="03-dashboard.html" class="prototype-link">
+      <div class="link-info">
+        <div class="link-number">03</div>
+        <div class="link-title">Dashboard</div>
+        <div class="link-desc">Case list as primary view, light sidebar, deadline panel</div>
+      </div>
+      <span class="link-arrow">&rarr;</span>
+    </a>
+
+    <a href="04-case-detail.html" class="prototype-link">
+      <div class="link-info">
+        <div class="link-number">04</div>
+        <div class="link-title">Case Detail</div>
+        <div class="link-desc">Clean workspace with tabs, checklist, documents, timeline</div>
+      </div>
+      <span class="link-arrow">&rarr;</span>
+    </a>
+  </ul>
+
+  <div class="footer-note">
+    <strong>How to view:</strong> Open these HTML files directly in your browser, or run
+    <code>npx serve design-prototypes</code> from the project root.
+    <br><br>
+    <strong>Design system doc:</strong> See <code>REDESIGN-PLAN.md</code> in this folder for the full audit, philosophy, and implementation roadmap.
+    <br><br>
+    <strong>Note on Figma:</strong> These HTML prototypes serve the same purpose as Figma mockups but are more useful &mdash; they show real hover states, responsive behavior, typography rendering, and spacing at actual pixel values. If you need .fig files later, these prototypes provide the exact specs for recreation.
+  </div>
+</div>
+</body>
+</html>

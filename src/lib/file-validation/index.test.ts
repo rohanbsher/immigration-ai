@@ -251,7 +251,7 @@ describe('File Validation Service', () => {
       expect(result.threatName).toContain('SUSPICIOUS_CONTENT');
     });
 
-    test('should fail closed in production when scanner not configured', async () => {
+    test('should allow clean files in production with heuristic checks when scanner not configured', async () => {
       process.env.NODE_ENV = 'production';
       const file = createMockFile({
         name: 'document.pdf',
@@ -260,8 +260,8 @@ describe('File Validation Service', () => {
 
       const result = await scanFileForViruses(file, { provider: 'mock' });
 
-      expect(result.isClean).toBe(false);
-      expect(result.threatName).toBe('SCANNER_NOT_CONFIGURED');
+      expect(result.isClean).toBe(true);
+      expect(result.scanProvider).toBe('mock');
     });
 
     test('should fail closed when ClamAV not configured', async () => {

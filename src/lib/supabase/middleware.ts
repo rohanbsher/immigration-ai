@@ -167,9 +167,11 @@ export async function updateSession(request: NextRequest) {
     }
   }
 
-  // Add server timing header for performance monitoring
-  const duration = Date.now() - startTime;
-  supabaseResponse.headers.set('server-timing', `middleware;dur=${duration}`);
+  // Add server timing header for performance monitoring (non-production only)
+  if (process.env.NODE_ENV !== 'production') {
+    const duration = Date.now() - startTime;
+    supabaseResponse.headers.set('server-timing', `middleware;dur=${duration}`);
+  }
 
   // Ensure request ID is on the final response (may have been replaced by setAll)
   supabaseResponse.headers.set('x-request-id', requestId);

@@ -98,6 +98,9 @@ export const storage = {
   },
 
   getPublicUrl(bucket: string, path: string) {
+    if (bucket === 'documents') {
+      throw new Error('Documents bucket requires signed URLs');
+    }
     const supabase = createClient();
 
     const { data } = supabase.storage
@@ -168,6 +171,9 @@ export const serverStorage = {
   },
 
   getPublicUrl(bucket: string, path: string) {
+    if (bucket === 'documents') {
+      throw new Error('Documents bucket requires signed URLs');
+    }
     // Note: This is a sync operation that doesn't need await
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     return `${supabaseUrl}/storage/v1/object/public/${bucket}/${path}`;

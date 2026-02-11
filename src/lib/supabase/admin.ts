@@ -46,6 +46,7 @@ export interface ProfileRow {
   last_name: string | null;
   phone: string | null;
   mfa_enabled: boolean;
+  ai_consent_granted_at: string | null;
   created_at: string;
   updated_at: string;
 }

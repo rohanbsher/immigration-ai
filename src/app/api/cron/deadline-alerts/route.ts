@@ -68,16 +68,3 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 }
 
-/**
- * GET /api/cron/deadline-alerts
- *
- * Health check endpoint for the cron job.
- */
-export async function GET(): Promise<NextResponse> {
-  return NextResponse.json({
-    status: 'healthy',
-    endpoint: '/api/cron/deadline-alerts',
-    method: 'POST',
-    schedule: '0 6 * * * (daily at 6 AM UTC)',
-  });
-}

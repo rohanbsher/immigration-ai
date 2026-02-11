@@ -42,7 +42,11 @@ export async function GET(request: NextRequest) {
       .single();
 
     if (error && error.code !== 'PGRST116') {
-      throw new Error(`Failed to fetch deletion request: ${error.message}`);
+      log.logError('Failed to fetch deletion request', error);
+      return NextResponse.json(
+        { error: 'Failed to fetch deletion request' },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json({
@@ -105,7 +109,11 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         );
       }
-      throw new Error(`Failed to create deletion request: ${error.message}`);
+      log.logError('Failed to create deletion request', error);
+      return NextResponse.json(
+        { error: 'Failed to request deletion' },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json({
@@ -155,7 +163,11 @@ export async function DELETE(request: NextRequest) {
     });
 
     if (error) {
-      throw new Error(`Failed to cancel deletion request: ${error.message}`);
+      log.logError('Failed to cancel deletion request', error);
+      return NextResponse.json(
+        { error: 'Failed to cancel deletion' },
+        { status: 500 }
+      );
     }
 
     if (!cancelled) {

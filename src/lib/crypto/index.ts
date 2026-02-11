@@ -184,6 +184,12 @@ export const SENSITIVE_FIELDS = [
   'tax_id',
   'itin',
   'ein',
+  'visa_number',
+  'travel_document_number',
+  'uscis_receipt_number',
+  'mother_maiden_name',
+  'national_id_number',
+  'i94_number',
 ] as const;
 
 /**

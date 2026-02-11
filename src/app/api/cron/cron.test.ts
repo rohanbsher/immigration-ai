@@ -3,7 +3,6 @@
  *
  * Tests cover:
  * - POST /api/cron/deadline-alerts - Sync deadline alerts
- * - GET /api/cron/deadline-alerts - Health check
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -44,7 +43,7 @@ vi.mock('@/lib/logger', () => ({
 // Imports (after mocks)
 // ---------------------------------------------------------------------------
 
-import { POST, GET } from './deadline-alerts/route';
+import { POST } from './deadline-alerts/route';
 import { syncDeadlineAlerts } from '@/lib/deadline';
 import { features, serverEnv } from '@/lib/config';
 import { safeCompare } from '@/lib/security/timing-safe';
@@ -177,19 +176,4 @@ describe('Cron API Routes', () => {
     });
   });
 
-  // ==========================================================================
-  // GET /api/cron/deadline-alerts (health check)
-  // ==========================================================================
-  describe('GET /api/cron/deadline-alerts', () => {
-    it('should return 200 with health check info', async () => {
-      const response = await GET();
-      const data = await response.json();
-
-      expect(response.status).toBe(200);
-      expect(data.status).toBe('healthy');
-      expect(data.endpoint).toBe('/api/cron/deadline-alerts');
-      expect(data.method).toBe('POST');
-      expect(data.schedule).toBe('0 6 * * * (daily at 6 AM UTC)');
-    });
-  });
 });

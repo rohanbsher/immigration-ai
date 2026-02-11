@@ -16,6 +16,7 @@ import { createRateLimiter, RATE_LIMITS } from '@/lib/rate-limit';
 import { withAIFallback } from '@/lib/ai/utils';
 import { createLogger } from '@/lib/logger';
 import { enforceQuota, trackUsage, QuotaExceededError } from '@/lib/billing/quota';
+import { requireAiConsent } from '@/lib/auth/api-helpers';
 
 const log = createLogger('api:case-recommendations');
 
@@ -212,6 +213,10 @@ export async function GET(
         { status: 401 }
       );
     }
+
+    // AI consent check
+    const consentError = await requireAiConsent(user.id);
+    if (consentError) return consentError;
 
     // Rate limiting
     const limitResult = await rateLimiter.limit(request, user.id);

@@ -303,6 +303,30 @@ export async function requireAttorneyOrAdmin(
 }
 
 // =============================================================================
+// AI Consent Enforcement
+// =============================================================================
+
+/**
+ * Check that the authenticated user has granted AI consent.
+ * Call this after authentication in any route that sends PII to AI providers.
+ *
+ * @returns null if consent is granted, or a 403 NextResponse if not.
+ */
+export async function requireAiConsent(userId: string): Promise<NextResponse | null> {
+  const { profile, error } = await getProfileAsAdmin(userId);
+
+  if (error || !profile) {
+    return errorResponse('Profile not found', 401);
+  }
+
+  if (!profile.ai_consent_granted_at) {
+    return errorResponse('AI consent required', 403);
+  }
+
+  return null;
+}
+
+// =============================================================================
 // Resource Access Verification
 // =============================================================================
 

@@ -87,15 +87,12 @@ export async function POST(request: NextRequest) {
     if (data.user && !data.session) {
       return NextResponse.json({
         message: 'Please check your email to confirm your account',
-        user: data.user,
         requiresConfirmation: true,
       });
     }
 
     return NextResponse.json({
       message: 'Account created successfully',
-      user: data.user,
-      session: data.session,
     });
   } catch (error) {
     if (error instanceof z.ZodError) {

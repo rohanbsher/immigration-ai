@@ -127,7 +127,6 @@ async function checkDatabase(): Promise<HealthCheck> {
         status: 'fail',
         message: 'Database query failed',
         responseTime,
-        details: { error: error.message },
       };
     }
 
@@ -145,14 +144,11 @@ async function checkDatabase(): Promise<HealthCheck> {
       message: 'Database connection healthy',
       responseTime,
     };
-  } catch (error) {
+  } catch {
     return {
       status: 'fail',
       message: 'Database connection failed',
       responseTime: Date.now() - startTime,
-      details: {
-        error: error instanceof Error ? error.message : 'Unknown error',
-      },
     };
   }
 }
@@ -222,14 +218,11 @@ async function checkRedis(): Promise<HealthCheck> {
         ? detailedHealth.recommendations
         : undefined,
     };
-  } catch (error) {
+  } catch {
     return {
       status: 'fail',
       message: 'Redis health check failed',
       responseTime: Date.now() - startTime,
-      details: {
-        error: error instanceof Error ? error.message : 'Unknown error',
-      },
     };
   }
 }

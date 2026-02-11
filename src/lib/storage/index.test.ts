@@ -180,16 +180,22 @@ describe('Storage Module', () => {
     });
 
     describe('getPublicUrl', () => {
-      it('should return public URL', () => {
-        const mockUrl = 'https://storage.example.com/documents/test.pdf';
+      it('should return public URL for non-documents bucket', () => {
+        const mockUrl = 'https://storage.example.com/avatars/photo.png';
 
         mockGetPublicUrl.mockReturnValueOnce({ data: { publicUrl: mockUrl } });
 
-        const result = storage.getPublicUrl('documents', 'test.pdf');
+        const result = storage.getPublicUrl('avatars', 'photo.png');
 
-        expect(mockStorageFrom).toHaveBeenCalledWith('documents');
-        expect(mockGetPublicUrl).toHaveBeenCalledWith('test.pdf');
+        expect(mockStorageFrom).toHaveBeenCalledWith('avatars');
+        expect(mockGetPublicUrl).toHaveBeenCalledWith('photo.png');
         expect(result).toBe(mockUrl);
+      });
+
+      it('should throw for documents bucket', () => {
+        expect(() => storage.getPublicUrl('documents', 'test.pdf')).toThrow(
+          'Documents bucket requires signed URLs'
+        );
       });
     });
 
@@ -351,17 +357,23 @@ describe('Storage Module', () => {
     });
 
     describe('getPublicUrl', () => {
-      it('should construct public URL from environment', () => {
+      it('should construct public URL from environment for non-documents bucket', () => {
         const originalEnv = process.env.NEXT_PUBLIC_SUPABASE_URL;
         process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://project.supabase.co';
 
-        const result = serverStorage.getPublicUrl('documents', 'test.pdf');
+        const result = serverStorage.getPublicUrl('avatars', 'photo.png');
 
         expect(result).toBe(
-          'https://project.supabase.co/storage/v1/object/public/documents/test.pdf'
+          'https://project.supabase.co/storage/v1/object/public/avatars/photo.png'
         );
 
         process.env.NEXT_PUBLIC_SUPABASE_URL = originalEnv;
+      });
+
+      it('should throw for documents bucket', () => {
+        expect(() => serverStorage.getPublicUrl('documents', 'test.pdf')).toThrow(
+          'Documents bucket requires signed URLs'
+        );
       });
     });
 

@@ -33,7 +33,11 @@ export async function GET(request: NextRequest) {
       .limit(5);
 
     if (error) {
-      throw new Error(`Failed to fetch export jobs: ${error.message}`);
+      log.logError('Failed to fetch export jobs', error);
+      return NextResponse.json(
+        { error: 'Failed to fetch export history' },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json({
@@ -76,7 +80,11 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (checkError && checkError.code !== 'PGRST116') {
-      throw new Error(`Failed to check existing jobs: ${checkError.message}`);
+      log.logError('Failed to check existing jobs', checkError);
+      return NextResponse.json(
+        { error: 'Failed to create export. Please try again later.' },
+        { status: 500 }
+      );
     }
 
     if (existingJob) {
@@ -91,7 +99,11 @@ export async function POST(request: NextRequest) {
     });
 
     if (createError) {
-      throw new Error(`Failed to create export job: ${createError.message}`);
+      log.logError('Failed to create export job', createError);
+      return NextResponse.json(
+        { error: 'Failed to create export. Please try again later.' },
+        { status: 500 }
+      );
     }
 
     const { data: exportData, error: exportError } = await supabase.rpc('get_user_export_data', {
@@ -99,7 +111,11 @@ export async function POST(request: NextRequest) {
     });
 
     if (exportError) {
-      throw new Error(`Failed to generate export data: ${exportError.message}`);
+      log.logError('Failed to generate export data', exportError);
+      return NextResponse.json(
+        { error: 'Failed to create export. Please try again later.' },
+        { status: 500 }
+      );
     }
 
     const { error: updateError } = await supabase

@@ -179,6 +179,7 @@ vi.mock('@/lib/auth/api-helpers', () => ({
     success: true,
     access: { isAttorney: true, isClient: false },
   }),
+  requireAiConsent: vi.fn().mockResolvedValue(null),
 }));
 
 // Import handlers after mocks are set up

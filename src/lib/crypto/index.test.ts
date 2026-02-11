@@ -154,6 +154,15 @@ describe('crypto utilities', () => {
       expect(isSensitiveField('alien_number')).toBe(true);
     });
 
+    it('should identify immigration-specific fields as sensitive', () => {
+      expect(isSensitiveField('visa_number')).toBe(true);
+      expect(isSensitiveField('travel_document_number')).toBe(true);
+      expect(isSensitiveField('uscis_receipt_number')).toBe(true);
+      expect(isSensitiveField('mother_maiden_name')).toBe(true);
+      expect(isSensitiveField('national_id_number')).toBe(true);
+      expect(isSensitiveField('i94_number')).toBe(true);
+    });
+
     it('should not identify regular fields as sensitive', () => {
       expect(isSensitiveField('name')).toBe(false);
       expect(isSensitiveField('email')).toBe(false);

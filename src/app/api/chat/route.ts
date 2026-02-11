@@ -14,6 +14,7 @@ import { createSSEStream, SSE_CONFIG } from '@/lib/api/sse';
 import { enforceQuota, trackUsage, QuotaExceededError } from '@/lib/billing/quota';
 import { z } from 'zod';
 import { logAIRequest } from '@/lib/audit/ai-audit';
+import { requireAiConsent } from '@/lib/auth/api-helpers';
 
 const log = createLogger('api:chat');
 
@@ -50,6 +51,10 @@ export async function POST(request: NextRequest): Promise<Response> {
         { status: 401 }
       );
     }
+
+    // AI consent check
+    const consentError = await requireAiConsent(user.id);
+    if (consentError) return consentError;
 
     // Rate limiting
     const limitResult = await rateLimiter.limit(request, user.id);
@@ -288,7 +293,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     log.logError('Error fetching conversations', error);
 
     return NextResponse.json(
-      { error: 'Internal Server Error', message: 'Failed to fetch conversations' },
+      { error: 'Internal Server Error', message: 'Failed to fetch conversations. Please try again.' },
       { status: 500 }
     );
   }

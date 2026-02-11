@@ -194,8 +194,8 @@ describe('Auth API Routes', () => {
 
       expect(response.status).toBe(200);
       expect(data.message).toBe('Login successful');
-      expect(data.user).toEqual(mockUser);
-      expect(data.session).toEqual(mockSession);
+      expect(data.user).toBeUndefined();
+      expect(data.session).toBeUndefined();
       expect(data.profile).toEqual(mockProfile);
       expect(mockSignInWithPassword).toHaveBeenCalledWith({
         email: 'test@example.com',
@@ -323,6 +323,50 @@ describe('Auth API Routes', () => {
       expect(response.status).toBe(200);
       expect(data.message).toBe('Login successful');
       expect(data.profile).toEqual(upsertedProfile);
+      expect(data.user).toBeUndefined();
+      expect(data.session).toBeUndefined();
+    });
+
+    it('should not allow admin role from user_metadata during fallback profile creation', async () => {
+      const maliciousUser = {
+        ...mockUser,
+        user_metadata: {
+          first_name: 'Hacker',
+          last_name: 'McHackface',
+          role: 'admin',
+        },
+      };
+
+      mockSignInWithPassword.mockResolvedValue({
+        data: { user: maliciousUser, session: mockSession },
+        error: null,
+      });
+      mockGetSession.mockResolvedValue({ data: { session: mockSession }, error: null });
+      mockFromSelect.mockResolvedValue({ data: null, error: null });
+      mockUpsertSelect.mockResolvedValue({
+        data: {
+          id: 'user-123',
+          role: 'client',
+          first_name: 'Hacker',
+          last_name: 'McHackface',
+          email: 'test@example.com',
+          avatar_url: null,
+        },
+        error: null,
+      });
+
+      const request = createMockRequest({
+        body: {
+          email: 'test@example.com',
+          password: 'validPassword123',
+        },
+      });
+
+      const response = await loginHandler(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.profile.role).toBe('client');
     });
   });
 
@@ -351,8 +395,8 @@ describe('Auth API Routes', () => {
 
       expect(response.status).toBe(200);
       expect(data.message).toBe('Account created successfully');
-      expect(data.user).toEqual(mockUser);
-      expect(data.session).toEqual(mockSession);
+      expect(data.user).toBeUndefined();
+      expect(data.session).toBeUndefined();
       expect(mockSignUp).toHaveBeenCalledWith({
         email: 'attorney@example.com',
         password: 'Secure@Password123',
@@ -535,6 +579,7 @@ describe('Auth API Routes', () => {
       expect(response.status).toBe(200);
       expect(data.message).toBe('Please check your email to confirm your account');
       expect(data.requiresConfirmation).toBe(true);
+      expect(data.user).toBeUndefined();
     });
 
     it('should return 400 for Supabase registration errors', async () => {

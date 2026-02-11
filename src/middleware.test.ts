@@ -352,7 +352,9 @@ describe('updateSession (Supabase Middleware)', () => {
   });
 
   describe('Server Timing', () => {
-    it('should add server-timing header to response', async () => {
+    it('should add server-timing header in non-production', async () => {
+      const originalEnv = process.env.NODE_ENV;
+      process.env.NODE_ENV = 'development';
       const request = createMockRequest('/');
 
       const response = await updateSession(request);
@@ -361,9 +363,24 @@ describe('updateSession (Supabase Middleware)', () => {
       expect(serverTiming).toBeDefined();
       expect(serverTiming).toContain('middleware');
       expect(serverTiming).toContain('dur=');
+      process.env.NODE_ENV = originalEnv;
     });
 
-    it('should measure middleware duration', async () => {
+    it('should NOT add server-timing header in production', async () => {
+      const originalEnv = process.env.NODE_ENV;
+      process.env.NODE_ENV = 'production';
+      const request = createMockRequest('/');
+
+      const response = await updateSession(request);
+
+      const serverTiming = response.headers.get('server-timing');
+      expect(serverTiming).toBeNull();
+      process.env.NODE_ENV = originalEnv;
+    });
+
+    it('should measure middleware duration in non-production', async () => {
+      const originalEnv = process.env.NODE_ENV;
+      process.env.NODE_ENV = 'development';
       const request = createMockRequest('/');
 
       const response = await updateSession(request);
@@ -372,6 +389,7 @@ describe('updateSession (Supabase Middleware)', () => {
       const match = serverTiming?.match(/dur=(\d+)/);
       expect(match).toBeDefined();
       const duration = parseInt(match![1]);
+      process.env.NODE_ENV = originalEnv;
       expect(duration).toBeGreaterThanOrEqual(0);
     });
   });

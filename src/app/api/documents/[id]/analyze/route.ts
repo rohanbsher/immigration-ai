@@ -9,6 +9,7 @@ import { validateStorageUrl } from '@/lib/security';
 import { isValidTransition, getValidNextStates, isTerminalState } from '@/lib/documents/state-machine';
 import { SIGNED_URL_EXPIRATION } from '@/lib/storage';
 import { logAIRequest } from '@/lib/audit/ai-audit';
+import { requireAiConsent } from '@/lib/auth/api-helpers';
 
 const log = createLogger('api:documents-analyze');
 
@@ -34,6 +35,10 @@ export async function POST(
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    // AI consent check
+    const consentError = await requireAiConsent(user.id);
+    if (consentError) return consentError;
 
     // Rate limiting check for AI endpoints (10 requests per hour)
     const rateLimitResult = await aiRateLimiter.limit(request, user.id);

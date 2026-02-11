@@ -49,7 +49,11 @@ export async function GET(request: NextRequest) {
       .range((page - 1) * pageSize, page * pageSize - 1);
 
     if (error) {
-      throw new Error(`Failed to fetch users: ${error.message}`);
+      log.logError('Database query failed', error);
+      return NextResponse.json(
+        { error: 'Failed to fetch users' },
+        { status: 500 }
+      );
     }
 
     const adminClient = getAdminClient();

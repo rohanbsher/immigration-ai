@@ -89,6 +89,10 @@ vi.mock('@/lib/audit/ai-audit', () => ({
   logAIRequest: vi.fn(),
 }));
 
+vi.mock('@/lib/auth/api-helpers', () => ({
+  requireAiConsent: vi.fn().mockResolvedValue(null),
+}));
+
 vi.mock('@/lib/logger', () => ({
   createLogger: () => ({
     info: vi.fn(),
@@ -539,7 +543,7 @@ describe('Chat API Routes', () => {
 
       expect(res.status).toBe(500);
       expect(data.error).toBe('Internal Server Error');
-      expect(data.message).toBe('Failed to fetch conversations');
+      expect(data.message).toBe('Failed to fetch conversations. Please try again.');
     });
   });
 

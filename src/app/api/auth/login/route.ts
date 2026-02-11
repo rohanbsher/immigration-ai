@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
           email: data.user.email || '',
           first_name: meta?.first_name || '',
           last_name: meta?.last_name || '',
-          role: meta?.role || 'client',
+          role: ['attorney', 'client'].includes(meta?.role) ? meta.role : 'client',
         }, { onConflict: 'id' })
         .select('id, role, first_name, last_name, email, avatar_url')
         .single();
@@ -90,16 +90,12 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json({
         message: 'Login successful',
-        user: data.user,
-        session: sessionData.session ?? data.session,
         profile: newProfile ?? null,
       });
     }
 
     return NextResponse.json({
       message: 'Login successful',
-      user: data.user,
-      session: sessionData.session ?? data.session,
       profile,
     });
   } catch (error) {

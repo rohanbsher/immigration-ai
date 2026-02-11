@@ -156,6 +156,11 @@ vi.mock('@/lib/security', () => ({
   validateStorageUrl: vi.fn().mockReturnValue(true),
 }));
 
+// Mock AI consent check
+vi.mock('@/lib/auth/api-helpers', () => ({
+  requireAiConsent: vi.fn().mockResolvedValue(null),
+}));
+
 // Mock billing quota
 vi.mock('@/lib/billing/quota', () => ({
   enforceQuota: vi.fn().mockResolvedValue(undefined),

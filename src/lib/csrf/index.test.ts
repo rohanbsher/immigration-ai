@@ -100,31 +100,32 @@ describe('CSRF Module', () => {
         expect(result.reason).toContain('Missing Origin/Referer');
       });
 
-      it('should allow POST with x-api-client header', () => {
+      it('should reject POST with x-api-client header (bypass removed)', () => {
         const request = createMockRequest('POST', {
           'x-api-client': 'true',
           host: 'localhost:3000',
         });
         const result = validateCsrf(request);
 
-        expect(result.valid).toBe(true);
-        expect(result.reason).toBe('api-client-or-webhook');
+        expect(result.valid).toBe(false);
       });
 
-      it('should allow webhook endpoints without origin', () => {
-        const request = createMockRequest('POST', {}, '/api/webhooks/stripe');
+      it('should allow exact billing webhook path without origin', () => {
+        const request = createMockRequest('POST', {}, '/api/billing/webhooks');
         const result = validateCsrf(request);
 
         expect(result.valid).toBe(true);
-        expect(result.reason).toBe('api-client-or-webhook');
+        expect(result.reason).toBe('webhook');
       });
 
-      it('should allow webhook path variations', () => {
+      it('should reject non-billing webhook paths without origin', () => {
         const request1 = createMockRequest('POST', {}, '/api/webhook/payment');
         const request2 = createMockRequest('POST', {}, '/webhooks/event');
+        const request3 = createMockRequest('POST', {}, '/api/webhooks/stripe');
 
-        expect(validateCsrf(request1).valid).toBe(true);
-        expect(validateCsrf(request2).valid).toBe(true);
+        expect(validateCsrf(request1).valid).toBe(false);
+        expect(validateCsrf(request2).valid).toBe(false);
+        expect(validateCsrf(request3).valid).toBe(false);
       });
     });
 

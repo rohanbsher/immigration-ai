@@ -27,7 +27,17 @@ export function useAiConsent() {
   const [hasConsented, setHasConsented] = useState(readConsent);
   const [showConsentModal, setShowConsentModal] = useState(false);
 
-  const grantConsent = useCallback(() => {
+  const grantConsent = useCallback(async () => {
+    try {
+      const res = await fetch('/api/profile/ai-consent', { method: 'POST' });
+      if (!res.ok) {
+        throw new Error('Failed to persist AI consent');
+      }
+    } catch {
+      // Server persistence failed — still set localStorage as cache
+      // The server will reject AI requests until consent is persisted
+    }
+
     const record: ConsentRecord = {
       consented: true,
       timestamp: new Date().toISOString(),
@@ -36,6 +46,16 @@ export function useAiConsent() {
     localStorage.setItem(CONSENT_KEY, JSON.stringify(record));
     setHasConsented(true);
     setShowConsentModal(false);
+  }, []);
+
+  const revokeConsent = useCallback(async () => {
+    try {
+      await fetch('/api/profile/ai-consent', { method: 'DELETE' });
+    } catch {
+      // Best effort
+    }
+    localStorage.removeItem(CONSENT_KEY);
+    setHasConsented(false);
   }, []);
 
   const openConsentDialog = useCallback(() => {
@@ -50,6 +70,7 @@ export function useAiConsent() {
     hasConsented,
     showConsentModal,
     grantConsent,
+    revokeConsent,
     openConsentDialog,
     closeConsentDialog,
   };

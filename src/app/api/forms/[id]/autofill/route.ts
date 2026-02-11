@@ -12,6 +12,7 @@ import { createLogger } from '@/lib/logger';
 import { enforceQuota, trackUsage, QuotaExceededError } from '@/lib/billing/quota';
 import type { FormStatus } from '@/types';
 import { logAIRequest } from '@/lib/audit/ai-audit';
+import { requireAiConsent } from '@/lib/auth/api-helpers';
 
 const log = createLogger('api:forms-autofill');
 
@@ -30,6 +31,10 @@ export async function POST(
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    // AI consent check
+    const consentError = await requireAiConsent(user.id);
+    if (consentError) return consentError;
 
     // Rate limiting check for AI endpoints (10 requests per hour)
     const rateLimitResult = await aiRateLimiter.limit(request, user.id);

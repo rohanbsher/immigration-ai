@@ -10,7 +10,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
 // Mock data
 const mockAttorneyId = 'attorney-123';
@@ -179,6 +179,7 @@ import { documentsService, casesService } from '@/lib/db';
 import { analyzeDocument } from '@/lib/ai';
 import { aiRateLimiter } from '@/lib/rate-limit';
 import { validateStorageUrl } from '@/lib/security';
+import { requireAiConsent } from '@/lib/auth/api-helpers';
 
 // Helper to create mock NextRequest
 function createMockRequest(
@@ -277,6 +278,19 @@ describe('POST /api/documents/[id]/analyze', () => {
 
       expect(response.status).toBe(401);
       expect(data.error).toBe('Unauthorized');
+    });
+
+    it('returns 403 when AI consent not granted', async () => {
+      vi.mocked(requireAiConsent).mockResolvedValueOnce(
+        NextResponse.json({ error: 'AI consent required' }, { status: 403 })
+      );
+
+      const request = createMockRequest('POST', `/api/documents/${mockDocumentId}/analyze`);
+      const response = await POST(request, { params: createMockParams() });
+      const data = await response.json();
+
+      expect(response.status).toBe(403);
+      expect(data.error).toBe('AI consent required');
     });
 
     it('returns 403 when non-attorney tries to analyze', async () => {

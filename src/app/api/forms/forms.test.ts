@@ -11,7 +11,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
 // Mock data
 const mockAttorneyId = 'attorney-123';
@@ -190,6 +190,7 @@ import { POST as filePOST } from './[id]/file/route';
 import { formsService, casesService, documentsService } from '@/lib/db';
 import { autofillForm } from '@/lib/ai';
 import { aiRateLimiter } from '@/lib/rate-limit';
+import { requireAiConsent } from '@/lib/auth/api-helpers';
 
 // Helper to create mock NextRequest
 function createMockRequest(
@@ -520,6 +521,19 @@ describe('Forms API Routes', () => {
 
       expect(response.status).toBe(401);
       expect(data.error).toBe('Unauthorized');
+    });
+
+    it('should return 403 when AI consent not granted', async () => {
+      vi.mocked(requireAiConsent).mockResolvedValueOnce(
+        NextResponse.json({ error: 'AI consent required' }, { status: 403 })
+      );
+
+      const request = createMockRequest('POST');
+      const response = await autofillPOST(request, { params: createMockParams() });
+      const data = await response.json();
+
+      expect(response.status).toBe(403);
+      expect(data.error).toBe('AI consent required');
     });
 
     it('should return 429 when rate limited', async () => {

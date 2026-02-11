@@ -120,6 +120,7 @@ import {
 import { createSSEStream } from '@/lib/api/sse';
 import { enforceQuota, QuotaExceededError } from '@/lib/billing/quota';
 
+import { requireAiConsent } from '@/lib/auth/api-helpers';
 import { POST as chatPOST, GET as chatGET } from './route';
 import {
   GET as convGET,
@@ -204,6 +205,23 @@ describe('Chat API Routes', () => {
       expect(res.status).toBe(401);
       expect(data.error).toBe('Unauthorized');
       expect(data.message).toBe('Please log in to continue');
+    });
+
+    it('returns 403 when AI consent not granted', async () => {
+      mockSupabaseAuth({ id: MOCK_USER_ID, email: MOCK_EMAIL });
+      _chatLimiter.limit.mockResolvedValue({ allowed: true });
+      vi.mocked(requireAiConsent).mockResolvedValueOnce(
+        NextResponse.json({ error: 'AI consent required' }, { status: 403 })
+      );
+
+      const req = createRequest('POST', '/api/chat', {
+        message: 'Hello',
+      });
+      const res = await chatPOST(req);
+      const data = await res.json();
+
+      expect(res.status).toBe(403);
+      expect(data.error).toBe('AI consent required');
     });
 
     it('returns 429 when rate limited', async () => {

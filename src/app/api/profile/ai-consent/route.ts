@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 import { createLogger } from '@/lib/logger';
 
 const log = createLogger('api:ai-consent');
@@ -8,8 +9,17 @@ const log = createLogger('api:ai-consent');
  * POST /api/profile/ai-consent
  * Grant AI consent — sets ai_consent_granted_at on the caller's profile.
  */
-export async function POST() {
+export async function POST(request: NextRequest) {
   try {
+    const ip = request.headers.get('x-forwarded-for') || 'unknown';
+    const rateLimitResult = await rateLimit(RATE_LIMITS.SENSITIVE, ip);
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: 'Too many requests' },
+        { status: 429, headers: { 'Retry-After': rateLimitResult.retryAfter?.toString() || '60' } }
+      );
+    }
+
     const supabase = await createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
 
@@ -38,8 +48,17 @@ export async function POST() {
  * DELETE /api/profile/ai-consent
  * Revoke AI consent — sets ai_consent_granted_at to NULL.
  */
-export async function DELETE() {
+export async function DELETE(request: NextRequest) {
   try {
+    const ip = request.headers.get('x-forwarded-for') || 'unknown';
+    const rateLimitResult = await rateLimit(RATE_LIMITS.SENSITIVE, ip);
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: 'Too many requests' },
+        { status: 429, headers: { 'Retry-After': rateLimitResult.retryAfter?.toString() || '60' } }
+      );
+    }
+
     const supabase = await createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
 

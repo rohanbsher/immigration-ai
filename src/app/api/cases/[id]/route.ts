@@ -5,12 +5,13 @@ import { z } from 'zod';
 import { sendCaseUpdateEmail } from '@/lib/email/notifications';
 import { standardRateLimiter } from '@/lib/rate-limit';
 import { createLogger } from '@/lib/logger';
+import { VISA_TYPES, CASE_STATUSES } from '@/lib/validation';
 
 const log = createLogger('api:case');
 
 const updateCaseSchema = z.object({
-  visa_type: z.string().optional(),
-  status: z.string().optional(),
+  visa_type: z.enum(VISA_TYPES, { message: 'Invalid visa type' }).optional(),
+  status: z.enum(CASE_STATUSES, { message: 'Invalid case status' }).optional(),
   title: z.string().min(1).optional(),
   description: z.string().nullable().optional(),
   priority_date: z.string().nullable().optional(),

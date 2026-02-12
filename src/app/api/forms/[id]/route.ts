@@ -5,11 +5,12 @@ import { auditService } from '@/lib/audit';
 import { z } from 'zod';
 import { standardRateLimiter, sensitiveRateLimiter } from '@/lib/rate-limit';
 import { createLogger } from '@/lib/logger';
+import { FORM_STATUSES } from '@/lib/validation';
 
 const log = createLogger('api:forms-detail');
 
 const updateFormSchema = z.object({
-  status: z.string().optional(),
+  status: z.enum(FORM_STATUSES, { message: 'Invalid form status' }).optional(),
   form_data: z.record(z.string(), z.unknown()).optional(),
   review_notes: z.string().nullable().optional(),
 });

@@ -134,6 +134,45 @@ export function validateSearchParams<T>(
 }
 
 /**
+ * Enum values matching database schema and TypeScript types.
+ * These are the single source of truth for API validation.
+ */
+export const VISA_TYPES = [
+  'B1B2', 'F1', 'H1B', 'H4', 'L1', 'O1',
+  'EB1', 'EB2', 'EB3', 'EB5',
+  'I-130', 'I-485', 'I-765', 'I-131', 'N-400',
+  'other',
+] as const;
+
+export const CASE_STATUSES = [
+  'intake', 'document_collection', 'in_review', 'forms_preparation',
+  'ready_for_filing', 'filed', 'pending_response',
+  'approved', 'denied', 'closed',
+] as const;
+
+export const DOCUMENT_TYPES = [
+  'passport', 'visa', 'i94', 'birth_certificate', 'marriage_certificate',
+  'divorce_certificate', 'employment_letter', 'pay_stub', 'tax_return',
+  'w2', 'bank_statement', 'photo', 'medical_exam', 'police_clearance',
+  'diploma', 'transcript', 'recommendation_letter', 'other',
+] as const;
+
+export const DOCUMENT_STATUSES = [
+  'uploaded', 'processing', 'analyzed', 'needs_review',
+  'verified', 'rejected', 'expired',
+] as const;
+
+export const FORM_TYPES = [
+  'I-130', 'I-485', 'I-765', 'I-131', 'I-140',
+  'I-129', 'I-539', 'I-20', 'DS-160', 'N-400', 'G-1145',
+] as const;
+
+export const FORM_STATUSES = [
+  'draft', 'autofilling', 'ai_filled', 'in_review',
+  'approved', 'filed', 'rejected',
+] as const;
+
+/**
  * Common validation schemas for reuse.
  */
 export const schemas = {
@@ -159,6 +198,14 @@ export const schemas = {
 
   /** Non-empty string */
   nonEmptyString: z.string().min(1, 'This field is required'),
+
+  /** Enum schemas for domain types */
+  visaType: z.enum(VISA_TYPES),
+  caseStatus: z.enum(CASE_STATUSES),
+  documentType: z.enum(DOCUMENT_TYPES),
+  documentStatus: z.enum(DOCUMENT_STATUSES),
+  formType: z.enum(FORM_TYPES),
+  formStatus: z.enum(FORM_STATUSES),
 };
 
 const validationUtils = {

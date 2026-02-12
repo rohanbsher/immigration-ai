@@ -10,6 +10,7 @@ import { Loader2, AlertCircle, RefreshCw } from 'lucide-react';
 import { ChatButton } from '@/components/chat/chat-button';
 import { ChatPanel } from '@/components/chat/chat-panel';
 import { SessionExpiryWarning } from '@/components/session/session-expiry-warning';
+import { IdleTimeoutProvider } from './idle-timeout';
 import { Button } from '@/components/ui/button';
 import { createBrowserClient } from '@supabase/ssr';
 
@@ -168,35 +169,37 @@ export function DashboardLayout({ children, title }: DashboardLayoutProps) {
   }
 
   return (
-    <div className="flex h-screen bg-slate-50">
-      {/* Desktop Sidebar */}
-      <div className="hidden lg:block">
-        <Sidebar user={user} />
-      </div>
-
-      {/* Mobile Sidebar */}
-      <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-        <SheetContent side="left" className="p-0 w-64">
+    <IdleTimeoutProvider>
+      <div className="flex h-screen bg-slate-50">
+        {/* Desktop Sidebar */}
+        <div className="hidden lg:block">
           <Sidebar user={user} />
-        </SheetContent>
-      </Sheet>
+        </div>
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <Header
-          title={title}
-          user={user}
-          onMenuClick={() => setMobileMenuOpen(true)}
-        />
-        <main className="flex-1 overflow-auto p-4 lg:p-6">{children}</main>
+        {/* Mobile Sidebar */}
+        <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+          <SheetContent side="left" className="p-0 w-64">
+            <Sidebar user={user} />
+          </SheetContent>
+        </Sheet>
+
+        {/* Main Content */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <Header
+            title={title}
+            user={user}
+            onMenuClick={() => setMobileMenuOpen(true)}
+          />
+          <main className="flex-1 overflow-auto p-4 lg:p-6">{children}</main>
+        </div>
+
+        {/* AI Chat Assistant */}
+        <ChatButton />
+        <ChatPanel />
+
+        {/* Session Expiry Warning */}
+        <SessionExpiryWarning />
       </div>
-
-      {/* AI Chat Assistant */}
-      <ChatButton />
-      <ChatPanel />
-
-      {/* Session Expiry Warning */}
-      <SessionExpiryWarning />
-    </div>
+    </IdleTimeoutProvider>
   );
 }

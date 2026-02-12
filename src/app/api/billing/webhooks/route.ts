@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { constructWebhookEvent, handleWebhookEvent } from '@/lib/stripe';
+import { createClient } from '@/lib/supabase/server';
 import { createLogger } from '@/lib/logger';
 
 const log = createLogger('api:billing-webhooks');
@@ -24,6 +25,23 @@ export async function POST(request: NextRequest) {
     if (eventAge > MAX_WEBHOOK_AGE_MS) {
       log.warn('Rejected stale webhook event', { eventId: event.id, ageMs: eventAge });
       return NextResponse.json({ error: 'Event too old' }, { status: 400 });
+    }
+
+    // Idempotency: skip if this event was already processed.
+    // Uses UNIQUE constraint on event_id for atomic dedup.
+    const supabase = await createClient();
+    const { error: dedupeError } = await supabase
+      .from('stripe_processed_events')
+      .insert({ event_id: event.id, event_type: event.type });
+
+    if (dedupeError) {
+      if (dedupeError.code === '23505') {
+        log.info('Skipping duplicate webhook event', { eventId: event.id });
+        return NextResponse.json({ received: true, deduplicated: true });
+      }
+      // Non-duplicate DB error — log but continue processing to avoid
+      // silently dropping events if the dedup table is unavailable
+      log.warn('Failed to record webhook event for idempotency', { error: dedupeError.message });
     }
 
     await handleWebhookEvent(event);

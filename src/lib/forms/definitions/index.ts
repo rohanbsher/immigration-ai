@@ -4,6 +4,7 @@
 export * from './types';
 export { I130_FORM } from './i-130';
 export { I131_FORM } from './i-131';
+export { I140_FORM } from './i-140';
 export { I485_FORM } from './i-485';
 export { I765_FORM } from './i-765';
 export { N400_FORM } from './n-400';
@@ -11,6 +12,7 @@ export { N400_FORM } from './n-400';
 import { FormDefinition } from './types';
 import { I130_FORM } from './i-130';
 import { I131_FORM } from './i-131';
+import { I140_FORM } from './i-140';
 import { I485_FORM } from './i-485';
 import { I765_FORM } from './i-765';
 import { N400_FORM } from './n-400';
@@ -19,6 +21,7 @@ import { N400_FORM } from './n-400';
 export const FORM_DEFINITIONS: Record<string, FormDefinition> = {
   'I-130': I130_FORM,
   'I-131': I131_FORM,
+  'I-140': I140_FORM,
   'I-485': I485_FORM,
   'I-765': I765_FORM,
   'N-400': N400_FORM,

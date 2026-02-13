@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useCallback, useState } from 'react';
-import { createBrowserClient } from '@supabase/ssr';
+import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 
 const IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
@@ -16,18 +16,17 @@ export function IdleTimeoutProvider({ children }: { children: React.ReactNode })
   const router = useRouter();
   const lastActivityRef = useRef(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const logoutTriggeredRef = useRef(false);
   const [showWarning, setShowWarning] = useState(false);
 
   const resetTimer = useCallback(() => {
     lastActivityRef.current = Date.now();
+    logoutTriggeredRef.current = false;
     setShowWarning(false);
   }, []);
 
   const handleLogout = useCallback(async () => {
-    const supabase = createBrowserClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    );
+    const supabase = createClient();
     await supabase.auth.signOut();
     router.push('/login?reason=idle');
   }, [router]);
@@ -47,7 +46,8 @@ export function IdleTimeoutProvider({ children }: { children: React.ReactNode })
     timerRef.current = setInterval(() => {
       const elapsed = Date.now() - lastActivityRef.current;
 
-      if (elapsed >= IDLE_TIMEOUT_MS) {
+      if (elapsed >= IDLE_TIMEOUT_MS && !logoutTriggeredRef.current) {
+        logoutTriggeredRef.current = true;
         handleLogout();
       } else if (elapsed >= IDLE_TIMEOUT_MS - WARNING_BEFORE_MS) {
         setShowWarning(true);
@@ -73,7 +73,7 @@ export function IdleTimeoutProvider({ children }: { children: React.ReactNode })
           aria-label="Session timeout warning"
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
         >
-          <div className="mx-4 max-w-md rounded-lg bg-white p-6 shadow-xl">
+          <div className="mx-4 max-w-md rounded-lg border border-slate-200 bg-white p-6">
             <h2 className="text-lg font-semibold text-gray-900">
               Session Expiring Soon
             </h2>

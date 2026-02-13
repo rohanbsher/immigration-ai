@@ -73,6 +73,19 @@ vi.mock('@/lib/logger', () => ({
   }),
 }));
 
+const mockAdminInsert = vi.fn().mockResolvedValue({ error: null });
+const mockAdminMaybeSingle = vi.fn().mockResolvedValue({ data: null });
+const mockAdminEq = vi.fn(() => ({ maybeSingle: mockAdminMaybeSingle }));
+const mockAdminSelect = vi.fn(() => ({ eq: mockAdminEq }));
+vi.mock('@/lib/supabase/admin', () => ({
+  getAdminClient: vi.fn(() => ({
+    from: vi.fn(() => ({
+      select: mockAdminSelect,
+      insert: mockAdminInsert,
+    })),
+  })),
+}));
+
 // ---------------------------------------------------------------------------
 // Imports (after mocks)
 // ---------------------------------------------------------------------------
@@ -750,6 +763,73 @@ describe('Billing API Routes', () => {
 
       expect(res.status).toBe(500);
       expect(data.error).toBe('Webhook handler failed');
+    });
+
+    it('skips duplicate events via idempotency check', async () => {
+      const recentTimestamp = Math.floor(Date.now() / 1000);
+      vi.mocked(constructWebhookEvent).mockResolvedValue({
+        id: 'evt_duplicate',
+        created: recentTimestamp,
+        type: 'checkout.session.completed',
+      } as any);
+
+      // SELECT finds an existing record — event was already processed
+      mockAdminMaybeSingle.mockResolvedValueOnce({ data: { id: 'existing-row' } });
+
+      const req = createWebhookRequest('{}', 'valid_sig');
+      const res = await webhookPOST(req);
+      const data = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(data.received).toBe(true);
+      expect(data.deduplicated).toBe(true);
+      expect(handleWebhookEvent).not.toHaveBeenCalled();
+    });
+
+    it('records event after successful processing', async () => {
+      const recentTimestamp = Math.floor(Date.now() / 1000);
+      vi.mocked(constructWebhookEvent).mockResolvedValue({
+        id: 'evt_new',
+        created: recentTimestamp,
+        type: 'invoice.paid',
+      } as any);
+      vi.mocked(handleWebhookEvent).mockResolvedValue(undefined);
+
+      // SELECT finds no existing record — event is new
+      mockAdminMaybeSingle.mockResolvedValueOnce({ data: null });
+
+      const req = createWebhookRequest('{}', 'valid_sig');
+      const res = await webhookPOST(req);
+      const data = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(data.received).toBe(true);
+      expect(handleWebhookEvent).toHaveBeenCalled();
+      expect(mockAdminInsert).toHaveBeenCalled();
+    });
+
+    it('still returns success when post-processing dedup insert fails', async () => {
+      const recentTimestamp = Math.floor(Date.now() / 1000);
+      vi.mocked(constructWebhookEvent).mockResolvedValue({
+        id: 'evt_3',
+        created: recentTimestamp,
+        type: 'invoice.paid',
+      } as any);
+      vi.mocked(handleWebhookEvent).mockResolvedValue(undefined);
+
+      // SELECT: no existing record
+      mockAdminMaybeSingle.mockResolvedValueOnce({ data: null });
+      // INSERT fails (e.g., table unavailable)
+      mockAdminInsert.mockResolvedValueOnce({ error: { code: '42P01', message: 'relation does not exist' } });
+
+      const req = createWebhookRequest('{}', 'valid_sig');
+      const res = await webhookPOST(req);
+      const data = await res.json();
+
+      // Event was processed successfully — insert failure is non-critical
+      expect(res.status).toBe(200);
+      expect(data.received).toBe(true);
+      expect(handleWebhookEvent).toHaveBeenCalled();
     });
   });
 });

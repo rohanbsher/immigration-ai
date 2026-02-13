@@ -284,10 +284,17 @@ Guidelines:
 6. Be conservative - only fill fields where you have high confidence
 
 Common form types:
+- I-129: Petition for a Nonimmigrant Worker
 - I-130: Petition for Alien Relative
+- I-131: Application for Travel Document
+- I-140: Immigrant Petition for Alien Workers
 - I-485: Application to Register Permanent Residence
+- I-539: Application to Extend/Change Nonimmigrant Status
 - I-765: Application for Employment Authorization
+- I-20: Certificate of Eligibility for Student Visa
+- DS-160: Online Nonimmigrant Visa Application
 - N-400: Application for Naturalization
+- G-1145: E-Notification of Application/Petition Acceptance
 
 Always respond in valid JSON format.`;
 
@@ -452,6 +459,207 @@ Respond with JSON:
   "warnings": []
 }`;
 
+export const I94_EXTRACTION_PROMPT = `Analyze this I-94 Arrival/Departure Record and extract the following information:
+
+Required fields:
+- full_name: Complete name as shown on the I-94
+- i94_number: The 11-digit I-94 admission number
+- admission_date: Date of admission/arrival (YYYY-MM-DD)
+- class_of_admission: Nonimmigrant class (e.g., B-1, F-1, H-1B, L-1)
+- admitted_until: Date status expires or "D/S" for Duration of Status
+- port_of_entry: City/airport where admitted
+- passport_number: Passport number associated with this record
+- country_of_citizenship: Country of citizenship
+- date_of_birth: Format as YYYY-MM-DD
+
+For each field, provide:
+- value: The extracted value or null if not found
+- confidence: A score from 0 to 1
+- requires_verification: true if the value is unclear or uncertain
+
+Respond with a JSON object in this format:
+{
+  "document_type": "i94",
+  "extracted_fields": [...],
+  "overall_confidence": 0.90,
+  "warnings": []
+}`;
+
+export const W2_EXTRACTION_PROMPT = `Analyze this W-2 Wage and Tax Statement and extract the following information:
+
+Required fields:
+- employee_name: Employee's full name (Box e)
+- employee_ssn_last_four: Last 4 digits of SSN only (Box a, for privacy)
+- employer_name: Employer's name (Box c)
+- employer_ein: Employer's EIN (Box b)
+- employer_address: Employer's address (Box c)
+- wages_tips: Wages, tips, other compensation (Box 1)
+- federal_tax_withheld: Federal income tax withheld (Box 2)
+- social_security_wages: Social security wages (Box 3)
+- social_security_tax: Social security tax withheld (Box 4)
+- medicare_wages: Medicare wages and tips (Box 5)
+- medicare_tax: Medicare tax withheld (Box 6)
+- state: State abbreviation (Box 15)
+- state_wages: State wages, tips, etc. (Box 16)
+- state_tax_withheld: State income tax (Box 17)
+- tax_year: Tax year for this W-2
+
+For each field, provide:
+- value: The extracted value or null if not found
+- confidence: A score from 0 to 1
+- requires_verification: true if the value is unclear or uncertain
+
+Respond with a JSON object in this format:
+{
+  "document_type": "w2",
+  "extracted_fields": [...],
+  "overall_confidence": 0.90,
+  "warnings": []
+}`;
+
+export const PAY_STUB_EXTRACTION_PROMPT = `Analyze this pay stub and extract the following information:
+
+Required fields:
+- employee_name: Full name of the employee
+- employer_name: Company/organization name
+- pay_period_start: Start date of pay period (YYYY-MM-DD)
+- pay_period_end: End date of pay period (YYYY-MM-DD)
+- pay_date: Date of payment (YYYY-MM-DD)
+- gross_pay: Gross pay amount for this period
+- net_pay: Net pay (take-home) amount
+- federal_tax: Federal tax withheld this period
+- state_tax: State tax withheld this period
+- ytd_gross: Year-to-date gross earnings
+- ytd_net: Year-to-date net earnings
+- hourly_rate: Hourly rate if applicable, or null
+- hours_worked: Hours worked this period if applicable
+- pay_frequency: Weekly, Biweekly, Semi-Monthly, Monthly
+
+For each field, provide:
+- value: The extracted value or null if not found
+- confidence: A score from 0 to 1
+- requires_verification: true if the value is unclear or uncertain
+
+Respond with a JSON object in this format:
+{
+  "document_type": "pay_stub",
+  "extracted_fields": [...],
+  "overall_confidence": 0.85,
+  "warnings": []
+}`;
+
+export const DIPLOMA_EXTRACTION_PROMPT = `Analyze this diploma or degree certificate and extract the following information:
+
+Required fields:
+- graduate_name: Full name of the graduate
+- institution_name: Name of the educational institution
+- institution_address: Address or location of the institution
+- degree_type: Type of degree (Bachelor of Science, Master of Arts, Ph.D., etc.)
+- field_of_study: Major or field of study
+- graduation_date: Date of graduation or degree conferral (YYYY-MM-DD)
+- honors: Any honors (cum laude, magna cum laude, summa cum laude), or null
+- institution_country: Country where the institution is located
+- accreditation: Accreditation body if mentioned, or null
+- diploma_number: Certificate or diploma number if shown
+
+For each field, provide:
+- value: The extracted value or null if not found
+- confidence: A score from 0 to 1
+- requires_verification: true if the value is unclear or uncertain
+
+Respond with a JSON object in this format:
+{
+  "document_type": "diploma",
+  "extracted_fields": [...],
+  "overall_confidence": 0.85,
+  "warnings": []
+}`;
+
+export const TRANSCRIPT_EXTRACTION_PROMPT = `Analyze this academic transcript and extract the following information:
+
+Required fields:
+- student_name: Full name of the student
+- student_id: Student identification number if shown
+- institution_name: Name of the educational institution
+- institution_country: Country where the institution is located
+- degree_program: Degree program (e.g., B.S. Computer Science)
+- enrollment_date: Date of first enrollment (YYYY-MM-DD)
+- graduation_date: Graduation or expected graduation date (YYYY-MM-DD), or null
+- cumulative_gpa: Cumulative GPA and scale (e.g., "3.75/4.0")
+- total_credits: Total credits earned
+- degree_status: Conferred, In Progress, or Withdrawn
+- courses: Summary of key courses (list up to 10 relevant courses with grades)
+
+For each field, provide:
+- value: The extracted value or null if not found
+- confidence: A score from 0 to 1
+- requires_verification: true if the value is unclear or uncertain
+
+Respond with a JSON object in this format:
+{
+  "document_type": "transcript",
+  "extracted_fields": [...],
+  "overall_confidence": 0.80,
+  "warnings": []
+}`;
+
+export const RECOMMENDATION_LETTER_EXTRACTION_PROMPT = `Analyze this recommendation or reference letter and extract the following information:
+
+Required fields:
+- subject_name: Name of the person being recommended
+- recommender_name: Full name of the letter writer
+- recommender_title: Title/position of the recommender
+- recommender_organization: Organization/company of the recommender
+- recommender_relationship: Professional relationship to the subject (supervisor, colleague, professor, etc.)
+- letter_date: Date the letter was written (YYYY-MM-DD)
+- years_known: How long the recommender has known the subject
+- key_achievements: List of key achievements or qualifications mentioned
+- field_of_expertise: Subject's field of expertise as described
+- contact_info: Recommender's contact information if provided
+
+For each field, provide:
+- value: The extracted value or null if not found
+- confidence: A score from 0 to 1
+- requires_verification: true if the value is unclear or uncertain
+
+Respond with a JSON object in this format:
+{
+  "document_type": "recommendation_letter",
+  "extracted_fields": [...],
+  "overall_confidence": 0.75,
+  "warnings": []
+}`;
+
+export const PHOTO_VALIDATION_PROMPT = `Analyze this photograph for immigration document compliance and extract the following information:
+
+Required fields:
+- face_visible: Whether a clear face is visible (true/false)
+- face_centered: Whether the face is centered in the frame (true/false)
+- background_color: Background color (white, off-white, other)
+- background_uniform: Whether the background is uniform/plain (true/false)
+- eyes_open: Whether both eyes are open and visible (true/false)
+- glasses_present: Whether the subject is wearing glasses (true/false)
+- head_covering: Whether there is a head covering (true/false, note if religious)
+- expression_neutral: Whether the expression is neutral (true/false)
+- image_quality: Sharp, Slightly Blurry, or Blurry
+- lighting_adequate: Whether lighting is adequate and even (true/false)
+- shadows_on_face: Whether there are shadows on the face (true/false)
+- estimated_dimensions: Estimated aspect ratio (should be close to 2x2 inches / 51x51mm)
+- overall_compliance: Compliant, Minor Issues, or Non-Compliant
+
+For each field, provide:
+- value: The extracted value or null if not determined
+- confidence: A score from 0 to 1
+- requires_verification: true if the assessment is uncertain
+
+Respond with a JSON object in this format:
+{
+  "document_type": "photo",
+  "extracted_fields": [...],
+  "overall_confidence": 0.85,
+  "warnings": ["List any compliance issues found"]
+}`;
+
 export function getExtractionPrompt(documentType: string): string {
   const prompts: Record<string, string> = {
     passport: PASSPORT_EXTRACTION_PROMPT,
@@ -463,20 +671,169 @@ export function getExtractionPrompt(documentType: string): string {
     medical_exam: MEDICAL_EXAM_EXTRACTION_PROMPT,
     police_clearance: POLICE_CLEARANCE_EXTRACTION_PROMPT,
     divorce_certificate: DIVORCE_CERTIFICATE_EXTRACTION_PROMPT,
+    i94: I94_EXTRACTION_PROMPT,
+    w2: W2_EXTRACTION_PROMPT,
+    pay_stub: PAY_STUB_EXTRACTION_PROMPT,
+    diploma: DIPLOMA_EXTRACTION_PROMPT,
+    transcript: TRANSCRIPT_EXTRACTION_PROMPT,
+    recommendation_letter: RECOMMENDATION_LETTER_EXTRACTION_PROMPT,
+    photo: PHOTO_VALIDATION_PROMPT,
   };
 
   return prompts[documentType] || GENERIC_DOCUMENT_EXTRACTION_PROMPT;
 }
 
+export const I129_AUTOFILL_PROMPT = `Based on the provided extracted document data, fill out the I-129 (Petition for a Nonimmigrant Worker) form fields.
+
+Key fields to map:
+- Petitioner (employer) information (company name, EIN, address, financials)
+- Beneficiary (worker) information (name, DOB, citizenship, passport)
+- Nonimmigrant classification requested (H-1B, L-1, O-1, etc.)
+- Job offer details (title, description, SOC code, work location)
+- Wages (offered wage, prevailing wage, hours per week)
+- Labor Condition Application details (for H-1B)
+- Requested period of stay
+
+For each field, provide:
+- field_id: The form field identifier
+- field_name: Human-readable field name
+- suggested_value: The value to fill
+- confidence: Score from 0 to 1
+- source_document: Which document provided this data
+- requires_review: true if attorney should verify
+
+Respond with JSON:
+{
+  "form_type": "I-129",
+  "fields": [...],
+  "overall_confidence": 0.80,
+  "missing_documents": [],
+  "warnings": []
+}`;
+
+export const I539_AUTOFILL_PROMPT = `Based on the provided extracted document data, fill out the I-539 (Application to Extend/Change Nonimmigrant Status) form fields.
+
+Key fields to map:
+- Applicant information (name, DOB, citizenship, passport)
+- Current nonimmigrant status and expiration date
+- Requested status (extension or change)
+- I-94 arrival/departure information
+- Reason for extension or change of status
+- Co-applicant/dependent information (if any)
+- Employment information (if applicable)
+
+For each field, provide:
+- field_id: The form field identifier
+- field_name: Human-readable field name
+- suggested_value: The value to fill
+- confidence: Score from 0 to 1
+- source_document: Which document provided this data
+- requires_review: true if attorney should verify
+
+Respond with JSON:
+{
+  "form_type": "I-539",
+  "fields": [...],
+  "overall_confidence": 0.85,
+  "missing_documents": [],
+  "warnings": []
+}`;
+
+export const I20_AUTOFILL_PROMPT = `Based on the provided extracted document data, fill out the I-20 (Certificate of Eligibility for Nonimmigrant Student Status) form fields.
+
+Key fields to map:
+- School information (name, code, address, DSO)
+- Student information (name, DOB, citizenship, passport, SEVIS ID)
+- Admission category (F-1 or M-1)
+- Program details (name, degree level, start/end dates)
+- Financial information (tuition, living expenses, funding sources)
+
+For each field, provide:
+- field_id: The form field identifier
+- field_name: Human-readable field name
+- suggested_value: The value to fill
+- confidence: Score from 0 to 1
+- source_document: Which document provided this data
+- requires_review: true if attorney should verify
+
+Respond with JSON:
+{
+  "form_type": "I-20",
+  "fields": [...],
+  "overall_confidence": 0.80,
+  "missing_documents": [],
+  "warnings": []
+}`;
+
+export const DS160_AUTOFILL_PROMPT = `Based on the provided extracted document data, fill out the DS-160 (Online Nonimmigrant Visa Application) form fields.
+
+Key fields to map:
+- Personal information (name, DOB, birth place, sex, marital status)
+- Nationality and identification numbers
+- Passport details (number, issuing country, dates)
+- Travel plans (visa type, arrival date, U.S. address)
+- U.S. point of contact
+- Family information (parents, relatives in U.S.)
+- Work and education history
+- Security and background questions
+
+For each field, provide:
+- field_id: The form field identifier
+- field_name: Human-readable field name
+- suggested_value: The value to fill
+- confidence: Score from 0 to 1
+- source_document: Which document provided this data
+- requires_review: true if attorney should verify
+
+Respond with JSON:
+{
+  "form_type": "DS-160",
+  "fields": [...],
+  "overall_confidence": 0.75,
+  "missing_documents": [],
+  "warnings": []
+}`;
+
+export const G1145_AUTOFILL_PROMPT = `Based on the provided extracted document data, fill out the G-1145 (E-Notification of Application/Petition Acceptance) form fields.
+
+Key fields to map:
+- Applicant/petitioner name
+- Email address for notification
+- Mobile phone number for text notification
+- Form number being filed
+- Beneficiary name (if applicable)
+
+For each field, provide:
+- field_id: The form field identifier
+- field_name: Human-readable field name
+- suggested_value: The value to fill
+- confidence: Score from 0 to 1
+- source_document: Which document provided this data
+- requires_review: true if attorney should verify
+
+Respond with JSON:
+{
+  "form_type": "G-1145",
+  "fields": [...],
+  "overall_confidence": 0.95,
+  "missing_documents": [],
+  "warnings": []
+}`;
+
 export function getAutofillPrompt(formType: string): string {
   const prompts: Record<string, string> = {
+    'I-129': I129_AUTOFILL_PROMPT,
     'I-130': I130_AUTOFILL_PROMPT,
     'I-131': I131_AUTOFILL_PROMPT,
     'I-140': I140_AUTOFILL_PROMPT,
     'I-485': I485_AUTOFILL_PROMPT,
+    'I-539': I539_AUTOFILL_PROMPT,
     'I-765': I765_AUTOFILL_PROMPT,
+    'I-20': I20_AUTOFILL_PROMPT,
+    'DS-160': DS160_AUTOFILL_PROMPT,
     'N-400': N400_AUTOFILL_PROMPT,
+    'G-1145': G1145_AUTOFILL_PROMPT,
   };
 
-  return prompts[formType] || I130_AUTOFILL_PROMPT;
+  return prompts[formType] || FORM_AUTOFILL_SYSTEM_PROMPT;
 }

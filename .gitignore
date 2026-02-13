@@ -52,3 +52,9 @@ supabase/.temp/
 
 # Private strategy documents
 ../.strategy/
+
+# USCIS PDF templates (large binaries, not for git)
+public/uscis-templates/
+
+# Extracted XFA field reference data
+scripts/uscis-field-names/

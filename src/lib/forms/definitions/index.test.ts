@@ -9,11 +9,14 @@ import {
   getAIMappableFields,
 } from './index';
 
-const EXPECTED_FORM_TYPES = ['I-130', 'I-131', 'I-140', 'I-485', 'I-765', 'N-400'];
+const EXPECTED_FORM_TYPES = [
+  'I-129', 'I-130', 'I-131', 'I-140', 'I-485',
+  'I-539', 'I-765', 'I-20', 'DS-160', 'N-400', 'G-1145',
+];
 
 describe('FORM_DEFINITIONS', () => {
-  it('has exactly 6 form type keys', () => {
-    expect(Object.keys(FORM_DEFINITIONS)).toHaveLength(6);
+  it('has exactly 11 form type keys', () => {
+    expect(Object.keys(FORM_DEFINITIONS)).toHaveLength(11);
   });
 
   it('each definition has a formType matching its key', () => {
@@ -38,9 +41,9 @@ describe('getFormDefinition', () => {
 });
 
 describe('getAvailableFormTypes', () => {
-  it('returns an array of 6 items', () => {
+  it('returns an array of 11 items', () => {
     const types = getAvailableFormTypes();
-    expect(types).toHaveLength(6);
+    expect(types).toHaveLength(11);
   });
 
   it('contains all expected form types', () => {
@@ -52,9 +55,9 @@ describe('getAvailableFormTypes', () => {
 });
 
 describe('getFormSummaries', () => {
-  it('returns 6 summaries', () => {
+  it('returns 11 summaries', () => {
     const summaries = getFormSummaries();
-    expect(summaries).toHaveLength(6);
+    expect(summaries).toHaveLength(11);
   });
 
   it('each summary has formType and title', () => {

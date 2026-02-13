@@ -37,23 +37,99 @@ All three implementation plans have been verified as 100% complete.
 
 ---
 
-## Current State (2026-02-09)
+## Current State (2026-02-12)
 
 ```
-Tests:  1,591 passed | 3 skipped | 0 failures
+Tests:  1,884 passed | 3 skipped | 0 failures
 Build:  Passes (68 routes, no TypeScript errors)
-Lint:   1 error (pre-existing) | 153 warnings (unused vars in E2E tests)
-Coverage: 82.96% statements | 71.61% branches | 85.19% functions
+Coverage: 86%+ statements
+Migrations: 44 SQL files (001-044)
 ```
+
+> **Full launch tracker: `.claude/LAUNCH_TRACKER.md`**
 
 ---
 
-## Open Work Streams
+## Launch-Blocking Work Streams
+
+### WS-PDF: USCIS PDF Generation (CRITICAL — #1 BLOCKER)
+**Status:** Not started
+**Assigned Agent:** Unassigned (api-db)
+**Priority:** CRITICAL — attorneys cannot file without this
+**Details:** See LAUNCH_TRACKER.md → Blocker 1
+**Tasks:**
+- [ ] PDF-1: Obtain official USCIS fillable PDF templates (I-130, I-485, I-765, I-131, N-400, I-140)
+- [ ] PDF-2: Build AcroForm field mapper engine (pdf-lib `form.getTextField().setText()`)
+- [ ] PDF-3: Map form field definitions to USCIS PDF AcroForm field names (per-form config)
+- [ ] PDF-4: Handle USCIS formatting (MM/DD/YYYY dates, checkboxes, continuation sheets)
+- [ ] PDF-5: Remove "DRAFT" watermark, produce filing-ready output
+- [ ] PDF-6: Add PDF preview in UI
+- [ ] PDF-7: Add tests for PDF field mapping correctness
+
+### WS-FORMS: Missing Form Definitions (HIGH)
+**Status:** Not started
+**Assigned Agent:** Unassigned (api-db)
+**Priority:** HIGH — 5 of 11 form types are stubs
+**Details:** See LAUNCH_TRACKER.md → Blocker 2
+**Tasks:**
+- [ ] I-129 definition + autofill prompt + PDF template + tests (HIGH — H-1B/L-1/O-1)
+- [ ] I-539 definition + autofill prompt + PDF template + tests (MEDIUM)
+- [ ] I-20 definition + autofill prompt + PDF template + tests (MEDIUM)
+- [ ] DS-160 definition + autofill prompt + PDF template + tests (LOW)
+- [ ] G-1145 definition + autofill prompt + PDF template + tests (LOW)
+
+### WS-AI-MAPPING: Expand AI Autofill Coverage (HIGH)
+**Status:** Not started
+**Assigned Agent:** Unassigned (api-db)
+**Priority:** HIGH — only 7-8 fields per form have AI mappings (~85% manual entry)
+**Depends on:** WS-FORMS (for new form definitions)
+**Details:** See LAUNCH_TRACKER.md → Blocker 3
+**Tasks:**
+- [ ] Extract address history from utility bills / lease agreements
+- [ ] Extract employment history from tax returns / W-2s
+- [ ] Extract family relationships from birth/marriage certificates
+- [ ] Extract immigration history from I-94, visa stamps
+- [ ] Extract education from transcripts / diplomas
+- [ ] Update `src/lib/ai/form-autofill.ts` field mappings for all forms
+
+### WS-DOC-TYPES: Missing Document Extraction Prompts (MEDIUM)
+**Status:** Not started
+**Assigned Agent:** Unassigned (api-db)
+**Priority:** MEDIUM — 9/18 document types have extraction prompts
+**Details:** See LAUNCH_TRACKER.md → Blocker 4
+**Tasks:**
+- [ ] i94 extraction prompt (HIGH — entry/exit records)
+- [ ] w2 extraction prompt (HIGH — employment/income)
+- [ ] pay_stub extraction prompt (MEDIUM)
+- [ ] diploma extraction prompt (MEDIUM — for I-140)
+- [ ] transcript extraction prompt (MEDIUM — for I-140)
+- [ ] recommendation_letter extraction prompt (LOW)
+- [ ] photo validation prompt (LOW)
+
+### WS-INFRA: Infrastructure Setup (USER ACTION)
+**Status:** Not started
+**Assigned Agent:** User / lead
+**Priority:** CRITICAL — zero production services configured
+**Details:** See LAUNCH_TRACKER.md → Blocker 5
+**Tasks:**
+- [ ] Supabase production instance + push 44 migrations
+- [ ] Generate ENCRYPTION_KEY (`openssl rand -hex 32`) and CRON_SECRET (`openssl rand -hex 16`)
+- [ ] Configure virus scanner (ClamAV or VirusTotal)
+- [ ] Set AI API keys (OpenAI + Anthropic) with billing
+- [ ] Set NEXT_PUBLIC_APP_URL to production domain
+- [ ] Configure Upstash Redis for rate limiting
+- [ ] Configure Resend for email + DNS verification
+- [ ] Configure Sentry for error tracking
+- [ ] Configure Stripe (if monetizing)
+- [ ] Deploy to Vercel
+
+---
+
+## Non-Blocking Work Streams
 
 ### WS-TESTS-P1: Security-Critical API Route Tests (HIGH PRIORITY)
 **Status:** Not started
-**Assigned Agent:** Unassigned
-**Estimated Effort:** 15-20 hours
+**Assigned Agent:** Unassigned (test-writer)
 **Tasks:**
 - [ ] 2FA route tests (5 endpoints: setup, verify, status, backup-codes, disable)
 - [ ] Admin route tests (5 endpoints: stats, users, user detail, suspend, unsuspend)
@@ -61,45 +137,24 @@ Coverage: 82.96% statements | 71.61% branches | 85.19% functions
 
 ### WS-TESTS-P2: Feature API Route Tests (MEDIUM PRIORITY)
 **Status:** Not started
-**Assigned Agent:** Unassigned
-**Estimated Effort:** 12-16 hours
+**Assigned Agent:** Unassigned (test-writer)
 **Tasks:**
-- [ ] Chat route tests (2 endpoints: POST /api/chat, GET /api/chat/[conversationId])
+- [ ] Chat route tests (2 endpoints)
 - [ ] Notification route tests (5 endpoints)
-- [ ] Cron route tests (deadline-alerts)
-- [ ] Health endpoint tests
-- [ ] Profile endpoint tests
-- [ ] Task management route tests
-- [ ] Document request route tests
+- [ ] Cron, health, profile, task, document-request route tests
 
 ### WS-TESTS-P3: Frontend Tests (LOW PRIORITY)
 **Status:** Not started
-**Assigned Agent:** Unassigned
-**Estimated Effort:** 30-40 hours
+**Assigned Agent:** Unassigned (test-writer)
 **Tasks:**
-- [ ] Component unit tests (target top 20 critical components first)
-- [ ] Hook tests (target top 10 custom hooks first)
-- [ ] Target: 40%+ component coverage, 60%+ hook coverage
-
-### WS-INFRA: Infrastructure Setup (USER ACTION + GUIDANCE)
-**Status:** In progress — user setting up prod instances
-**Tasks:**
-- [ ] Supabase production instance + run 39 migrations
-- [ ] Generate ENCRYPTION_KEY and CRON_SECRET
-- [ ] Configure virus scanner (ClamAV or VirusTotal)
-- [ ] Set AI API keys (OpenAI + Anthropic)
-- [ ] Set NEXT_PUBLIC_APP_URL to production domain
-- [ ] Configure Upstash Redis for rate limiting
-- [ ] Configure Resend for email
-- [ ] Configure Sentry for error tracking
-- [ ] Configure Stripe (if monetizing)
-- [ ] Deploy to Vercel
+- [ ] Component unit tests (target top 20 critical components)
+- [ ] Hook tests (target top 10 custom hooks)
 
 ### WS-REMAINING: Non-Blocking Improvements
 **Tasks:**
 - [ ] Include documents/AI conversations in GDPR data export
-- [ ] Fix 149 ESLint warnings (mostly unused vars in E2E tests)
-- [ ] Add Dockerfile for self-hosted deployments
+- [ ] Fix ESLint warnings
+- [ ] Rate-limit consistency: migrate ~38 post-auth endpoints from IP to user.id
 
 ---
 

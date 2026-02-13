@@ -21,16 +21,26 @@ export interface FormFieldMapping {
  */
 export function getFieldMappings(formType: FormType): FormFieldMapping[] {
   switch (formType) {
+    case 'I-129':
+      return I129_FIELDS;
     case 'I-130':
       return I130_FIELDS;
-    case 'I-485':
-      return I485_FIELDS;
-    case 'I-765':
-      return I765_FIELDS;
     case 'I-131':
       return I131_FIELDS;
+    case 'I-485':
+      return I485_FIELDS;
+    case 'I-539':
+      return I539_FIELDS;
+    case 'I-765':
+      return I765_FIELDS;
+    case 'I-20':
+      return I20_FIELDS;
+    case 'DS-160':
+      return DS160_FIELDS;
     case 'N-400':
       return N400_FIELDS;
+    case 'G-1145':
+      return G1145_FIELDS;
     default:
       return GENERIC_FIELDS;
   }
@@ -217,6 +227,181 @@ const N400_FIELDS: FormFieldMapping[] = [
   // Employment
   { dataPath: 'employment.current.employer', label: 'Current Employer', section: 'Employment' },
   { dataPath: 'employment.current.occupation', label: 'Occupation', section: 'Employment' },
+];
+
+/**
+ * I-129: Petition for a Nonimmigrant Worker
+ */
+const I129_FIELDS: FormFieldMapping[] = [
+  // Petitioner (Employer) Information
+  { dataPath: 'petitioner.companyName', label: 'Company/Organization Name', section: 'Petitioner' },
+  { dataPath: 'petitioner.ein', label: 'IRS Tax Number (EIN)', section: 'Petitioner' },
+  { dataPath: 'petitioner.address.street', label: 'Street Address', section: 'Petitioner Address' },
+  { dataPath: 'petitioner.address.city', label: 'City', section: 'Petitioner Address' },
+  { dataPath: 'petitioner.address.state', label: 'State', section: 'Petitioner Address' },
+  { dataPath: 'petitioner.address.zipCode', label: 'ZIP Code', section: 'Petitioner Address' },
+  { dataPath: 'petitioner.phone', label: 'Phone Number', type: 'phone', section: 'Petitioner' },
+  { dataPath: 'petitioner.email', label: 'Email Address', section: 'Petitioner' },
+  { dataPath: 'petitioner.numEmployees', label: 'Number of Employees', section: 'Petitioner' },
+  { dataPath: 'petitioner.grossAnnualIncome', label: 'Gross Annual Income', section: 'Petitioner' },
+  { dataPath: 'petitioner.netAnnualIncome', label: 'Net Annual Income', section: 'Petitioner' },
+
+  // Classification
+  { dataPath: 'classification', label: 'Nonimmigrant Classification', section: 'Classification' },
+  { dataPath: 'petitionBasis', label: 'Basis for Petition', section: 'Classification' },
+
+  // Beneficiary (Worker) Information
+  { dataPath: 'beneficiary.lastName', label: 'Last Name', section: 'Beneficiary' },
+  { dataPath: 'beneficiary.firstName', label: 'First Name', section: 'Beneficiary' },
+  { dataPath: 'beneficiary.middleName', label: 'Middle Name', section: 'Beneficiary' },
+  { dataPath: 'beneficiary.dateOfBirth', label: 'Date of Birth', type: 'date', section: 'Beneficiary' },
+  { dataPath: 'beneficiary.countryOfBirth', label: 'Country of Birth', section: 'Beneficiary' },
+  { dataPath: 'beneficiary.nationality', label: 'Country of Citizenship', section: 'Beneficiary' },
+  { dataPath: 'beneficiary.passportNumber', label: 'Passport Number', section: 'Beneficiary' },
+  { dataPath: 'beneficiary.passportExpiry', label: 'Passport Expiration', type: 'date', section: 'Beneficiary' },
+  { dataPath: 'beneficiary.alienNumber', label: 'Alien Registration Number', section: 'Beneficiary' },
+
+  // Job Details
+  { dataPath: 'job.title', label: 'Job Title', section: 'Job Offer' },
+  { dataPath: 'job.socCode', label: 'SOC/O*NET Code', section: 'Job Offer' },
+  { dataPath: 'job.description', label: 'Job Description', section: 'Job Offer' },
+  { dataPath: 'job.offeredWage', label: 'Offered Wage', section: 'Wages' },
+  { dataPath: 'job.prevailingWage', label: 'Prevailing Wage', section: 'Wages' },
+  { dataPath: 'job.hoursPerWeek', label: 'Hours Per Week', section: 'Wages' },
+  { dataPath: 'job.workCity', label: 'Work Location City', section: 'Job Offer' },
+  { dataPath: 'job.workState', label: 'Work Location State', section: 'Job Offer' },
+
+  // Dates
+  { dataPath: 'requestedStartDate', label: 'Requested Start Date', type: 'date', section: 'Period of Stay' },
+  { dataPath: 'requestedEndDate', label: 'Requested End Date', type: 'date', section: 'Period of Stay' },
+];
+
+/**
+ * I-539: Application to Extend/Change Nonimmigrant Status
+ */
+const I539_FIELDS: FormFieldMapping[] = [
+  // Applicant Information
+  { dataPath: 'applicant.lastName', label: 'Last Name', section: 'Applicant' },
+  { dataPath: 'applicant.firstName', label: 'First Name', section: 'Applicant' },
+  { dataPath: 'applicant.middleName', label: 'Middle Name', section: 'Applicant' },
+  { dataPath: 'applicant.dateOfBirth', label: 'Date of Birth', type: 'date', section: 'Applicant' },
+  { dataPath: 'applicant.countryOfBirth', label: 'Country of Birth', section: 'Applicant' },
+  { dataPath: 'applicant.nationality', label: 'Country of Citizenship', section: 'Applicant' },
+  { dataPath: 'applicant.alienNumber', label: 'Alien Registration Number', section: 'Applicant' },
+  { dataPath: 'applicant.ssn', label: 'Social Security Number', type: 'ssn', section: 'Applicant' },
+  { dataPath: 'applicant.passportNumber', label: 'Passport Number', section: 'Applicant' },
+  { dataPath: 'applicant.passportExpiry', label: 'Passport Expiration', type: 'date', section: 'Applicant' },
+
+  // Address
+  { dataPath: 'mailingAddress.street', label: 'Street Address', section: 'Address' },
+  { dataPath: 'mailingAddress.city', label: 'City', section: 'Address' },
+  { dataPath: 'mailingAddress.state', label: 'State', section: 'Address' },
+  { dataPath: 'mailingAddress.zipCode', label: 'ZIP Code', section: 'Address' },
+
+  // Contact
+  { dataPath: 'applicant.phone', label: 'Phone Number', type: 'phone', section: 'Contact' },
+  { dataPath: 'applicant.email', label: 'Email Address', section: 'Contact' },
+
+  // Status Information
+  { dataPath: 'currentStatus', label: 'Current Nonimmigrant Status', section: 'Status' },
+  { dataPath: 'requestedStatus', label: 'Requested Status', section: 'Status' },
+  { dataPath: 'statusExpires', label: 'Current Status Expires', type: 'date', section: 'Status' },
+  { dataPath: 'requestedStayFrom', label: 'Requested Stay From', type: 'date', section: 'Status' },
+  { dataPath: 'requestedStayUntil', label: 'Requested Stay Until', type: 'date', section: 'Status' },
+  { dataPath: 'reasonForRequest', label: 'Reason for Request', section: 'Status' },
+];
+
+/**
+ * I-20: Certificate of Eligibility for Nonimmigrant Student Status
+ */
+const I20_FIELDS: FormFieldMapping[] = [
+  // School Information
+  { dataPath: 'school.name', label: 'School Name', section: 'School' },
+  { dataPath: 'school.code', label: 'School Code', section: 'School' },
+  { dataPath: 'school.address', label: 'School Address', type: 'address', section: 'School' },
+  { dataPath: 'school.dsoName', label: 'DSO Name', section: 'School' },
+  { dataPath: 'school.dsoPhone', label: 'DSO Phone', type: 'phone', section: 'School' },
+
+  // Student Information
+  { dataPath: 'student.lastName', label: 'Last Name', section: 'Student' },
+  { dataPath: 'student.firstName', label: 'First Name', section: 'Student' },
+  { dataPath: 'student.middleName', label: 'Middle Name', section: 'Student' },
+  { dataPath: 'student.dateOfBirth', label: 'Date of Birth', type: 'date', section: 'Student' },
+  { dataPath: 'student.countryOfBirth', label: 'Country of Birth', section: 'Student' },
+  { dataPath: 'student.nationality', label: 'Country of Citizenship', section: 'Student' },
+  { dataPath: 'student.sevisNumber', label: 'SEVIS ID Number', section: 'Student' },
+  { dataPath: 'student.passportNumber', label: 'Passport Number', section: 'Student' },
+
+  // Program Information
+  { dataPath: 'program.name', label: 'Program Name/Major', section: 'Program' },
+  { dataPath: 'program.degreeLevel', label: 'Degree Level', section: 'Program' },
+  { dataPath: 'program.startDate', label: 'Program Start Date', type: 'date', section: 'Program' },
+  { dataPath: 'program.endDate', label: 'Program End Date', type: 'date', section: 'Program' },
+
+  // Financial Information
+  { dataPath: 'financial.tuition', label: 'Estimated Tuition/Fees', section: 'Financial' },
+  { dataPath: 'financial.livingExpenses', label: 'Estimated Living Expenses', section: 'Financial' },
+  { dataPath: 'financial.personalFunds', label: 'Personal Funds', section: 'Financial' },
+  { dataPath: 'financial.schoolFunds', label: 'School Funds', section: 'Financial' },
+];
+
+/**
+ * DS-160: Online Nonimmigrant Visa Application
+ */
+const DS160_FIELDS: FormFieldMapping[] = [
+  // Personal Information
+  { dataPath: 'personal.lastName', label: 'Surname', section: 'Personal' },
+  { dataPath: 'personal.firstName', label: 'Given Names', section: 'Personal' },
+  { dataPath: 'personal.dateOfBirth', label: 'Date of Birth', type: 'date', section: 'Personal' },
+  { dataPath: 'personal.birthCity', label: 'City of Birth', section: 'Personal' },
+  { dataPath: 'personal.birthCountry', label: 'Country of Birth', section: 'Personal' },
+  { dataPath: 'personal.sex', label: 'Sex', section: 'Personal' },
+  { dataPath: 'personal.maritalStatus', label: 'Marital Status', section: 'Personal' },
+  { dataPath: 'personal.nationality', label: 'Nationality', section: 'Personal' },
+  { dataPath: 'personal.nationalIdNumber', label: 'National ID Number', section: 'Personal' },
+
+  // Passport
+  { dataPath: 'passport.number', label: 'Passport Number', section: 'Passport' },
+  { dataPath: 'passport.issuingCountry', label: 'Issuing Country', section: 'Passport' },
+  { dataPath: 'passport.issueDate', label: 'Issue Date', type: 'date', section: 'Passport' },
+  { dataPath: 'passport.expiryDate', label: 'Expiration Date', type: 'date', section: 'Passport' },
+
+  // Travel Information
+  { dataPath: 'travel.visaType', label: 'Visa Type', section: 'Travel' },
+  { dataPath: 'travel.arrivalDate', label: 'Intended Arrival Date', type: 'date', section: 'Travel' },
+  { dataPath: 'travel.lengthOfStay', label: 'Length of Stay', section: 'Travel' },
+  { dataPath: 'travel.usAddress', label: 'U.S. Address', type: 'address', section: 'Travel' },
+
+  // U.S. Contact
+  { dataPath: 'usContact.lastName', label: 'Contact Last Name', section: 'U.S. Contact' },
+  { dataPath: 'usContact.firstName', label: 'Contact First Name', section: 'U.S. Contact' },
+  { dataPath: 'usContact.phone', label: 'Contact Phone', type: 'phone', section: 'U.S. Contact' },
+
+  // Family
+  { dataPath: 'family.fatherName', label: 'Father\'s Name', section: 'Family' },
+  { dataPath: 'family.motherName', label: 'Mother\'s Name', section: 'Family' },
+
+  // Work/Education
+  { dataPath: 'employment.employer', label: 'Current Employer/School', section: 'Work/Education' },
+  { dataPath: 'employment.jobTitle', label: 'Job Title', section: 'Work/Education' },
+
+  // Contact
+  { dataPath: 'contact.phone', label: 'Phone Number', type: 'phone', section: 'Contact' },
+  { dataPath: 'contact.email', label: 'Email Address', section: 'Contact' },
+  { dataPath: 'contact.address', label: 'Home Address', type: 'address', section: 'Contact' },
+];
+
+/**
+ * G-1145: E-Notification of Application/Petition Acceptance
+ */
+const G1145_FIELDS: FormFieldMapping[] = [
+  { dataPath: 'applicant.lastName', label: 'Last Name', section: 'Applicant' },
+  { dataPath: 'applicant.firstName', label: 'First Name', section: 'Applicant' },
+  { dataPath: 'applicant.middleName', label: 'Middle Name', section: 'Applicant' },
+  { dataPath: 'email', label: 'Email Address', section: 'Contact' },
+  { dataPath: 'mobilePhone', label: 'Mobile Phone Number', type: 'phone', section: 'Contact' },
+  { dataPath: 'formNumber', label: 'Form Number Being Filed', section: 'Application' },
+  { dataPath: 'beneficiaryName', label: 'Beneficiary Name', section: 'Application' },
 ];
 
 /**

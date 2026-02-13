@@ -5,6 +5,7 @@ import {
   validateFormData,
   analyzeDataConsistency,
 } from './anthropic';
+import { getFormDefinition } from '@/lib/forms/definitions';
 import {
   FormAutofillResult,
   ExtractedField,
@@ -162,6 +163,17 @@ export function getRequiredDocuments(
   _visaType?: string
 ): string[] {
   const baseDocuments: Record<string, string[]> = {
+    'I-129': [
+      'Beneficiary passport',
+      'Beneficiary resume/CV',
+      'Employment offer letter with job details',
+      'Labor Condition Application (LCA) approval (H-1B)',
+      'Employer financial documents (tax returns, annual report)',
+      'Educational credentials/diplomas',
+      'Previous I-94 record (if in the U.S.)',
+      'Pay stubs or W-2s (if currently employed)',
+      'Organizational chart showing position',
+    ],
     'I-130': [
       'Petitioner passport or birth certificate',
       'Petitioner proof of status (passport, naturalization certificate, or green card)',
@@ -195,12 +207,40 @@ export function getRequiredDocuments(
       'Medical examination (I-693)',
       'Affidavit of support (I-864)',
       'Evidence of lawful entry',
+      'Tax returns or W-2s (for address and employment history)',
+      'Utility bills or lease agreements (for address history)',
+    ],
+    'I-539': [
+      'Passport (valid for at least 6 months)',
+      'I-94 arrival/departure record',
+      'Current approval notice or visa stamp',
+      'Evidence of financial support',
+      'Bank statements (recent 3 months)',
+      'Employment letter (if employed)',
+      'Dependent passports (if co-applicants)',
     ],
     'I-765': [
       'Passport',
       'I-94 arrival/departure record',
       'Passport-style photos',
       'Evidence of eligibility category',
+    ],
+    'I-20': [
+      'Passport',
+      'Financial documents (bank statements, sponsor letter)',
+      'Academic transcripts',
+      'Diploma or degree certificates',
+      'Standardized test scores (TOEFL, GRE, GMAT)',
+      'Acceptance letter from school',
+    ],
+    'DS-160': [
+      'Passport',
+      'Passport-style photo (digital)',
+      'Travel itinerary',
+      'Employment letter or enrollment letter',
+      'Financial documents',
+      'Previous U.S. visa (if applicable)',
+      'I-20 or I-797 (if applicable)',
     ],
     'N-400': [
       'Green card (front and back)',
@@ -209,6 +249,10 @@ export function getRequiredDocuments(
       'Travel history documentation',
       'Marriage/divorce certificates',
       'Birth certificates of children',
+      'W-2s (for employment history verification)',
+    ],
+    'G-1145': [
+      'No supporting documents required',
     ],
   };
 
@@ -222,9 +266,38 @@ export function mapExtractedFieldToFormField(
   extractedField: ExtractedField,
   formType: string
 ): FormField | null {
-  // Field mapping definitions
+  // Field mapping definitions — maps extracted field names to form field IDs.
+  // Covers passport, birth cert, marriage cert, I-94, W-2, employment letter,
+  // diploma, transcript, and other cross-document sources.
   const fieldMappings: Record<string, Record<string, string>> = {
+    'I-129': {
+      // Beneficiary biographical (from passport)
+      full_name: 'beneficiary_last_name',
+      given_name: 'beneficiary_first_name',
+      surname: 'beneficiary_last_name',
+      date_of_birth: 'beneficiary_dob',
+      place_of_birth: 'beneficiary_birth_city',
+      nationality: 'beneficiary_nationality',
+      passport_number: 'beneficiary_passport_number',
+      expiry_date: 'beneficiary_passport_expiry',
+      sex: 'beneficiary_sex',
+      alien_number: 'beneficiary_alien_number',
+      // From I-94
+      i94_number: 'beneficiary_i94_number',
+      admission_date: 'beneficiary_last_arrival_date',
+      class_of_admission: 'beneficiary_last_arrival_status',
+      admitted_until: 'beneficiary_status_expires',
+      // From employment letter / W-2
+      employer_name: 'petitioner_company_name',
+      job_title: 'job_title',
+      salary: 'offered_wage',
+      // From diploma / transcript
+      degree_type: 'pt7_highest_education',
+      field_of_study: 'pt7_field_of_study',
+      institution_name: 'pt7_institution_name',
+    },
     'I-130': {
+      // Beneficiary biographical (from passport)
       full_name: 'pt2_legal_name',
       given_name: 'pt2_given_name',
       surname: 'pt2_family_name',
@@ -232,6 +305,16 @@ export function mapExtractedFieldToFormField(
       place_of_birth: 'pt2_pob_city',
       nationality: 'pt2_country_of_birth',
       passport_number: 'pt2_passport_number',
+      // From birth certificate (family relationships)
+      father_name: 'pt3_father_name',
+      mother_name: 'pt3_mother_name',
+      // From marriage certificate
+      date_of_marriage: 'pt2_marriage_date',
+      place_of_marriage: 'pt2_marriage_place',
+      spouse_1_name: 'pt1_petitioner_name',
+      spouse_2_name: 'pt2_beneficiary_name',
+      // From utility bills / lease (address history)
+      address: 'pt2_address_street',
     },
     'I-131': {
       full_name: 'pt1_legal_name',
@@ -242,8 +325,12 @@ export function mapExtractedFieldToFormField(
       nationality: 'pt1_nationality',
       passport_number: 'pt1_passport_number',
       alien_number: 'pt1_alien_number',
+      // From I-94
+      i94_number: 'pt1_i94_number',
+      class_of_admission: 'class_of_admission',
     },
     'I-140': {
+      // Beneficiary biographical (from passport)
       full_name: 'pt4_beneficiary_name',
       given_name: 'pt4_given_name',
       surname: 'pt4_family_name',
@@ -252,30 +339,147 @@ export function mapExtractedFieldToFormField(
       nationality: 'pt4_nationality',
       passport_number: 'pt4_passport_number',
       alien_number: 'pt4_alien_number',
+      expiry_date: 'pt4_passport_expiry',
+      // From employment letter
       job_title: 'pt5_job_title',
       employer_name: 'pt1_employer_name',
       salary: 'pt5_offered_wage',
+      // From diploma / transcript (education)
+      degree_type: 'pt7_highest_education',
+      field_of_study: 'pt7_field_of_study',
+      institution_name: 'pt7_institution_name',
+      institution_country: 'pt7_institution_country',
+      graduation_date: 'pt7_degree_date',
+      // From W-2 (employer verification)
+      employer_ein: 'pt1_employer_ein',
+      wages_tips: 'pt5_offered_wage',
     },
     'I-485': {
+      // Applicant biographical (from passport)
       full_name: 'pt1_current_name',
       given_name: 'pt1_given_name',
       surname: 'pt1_family_name',
       date_of_birth: 'pt1_dob',
       place_of_birth: 'pt1_pob',
       nationality: 'pt1_country_of_birth',
+      passport_number: 'pt1_passport_number',
+      expiry_date: 'pt1_passport_expiry',
+      sex: 'pt1_sex',
+      alien_number: 'pt1_alien_number',
+      // From I-94 (immigration history)
+      i94_number: 'pt1_i94_number',
+      admission_date: 'pt1_last_entry_date',
+      class_of_admission: 'pt1_status_at_entry',
+      admitted_until: 'pt1_status_expires',
+      port_of_entry: 'pt1_port_of_entry',
+      // From birth certificate (family relationships)
+      father_name: 'pt3_father_name',
+      mother_name: 'pt3_mother_name',
+      // From marriage certificate
+      date_of_marriage: 'pt3_marriage_date',
+      place_of_marriage: 'pt3_marriage_place',
+      // From W-2 / employment letter (employment history)
+      employer_name: 'pt4_employer_name',
+      job_title: 'pt4_occupation',
+      // From utility bills / lease (address history)
+      address: 'pt1_current_address',
+    },
+    'I-539': {
+      // Applicant biographical (from passport)
+      full_name: 'applicant_last_name',
+      given_name: 'applicant_first_name',
+      surname: 'applicant_last_name',
+      date_of_birth: 'applicant_dob',
+      place_of_birth: 'applicant_birth_city',
+      nationality: 'applicant_nationality',
+      passport_number: 'passport_number',
+      expiry_date: 'passport_expiry',
+      sex: 'applicant_sex',
+      alien_number: 'applicant_alien_number',
+      // From I-94 (immigration history)
+      i94_number: 'i94_number',
+      admission_date: 'date_of_last_arrival',
+      class_of_admission: 'status_at_entry',
+      admitted_until: 'current_status_expires',
+      port_of_entry: 'port_of_entry',
+      // From employment letter
+      employer_name: 'employer_name',
     },
     'I-765': {
       full_name: 'pt2_legal_name',
       given_name: 'pt2_given_name',
       surname: 'pt2_family_name',
       date_of_birth: 'pt2_dob',
+      nationality: 'pt2_nationality',
+      passport_number: 'pt2_passport_number',
+      alien_number: 'pt2_alien_number',
+      // From I-94 (immigration history)
+      i94_number: 'pt2_i94_number',
+      admission_date: 'pt2_last_entry_date',
+      class_of_admission: 'pt2_status_at_entry',
+      admitted_until: 'pt2_status_expires',
+      // From W-2 (employment verification)
+      employer_name: 'pt2_employer_name',
+    },
+    'I-20': {
+      // Student biographical (from passport)
+      given_name: 'student_first_name',
+      surname: 'student_last_name',
+      date_of_birth: 'student_dob',
+      place_of_birth: 'student_birth_country',
+      nationality: 'student_nationality',
+      passport_number: 'student_passport_number',
+      // From transcript / diploma (education)
+      institution_name: 'school_name',
+      degree_type: 'education_level',
+      field_of_study: 'program_name',
+      graduation_date: 'program_end_date',
+      cumulative_gpa: 'academic_gpa',
+    },
+    'DS-160': {
+      // Biographical (from passport)
+      full_name: 'last_name',
+      given_name: 'first_name',
+      surname: 'last_name',
+      date_of_birth: 'dob',
+      place_of_birth: 'birth_city',
+      nationality: 'nationality',
+      passport_number: 'passport_number',
+      issue_date: 'passport_issue_date',
+      expiry_date: 'passport_expiry_date',
+      sex: 'sex',
+      // From birth certificate (family)
+      father_name: 'father_last_name',
+      mother_name: 'mother_last_name',
+      // From employment letter / W-2
+      employer_name: 'current_employer_name',
+      job_title: 'job_title',
     },
     'N-400': {
+      // Applicant biographical (from passport)
       full_name: 'pt2_current_name',
       given_name: 'pt2_given_name',
       surname: 'pt2_family_name',
       date_of_birth: 'pt2_dob',
       place_of_birth: 'pt2_pob',
+      nationality: 'pt2_nationality',
+      alien_number: 'pt2_alien_number',
+      // From marriage certificate
+      date_of_marriage: 'pt6_marriage_date',
+      spouse_1_name: 'pt6_spouse_name',
+      // From birth certificate (family relationships)
+      father_name: 'pt7_father_name',
+      mother_name: 'pt7_mother_name',
+      // From W-2 / tax returns (employment history)
+      employer_name: 'pt8_employer_name',
+      job_title: 'pt8_occupation',
+      wages_tips: 'pt8_income',
+      // From utility bills / lease (address history)
+      address: 'pt3_current_address',
+    },
+    'G-1145': {
+      given_name: 'applicant_first_name',
+      surname: 'applicant_last_name',
     },
   };
 
@@ -304,6 +508,18 @@ export function getUnfilledRequiredFields(
   currentFields: FormField[]
 ): string[] {
   const requiredFieldsByForm: Record<string, string[]> = {
+    'I-129': [
+      'petitioner_company_name',
+      'petitioner_ein',
+      'petitioner_address',
+      'beneficiary_name',
+      'beneficiary_dob',
+      'beneficiary_nationality',
+      'beneficiary_passport_number',
+      'classification_requested',
+      'job_title',
+      'offered_wage',
+    ],
     'I-130': [
       'petitioner_name',
       'petitioner_dob',
@@ -335,10 +551,36 @@ export function getUnfilledRequiredFields(
       'country_of_birth',
       'date_of_entry',
     ],
+    'I-539': [
+      'applicant_name',
+      'applicant_dob',
+      'applicant_nationality',
+      'passport_number',
+      'current_status',
+      'requested_status',
+      'current_status_expires',
+    ],
     'I-765': [
       'applicant_name',
       'applicant_dob',
       'eligibility_category',
+    ],
+    'I-20': [
+      'school_name',
+      'student_name',
+      'student_dob',
+      'student_nationality',
+      'program_name',
+      'program_start_date',
+    ],
+    'DS-160': [
+      'last_name',
+      'first_name',
+      'dob',
+      'birth_country',
+      'nationality',
+      'passport_number',
+      'visa_type',
     ],
     'N-400': [
       'applicant_name',
@@ -346,6 +588,10 @@ export function getUnfilledRequiredFields(
       'green_card_number',
       'current_address',
       'date_became_lpr',
+    ],
+    'G-1145': [
+      'applicant_name',
+      'email_address',
     ],
   };
 
@@ -355,6 +601,13 @@ export function getUnfilledRequiredFields(
     .map((f) => f.field_name);
 
   return requiredFields.filter((field) => !filledFieldNames.includes(field));
+}
+
+/** Count total fields in a form definition (returns 0 if not found). */
+function countFormFields(formType: string): number {
+  const def = getFormDefinition(formType);
+  if (!def) return 0;
+  return def.sections.reduce((sum, s) => sum + s.fields.length, 0);
 }
 
 /**
@@ -369,16 +622,21 @@ export function calculateFormCompletion(
   totalRequired: number;
   highConfidenceCount: number;
 } {
-  const requiredFieldsByForm: Record<string, number> = {
-    'I-130': 25,
-    'I-131': 20,
-    'I-140': 30,
-    'I-485': 50,
-    'I-765': 15,
-    'N-400': 40,
-  };
-
-  const totalRequired = requiredFieldsByForm[formType] || 20;
+  // Derive field count from form definitions, with static fallback.
+  // countRequiredFields counts only validation.required fields; we use
+  // total section field count instead for a more complete denominator.
+  let totalRequired = 20;
+  const counted = countFormFields(formType);
+  if (counted > 0) {
+    totalRequired = counted;
+  } else {
+    const fallback: Record<string, number> = {
+      'I-129': 49, 'I-130': 25, 'I-131': 20, 'I-140': 30, 'I-485': 50,
+      'I-539': 40, 'I-765': 15, 'I-20': 35, 'DS-160': 60, 'N-400': 40,
+      'G-1145': 10,
+    };
+    totalRequired = fallback[formType] || 20;
+  }
 
   const filledFields = fields.filter(
     (f) => f.suggested_value || f.current_value

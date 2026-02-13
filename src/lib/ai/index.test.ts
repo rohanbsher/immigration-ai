@@ -469,13 +469,14 @@ describe('AI Module', () => {
         ];
         const result = calculateFormCompletion('I-130', fields);
         expect(result.filledCount).toBe(2);
-        expect(result.totalRequired).toBe(25);
-        expect(result.percentage).toBe(8);
+        expect(result.totalRequired).toBe(70);
+        expect(result.percentage).toBe(Math.round((2 / 70) * 100));
         expect(result.highConfidenceCount).toBe(2);
       });
 
       it('should cap percentage at 100', () => {
-        const manyFields: FormField[] = Array(30).fill(null).map((_, i) => ({
+        // I-765 has 57 fields, so we need more than 57 to exceed 100%
+        const manyFields: FormField[] = Array(60).fill(null).map((_, i) => ({
           field_id: `f${i}`,
           field_name: `field_${i}`,
           field_type: 'text' as const,
@@ -505,10 +506,11 @@ describe('AI Module', () => {
       });
 
       it('should return correct total for each form type', () => {
-        expect(calculateFormCompletion('I-130', []).totalRequired).toBe(25);
-        expect(calculateFormCompletion('I-485', []).totalRequired).toBe(50);
-        expect(calculateFormCompletion('I-765', []).totalRequired).toBe(15);
-        expect(calculateFormCompletion('N-400', []).totalRequired).toBe(40);
+        // Dynamic counts derived from form definitions
+        expect(calculateFormCompletion('I-130', []).totalRequired).toBe(70);
+        expect(calculateFormCompletion('I-485', []).totalRequired).toBe(89);
+        expect(calculateFormCompletion('I-765', []).totalRequired).toBe(57);
+        expect(calculateFormCompletion('N-400', []).totalRequired).toBe(114);
       });
 
       it('should default to 20 for unknown form type', () => {

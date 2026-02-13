@@ -2,29 +2,44 @@
 // Exports all form definitions and types
 
 export * from './types';
+export { I129_FORM } from './i-129';
 export { I130_FORM } from './i-130';
 export { I131_FORM } from './i-131';
 export { I140_FORM } from './i-140';
 export { I485_FORM } from './i-485';
+export { I539_FORM } from './i-539';
 export { I765_FORM } from './i-765';
+export { I20_FORM } from './i-20';
+export { DS160_FORM } from './ds-160';
 export { N400_FORM } from './n-400';
+export { G1145_FORM } from './g-1145';
 
 import { FormDefinition } from './types';
+import { I129_FORM } from './i-129';
 import { I130_FORM } from './i-130';
 import { I131_FORM } from './i-131';
 import { I140_FORM } from './i-140';
 import { I485_FORM } from './i-485';
+import { I539_FORM } from './i-539';
 import { I765_FORM } from './i-765';
+import { I20_FORM } from './i-20';
+import { DS160_FORM } from './ds-160';
 import { N400_FORM } from './n-400';
+import { G1145_FORM } from './g-1145';
 
 // Map of all available form definitions
 export const FORM_DEFINITIONS: Record<string, FormDefinition> = {
+  'I-129': I129_FORM,
   'I-130': I130_FORM,
   'I-131': I131_FORM,
   'I-140': I140_FORM,
   'I-485': I485_FORM,
+  'I-539': I539_FORM,
   'I-765': I765_FORM,
+  'I-20': I20_FORM,
+  'DS-160': DS160_FORM,
   'N-400': N400_FORM,
+  'G-1145': G1145_FORM,
 };
 
 // Get form definition by type

@@ -1,20 +1,59 @@
 /**
  * PDF generation service for USCIS immigration forms.
- * Generates filled PDF forms from form data.
+ *
+ * Two modes of operation:
+ * 1. XFA template filling — loads an official USCIS PDF template and fills
+ *    its XFA form fields via Python/pikepdf. Produces filing-ready output.
+ * 2. Summary PDF — generates a custom layout with all field data.
+ *    Used as a fallback when no USCIS template is available on disk.
  */
 
 import { PDFDocument, StandardFonts, rgb, PDFFont, PDFPage } from 'pdf-lib';
+import { access } from 'fs/promises';
 import type { FormType } from '@/types';
 import { getFieldMappings, FormFieldMapping } from './templates';
+import { getTemplatePath, getNestedValue } from './acroform-filler';
+import { fillXFAPdf } from './xfa-filler';
+import { getUSCISFieldMap, hasUSCISFieldMap } from './uscis-fields';
 import { createLogger } from '@/lib/logger';
 
 const log = createLogger('pdf');
+
+/**
+ * Deep-merge two plain objects. `overrides` values take precedence.
+ * Only recurses into plain objects — arrays, dates, etc. are replaced wholesale.
+ */
+function deepMerge(
+  base: Record<string, unknown>,
+  overrides: Record<string, unknown>
+): Record<string, unknown> {
+  const result: Record<string, unknown> = { ...base };
+  for (const key of Object.keys(overrides)) {
+    const baseVal = base[key];
+    const overVal = overrides[key];
+    if (
+      baseVal && overVal &&
+      typeof baseVal === 'object' && typeof overVal === 'object' &&
+      !Array.isArray(baseVal) && !Array.isArray(overVal)
+    ) {
+      result[key] = deepMerge(
+        baseVal as Record<string, unknown>,
+        overVal as Record<string, unknown>
+      );
+    } else {
+      result[key] = overVal;
+    }
+  }
+  return result;
+}
 
 export interface PDFGenerationResult {
   success: boolean;
   pdfBytes?: Uint8Array;
   fileName?: string;
   error?: string;
+  /** When true the output was produced from an official USCIS template */
+  isAcroFormFilled?: boolean;
 }
 
 export interface FormData {
@@ -28,25 +67,65 @@ export interface FormData {
 
 /**
  * Generate a filled PDF form from form data.
+ *
+ * Attempts AcroForm filling first (if a template exists on disk and we
+ * have a field map for the form type). Falls back to the summary PDF
+ * generator otherwise.
  */
 export async function generateFormPDF(form: FormData): Promise<PDFGenerationResult> {
   try {
+    // Deep-merge form_data and ai_filled_data, with form_data taking precedence
+    const mergedData = form.aiFilledData
+      ? deepMerge(form.aiFilledData, form.data)
+      : { ...form.data };
+
+    // Attempt XFA template filling when we have both a field map AND a template
+    if (hasUSCISFieldMap(form.formType)) {
+      const templatePath = getTemplatePath(form.formType);
+      const templateExists = await access(templatePath).then(() => true).catch(() => false);
+
+      if (templateExists) {
+        const fieldMap = getUSCISFieldMap(form.formType)!;
+        const result = await fillXFAPdf(templatePath, fieldMap, mergedData);
+
+        if (result.success && result.pdfBytes && result.filledFieldCount > 0) {
+          log.info(
+            `Template filled ${form.formType}: ` +
+              `${result.filledFieldCount}/${result.totalFieldCount} fields, ` +
+              `${result.skippedFields.length} skipped`
+          );
+
+          return {
+            success: true,
+            pdfBytes: result.pdfBytes,
+            fileName: `${form.formType}_${form.id.slice(0, 8)}_${Date.now()}.pdf`,
+            isAcroFormFilled: true,
+          };
+        }
+
+        if (result.success && result.filledFieldCount === 0 && result.totalFieldCount > 0) {
+          log.warn(
+            `Template fill for ${form.formType} filled 0/${result.totalFieldCount} fields. ` +
+              `Field names may not match the PDF. Falling back to summary PDF.`
+          );
+        } else if (!result.success) {
+          log.warn(
+            `Template fill failed for ${form.formType}, falling back to summary PDF. ` +
+              `Errors: ${result.errors.join('; ')}`
+          );
+        }
+      }
+    }
+
+    // Fallback: generate a summary PDF (DRAFT watermark)
     const fieldMappings = getFieldMappings(form.formType);
-
-    // Merge form_data and ai_filled_data, with form_data taking precedence
-    const mergedData = {
-      ...(form.aiFilledData || {}),
-      ...form.data,
-    };
-
-    // For now, generate a summary PDF since we don't have actual USCIS templates
-    // In production, you would load the official USCIS PDF template and fill it
     const pdfBytes = await generateSummaryPDF(form.formType, mergedData, fieldMappings);
 
     return {
       success: true,
       pdfBytes,
       fileName: `${form.formType}_${form.id.slice(0, 8)}_${Date.now()}.pdf`,
+      isAcroFormFilled: false,
     };
   } catch (error) {
     log.logError('PDF generation error', error);
@@ -59,7 +138,7 @@ export async function generateFormPDF(form: FormData): Promise<PDFGenerationResu
 
 /**
  * Generate a summary PDF with form data.
- * This is a placeholder until official USCIS PDF templates are integrated.
+ * Fallback when no official USCIS PDF template is available.
  */
 async function generateSummaryPDF(
   formType: FormType,
@@ -295,22 +374,7 @@ function wrapText(text: string, font: PDFFont, fontSize: number, maxWidth: numbe
   return lines.length > 0 ? lines : [''];
 }
 
-/**
- * Get a nested value from an object using a dot-separated path.
- */
-function getNestedValue(obj: Record<string, unknown>, path: string): unknown {
-  const parts = path.split('.');
-  let current: unknown = obj;
-
-  for (const part of parts) {
-    if (current === null || current === undefined) {
-      return undefined;
-    }
-    current = (current as Record<string, unknown>)[part];
-  }
-
-  return current;
-}
+// getNestedValue is imported from ./acroform-filler
 
 /**
  * Format a value for display.
@@ -376,8 +440,9 @@ function getUnmappedData(
 
 /**
  * Check if PDF generation is available for a form type.
+ * Returns true when we have either XFA field maps (for template filling)
+ * or summary-PDF field mappings. Both produce usable output.
  */
 export function isPDFGenerationSupported(formType: FormType): boolean {
-  const supportedForms: FormType[] = ['I-130', 'I-485', 'I-765', 'I-131', 'N-400'];
-  return supportedForms.includes(formType);
+  return hasUSCISFieldMap(formType) || getFieldMappings(formType).length > 0;
 }

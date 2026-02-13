@@ -1,18 +1,15 @@
 /**
  * Unit tests for PDF generation service.
- * Tests form PDF generation, data formatting, and form type support.
+ * Tests XFA template filling, summary PDF fallback, data merging, and form type support.
  */
 
-import { describe, test, expect, vi } from 'vitest';
-import {
-  generateFormPDF,
-  isPDFGenerationSupported,
-  type FormData,
-} from './index';
-import { createMockFormForPDF, createFormData } from '@/test-utils/factories';
+import { describe, test, expect, vi, beforeEach } from 'vitest';
 import type { FormType } from '@/types';
 
-// Mock the logger to avoid console noise during tests
+// ---------------------------------------------------------------------------
+// Mocks — set up before importing module under test
+// ---------------------------------------------------------------------------
+
 vi.mock('@/lib/logger', () => ({
   createLogger: () => ({
     error: vi.fn(),
@@ -23,94 +20,190 @@ vi.mock('@/lib/logger', () => ({
   }),
 }));
 
-// We need to test the internal helper functions through the public API
-// or export them for testing. Since they're internal, we test them
-// indirectly through generateFormPDF.
+// We track mock state via module-level refs that survive vi.mock hoisting
+let accessBehavior: 'exists' | 'not-found' = 'not-found';
+
+vi.mock(import('fs/promises'), async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    default: {
+      ...actual,
+      access: vi.fn(async () => {
+        if (accessBehavior === 'not-found') throw new Error('ENOENT');
+      }),
+    },
+    access: vi.fn(async () => {
+      if (accessBehavior === 'not-found') throw new Error('ENOENT');
+    }),
+  };
+});
+
+// Mock fillXFAPdf — we store the mock result in a module-level variable
+let xfaResult: Record<string, unknown> | null = null;
+
+vi.mock('./xfa-filler', () => ({
+  fillXFAPdf: vi.fn(async () => xfaResult),
+}));
+
+// Import AFTER mocks
+import {
+  generateFormPDF,
+  isPDFGenerationSupported,
+  type FormData,
+} from './index';
+import { fillXFAPdf } from './xfa-filler';
+import { createMockFormForPDF, createFormData } from '@/test-utils/factories';
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function makeForm(
+  formType: FormType,
+  data: Record<string, unknown> = {},
+  aiFilledData?: Record<string, unknown>
+): FormData {
+  return {
+    id: `test-${formType}`,
+    formType,
+    data,
+    aiFilledData,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+function simulateTemplateExists() {
+  accessBehavior = 'exists';
+}
+
+function simulateTemplateNotFound() {
+  accessBehavior = 'not-found';
+}
+
+function simulateXFASuccess(filled: number, total: number) {
+  xfaResult = {
+    success: true,
+    pdfBytes: new Uint8Array([0x25, 0x50, 0x44, 0x46]), // %PDF
+    filledFieldCount: filled,
+    totalFieldCount: total,
+    skippedFields: [],
+    errors: [],
+  };
+}
+
+function simulateXFAFailure(errorMsg: string) {
+  xfaResult = {
+    success: false,
+    filledFieldCount: 0,
+    totalFieldCount: 10,
+    skippedFields: [],
+    errors: [errorMsg],
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
 
 describe('PDF Generation Service', () => {
-  describe('generateFormPDF', () => {
-    test('should create valid result with pdfBytes', async () => {
-      const form = createMockFormForPDF('I-130');
+  beforeEach(() => {
+    vi.clearAllMocks();
+    // Default: templates don't exist → always use summary PDF fallback
+    simulateTemplateNotFound();
+    xfaResult = null;
+  });
 
+  // -----------------------------------------------------------------------
+  // XFA template path vs summary PDF fallback
+  // -----------------------------------------------------------------------
+  describe('XFA template filling', () => {
+    test('uses XFA filler when template exists and fill succeeds', async () => {
+      simulateTemplateExists();
+      simulateXFASuccess(5, 10);
+
+      const form = makeForm('I-130', {
+        petitioner: { lastName: 'Doe', firstName: 'John' },
+      });
       const result = await generateFormPDF(form);
 
       expect(result.success).toBe(true);
+      expect(result.isAcroFormFilled).toBe(true);
       expect(result.pdfBytes).toBeInstanceOf(Uint8Array);
-      expect(result.pdfBytes!.length).toBeGreaterThan(0);
-      expect(result.fileName).toBeDefined();
+      expect(fillXFAPdf).toHaveBeenCalledTimes(1);
     });
 
-    test('should handle I-130 form', async () => {
-      const form = createMockFormForPDF('I-130');
+    test('falls back to summary PDF when template does not exist', async () => {
+      simulateTemplateNotFound();
 
+      const form = makeForm('I-130', {
+        petitioner: { lastName: 'Doe' },
+      });
       const result = await generateFormPDF(form);
 
       expect(result.success).toBe(true);
-      expect(result.fileName).toContain('I-130');
+      expect(result.isAcroFormFilled).toBe(false);
+      expect(fillXFAPdf).not.toHaveBeenCalled();
     });
 
-    test('should handle I-485 form', async () => {
-      const form: FormData = {
-        id: 'test-485',
-        formType: 'I-485',
-        data: {
-          applicant: {
-            lastName: 'Smith',
-            firstName: 'Jane',
-            dateOfBirth: '1990-05-15',
-            countryOfBirth: 'Mexico',
-            ssn: '987-65-4321',
-          },
-          lastEntry: {
-            date: '2020-01-15',
-            port: 'Los Angeles',
-            status: 'H-1B',
-          },
-        },
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
+    test('falls back to summary PDF when XFA fill fails', async () => {
+      simulateTemplateExists();
+      simulateXFAFailure('Python script crashed');
 
+      const form = makeForm('I-130', {
+        petitioner: { lastName: 'Doe' },
+      });
       const result = await generateFormPDF(form);
 
       expect(result.success).toBe(true);
-      expect(result.fileName).toContain('I-485');
+      expect(result.isAcroFormFilled).toBe(false);
     });
 
-    test('should handle I-765 form', async () => {
-      const form: FormData = {
-        id: 'test-765',
-        formType: 'I-765',
-        data: {
-          applicant: {
-            lastName: 'Johnson',
-            firstName: 'Bob',
-            dateOfBirth: '1985-12-01',
-          },
-          eligibilityCategory: '(c)(9)',
-          categoryDescription: 'Adjustment applicant',
-        },
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
+    test('falls back to summary PDF when 0 fields filled', async () => {
+      simulateTemplateExists();
+      simulateXFASuccess(0, 10);
 
+      const form = makeForm('I-130', {
+        petitioner: { lastName: 'Doe' },
+      });
       const result = await generateFormPDF(form);
 
       expect(result.success).toBe(true);
-      expect(result.fileName).toContain('I-765');
+      // 0 fields filled should NOT return the empty USCIS template
+      expect(result.isAcroFormFilled).toBe(false);
     });
 
-    test('should merge AI and form data correctly', async () => {
-      const form: FormData = {
-        id: 'test-merge',
-        formType: 'I-130',
-        data: {
+    test('skips XFA for form types without field mappings', async () => {
+      simulateTemplateExists();
+
+      // I-129 has no USCIS field map (only summary PDF mappings)
+      const form = makeForm('I-129', { applicant: { lastName: 'Test' } });
+      const result = await generateFormPDF(form);
+
+      expect(result.success).toBe(true);
+      expect(result.isAcroFormFilled).toBe(false);
+      expect(fillXFAPdf).not.toHaveBeenCalled();
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // Data merging
+  // -----------------------------------------------------------------------
+  describe('data merging', () => {
+    test('deep-merges AI and form data correctly', async () => {
+      simulateTemplateExists();
+      simulateXFASuccess(3, 5);
+
+      const form = makeForm(
+        'I-130',
+        {
           petitioner: {
             firstName: 'Manual',
             lastName: 'Entry',
           },
         },
-        aiFilledData: {
+        {
           petitioner: {
             firstName: 'AI-Suggested',
             middleName: 'FromAI',
@@ -118,220 +211,160 @@ describe('PDF Generation Service', () => {
           beneficiary: {
             firstName: 'AI-Beneficiary',
           },
-        },
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
+        }
+      );
 
+      await generateFormPDF(form);
+
+      // Verify the merged data passed to fillXFAPdf
+      const mergedData = vi.mocked(fillXFAPdf).mock.calls[0][2];
+      // form_data overrides AI for same keys
+      expect(mergedData.petitioner.firstName).toBe('Manual');
+      expect(mergedData.petitioner.lastName).toBe('Entry');
+      // AI data preserved for keys NOT in form_data
+      expect(mergedData.petitioner.middleName).toBe('FromAI');
+      // AI-only top-level keys preserved
+      expect(mergedData.beneficiary.firstName).toBe('AI-Beneficiary');
+    });
+
+    test('handles form with no AI data', async () => {
+      const form = makeForm('I-130', createFormData());
       const result = await generateFormPDF(form);
 
       expect(result.success).toBe(true);
-      // The function should use form data over AI data
-      // We verify this works by the successful PDF generation
     });
 
-    test('should prioritize form data over AI data', async () => {
-      const form: FormData = {
-        id: 'test-priority',
-        formType: 'I-130',
-        data: {
-          petitioner: {
-            firstName: 'FormValue', // This should take precedence
-          },
-        },
-        aiFilledData: {
-          petitioner: {
-            firstName: 'AIValue', // This should be overridden
-          },
-        },
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-
+    test('handles empty form data gracefully', async () => {
+      const form = makeForm('I-130', {});
       const result = await generateFormPDF(form);
 
-      // The merge happens as {...aiFilledData, ...formData}, so formData wins
       expect(result.success).toBe(true);
     });
+  });
 
-    test('should generate unique filename with timestamp', async () => {
+  // -----------------------------------------------------------------------
+  // Summary PDF generation (fallback path)
+  // -----------------------------------------------------------------------
+  describe('summary PDF generation', () => {
+    test('generates valid PDF for I-130', async () => {
+      const form = makeForm('I-130', {
+        petitioner: { lastName: 'Doe', firstName: 'John' },
+      });
+      const result = await generateFormPDF(form);
+
+      expect(result.success).toBe(true);
+      expect(result.pdfBytes).toBeInstanceOf(Uint8Array);
+      expect(result.pdfBytes!.length).toBeGreaterThan(0);
+      expect(result.fileName).toContain('I-130');
+      expect(result.isAcroFormFilled).toBe(false);
+    });
+
+    test('generates valid PDF for I-485', async () => {
+      const form = makeForm('I-485', {
+        applicant: {
+          lastName: 'Smith',
+          firstName: 'Jane',
+          dateOfBirth: '1990-05-15',
+        },
+      });
+      const result = await generateFormPDF(form);
+
+      expect(result.success).toBe(true);
+      expect(result.fileName).toContain('I-485');
+    });
+
+    test('generates valid PDF for I-765', async () => {
+      const form = makeForm('I-765', {
+        applicant: { lastName: 'Johnson', firstName: 'Bob' },
+        eligibilityCategory: '(c)(9)',
+      });
+      const result = await generateFormPDF(form);
+
+      expect(result.success).toBe(true);
+      expect(result.fileName).toContain('I-765');
+    });
+
+    test('generates unique filenames with timestamp', async () => {
       const form = createMockFormForPDF('I-130');
 
       const result1 = await generateFormPDF(form);
-      // Small delay to ensure different timestamp
       await new Promise(resolve => setTimeout(resolve, 5));
       const result2 = await generateFormPDF(form);
 
       expect(result1.fileName).not.toBe(result2.fileName);
     });
 
-    test('should handle form with no AI data', async () => {
-      const form: FormData = {
-        id: 'test-no-ai',
-        formType: 'I-130',
-        data: createFormData(),
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-
+    test('handles null/undefined values in data', async () => {
+      const form = makeForm('I-130', {
+        petitioner: {
+          firstName: null,
+          lastName: undefined,
+          middleName: 'Valid',
+        },
+      });
       const result = await generateFormPDF(form);
 
       expect(result.success).toBe(true);
     });
 
-    test('should handle empty form data gracefully', async () => {
-      const form: FormData = {
-        id: 'test-empty',
-        formType: 'I-130',
-        data: {},
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
+    test('handles boolean values in data', async () => {
+      const form = makeForm('I-130', {
+        isUSCitizen: true,
+        hasValidVisa: false,
+      });
+      const result = await generateFormPDF(form);
 
+      expect(result.success).toBe(true);
+    });
+
+    test('handles array values in data', async () => {
+      const form = makeForm('I-130', {
+        previousAddresses: ['123 First St', '456 Second Ave'],
+      });
+      const result = await generateFormPDF(form);
+
+      expect(result.success).toBe(true);
+    });
+
+    test('handles deeply nested values', async () => {
+      const form = makeForm('I-130', {
+        petitioner: {
+          name: { first: 'John', last: 'Doe' },
+          address: { street: '123 Main St', city: 'New York' },
+        },
+      });
+      const result = await generateFormPDF(form);
+
+      expect(result.success).toBe(true);
+    });
+
+    test('handles very long text values', async () => {
+      const form = makeForm('I-130', {
+        description: 'Long text. '.repeat(100),
+      });
       const result = await generateFormPDF(form);
 
       expect(result.success).toBe(true);
     });
   });
 
-  describe('formatValue (tested through generateFormPDF)', () => {
-    test('should handle null/undefined values', async () => {
-      const form: FormData = {
-        id: 'test-null',
-        formType: 'I-130',
-        data: {
-          petitioner: {
-            firstName: null,
-            lastName: undefined,
-            middleName: 'Valid',
-          },
-        },
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-
-      const result = await generateFormPDF(form);
-
-      expect(result.success).toBe(true);
-    });
-
-    test('should handle boolean values', async () => {
-      const form: FormData = {
-        id: 'test-bool',
-        formType: 'I-130',
-        data: {
-          isUSCitizen: true,
-          hasValidVisa: false,
-        },
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-
-      const result = await generateFormPDF(form);
-
-      expect(result.success).toBe(true);
-    });
-
-    test('should handle array values', async () => {
-      const form: FormData = {
-        id: 'test-array',
-        formType: 'I-130',
-        data: {
-          previousAddresses: ['123 First St', '456 Second Ave'],
-          countries: ['USA', 'Canada', 'Mexico'],
-        },
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-
-      const result = await generateFormPDF(form);
-
-      expect(result.success).toBe(true);
-    });
-
-    test('should handle nested object values', async () => {
-      const form: FormData = {
-        id: 'test-nested',
-        formType: 'I-130',
-        data: {
-          petitioner: {
-            name: {
-              first: 'John',
-              last: 'Doe',
-            },
-            address: {
-              street: '123 Main St',
-              city: 'New York',
-            },
-          },
-        },
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-
-      const result = await generateFormPDF(form);
-
-      expect(result.success).toBe(true);
-    });
-  });
-
-  describe('getNestedValue (tested through generateFormPDF)', () => {
-    test('should retrieve nested paths correctly', async () => {
-      const form: FormData = {
-        id: 'test-nested-path',
-        formType: 'I-130',
-        data: {
-          petitioner: {
-            address: {
-              street: '123 Main St',
-              city: 'New York',
-            },
-          },
-        },
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-
-      // The PDF generation internally uses getNestedValue to access
-      // 'petitioner.address.street' etc.
-      const result = await generateFormPDF(form);
-
-      expect(result.success).toBe(true);
-    });
-  });
-
-  describe('wrapText (tested through generateFormPDF)', () => {
-    test('should handle very long text values', async () => {
-      const form: FormData = {
-        id: 'test-long-text',
-        formType: 'I-130',
-        data: {
-          description: 'This is a very long description that should wrap to multiple lines when rendered in the PDF. '.repeat(10),
-        },
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-
-      const result = await generateFormPDF(form);
-
-      expect(result.success).toBe(true);
-    });
-  });
-
+  // -----------------------------------------------------------------------
+  // isPDFGenerationSupported
+  // -----------------------------------------------------------------------
   describe('isPDFGenerationSupported', () => {
-    test('should return true for supported form types', () => {
-      const supportedTypes: FormType[] = ['I-130', 'I-485', 'I-765', 'I-131', 'N-400'];
-
-      for (const formType of supportedTypes) {
-        expect(isPDFGenerationSupported(formType)).toBe(true);
+    test('returns true for forms with XFA field mappings', () => {
+      const xfaForms: FormType[] = [
+        'I-130', 'I-485', 'I-765', 'I-131', 'N-400', 'I-140', 'G-1145',
+      ];
+      for (const ft of xfaForms) {
+        expect(isPDFGenerationSupported(ft)).toBe(true);
       }
     });
 
-    test('should return false for unsupported form types', () => {
-      const unsupportedTypes: FormType[] = ['I-140', 'I-129', 'I-539', 'I-20', 'DS-160', 'G-1145'];
-
-      for (const formType of unsupportedTypes) {
-        expect(isPDFGenerationSupported(formType)).toBe(false);
+    test('returns true for forms with only summary PDF mappings', () => {
+      const summaryOnlyForms: FormType[] = ['I-129', 'I-539', 'I-20', 'DS-160'];
+      for (const ft of summaryOnlyForms) {
+        expect(isPDFGenerationSupported(ft)).toBe(true);
       }
     });
   });

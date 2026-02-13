@@ -242,3 +242,37 @@ Limits are defined in THREE places that MUST stay synchronized:
 | Enterprise | ∞ | ∞ | ∞ | 500 GB | ∞ |
 
 **Note:** Documents quota is enforced per-case (not aggregate). The UsageMeter UI shows Cases, AI Requests, and Team Members only.
+
+---
+
+## Agent Teams
+
+This project uses Claude Code agent teams for parallel full-stack development. Teams are enabled via `.claude/settings.json` with `in-process` mode (Shift+Up/Down to switch between agents).
+
+### Team Commands
+
+| Command | Purpose |
+|---------|---------|
+| `/team-feature` | Spawn api-db + frontend + test-writer for a new feature |
+| `/team-tests` | Spawn 2-3 test writers for coverage gaps |
+| `/team-bugfix` | Spawn 2 investigators for cross-layer bugs |
+| `/team-guide` | Lead decision framework (when to team vs solo) |
+
+### File Ownership Table
+
+All teammates must respect these boundaries to prevent conflicts:
+
+| Owner | Owns | Never Touches |
+|-------|------|---------------|
+| api-db | `src/app/api/**`, `src/lib/db/**`, `supabase/migrations/**`, `src/types/**` | Components, hooks, pages |
+| frontend | `src/app/dashboard/**`, `src/components/**` (not ui/), `src/hooks/**` | API routes, DB, migrations |
+| test-writer | `**/*.test.ts`, `**/*.test.tsx`, `src/test-utils/**` | Any source file |
+| lead | `CLAUDE.md`, `.claude/**`, `package.json`, config files | Delegates the rest |
+
+### Teammate Behavior Rules
+
+1. Run `npx tsc --noEmit` before completing any task
+2. Never modify files outside your ownership boundary
+3. Only the lead updates `.claude/` context files
+4. When stuck, message the lead — don't spin endlessly
+5. Never spawn a teammate unless you can give them 3+ independent tasks

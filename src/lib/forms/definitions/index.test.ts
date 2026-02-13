@@ -9,11 +9,11 @@ import {
   getAIMappableFields,
 } from './index';
 
-const EXPECTED_FORM_TYPES = ['I-130', 'I-131', 'I-485', 'I-765', 'N-400'];
+const EXPECTED_FORM_TYPES = ['I-130', 'I-131', 'I-140', 'I-485', 'I-765', 'N-400'];
 
 describe('FORM_DEFINITIONS', () => {
-  it('has exactly 5 form type keys', () => {
-    expect(Object.keys(FORM_DEFINITIONS)).toHaveLength(5);
+  it('has exactly 6 form type keys', () => {
+    expect(Object.keys(FORM_DEFINITIONS)).toHaveLength(6);
   });
 
   it('each definition has a formType matching its key', () => {
@@ -38,9 +38,9 @@ describe('getFormDefinition', () => {
 });
 
 describe('getAvailableFormTypes', () => {
-  it('returns an array of 5 items', () => {
+  it('returns an array of 6 items', () => {
     const types = getAvailableFormTypes();
-    expect(types).toHaveLength(5);
+    expect(types).toHaveLength(6);
   });
 
   it('contains all expected form types', () => {
@@ -52,9 +52,9 @@ describe('getAvailableFormTypes', () => {
 });
 
 describe('getFormSummaries', () => {
-  it('returns 5 summaries', () => {
+  it('returns 6 summaries', () => {
     const summaries = getFormSummaries();
-    expect(summaries).toHaveLength(5);
+    expect(summaries).toHaveLength(6);
   });
 
   it('each summary has formType and title', () => {

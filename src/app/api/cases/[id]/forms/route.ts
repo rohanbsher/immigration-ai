@@ -4,11 +4,12 @@ import { createClient } from '@/lib/supabase/server';
 import { z } from 'zod';
 import { standardRateLimiter } from '@/lib/rate-limit';
 import { createLogger } from '@/lib/logger';
+import { FORM_TYPES } from '@/lib/validation';
 
 const log = createLogger('api:case-forms');
 
 const createFormSchema = z.object({
-  form_type: z.string(),
+  form_type: z.enum(FORM_TYPES, { message: 'Invalid form type' }),
   form_data: z.record(z.string(), z.unknown()).optional(),
 });
 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { constructWebhookEvent, handleWebhookEvent } from '@/lib/stripe';
+import { getAdminClient } from '@/lib/supabase/admin';
 import { createLogger } from '@/lib/logger';
 
 const log = createLogger('api:billing-webhooks');
@@ -26,7 +27,34 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Event too old' }, { status: 400 });
     }
 
+    // Idempotency: check if this event was already processed.
+    // Admin client required — RLS on stripe_processed_events restricts to service_role.
+    const supabase = getAdminClient();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: existing } = await (supabase.from('stripe_processed_events') as any)
+      .select('id')
+      .eq('event_id', event.id)
+      .maybeSingle();
+
+    if (existing) {
+      log.info('Skipping duplicate webhook event', { eventId: event.id });
+      return NextResponse.json({ received: true, deduplicated: true });
+    }
+
+    // Process the event BEFORE marking it as handled.
+    // If processing fails, the event is NOT marked — Stripe will retry.
     await handleWebhookEvent(event);
+
+    // Mark as processed only after successful handling.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error: insertError } = await (supabase.from('stripe_processed_events') as any)
+      .insert({ event_id: event.id, event_type: event.type });
+
+    if (insertError) {
+      // Non-critical: event was processed but dedup record failed.
+      // Worst case: event gets reprocessed on retry (idempotent handlers).
+      log.warn('Failed to record processed webhook event', { eventId: event.id, error: insertError.message });
+    }
 
     return NextResponse.json({ received: true });
   } catch (error) {

@@ -6,12 +6,13 @@ import { sensitiveRateLimiter } from '@/lib/rate-limit';
 import { auditService } from '@/lib/audit';
 import { createLogger } from '@/lib/logger';
 import { SIGNED_URL_EXPIRATION } from '@/lib/storage';
+import { DOCUMENT_TYPES, DOCUMENT_STATUSES } from '@/lib/validation';
 
 const log = createLogger('api:documents');
 
 const updateDocumentSchema = z.object({
-  document_type: z.string().optional(),
-  status: z.string().optional(),
+  document_type: z.enum(DOCUMENT_TYPES, { message: 'Invalid document type' }).optional(),
+  status: z.enum(DOCUMENT_STATUSES, { message: 'Invalid document status' }).optional(),
   expiration_date: z.string().nullable().optional(),
   notes: z.string().nullable().optional(),
 });

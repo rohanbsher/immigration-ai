@@ -146,6 +146,110 @@ Respond with a JSON object in this format:
   "warnings": []
 }`;
 
+export const TAX_RETURN_EXTRACTION_PROMPT = `Analyze this tax return document and extract the following information:
+
+Required fields:
+- taxpayer_name: Full name of the primary taxpayer
+- spouse_name: Spouse's name (if joint return), or null
+- filing_status: Single, Married Filing Jointly, Married Filing Separately, Head of Household, Qualifying Widow(er)
+- tax_year: The tax year (e.g., 2024)
+- form_type: Type of form (1040, 1040-NR, W-2, etc.)
+- total_income: Total income/gross income with currency
+- adjusted_gross_income: AGI amount with currency
+- tax_paid: Total tax paid with currency
+- ssn_last_four: Last 4 digits of SSN only (for privacy)
+- address: Address shown on the return
+
+For each field, provide:
+- value: The extracted value or null if not found
+- confidence: A score from 0 to 1
+- requires_verification: true if the value is unclear or uncertain
+
+Respond with a JSON object in this format:
+{
+  "document_type": "tax_return",
+  "extracted_fields": [...],
+  "overall_confidence": 0.85,
+  "warnings": []
+}`;
+
+export const MEDICAL_EXAM_EXTRACTION_PROMPT = `Analyze this medical examination document (Form I-693 or equivalent) and extract the following information:
+
+Required fields:
+- patient_name: Full name of the patient/applicant
+- date_of_birth: Format as YYYY-MM-DD
+- examination_date: Date of the medical exam (YYYY-MM-DD)
+- physician_name: Name of the civil surgeon/physician
+- physician_address: Physician's practice address
+- vaccination_status: Complete, Incomplete, or list of missing vaccinations
+- tb_test_result: Negative, Positive, or further testing required
+- mental_health_status: No issues found, or description of findings
+- substance_abuse_status: No issues found, or description of findings
+- form_number: I-693 or other form identifier
+- expiration_date: When the exam results expire (YYYY-MM-DD)
+
+For each field, provide:
+- value: The extracted value or null if not found
+- confidence: A score from 0 to 1
+- requires_verification: true if the value is unclear or uncertain
+
+Respond with a JSON object in this format:
+{
+  "document_type": "medical_exam",
+  "extracted_fields": [...],
+  "overall_confidence": 0.80,
+  "warnings": []
+}`;
+
+export const POLICE_CLEARANCE_EXTRACTION_PROMPT = `Analyze this police clearance certificate and extract the following information:
+
+Required fields:
+- subject_name: Full name of the person
+- date_of_birth: Format as YYYY-MM-DD
+- issuing_authority: Police department/agency name
+- issuing_country: Country that issued the certificate
+- issue_date: Date of issuance (YYYY-MM-DD)
+- certificate_number: Reference/certificate number
+- result: Clear/No record, or details of records found
+- coverage_period: Time period covered by the clearance
+
+For each field, provide:
+- value: The extracted value or null if not found
+- confidence: A score from 0 to 1
+- requires_verification: true if the value is unclear or uncertain
+
+Respond with a JSON object in this format:
+{
+  "document_type": "police_clearance",
+  "extracted_fields": [...],
+  "overall_confidence": 0.85,
+  "warnings": []
+}`;
+
+export const DIVORCE_CERTIFICATE_EXTRACTION_PROMPT = `Analyze this divorce certificate/decree and extract the following information:
+
+Required fields:
+- spouse_1_name: First spouse's full name
+- spouse_2_name: Second spouse's full name
+- date_of_divorce: Date the divorce was finalized (YYYY-MM-DD)
+- place_of_divorce: Court/jurisdiction where divorce was granted
+- case_number: Court case number
+- date_of_marriage: Original marriage date if shown (YYYY-MM-DD)
+- court_name: Name of the issuing court
+
+For each field, provide:
+- value: The extracted value or null if not found
+- confidence: A score from 0 to 1
+- requires_verification: true if the value is unclear or uncertain
+
+Respond with a JSON object in this format:
+{
+  "document_type": "divorce_certificate",
+  "extracted_fields": [...],
+  "overall_confidence": 0.85,
+  "warnings": []
+}`;
+
 export const GENERIC_DOCUMENT_EXTRACTION_PROMPT = `Analyze this document and extract all relevant information.
 
 1. First, identify the document type
@@ -293,6 +397,61 @@ Respond with JSON:
   "warnings": []
 }`;
 
+export const I131_AUTOFILL_PROMPT = `Based on the provided extracted document data, fill out the I-131 (Application for Travel Document) form fields.
+
+Key fields to map:
+- Applicant information (name, DOB, citizenship)
+- Immigration status (LPR, refugee, asylee, DACA, TPS)
+- Travel document type requested (reentry permit, refugee travel document, advance parole)
+- Travel plans (countries, purpose, departure/return dates)
+- Previous travel documents issued
+- I-485 pending status (if applicable)
+
+For each field, provide:
+- field_id: The form field identifier
+- field_name: Human-readable field name
+- suggested_value: The value to fill
+- confidence: Score from 0 to 1
+- source_document: Which document provided this data
+- requires_review: true if attorney should verify
+
+Respond with JSON:
+{
+  "form_type": "I-131",
+  "fields": [...],
+  "overall_confidence": 0.85,
+  "missing_documents": [],
+  "warnings": []
+}`;
+
+export const I140_AUTOFILL_PROMPT = `Based on the provided extracted document data, fill out the I-140 (Immigrant Petition for Alien Workers) form fields.
+
+Key fields to map:
+- Petitioner (employer) information
+- Beneficiary (worker) information
+- Job offer details (title, duties, requirements, salary)
+- Immigrant category (EB-1A, EB-1B, EB-1C, EB-2, EB-2 NIW, EB-3)
+- Labor certification information (if applicable)
+- Beneficiary education and qualifications
+- Prevailing wage information
+
+For each field, provide:
+- field_id: The form field identifier
+- field_name: Human-readable field name
+- suggested_value: The value to fill
+- confidence: Score from 0 to 1
+- source_document: Which document provided this data
+- requires_review: true if attorney should verify
+
+Respond with JSON:
+{
+  "form_type": "I-140",
+  "fields": [...],
+  "overall_confidence": 0.80,
+  "missing_documents": [],
+  "warnings": []
+}`;
+
 export function getExtractionPrompt(documentType: string): string {
   const prompts: Record<string, string> = {
     passport: PASSPORT_EXTRACTION_PROMPT,
@@ -300,6 +459,10 @@ export function getExtractionPrompt(documentType: string): string {
     marriage_certificate: MARRIAGE_CERTIFICATE_EXTRACTION_PROMPT,
     employment_letter: EMPLOYMENT_LETTER_EXTRACTION_PROMPT,
     bank_statement: BANK_STATEMENT_EXTRACTION_PROMPT,
+    tax_return: TAX_RETURN_EXTRACTION_PROMPT,
+    medical_exam: MEDICAL_EXAM_EXTRACTION_PROMPT,
+    police_clearance: POLICE_CLEARANCE_EXTRACTION_PROMPT,
+    divorce_certificate: DIVORCE_CERTIFICATE_EXTRACTION_PROMPT,
   };
 
   return prompts[documentType] || GENERIC_DOCUMENT_EXTRACTION_PROMPT;
@@ -308,6 +471,8 @@ export function getExtractionPrompt(documentType: string): string {
 export function getAutofillPrompt(formType: string): string {
   const prompts: Record<string, string> = {
     'I-130': I130_AUTOFILL_PROMPT,
+    'I-131': I131_AUTOFILL_PROMPT,
+    'I-140': I140_AUTOFILL_PROMPT,
     'I-485': I485_AUTOFILL_PROMPT,
     'I-765': I765_AUTOFILL_PROMPT,
     'N-400': N400_AUTOFILL_PROMPT,

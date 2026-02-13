@@ -9,12 +9,13 @@ import {
 } from '@/lib/auth/api-helpers';
 import { createLogger } from '@/lib/logger';
 import { enforceQuota, QuotaExceededError } from '@/lib/billing/quota';
+import { VISA_TYPES } from '@/lib/validation';
 
 const log = createLogger('api:cases');
 
 const createCaseSchema = z.object({
   client_id: z.string().uuid('Invalid client ID'),
-  visa_type: z.string(),
+  visa_type: z.enum(VISA_TYPES, { message: 'Invalid visa type' }),
   title: z.string().min(1, 'Title is required'),
   description: z.string().optional(),
   priority_date: z.string().optional(),

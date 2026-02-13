@@ -3,13 +3,13 @@ import { documentRequestsService, casesService } from '@/lib/db';
 import { createClient } from '@/lib/supabase/server';
 import { z } from 'zod';
 import { createLogger } from '@/lib/logger';
-import type { DocumentType } from '@/types';
+import { DOCUMENT_TYPES } from '@/lib/validation';
 import { standardRateLimiter } from '@/lib/rate-limit';
 
 const log = createLogger('api:document-requests');
 
 const createRequestSchema = z.object({
-  document_type: z.string() as z.ZodType<DocumentType>,
+  document_type: z.enum(DOCUMENT_TYPES, { message: 'Invalid document type' }),
   title: z.string().min(1, 'Title is required'),
   description: z.string().optional(),
   due_date: z.string().optional(),

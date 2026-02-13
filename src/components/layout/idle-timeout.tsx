@@ -20,15 +20,21 @@ export function IdleTimeoutProvider({ children }: { children: React.ReactNode })
   const [showWarning, setShowWarning] = useState(false);
 
   const resetTimer = useCallback(() => {
+    // Don't reset the guard if logout is already in flight
+    if (logoutTriggeredRef.current) return;
     lastActivityRef.current = Date.now();
-    logoutTriggeredRef.current = false;
     setShowWarning(false);
   }, []);
 
   const handleLogout = useCallback(async () => {
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    router.push('/login?reason=idle');
+    try {
+      const supabase = createClient();
+      await supabase.auth.signOut();
+      router.push('/login?reason=idle');
+    } catch {
+      // Reset guard so the next interval tick retries logout
+      logoutTriggeredRef.current = false;
+    }
   }, [router]);
 
   // Initialize lastActivity on mount (avoids impure call during render)

@@ -7,6 +7,7 @@ import { sendDocumentUploadedEmail } from '@/lib/email/notifications';
 import { enforceQuota, enforceQuotaForCase, QuotaExceededError } from '@/lib/billing/quota';
 import { createLogger } from '@/lib/logger';
 import { SIGNED_URL_EXPIRATION } from '@/lib/storage';
+import { DOCUMENT_TYPES } from '@/lib/validation';
 import type { CaseAccessResult } from '@/types';
 
 const log = createLogger('api:case-documents');
@@ -133,9 +134,9 @@ export async function POST(
       return NextResponse.json({ error: 'File is required' }, { status: 400 });
     }
 
-    if (!documentType) {
+    if (!documentType || !(DOCUMENT_TYPES as readonly string[]).includes(documentType)) {
       return NextResponse.json(
-        { error: 'Document type is required' },
+        { error: !documentType ? 'Document type is required' : 'Invalid document type' },
         { status: 400 }
       );
     }

@@ -5,9 +5,9 @@
 -- This function handles cleanup of records older than the retention period.
 -- IMPORTANT: Run archival to cold storage BEFORE calling this function.
 
--- Add index for efficient retention queries
-CREATE INDEX IF NOT EXISTS idx_audit_log_created_at
-  ON audit_log(created_at);
+-- Add index for efficient retention queries (audit_log uses changed_at, not created_at)
+CREATE INDEX IF NOT EXISTS idx_audit_log_changed_at_asc
+  ON audit_log(changed_at);
 
 -- Function to clean up old audit records in batches
 -- Returns the total count of deleted records for logging
@@ -28,7 +28,7 @@ BEGIN
     DELETE FROM audit_log
     WHERE id IN (
       SELECT id FROM audit_log
-      WHERE created_at < cutoff_date
+      WHERE changed_at < cutoff_date
       LIMIT p_batch_size
     );
 
@@ -51,8 +51,8 @@ COMMENT ON FUNCTION cleanup_audit_log(INTEGER, INTEGER) IS
   'Intended to be called by a scheduled cron job.';
 
 -- Also add cleanup for document_access_log (same retention, same batching)
-CREATE INDEX IF NOT EXISTS idx_document_access_log_accessed_at
-  ON document_access_log(accessed_at);
+CREATE INDEX IF NOT EXISTS idx_document_access_log_created_at
+  ON document_access_log(created_at);
 
 CREATE OR REPLACE FUNCTION cleanup_document_access_log(
   p_retention_years INTEGER DEFAULT 7,
@@ -70,7 +70,7 @@ BEGIN
     DELETE FROM document_access_log
     WHERE id IN (
       SELECT id FROM document_access_log
-      WHERE accessed_at < cutoff_date
+      WHERE created_at < cutoff_date
       LIMIT p_batch_size
     );
 

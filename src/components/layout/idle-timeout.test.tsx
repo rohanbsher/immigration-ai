@@ -140,4 +140,62 @@ describe('IdleTimeoutProvider', () => {
     // Despite multiple ticks past the timeout, signOut should only fire once
     expect(mockSignOut).toHaveBeenCalledTimes(1);
   });
+
+  it('retries logout on next interval tick if signOut fails', async () => {
+    // First call rejects, second call succeeds
+    mockSignOut
+      .mockRejectedValueOnce(new Error('Network error'))
+      .mockResolvedValueOnce({});
+
+    render(
+      <IdleTimeoutProvider>
+        <p>Child content</p>
+      </IdleTimeoutProvider>
+    );
+
+    // Trigger timeout — first signOut will fail
+    act(() => {
+      vi.advanceTimersByTime(IDLE_TIMEOUT_MS + CHECK_INTERVAL_MS);
+    });
+
+    // Wait for the failed signOut to settle so the guard resets
+    await vi.waitFor(() => {
+      expect(mockSignOut).toHaveBeenCalledTimes(1);
+    });
+
+    // Advance another interval tick — should retry since guard was reset on failure
+    act(() => {
+      vi.advanceTimersByTime(CHECK_INTERVAL_MS);
+    });
+
+    await vi.waitFor(() => {
+      expect(mockSignOut).toHaveBeenCalledTimes(2);
+    });
+
+    expect(mockPush).toHaveBeenCalledWith('/login?reason=idle');
+  });
+
+  it('ignores user activity once logout is in flight', async () => {
+    render(
+      <IdleTimeoutProvider>
+        <p>Child content</p>
+      </IdleTimeoutProvider>
+    );
+
+    // Trigger timeout
+    act(() => {
+      vi.advanceTimersByTime(IDLE_TIMEOUT_MS + CHECK_INTERVAL_MS);
+    });
+
+    // Simulate mouse activity while signOut is in flight
+    fireEvent.mouseDown(window);
+
+    // The warning should still show (resetTimer should be a no-op)
+    // and signOut should still complete
+    await vi.waitFor(() => {
+      expect(mockSignOut).toHaveBeenCalledTimes(1);
+    });
+
+    expect(mockPush).toHaveBeenCalledWith('/login?reason=idle');
+  });
 });

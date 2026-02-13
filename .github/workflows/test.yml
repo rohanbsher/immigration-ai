@@ -102,10 +102,10 @@ jobs:
         env:
           CI: true
           E2E_BASE_URL: ${{ secrets.E2E_BASE_URL || 'https://immigration-ai-topaz.vercel.app' }}
-          E2E_TEST_USER: ${{ secrets.E2E_TEST_USER }}
-          E2E_TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
-          E2E_ATTORNEY_USER: ${{ secrets.E2E_ATTORNEY_USER }}
+          E2E_ATTORNEY_EMAIL: ${{ secrets.E2E_ATTORNEY_EMAIL }}
           E2E_ATTORNEY_PASSWORD: ${{ secrets.E2E_ATTORNEY_PASSWORD }}
+          E2E_CLIENT_EMAIL: ${{ secrets.E2E_CLIENT_EMAIL }}
+          E2E_CLIENT_PASSWORD: ${{ secrets.E2E_CLIENT_PASSWORD }}
 
       - name: Upload Playwright report
         uses: actions/upload-artifact@v4

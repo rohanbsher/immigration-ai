@@ -26,44 +26,59 @@ const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
 
-const TEST_USER = {
-  email: 'test-attorney@immigration-ai.dev',
-  password: 'TestAttorney123!',
-  email_confirm: true,
-  user_metadata: {
-    first_name: 'Test',
-    last_name: 'Attorney',
-    role: 'attorney',
-    bar_number: 'TEST-12345',
+const TEST_USERS = [
+  {
+    email: 'e2e-attorney@immigration-ai.dev',
+    password: 'E2EAttorney123!',
+    email_confirm: true,
+    user_metadata: {
+      first_name: 'E2E',
+      last_name: 'Attorney',
+      role: 'attorney',
+      bar_number: 'E2E-TEST-001',
+    },
   },
-};
+  {
+    email: 'e2e-client@immigration-ai.dev',
+    password: 'E2EClient123!',
+    email_confirm: true,
+    user_metadata: {
+      first_name: 'E2E',
+      last_name: 'Client',
+      role: 'client',
+    },
+  },
+];
 
 async function seed() {
-  console.log('Creating test user:', TEST_USER.email);
-
-  // Check if user already exists
   const { data: existing } = await supabase.auth.admin.listUsers();
-  const alreadyExists = existing?.users?.find((u) => u.email === TEST_USER.email);
+  const existingEmails = new Set(existing?.users?.map((u) => u.email) ?? []);
 
-  if (alreadyExists) {
-    console.log('Test user already exists. ID:', alreadyExists.id);
-    console.log('Skipping creation.');
-    return;
+  for (const user of TEST_USERS) {
+    console.log(`\nSeeding user: ${user.email}`);
+
+    if (existingEmails.has(user.email)) {
+      const found = existing?.users?.find((u) => u.email === user.email);
+      console.log(`  Already exists. ID: ${found?.id}`);
+      console.log('  Skipping creation.');
+      continue;
+    }
+
+    const { data, error } = await supabase.auth.admin.createUser(user);
+
+    if (error) {
+      console.error(`  Failed to create user: ${error.message}`);
+      process.exit(1);
+    }
+
+    console.log('  Created successfully!');
+    console.log(`  ID: ${data.user.id}`);
+    console.log(`  Email: ${data.user.email}`);
+    console.log(`  Password: ${user.password}`);
+    console.log(`  Role: ${user.user_metadata.role}`);
   }
 
-  const { data, error } = await supabase.auth.admin.createUser(TEST_USER);
-
-  if (error) {
-    console.error('Failed to create test user:', error.message);
-    process.exit(1);
-  }
-
-  console.log('Test user created successfully!');
-  console.log('  ID:', data.user.id);
-  console.log('  Email:', data.user.email);
-  console.log('  Password:', TEST_USER.password);
-  console.log('  Role:', TEST_USER.user_metadata.role);
-  console.log('\nThe handle_new_user trigger should auto-create the profile row.');
+  console.log('\nThe handle_new_user trigger should auto-create profile rows.');
 }
 
 seed().catch((err) => {

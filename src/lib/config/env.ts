@@ -102,6 +102,10 @@ const serverEnvSchema = z.object({
   CLAMAV_API_URL: z.string().url().optional(),
   VIRUSTOTAL_API_KEY: z.string().optional(),
 
+  // PDF Fill Service (Railway)
+  PDF_SERVICE_URL: z.string().url().optional(),
+  PDF_SERVICE_SECRET: z.string().min(32, 'PDF_SERVICE_SECRET must be at least 32 characters').optional(),
+
   // Vercel (auto-set)
   VERCEL_URL: z.string().optional(),
 });
@@ -176,6 +180,8 @@ function validateServerEnv() {
     VIRUS_SCANNER_PROVIDER: process.env.VIRUS_SCANNER_PROVIDER,
     CLAMAV_API_URL: process.env.CLAMAV_API_URL,
     VIRUSTOTAL_API_KEY: process.env.VIRUSTOTAL_API_KEY,
+    PDF_SERVICE_URL: process.env.PDF_SERVICE_URL,
+    PDF_SERVICE_SECRET: process.env.PDF_SERVICE_SECRET,
     VERCEL_URL: process.env.VERCEL_URL,
   });
 
@@ -243,6 +249,11 @@ function validateProductionRequirements(env: z.infer<typeof serverEnvSchema>) {
   // Warning: Error tracking not configured
   if (!process.env.NEXT_PUBLIC_SENTRY_DSN) {
     warnings.push('SENTRY_DSN not configured - error tracking and monitoring will be disabled in production');
+  }
+
+  // Warning: PDF fill service not configured
+  if (!process.env.PDF_SERVICE_URL || !process.env.PDF_SERVICE_SECRET) {
+    warnings.push('PDF_SERVICE_URL/PDF_SERVICE_SECRET not set - USCIS form filling will produce summary PDFs only');
   }
 
   // Warning: Virus scanner not configured
@@ -348,6 +359,11 @@ export const features = {
   virusScanning:
     !!process.env.VIRUS_SCANNER_PROVIDER &&
     process.env.VIRUS_SCANNER_PROVIDER !== 'mock',
+
+  /** Whether the Railway PDF fill service is configured */
+  pdfService:
+    !!process.env.PDF_SERVICE_URL &&
+    !!process.env.PDF_SERVICE_SECRET,
 
   /** Whether running in development mode */
   isDevelopment: process.env.NODE_ENV === 'development',

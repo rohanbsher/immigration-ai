@@ -37,7 +37,7 @@ test.describe('Quota Enforcement', () => {
         .or(page.locator('a:has-text("Billing")'));
       if (await billingTab.first().isVisible()) {
         await billingTab.first().click();
-        await page.waitForTimeout(1000);
+        await page.waitForLoadState('networkidle');
       }
 
       // Should show usage metrics

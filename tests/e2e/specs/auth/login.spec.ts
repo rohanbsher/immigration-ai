@@ -44,7 +44,7 @@ test.describe('Login Flow', () => {
 
       // Navigate to login page while logged in
       await page.goto('/login');
-      await page.waitForTimeout(2000);
+      await page.waitForLoadState('networkidle');
 
       // Should redirect back to dashboard
       const url = page.url();

@@ -192,7 +192,7 @@ test.describe('Attorney-Client Cross-Role Interactions', () => {
           await uploadButton.click();
 
           // Wait for upload dialog/area
-          await page.waitForTimeout(500);
+          await page.waitForLoadState('domcontentloaded');
 
           const fileInput = page.locator('input[type="file"]');
 

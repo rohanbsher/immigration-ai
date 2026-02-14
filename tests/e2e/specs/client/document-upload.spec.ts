@@ -52,7 +52,7 @@ test.describe('Client Document Upload', () => {
         });
 
         // Wait for file to be added to list
-        await page.waitForTimeout(500);
+        await page.waitForLoadState('domcontentloaded');
 
         // Should show the file in selected files
         const selectedFile = page.locator('text=passport')
@@ -74,7 +74,7 @@ test.describe('Client Document Upload', () => {
           await uploadButton.first().click();
 
           // Wait for upload to complete
-          await page.waitForTimeout(2000);
+          await page.waitForLoadState('networkidle');
 
           // Should show success message
           const successMessage = page.locator('text=uploaded')
@@ -107,7 +107,7 @@ test.describe('Client Document Upload', () => {
         });
 
         // Wait for file to be added
-        await page.waitForTimeout(500);
+        await page.waitForLoadState('domcontentloaded');
 
         // Select document type
         const typeSelector = page.locator('select').first();
@@ -125,7 +125,7 @@ test.describe('Client Document Upload', () => {
 
         if (await uploadButton.isVisible()) {
           await uploadButton.click();
-          await page.waitForTimeout(2000);
+          await page.waitForLoadState('networkidle');
         }
       }
     });
@@ -235,7 +235,7 @@ test.describe('Client Document Upload', () => {
           buffer: mockDocument.buffer,
         });
 
-        await page.waitForTimeout(500);
+        await page.waitForLoadState('domcontentloaded');
 
         // Document type selector should be visible
         const typeSelector = page.locator('select')
@@ -311,7 +311,7 @@ test.describe('Client Document Upload - Security', () => {
         buffer: Buffer.from('This is not a valid document'),
       });
 
-      await page.waitForTimeout(500);
+      await page.waitForLoadState('domcontentloaded');
 
       // Should show error or reject the file
       const errorMessage = page.locator('text=not a supported')

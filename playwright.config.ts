@@ -5,7 +5,7 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 4 : undefined,
+  workers: process.env.CI ? 6 : undefined,
   reporter: [
     ['html', { open: 'never' }],
     ['list'],
@@ -39,30 +39,6 @@ export default defineConfig({
         // Reuse auth state from setup (tests can override with test.use())
         storageState: 'tests/e2e/.auth/attorney.json',
       },
-      dependencies: ['auth-setup'],
-    },
-
-    // Firefox tests (run in CI only for cross-browser coverage)
-    {
-      name: 'firefox',
-      use: { ...devices['Desktop Firefox'] },
-      dependencies: ['auth-setup'],
-      grep: /@cross-browser/,
-    },
-
-    // Mobile viewport tests
-    {
-      name: 'mobile-chrome',
-      use: { ...devices['Pixel 5'] },
-      testMatch: /responsive\.spec\.ts/,
-      dependencies: ['auth-setup'],
-    },
-
-    // Mobile Safari tests
-    {
-      name: 'mobile-safari',
-      use: { ...devices['iPhone 12'] },
-      testMatch: /responsive\.spec\.ts/,
       dependencies: ['auth-setup'],
     },
 

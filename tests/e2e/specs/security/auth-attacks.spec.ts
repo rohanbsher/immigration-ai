@@ -124,7 +124,7 @@ test.describe('Authentication Attack Prevention', () => {
         await page.click('button:has-text("Sign in")');
 
         // Wait for response
-        await page.waitForTimeout(1000);
+        await page.waitForLoadState('networkidle');
 
         // Should NOT be authenticated (redirected to dashboard)
         expect(page.url()).not.toContain('/dashboard');
@@ -169,7 +169,7 @@ test.describe('Authentication Attack Prevention', () => {
         await page.click('button:has-text("Sign in")');
 
         // Wait for any response
-        await page.waitForTimeout(1000);
+        await page.waitForLoadState('networkidle');
 
         // Check that no alert dialog appeared (XSS not executed)
         // Playwright would throw if an unexpected dialog appeared
@@ -226,7 +226,7 @@ test.describe('Authentication Attack Prevention', () => {
           // Continue trying
         }
 
-        await page.waitForTimeout(500);
+        await page.waitForLoadState('domcontentloaded');
       }
 
       // In a properly configured system, we should hit rate limits
@@ -374,7 +374,7 @@ test.describe('Authentication Attack Prevention', () => {
 
       // Should show generic success message (not revealing email existence)
       // Wait for either success message or generic message
-      await page.waitForTimeout(3000);
+      await page.waitForLoadState('networkidle');
 
       // Check page content - should not say "email not found" or similar
       const content = await page.content();

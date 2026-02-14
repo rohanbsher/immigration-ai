@@ -73,7 +73,7 @@ test.describe('Billing Checkout', () => {
           upgradeButton.first().click(),
         ]);
 
-        await page.waitForTimeout(3000);
+        await page.waitForLoadState('networkidle');
 
         // Should either redirect to Stripe or show checkout modal
         const url = page.url();
@@ -118,7 +118,7 @@ test.describe('Billing Checkout', () => {
 
       if (await billingTab.first().isVisible()) {
         await billingTab.first().click();
-        await page.waitForTimeout(1000);
+        await page.waitForLoadState('networkidle');
       }
 
       // Should show subscription info
@@ -139,7 +139,7 @@ test.describe('Billing Checkout', () => {
       const billingTab = page.locator('button:has-text("Billing")');
       if (await billingTab.first().isVisible()) {
         await billingTab.first().click();
-        await page.waitForTimeout(1000);
+        await page.waitForLoadState('networkidle');
       }
 
       // Look for billing history or invoices

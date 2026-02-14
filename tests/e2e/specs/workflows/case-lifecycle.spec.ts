@@ -187,7 +187,7 @@ test.describe('Case Lifecycle Workflow', () => {
 
         // Transition through statuses
         await changeCaseStatus(page, 'forms_preparation');
-        await page.waitForTimeout(1000);
+        await page.waitForLoadState('networkidle');
 
         await changeCaseStatus(page, 'ready_for_filing');
 

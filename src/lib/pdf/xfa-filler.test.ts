@@ -1,11 +1,11 @@
 /**
  * Unit tests for the XFA PDF filler engine.
  *
- * Mocks `child_process.execFile` and `fs/promises` to test the wrapper
- * logic without requiring Python or real USCIS PDF templates.
+ * Mocks `fetch` to test the HTTP client wrapper logic without
+ * requiring the Railway PDF service or real USCIS PDF templates.
  */
 
-import { describe, test, expect, vi, beforeEach } from 'vitest';
+import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { AcroFormFieldMap } from './acroform-filler';
 
 // ---------------------------------------------------------------------------
@@ -23,78 +23,36 @@ vi.mock('@/lib/logger', () => ({
   }),
 }));
 
-// Mock child_process.execFile
-const mockExecFile = vi.fn();
-vi.mock(import('child_process'), async (importOriginal) => {
-  const actual = await importOriginal();
-  return {
-    ...actual,
-    default: { ...actual, execFile: (...args: unknown[]) => mockExecFile(...args) },
-    execFile: ((...args: unknown[]) => mockExecFile(...args)) as typeof actual.execFile,
-  };
-});
-
-// Track temp file operations
-const writtenFiles = new Map<string, string>();
-const unlinkedFiles: string[] = [];
-
-vi.mock(import('fs/promises'), async (importOriginal) => {
-  const actual = await importOriginal();
-  const mockModule = {
-    ...actual,
-    access: vi.fn(async () => undefined), // output file always "exists" in tests
-    writeFile: vi.fn(async (filePath: string, content: string) => {
-      writtenFiles.set(filePath, content);
-    }),
-    readFile: vi.fn(async (filePath: string) => {
-      // For the output PDF, return fake bytes
-      if (typeof filePath === 'string' && filePath.includes('xfa-output')) {
-        return Buffer.from([0x25, 0x50, 0x44, 0x46]); // %PDF
-      }
-      // Delegate to real readFile for anything else (e.g. acroform-filler template loading)
-      return actual.readFile(filePath);
-    }),
-    unlink: vi.fn(async (filePath: string) => {
-      unlinkedFiles.push(filePath);
-    }),
-  };
-  return {
-    ...mockModule,
-    default: mockModule,
-  };
-});
-
 // Import AFTER mocks are set up
-import { fillXFAPdf, buildFieldData } from './xfa-filler';
+import { fillXFAPdf, buildFieldData, deriveFormType } from './xfa-filler';
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-function simulatePythonSuccess(filled: number, total: number, errors: string[] = []) {
-  mockExecFile.mockImplementation(
-    (
-      _cmd: string,
-      _args: string[],
-      _opts: unknown,
-      cb: (err: Error | null, stdout: string, stderr: string) => void
-    ) => {
-      cb(null, JSON.stringify({ filled, total, errors }), '');
-    }
-  );
+const FAKE_PDF_BYTES = new Uint8Array([0x25, 0x50, 0x44, 0x46]); // %PDF
+
+function mockFetchSuccess(filled: number, total: number, errors: string[] = []) {
+  const statsHeader = JSON.stringify({ filled, total, errors });
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+    ok: true,
+    status: 200,
+    headers: new Headers({ 'X-Fill-Stats': statsHeader }),
+    arrayBuffer: () => Promise.resolve(FAKE_PDF_BYTES.buffer.slice(0)),
+  }));
 }
 
-function simulatePythonError(message: string) {
-  mockExecFile.mockImplementation(
-    (
-      _cmd: string,
-      _args: string[],
-      _opts: unknown,
-      cb: (err: Error | null, stdout: string, stderr: string) => void
-    ) => {
-      cb(new Error(message), '', message);
-    }
-  );
+function mockFetchHttpError(status: number, body: string) {
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+    ok: false,
+    status,
+    headers: new Headers(),
+    text: () => Promise.resolve(body),
+  }));
+}
+
+function mockFetchNetworkError(message: string) {
+  vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error(message)));
 }
 
 const SAMPLE_FIELD_MAPS: AcroFormFieldMap[] = [
@@ -124,8 +82,15 @@ const SAMPLE_DATA = {
 describe('XFA Filler Engine', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    writtenFiles.clear();
-    unlinkedFiles.length = 0;
+    // Set env vars for the service
+    process.env.PDF_SERVICE_URL = 'https://pdf-service.test.railway.app';
+    process.env.PDF_SERVICE_SECRET = 'test-secret-token-1234';
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    delete process.env.PDF_SERVICE_URL;
+    delete process.env.PDF_SERVICE_SECRET;
   });
 
   // -----------------------------------------------------------------------
@@ -221,13 +186,47 @@ describe('XFA Filler Engine', () => {
   });
 
   // -----------------------------------------------------------------------
-  // fillXFAPdf — successful fill
+  // deriveFormType — edge case tests
+  // -----------------------------------------------------------------------
+  describe('deriveFormType', () => {
+    test('derives I-130 from standard path', () => {
+      expect(deriveFormType('/path/to/templates/i-130.pdf')).toBe('I-130');
+    });
+
+    test('derives N-400 from standard path', () => {
+      expect(deriveFormType('/path/to/templates/n-400.pdf')).toBe('N-400');
+    });
+
+    test('derives G-1145 from standard path', () => {
+      expect(deriveFormType('/path/to/templates/g-1145.pdf')).toBe('G-1145');
+    });
+
+    test('handles uppercase template filename', () => {
+      expect(deriveFormType('/path/to/templates/I-485.pdf')).toBe('I-485');
+    });
+
+    test('handles deeply nested path', () => {
+      expect(deriveFormType('/var/data/uscis/forms/archive/i-765.pdf')).toBe('I-765');
+    });
+
+    test('returns uppercased basename for unknown form types (logs warning)', () => {
+      // Unknown form types are still derived, just with a warning logged
+      expect(deriveFormType('/path/to/templates/x-999.pdf')).toBe('X-999');
+    });
+
+    test('handles path with no directory', () => {
+      expect(deriveFormType('i-131.pdf')).toBe('I-131');
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // fillXFAPdf — successful fill via HTTP
   // -----------------------------------------------------------------------
   describe('fillXFAPdf — successful fill', () => {
-    test('returns success with correct stats from Python', async () => {
-      simulatePythonSuccess(4, 6);
+    test('returns success with correct stats from service', async () => {
+      mockFetchSuccess(4, 6);
 
-      const result = await fillXFAPdf('/tmp/template.pdf', SAMPLE_FIELD_MAPS, SAMPLE_DATA);
+      const result = await fillXFAPdf('/tmp/uscis-templates/i-130.pdf', SAMPLE_FIELD_MAPS, SAMPLE_DATA);
 
       expect(result.success).toBe(true);
       expect(result.pdfBytes).toBeInstanceOf(Uint8Array);
@@ -236,114 +235,117 @@ describe('XFA Filler Engine', () => {
       expect(result.errors).toHaveLength(0);
     });
 
-    test('writes correct JSON data to temp file', async () => {
-      simulatePythonSuccess(6, 6);
+    test('sends correct request to PDF service', async () => {
+      mockFetchSuccess(6, 6);
 
-      await fillXFAPdf('/tmp/template.pdf', SAMPLE_FIELD_MAPS, SAMPLE_DATA);
+      await fillXFAPdf('/tmp/uscis-templates/i-130.pdf', SAMPLE_FIELD_MAPS, SAMPLE_DATA);
 
-      // Find the data JSON that was written
-      const jsonEntry = [...writtenFiles.entries()].find(([k]) => k.includes('xfa-data'));
-      expect(jsonEntry).toBeDefined();
+      const fetchMock = vi.mocked(fetch);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
 
-      const written = JSON.parse(jsonEntry![1]);
-      expect(written['form1.LastName']).toBe('DOE');
-      expect(written['form1.DOB']).toBe('06/15/1990');
-      expect(written['form1.SSN']).toBe('123-45-6789');
+      const [url, options] = fetchMock.mock.calls[0];
+      expect(url).toBe('https://pdf-service.test.railway.app/fill-pdf');
+      expect(options?.method).toBe('POST');
+      expect((options?.headers as Record<string, string>)['Authorization']).toBe('Bearer test-secret-token-1234');
+
+      const body = JSON.parse(options?.body as string);
+      expect(body.form_type).toBe('I-130');
+      expect(body.field_data['form1.LastName']).toBe('DOE');
+      expect(body.field_data['form1.DOB']).toBe('06/15/1990');
+      expect(body.field_data['form1.SSN']).toBe('123-45-6789');
     });
 
-    test('calls Python with correct arguments', async () => {
-      simulatePythonSuccess(6, 6);
+    test('passes service errors through to FillResult.errors', async () => {
+      mockFetchSuccess(5, 6, ['form1.BadField: element not found']);
 
-      await fillXFAPdf('/tmp/template.pdf', SAMPLE_FIELD_MAPS, SAMPLE_DATA);
-
-      expect(mockExecFile).toHaveBeenCalledTimes(1);
-      const [cmd, args] = mockExecFile.mock.calls[0];
-      expect(cmd).toBe('python3');
-      expect(args[0]).toContain('fill-xfa-pdf.py');
-      expect(args[1]).toBe('/tmp/template.pdf');
-      expect(args[2]).toContain('xfa-data');
-      expect(args[3]).toContain('xfa-output');
-    });
-
-    test('passes Python errors through to FillResult.errors', async () => {
-      simulatePythonSuccess(5, 6, ['form1.BadField: element not found']);
-
-      const result = await fillXFAPdf('/tmp/template.pdf', SAMPLE_FIELD_MAPS, SAMPLE_DATA);
+      const result = await fillXFAPdf('/tmp/uscis-templates/i-130.pdf', SAMPLE_FIELD_MAPS, SAMPLE_DATA);
 
       expect(result.success).toBe(true);
       expect(result.errors).toContain('form1.BadField: element not found');
     });
-  });
 
-  // -----------------------------------------------------------------------
-  // fillXFAPdf — Python error handling
-  // -----------------------------------------------------------------------
-  describe('fillXFAPdf — Python error handling', () => {
-    test('returns failure when Python script errors', async () => {
-      simulatePythonError('python3: command not found');
+    test('derives form type from template path', async () => {
+      mockFetchSuccess(1, 1);
 
-      const result = await fillXFAPdf('/tmp/template.pdf', SAMPLE_FIELD_MAPS, SAMPLE_DATA);
+      await fillXFAPdf('/path/to/templates/n-400.pdf', SAMPLE_FIELD_MAPS, SAMPLE_DATA);
 
-      expect(result.success).toBe(false);
-      expect(result.filledFieldCount).toBe(0);
-      expect(result.errors[0]).toContain('Python fill failed');
-      expect(result.errors[0]).toContain('python3: command not found');
-    });
-
-    test('returns failure when Python exits with non-zero', async () => {
-      simulatePythonError('Exit code 1: No such file or directory');
-
-      const result = await fillXFAPdf('/tmp/template.pdf', SAMPLE_FIELD_MAPS, SAMPLE_DATA);
-
-      expect(result.success).toBe(false);
-      expect(result.errors.length).toBeGreaterThan(0);
-    });
-
-    test('handles malformed Python JSON output gracefully', async () => {
-      mockExecFile.mockImplementation(
-        (
-          _cmd: string,
-          _args: string[],
-          _opts: unknown,
-          cb: (err: Error | null, stdout: string, stderr: string) => void
-        ) => {
-          cb(null, 'not-valid-json', '');
-        }
-      );
-
-      const result = await fillXFAPdf('/tmp/template.pdf', SAMPLE_FIELD_MAPS, SAMPLE_DATA);
-
-      // Should still succeed (uses fallback stats)
-      expect(result.success).toBe(true);
-      expect(result.pdfBytes).toBeInstanceOf(Uint8Array);
+      const body = JSON.parse(vi.mocked(fetch).mock.calls[0][1]?.body as string);
+      expect(body.form_type).toBe('N-400');
     });
   });
 
   // -----------------------------------------------------------------------
-  // fillXFAPdf — temp file cleanup
+  // fillXFAPdf — service not configured
   // -----------------------------------------------------------------------
-  describe('fillXFAPdf — temp file cleanup', () => {
-    test('cleans up temp files after successful fill', async () => {
-      simulatePythonSuccess(6, 6);
+  describe('fillXFAPdf — service not configured', () => {
+    test('returns failure when PDF_SERVICE_URL is not set', async () => {
+      delete process.env.PDF_SERVICE_URL;
 
-      await fillXFAPdf('/tmp/template.pdf', SAMPLE_FIELD_MAPS, SAMPLE_DATA);
+      const result = await fillXFAPdf('/tmp/template.pdf', SAMPLE_FIELD_MAPS, SAMPLE_DATA);
 
-      // Both data JSON and output PDF should be unlinked
-      const dataUnlinked = unlinkedFiles.some((f) => f.includes('xfa-data'));
-      const outputUnlinked = unlinkedFiles.some((f) => f.includes('xfa-output'));
-      expect(dataUnlinked).toBe(true);
-      expect(outputUnlinked).toBe(true);
+      expect(result.success).toBe(false);
+      expect(result.errors[0]).toContain('not configured');
     });
 
-    test('cleans up temp files even when Python fails', async () => {
-      simulatePythonError('script crashed');
+    test('returns failure when PDF_SERVICE_SECRET is not set', async () => {
+      delete process.env.PDF_SERVICE_SECRET;
 
-      await fillXFAPdf('/tmp/template.pdf', SAMPLE_FIELD_MAPS, SAMPLE_DATA);
+      const result = await fillXFAPdf('/tmp/template.pdf', SAMPLE_FIELD_MAPS, SAMPLE_DATA);
 
-      const dataUnlinked = unlinkedFiles.some((f) => f.includes('xfa-data'));
-      const outputUnlinked = unlinkedFiles.some((f) => f.includes('xfa-output'));
-      expect(dataUnlinked).toBe(true);
-      expect(outputUnlinked).toBe(true);
+      expect(result.success).toBe(false);
+      expect(result.errors[0]).toContain('not configured');
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // fillXFAPdf — HTTP error handling
+  // -----------------------------------------------------------------------
+  describe('fillXFAPdf — HTTP error handling', () => {
+    test('returns failure on 401 auth error', async () => {
+      mockFetchHttpError(401, 'Invalid service token');
+
+      const result = await fillXFAPdf('/tmp/uscis-templates/i-130.pdf', SAMPLE_FIELD_MAPS, SAMPLE_DATA);
+
+      expect(result.success).toBe(false);
+      expect(result.errors[0]).toContain('401');
+      expect(result.errors[0]).toContain('Invalid service token');
+    });
+
+    test('returns failure on 422 validation error', async () => {
+      mockFetchHttpError(422, 'Unknown form type: X-999');
+
+      const result = await fillXFAPdf('/tmp/uscis-templates/x-999.pdf', SAMPLE_FIELD_MAPS, SAMPLE_DATA);
+
+      expect(result.success).toBe(false);
+      expect(result.errors[0]).toContain('422');
+    });
+
+    test('returns failure on 500 server error', async () => {
+      mockFetchHttpError(500, 'Internal server error');
+
+      const result = await fillXFAPdf('/tmp/uscis-templates/i-130.pdf', SAMPLE_FIELD_MAPS, SAMPLE_DATA);
+
+      expect(result.success).toBe(false);
+      expect(result.errors[0]).toContain('500');
+    });
+
+    test('returns failure on network error', async () => {
+      mockFetchNetworkError('fetch failed');
+
+      const result = await fillXFAPdf('/tmp/uscis-templates/i-130.pdf', SAMPLE_FIELD_MAPS, SAMPLE_DATA);
+
+      expect(result.success).toBe(false);
+      expect(result.errors[0]).toContain('PDF service unavailable');
+      expect(result.errors[0]).toContain('fetch failed');
+    });
+
+    test('returns failure on abort/timeout', async () => {
+      mockFetchNetworkError('The operation was aborted');
+
+      const result = await fillXFAPdf('/tmp/uscis-templates/i-130.pdf', SAMPLE_FIELD_MAPS, SAMPLE_DATA);
+
+      expect(result.success).toBe(false);
+      expect(result.errors[0]).toContain('PDF service unavailable');
     });
   });
 
@@ -352,10 +354,10 @@ describe('XFA Filler Engine', () => {
   // -----------------------------------------------------------------------
   describe('fillXFAPdf — skipped fields', () => {
     test('reports skipped fields for missing data', async () => {
-      simulatePythonSuccess(1, 1);
+      mockFetchSuccess(1, 1);
 
       const result = await fillXFAPdf(
-        '/tmp/template.pdf',
+        '/tmp/uscis-templates/i-130.pdf',
         SAMPLE_FIELD_MAPS,
         { applicant: { lastName: 'Smith' } }
       );
@@ -366,12 +368,47 @@ describe('XFA Filler Engine', () => {
     });
 
     test('reports all fields skipped for empty data', async () => {
-      simulatePythonSuccess(0, 0);
+      mockFetchSuccess(0, 0);
 
-      const result = await fillXFAPdf('/tmp/template.pdf', SAMPLE_FIELD_MAPS, {});
+      const result = await fillXFAPdf('/tmp/uscis-templates/i-130.pdf', SAMPLE_FIELD_MAPS, {});
 
       expect(result.skippedFields).toHaveLength(SAMPLE_FIELD_MAPS.length);
       expect(result.totalFieldCount).toBe(SAMPLE_FIELD_MAPS.length);
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // fillXFAPdf — edge cases
+  // -----------------------------------------------------------------------
+  describe('fillXFAPdf — edge cases', () => {
+    test('handles empty response body', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        headers: new Headers({ 'X-Fill-Stats': JSON.stringify({ filled: 0, total: 0, errors: [] }) }),
+        arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)),
+      }));
+
+      const result = await fillXFAPdf('/tmp/uscis-templates/i-130.pdf', SAMPLE_FIELD_MAPS, SAMPLE_DATA);
+
+      expect(result.success).toBe(false);
+      expect(result.errors[0]).toContain('empty response');
+    });
+
+    test('handles missing X-Fill-Stats header gracefully', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        headers: new Headers(),
+        arrayBuffer: () => Promise.resolve(FAKE_PDF_BYTES.buffer.slice(0)),
+      }));
+
+      const result = await fillXFAPdf('/tmp/uscis-templates/i-130.pdf', SAMPLE_FIELD_MAPS, SAMPLE_DATA);
+
+      expect(result.success).toBe(true);
+      expect(result.pdfBytes).toBeInstanceOf(Uint8Array);
+      // Falls back to counting field_data keys
+      expect(result.filledFieldCount).toBe(Object.keys(buildFieldData(SAMPLE_FIELD_MAPS, SAMPLE_DATA).fieldData).length);
     });
   });
 });

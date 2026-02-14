@@ -106,7 +106,7 @@ test.describe('MFA (Multi-Factor Authentication)', () => {
 
       if (await enableMfaButton.first().isVisible()) {
         await enableMfaButton.first().click();
-        await page.waitForTimeout(1000);
+        await page.waitForLoadState('networkidle');
 
         // Should have manual entry option
         const manualEntry = page.locator('text=manual')
@@ -140,7 +140,7 @@ test.describe('MFA (Multi-Factor Authentication)', () => {
 
       if (await enableMfaButton.first().isVisible()) {
         await enableMfaButton.first().click();
-        await page.waitForTimeout(1000);
+        await page.waitForLoadState('networkidle');
 
         // Should show verification code input
         const codeInput = page.locator('input[placeholder*="code"]')

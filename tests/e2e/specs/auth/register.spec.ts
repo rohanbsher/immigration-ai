@@ -50,7 +50,7 @@ test.describe('Registration Flow', () => {
         .or(page.locator('[data-testid="bar-number"]'));
 
       // Bar number should not be visible for clients
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState('domcontentloaded');
       const isBarVisible = await barNumberField.first().isVisible().catch(() => false);
       expect(isBarVisible).toBeFalsy();
     });

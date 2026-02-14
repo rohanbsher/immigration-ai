@@ -189,7 +189,7 @@ test.describe('Attorney Case Management', () => {
           await editButton.first().click();
 
           // Wait for edit mode/dialog
-          await page.waitForTimeout(500);
+          await page.waitForLoadState('domcontentloaded');
 
           // Update a field (e.g., notes or description)
           const notesInput = page.locator('textarea')

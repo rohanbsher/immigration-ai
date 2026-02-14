@@ -44,7 +44,7 @@ test.describe('Attorney Document Management', () => {
         });
 
         // Wait for upload to process
-        await page.waitForTimeout(2000);
+        await page.waitForLoadState('networkidle');
 
         // Check for success indication
         const successIndicator = page.locator('text=uploaded')
@@ -116,7 +116,7 @@ test.describe('Attorney Document Management', () => {
             await uploadButton.click();
 
             // Wait for dialog/dropzone
-            await page.waitForTimeout(500);
+            await page.waitForLoadState('domcontentloaded');
 
             // Find file input
             const fileInput = page.locator('input[type="file"]');
@@ -170,7 +170,7 @@ test.describe('Attorney Document Management', () => {
           const uploadButton = page.locator('button:has-text("Upload")');
           if (await uploadButton.isVisible()) {
             await uploadButton.click();
-            await page.waitForTimeout(500);
+            await page.waitForLoadState('domcontentloaded');
 
             const fileInput = page.locator('input[type="file"]');
 
@@ -218,7 +218,7 @@ test.describe('Attorney Document Management', () => {
           const uploadButton = page.locator('button:has-text("Upload")');
           if (await uploadButton.isVisible()) {
             await uploadButton.click();
-            await page.waitForTimeout(500);
+            await page.waitForLoadState('domcontentloaded');
 
             const fileInput = page.locator('input[type="file"]');
 

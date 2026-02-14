@@ -57,16 +57,19 @@ async function globalSetup(config: FullConfig) {
     console.log(`   Optional credentials not set: ${missingOptional.join(', ')}`);
   }
 
-  // Verify the test server is running (in local development)
-  if (!process.env.CI) {
-    const baseURL = config.projects[0]?.use?.baseURL || 'http://localhost:3000';
-    try {
-      const response = await fetch(baseURL, { method: 'HEAD' });
-      if (!response.ok) {
-        console.warn(`\n⚠️  Server returned status ${response.status}. Tests may fail.\n`);
-      }
-    } catch {
-      // Server will be started by webServer config, this is just a check
+  // Verify the test server is reachable
+  const baseURL = config.projects[0]?.use?.baseURL || 'http://localhost:3000';
+  try {
+    const response = await fetch(`${baseURL}/api/health`, { method: 'GET' });
+    if (!response.ok) {
+      console.warn(`\n⚠️  Health check returned status ${response.status}. Tests may fail.\n`);
+    } else {
+      console.log(`   Health check: OK`);
+    }
+  } catch {
+    if (process.env.CI) {
+      console.warn('\n⚠️  Cannot reach E2E target. Tests will likely fail.\n');
+    } else {
       console.log('\n📦 Waiting for dev server to start...\n');
     }
   }

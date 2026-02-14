@@ -4,8 +4,8 @@ export default defineConfig({
   testDir: './tests/e2e',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 6 : undefined,
+  retries: process.env.CI ? 1 : 0,
+  workers: process.env.CI ? 4 : undefined,
   reporter: [
     ['html', { open: 'never' }],
     ['list'],
@@ -60,8 +60,8 @@ export default defineConfig({
     timeout: 120000,
   },
 
-  // Global timeout settings
-  timeout: 30000,
+  // Global timeout settings — CI uses production URL which has cold starts
+  timeout: process.env.CI ? 45000 : 30000,
   expect: {
     timeout: 10000,
   },

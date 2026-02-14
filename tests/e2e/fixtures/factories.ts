@@ -112,7 +112,7 @@ export const CaseFactory = {
     const title = options.title || generateCaseTitle();
 
     await page.goto('/dashboard/cases/new');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Fill title
     const titleInput = page.locator('input[name="title"]').or(page.locator('input[placeholder*="title"]'));
@@ -398,7 +398,7 @@ export const AuthHelpers = {
   async loginAs(page: Page, role: TestUserRole): Promise<void> {
     const user = TEST_USERS[role];
     await page.goto('/login');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     const emailInput = page.locator('input[placeholder*="example.com"]').or(page.locator('input[type="email"]'));
     const passwordInput = page.locator('input[placeholder*="password"]').or(page.locator('input[type="password"]'));
@@ -441,27 +441,27 @@ export const AuthHelpers = {
 export const NavHelpers = {
   async goToCases(page: Page): Promise<void> {
     await page.goto('/dashboard/cases');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
   },
 
   async goToDocuments(page: Page): Promise<void> {
     await page.goto('/dashboard/documents');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
   },
 
   async goToForms(page: Page): Promise<void> {
     await page.goto('/dashboard/forms');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
   },
 
   async goToBilling(page: Page): Promise<void> {
     await page.goto('/dashboard/billing');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
   },
 
   async goToSettings(page: Page): Promise<void> {
     await page.goto('/dashboard/settings');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
   },
 };
 

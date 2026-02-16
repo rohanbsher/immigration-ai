@@ -27,7 +27,7 @@ export function CaseFilters({
           className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
         />
         <Input
-          placeholder="Search cases by client name, visa type..."
+          placeholder="Search cases by title..."
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
           className="pl-10"

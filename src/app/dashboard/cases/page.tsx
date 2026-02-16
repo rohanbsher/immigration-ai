@@ -111,6 +111,22 @@ export default function CasesPage() {
             />
           ))}
         </div>
+      ) : search || statusFilter !== 'all' ? (
+        <Card>
+          <CardContent className="p-8 text-center">
+            <p className="text-muted-foreground">No cases match your search criteria.</p>
+            <Button
+              variant="outline"
+              className="mt-4"
+              onClick={() => {
+                setSearch('');
+                setStatusFilter('all');
+              }}
+            >
+              Clear Filters
+            </Button>
+          </CardContent>
+        </Card>
       ) : (
         <Card>
           <CardContent className="p-6">

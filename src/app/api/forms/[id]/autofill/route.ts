@@ -107,10 +107,15 @@ export async function POST(
     );
 
     if (analyzedDocuments.length === 0) {
-      // Reset status since CAS already set it to 'autofilling'
-      await formsService.updateForm(id, { status: previousStatus }).catch((err) =>
-        log.logError('Failed to reset form status after no-docs check', err, { formId: id })
-      );
+      // Reset via RPC (acquires advisory lock, checks auth, bypasses RLS)
+      try {
+        await supabase.rpc('cancel_form_autofill', {
+          p_form_id: id,
+          p_target_status: previousStatus,
+        });
+      } catch (resetErr) {
+        log.logError('Failed to reset form status after no-docs check', resetErr, { formId: id });
+      }
       return NextResponse.json(
         {
           error: 'No analyzed documents available',
@@ -179,10 +184,15 @@ export async function POST(
       });
     } catch (aiError) {
       log.logError('AI autofill error', aiError);
-      // Reset form status since autofill failed
-      await formsService.updateForm(id, { status: previousStatus }).catch((err) =>
-        log.logError('Failed to reset form status after AI error', err, { formId: id })
-      );
+      // Reset via RPC (acquires advisory lock, checks auth, bypasses RLS)
+      try {
+        await supabase.rpc('cancel_form_autofill', {
+          p_form_id: id,
+          p_target_status: previousStatus,
+        });
+      } catch (resetErr) {
+        log.logError('Failed to reset form status after AI error', resetErr, { formId: id });
+      }
       // Don't expose internal AI error details to client
       return NextResponse.json(
         {
@@ -278,15 +288,15 @@ export async function POST(
     });
   } catch (error) {
     log.logError('Error autofilling form', error, { formId: id });
-    // Attempt to reset form status on unexpected error (only if CAS was applied)
+    // Reset via cancel RPC (acquires advisory lock, checks auth, bypasses RLS).
+    // Creates a new client because the original may be out of scope or corrupt.
     if (id !== 'unknown') {
       try {
         const supabaseCleanup = await createClient();
-        await supabaseCleanup
-          .from('forms')
-          .update({ status: previousStatus })
-          .eq('id', id)
-          .eq('status', 'autofilling');
+        await supabaseCleanup.rpc('cancel_form_autofill', {
+          p_form_id: id,
+          p_target_status: previousStatus,
+        });
       } catch (resetErr) {
         log.logError('Failed to reset form status', resetErr, { formId: id });
       }

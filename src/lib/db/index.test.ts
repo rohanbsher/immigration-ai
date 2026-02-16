@@ -375,6 +375,7 @@ describe('Database Services', () => {
         expect(queryBuilder.insert).toHaveBeenCalledWith({
           ...createData,
           attorney_id: mockUser.id,
+          firm_id: null,
           status: 'intake',
         });
         expect(result).toBeDefined();

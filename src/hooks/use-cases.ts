@@ -120,7 +120,8 @@ async function createCase(data: CreateCaseData): Promise<Case> {
     const error = await safeParseErrorJson(response);
     throw new Error(error.error || 'Failed to create case');
   }
-  return response.json();
+  const json = await response.json();
+  return json.data ?? json;
 }
 
 async function updateCase(id: string, data: UpdateCaseData): Promise<Case> {
@@ -133,7 +134,8 @@ async function updateCase(id: string, data: UpdateCaseData): Promise<Case> {
     const error = await safeParseErrorJson(response);
     throw new Error(error.error || 'Failed to update case');
   }
-  return response.json();
+  const json = await response.json();
+  return json.data ?? json;
 }
 
 async function deleteCase(id: string): Promise<void> {

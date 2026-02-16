@@ -2,6 +2,9 @@ import { stripe } from './client';
 import { createClient } from '@/lib/supabase/server';
 import type Stripe from 'stripe';
 import { withRetry, STRIPE_RETRY_OPTIONS } from '@/lib/utils/retry';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('stripe:customers');
 
 export interface CreateCustomerParams {
   userId: string;
@@ -130,8 +133,19 @@ export async function getOrCreateStripeCustomer(userId: string): Promise<string>
     // Clean up the orphaned Stripe customer we just created
     try {
       await stripe.customers.del(stripeCustomer.id);
-    } catch {
-      // Non-critical: orphaned Stripe customer can be cleaned up later
+      log.info('Cleaned up orphaned Stripe customer from race condition', {
+        orphanedCustomerId: stripeCustomer.id,
+        winnerId: existing.stripe_customer_id,
+        userId,
+      });
+    } catch (cleanupError) {
+      // Log for manual cleanup — orphaned Stripe customers cost nothing
+      // but accumulate and may confuse billing operations.
+      log.warn('Failed to clean up orphaned Stripe customer', {
+        orphanedCustomerId: stripeCustomer.id,
+        userId,
+        error: cleanupError instanceof Error ? cleanupError.message : String(cleanupError),
+      });
     }
     return existing.stripe_customer_id;
   }

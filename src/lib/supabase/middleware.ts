@@ -52,7 +52,10 @@ export async function updateSession(request: NextRequest) {
       return csrfResponse;
     }
 
-    // Request body size limit (DoS prevention)
+    // Best-effort request body size limit (DoS mitigation).
+    // Checks Content-Length header when present. Chunked transfer-encoding
+    // requests without Content-Length bypass this check; the hosting platform
+    // (Vercel/Cloudflare) enforces hard limits at the edge layer.
     const contentLength = request.headers.get('content-length');
     if (contentLength) {
       const bodySize = parseInt(contentLength, 10);
@@ -109,14 +112,31 @@ export async function updateSession(request: NextRequest) {
       if (!isNaN(lastActivityTime) && (now - lastActivityTime) > IDLE_TIMEOUT_MS) {
         // Session has been idle too long — sign out and redirect to login
         log.info('Session idle timeout exceeded', { requestId, userId: user.id });
-        await supabase.auth.signOut();
+        try {
+          await supabase.auth.signOut();
+        } catch (signOutError) {
+          // signOut may fail (network issues, Supabase downtime).
+          // Still redirect to login — clearing auth cookies below
+          // ensures the client-side session is invalidated regardless.
+          log.warn('signOut failed during idle timeout', {
+            requestId,
+            error: signOutError instanceof Error ? signOutError.message : String(signOutError),
+          });
+        }
         const url = request.nextUrl.clone();
         url.pathname = '/login';
         url.searchParams.set('reason', 'idle_timeout');
         const redirectResponse = NextResponse.redirect(url);
         redirectResponse.headers.set('x-request-id', requestId);
-        // Clear the idle cookie
+        // Clear the idle cookie and auth cookies so the session is
+        // fully invalidated even if server-side signOut failed.
         redirectResponse.cookies.delete(IDLE_COOKIE_NAME);
+        // Clear Supabase auth cookies (standard names used by @supabase/ssr)
+        for (const cookie of request.cookies.getAll()) {
+          if (cookie.name.startsWith('sb-') || cookie.name.includes('supabase')) {
+            redirectResponse.cookies.delete(cookie.name);
+          }
+        }
         return redirectResponse;
       }
     }

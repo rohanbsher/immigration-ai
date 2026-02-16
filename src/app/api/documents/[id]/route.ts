@@ -200,6 +200,9 @@ export async function DELETE(
     try {
       const caseId = accessResult.document?.case_id;
       if (caseId) {
+        // Only flag forms that can transition to needs_review per the state
+        // machine. Exclude 'approved' and 'filed' — those require explicit
+        // attorney action to regress.
         const { data: affectedForms } = await supabase
           .from('forms')
           .select('id, status')

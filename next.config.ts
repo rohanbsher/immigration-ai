@@ -73,8 +73,8 @@ const securityHeaders = [
       "object-src 'none'",
       // Worker sources
       "worker-src 'self' blob:",
-      // Upgrade insecure requests in production
-      "upgrade-insecure-requests",
+      // Upgrade insecure requests in production only (breaks localhost in dev)
+      ...(process.env.NODE_ENV === "production" ? ["upgrade-insecure-requests"] : []),
     ].join("; "),
   },
 ];

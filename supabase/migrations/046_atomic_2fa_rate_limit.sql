@@ -8,7 +8,14 @@
 --
 -- SOLUTION:
 --   A single RPC that atomically checks the rate limit AND records the
---   attempt, using SELECT FOR UPDATE to lock the relevant rows.
+--   attempt, using an advisory lock to serialize concurrent checks.
+--
+-- LOCK STRATEGY:
+--   Uses two-argument pg_advisory_xact_lock(classid, objid) with a fixed
+--   namespace constant (200001) to avoid collisions with other advisory
+--   lock users. The objid is derived from the user UUID's first 8 hex
+--   chars, giving ~4 billion distinct slots (no birthday-paradox risk
+--   at realistic user counts).
 
 CREATE OR REPLACE FUNCTION check_and_record_2fa_attempt(
   p_user_id UUID,
@@ -19,10 +26,15 @@ CREATE OR REPLACE FUNCTION check_and_record_2fa_attempt(
 RETURNS TABLE(allowed BOOLEAN, recent_failures BIGINT) AS $$
 DECLARE
   v_failures BIGINT;
+  v_lock_key INTEGER;
 BEGIN
-  -- Count recent failures with an advisory lock to serialize concurrent checks
-  -- for the same user. The lock is automatically released at transaction end.
-  PERFORM pg_advisory_xact_lock(hashtext('2fa_rate_limit_' || p_user_id::text));
+  -- Derive a lock key from the UUID's first 8 hex characters.
+  -- This gives 2^32 distinct slots, avoiding birthday-paradox collisions.
+  v_lock_key := ('x' || left(replace(p_user_id::text, '-', ''), 8))::bit(32)::integer;
+
+  -- Two-arg advisory lock: namespace 200001 separates 2FA locks from
+  -- other advisory lock users (e.g., form autofill uses 200002).
+  PERFORM pg_advisory_xact_lock(200001, v_lock_key);
 
   SELECT COUNT(*) INTO v_failures
   FROM two_factor_attempts
@@ -43,3 +55,6 @@ BEGIN
   RETURN QUERY SELECT TRUE, v_failures;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Grant execute to authenticated users
+GRANT EXECUTE ON FUNCTION check_and_record_2fa_attempt(UUID, TEXT, INTEGER, INTEGER) TO authenticated;

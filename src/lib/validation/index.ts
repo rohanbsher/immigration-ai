@@ -181,13 +181,13 @@ export type FormStatusType = typeof FORM_STATUSES[number];
  */
 export const VALID_FORM_TRANSITIONS: Record<FormStatusType, readonly FormStatusType[]> = {
   draft: ['autofilling', 'in_review'],
-  autofilling: ['ai_filled', 'draft'],        // draft = reset on failure
-  ai_filled: ['in_review', 'needs_review', 'draft'], // needs_review = source doc deleted
-  in_review: ['approved', 'rejected', 'needs_review', 'draft'], // draft = back to editing
-  needs_review: ['in_review', 'draft'],        // needs_review = flagged for re-review
+  autofilling: ['ai_filled', 'draft'],         // draft = reset on failure
+  ai_filled: ['autofilling', 'in_review', 'needs_review', 'draft'], // autofilling = re-run AI
+  in_review: ['autofilling', 'approved', 'rejected', 'needs_review', 'draft'], // autofilling = re-run AI
+  needs_review: ['autofilling', 'in_review', 'draft'], // autofilling = re-run after doc change
   approved: ['filed', 'in_review'],            // in_review = re-review
   filed: [],                                    // terminal state
-  rejected: ['draft', 'in_review'],            // draft = start over
+  rejected: ['autofilling', 'draft', 'in_review'], // autofilling = retry with AI
 } as const;
 
 /**

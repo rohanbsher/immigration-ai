@@ -26,7 +26,7 @@ vi.mock('@supabase/ssr', () => ({
   }),
 }));
 
-import { middleware, config } from './middleware';
+import { proxy, config } from './proxy';
 import { updateSession } from '@/lib/supabase/middleware';
 import { validateCsrf } from '@/lib/csrf';
 import { createServerClient } from '@supabase/ssr';
@@ -105,7 +105,7 @@ describe('Middleware', () => {
     it('should call updateSession with request', async () => {
       const request = createMockRequest('/dashboard');
 
-      const response = await middleware(request);
+      const response = await proxy(request);
 
       expect(response).toBeDefined();
     });
@@ -113,7 +113,7 @@ describe('Middleware', () => {
     it('should return a response', async () => {
       const request = createMockRequest('/');
 
-      const response = await middleware(request);
+      const response = await proxy(request);
 
       expect(response).toBeInstanceOf(NextResponse);
     });

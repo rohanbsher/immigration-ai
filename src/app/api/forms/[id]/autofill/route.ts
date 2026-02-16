@@ -102,6 +102,13 @@ export async function POST(
     // Use the status returned by the RPC, not the pre-lock read.
     // The RPC may have recovered a stuck form (autofilling → draft),
     // so the pre-lock form.status would be stale.
+    //
+    // KNOWN LIMITATION: If a stuck form is recovered, current_status will be
+    // 'draft' (the recovery reset value), not the original pre-autofilling
+    // status. So if the form was 'ai_filled' → stuck 'autofilling' → recovered
+    // to 'draft', a subsequent failure would reset to 'draft' instead of
+    // 'ai_filled'. This is acceptable because the stuck form's AI data is
+    // likely stale anyway, and 'draft' is the safest fallback.
     previousStatus = (lockRow.current_status as FormStatus) || form.status;
 
     // Get all analyzed documents for the case

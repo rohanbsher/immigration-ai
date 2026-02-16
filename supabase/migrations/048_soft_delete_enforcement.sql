@@ -15,11 +15,12 @@ BEGIN
     RETURN OLD;
   END IF;
 
-  -- Instead of deleting, set deleted_at.
-  -- Return NULL to cancel the original DELETE statement.
-  RAISE NOTICE 'Hard DELETE blocked on %.% row %. Use soft delete (UPDATE deleted_at) first.',
-    TG_TABLE_SCHEMA, TG_TABLE_NAME, OLD.id;
-  RETURN NULL;
+  -- Block the hard delete with an exception so the caller knows it failed.
+  -- RAISE NOTICE + RETURN NULL would silently swallow the delete — Postgrest
+  -- doesn't surface notices, so the app would see {error: null} and think
+  -- the delete succeeded while the row remains.
+  RAISE EXCEPTION 'Hard DELETE blocked on %.%. Use soft delete (UPDATE deleted_at) first, then DELETE.',
+    TG_TABLE_SCHEMA, TG_TABLE_NAME;
 END;
 $$ LANGUAGE plpgsql SECURITY INVOKER;
 

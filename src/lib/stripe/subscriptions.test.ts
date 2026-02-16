@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 
 // Mock the client module before importing getPriceId
 vi.mock('./client', () => ({
@@ -39,6 +39,14 @@ import { getPriceId } from './subscriptions';
 import { STRIPE_CONFIG } from './client';
 
 describe('getPriceId', () => {
+  // Save original prices and restore after each test to prevent
+  // cross-test contamination even if a test throws mid-execution.
+  const originalPrices = { ...STRIPE_CONFIG.prices };
+
+  afterEach(() => {
+    Object.assign(STRIPE_CONFIG.prices, originalPrices);
+  });
+
   it('should return price ID for valid pro monthly', () => {
     expect(getPriceId('pro', 'monthly')).toBe('price_pro_monthly_123');
   });
@@ -60,41 +68,14 @@ describe('getPriceId', () => {
   });
 
   it('should throw for invalid Stripe price ID format', () => {
-    // Override the mock to return a malformed price ID
-    const originalPrices = { ...STRIPE_CONFIG.prices };
-    Object.defineProperty(STRIPE_CONFIG, 'prices', {
-      get: () => ({
-        ...originalPrices,
-        proMonthly: 'invalid_not_a_price',
-      }),
-      configurable: true,
-    });
+    (STRIPE_CONFIG.prices as Record<string, string>).proMonthly = 'invalid_not_a_price';
 
     expect(() => getPriceId('pro', 'monthly')).toThrow('Invalid Stripe price ID format');
-
-    // Restore
-    Object.defineProperty(STRIPE_CONFIG, 'prices', {
-      get: () => originalPrices,
-      configurable: true,
-    });
   });
 
   it('should throw for empty/unconfigured price ID', () => {
-    const originalPrices = { ...STRIPE_CONFIG.prices };
-    Object.defineProperty(STRIPE_CONFIG, 'prices', {
-      get: () => ({
-        ...originalPrices,
-        proMonthly: '',
-      }),
-      configurable: true,
-    });
+    (STRIPE_CONFIG.prices as Record<string, string>).proMonthly = '';
 
     expect(() => getPriceId('pro', 'monthly')).toThrow('Price ID not configured');
-
-    // Restore
-    Object.defineProperty(STRIPE_CONFIG, 'prices', {
-      get: () => originalPrices,
-      configurable: true,
-    });
   });
 });

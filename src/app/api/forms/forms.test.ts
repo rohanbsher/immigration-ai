@@ -93,6 +93,7 @@ const mockSupabaseClient = {
     getUser: vi.fn(),
   },
   from: vi.fn(),
+  rpc: vi.fn(),
 };
 
 // Mock createClient function
@@ -388,13 +389,18 @@ describe('Forms API Routes', () => {
       expect(data.error).toBeDefined();
     });
 
-    it('should update form when attorney modifies', async () => {
+    it('should update form status via CAS guard', async () => {
       vi.mocked(formsService.getForm).mockResolvedValue(mockForm as ReturnType<typeof formsService.getForm> extends Promise<infer T> ? T : never);
       vi.mocked(casesService.getCase).mockResolvedValue(mockCase as ReturnType<typeof casesService.getCase> extends Promise<infer T> ? T : never);
-      vi.mocked(formsService.updateForm).mockResolvedValue({
-        ...mockForm,
-        status: 'in_review',
-      } as ReturnType<typeof formsService.updateForm> extends Promise<infer T> ? T : never);
+
+      const updatedForm = { ...mockForm, status: 'in_review' };
+      const mockSingle = vi.fn().mockResolvedValue({ data: updatedForm, error: null });
+      const mockSelect = vi.fn().mockReturnValue({ single: mockSingle });
+      const mockIs = vi.fn().mockReturnValue({ select: mockSelect });
+      const mockEq2 = vi.fn().mockReturnValue({ is: mockIs });
+      const mockEq1 = vi.fn().mockReturnValue({ eq: mockEq2 });
+      const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq1 });
+      mockSupabaseClient.from.mockReturnValue({ update: mockUpdate });
 
       const request = createMockRequest('PATCH', { status: 'in_review' });
       const response = await PATCH(request, { params: createMockParams() });
@@ -402,7 +408,43 @@ describe('Forms API Routes', () => {
 
       expect(response.status).toBe(200);
       expect(data.status).toBe('in_review');
-      expect(formsService.updateForm).toHaveBeenCalledWith(mockFormId, { status: 'in_review' });
+      expect(mockUpdate).toHaveBeenCalledWith({ status: 'in_review' });
+      expect(mockEq1).toHaveBeenCalledWith('id', mockFormId);
+      expect(mockEq2).toHaveBeenCalledWith('status', 'draft');
+    });
+
+    it('should return 400 for invalid status transition', async () => {
+      vi.mocked(formsService.getForm).mockResolvedValue(mockForm as ReturnType<typeof formsService.getForm> extends Promise<infer T> ? T : never);
+      vi.mocked(casesService.getCase).mockResolvedValue(mockCase as ReturnType<typeof casesService.getCase> extends Promise<infer T> ? T : never);
+
+      // draft → filed is not a valid transition
+      const request = createMockRequest('PATCH', { status: 'filed' });
+      const response = await PATCH(request, { params: createMockParams() });
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.error).toContain('Invalid status transition');
+    });
+
+    it('should return 409 when form status changed concurrently', async () => {
+      vi.mocked(formsService.getForm).mockResolvedValue(mockForm as ReturnType<typeof formsService.getForm> extends Promise<infer T> ? T : never);
+      vi.mocked(casesService.getCase).mockResolvedValue(mockCase as ReturnType<typeof casesService.getCase> extends Promise<infer T> ? T : never);
+
+      // CAS fails — another request changed the status
+      const mockSingle = vi.fn().mockResolvedValue({ data: null, error: { code: 'PGRST116' } });
+      const mockSelect = vi.fn().mockReturnValue({ single: mockSingle });
+      const mockIs = vi.fn().mockReturnValue({ select: mockSelect });
+      const mockEq2 = vi.fn().mockReturnValue({ is: mockIs });
+      const mockEq1 = vi.fn().mockReturnValue({ eq: mockEq2 });
+      const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq1 });
+      mockSupabaseClient.from.mockReturnValue({ update: mockUpdate });
+
+      const request = createMockRequest('PATCH', { status: 'in_review' });
+      const response = await PATCH(request, { params: createMockParams() });
+      const data = await response.json();
+
+      expect(response.status).toBe(409);
+      expect(data.error).toContain('concurrently');
     });
 
     it('should update form_data when attorney modifies', async () => {
@@ -492,20 +534,19 @@ describe('Forms API Routes', () => {
     beforeEach(() => {
       vi.mocked(aiRateLimiter.limit).mockResolvedValue({ allowed: true });
 
-      // CAS update mock: supabase.from('forms').update(...).eq(...).eq(...).select(...).single()
-      mockSupabaseClient.from.mockReturnValue({
-        update: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-              select: vi.fn().mockReturnValue({
-                single: vi.fn().mockResolvedValue({
-                  data: { id: mockFormId },
-                  error: null,
-                }),
-              }),
-            }),
-          }),
-        }),
+      // RPC mock: try_start_form_autofill returns lock acquired,
+      // cancel_form_autofill returns true (success)
+      mockSupabaseClient.rpc.mockImplementation((funcName: string) => {
+        if (funcName === 'try_start_form_autofill') {
+          return Promise.resolve({
+            data: { acquired: true, current_status: 'draft' },
+            error: null,
+          });
+        }
+        if (funcName === 'cancel_form_autofill') {
+          return Promise.resolve({ data: true, error: null });
+        }
+        return Promise.resolve({ data: null, error: null });
       });
     });
 
@@ -579,11 +620,10 @@ describe('Forms API Routes', () => {
       expect(data.error).toBe('Forbidden');
     });
 
-    it('should return 400 when no analyzed documents available and reset status', async () => {
+    it('should return 400 when no analyzed documents available and reset status via RPC', async () => {
       vi.mocked(formsService.getForm).mockResolvedValue(mockForm as ReturnType<typeof formsService.getForm> extends Promise<infer T> ? T : never);
       vi.mocked(casesService.getCase).mockResolvedValue(mockCase as ReturnType<typeof casesService.getCase> extends Promise<infer T> ? T : never);
       vi.mocked(documentsService.getDocumentsByCase).mockResolvedValue([]);
-      vi.mocked(formsService.updateForm).mockResolvedValue(mockForm as any);
 
       const request = createMockRequest('POST');
       const response = await autofillPOST(request, { params: createMockParams() });
@@ -591,8 +631,11 @@ describe('Forms API Routes', () => {
 
       expect(response.status).toBe(400);
       expect(data.error).toBe('No analyzed documents available');
-      // Verify status was reset after CAS had set it to 'autofilling'
-      expect(formsService.updateForm).toHaveBeenCalledWith(mockFormId, { status: 'draft' });
+      // Verify cancel RPC was called to reset from 'autofilling'
+      expect(mockSupabaseClient.rpc).toHaveBeenCalledWith(
+        'cancel_form_autofill',
+        { p_form_id: mockFormId, p_target_status: 'draft' }
+      );
     });
 
     it('should autofill form successfully with analyzed documents', async () => {

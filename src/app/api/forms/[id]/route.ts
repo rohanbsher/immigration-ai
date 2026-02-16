@@ -174,6 +174,7 @@ export async function PATCH(
         .update(validatedData)
         .eq('id', id)
         .eq('status', currentStatus)
+        .is('deleted_at', null)
         .select()
         .single();
 

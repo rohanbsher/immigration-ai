@@ -437,27 +437,37 @@ export async function syncDeadlineAlerts(caseId?: string): Promise<number> {
   const timezoneCache = new Map<string, string>();
   uniqueAttorneyIds.forEach((id, i) => timezoneCache.set(id, timezoneResults[i]));
 
-  for (const c of cases) {
-    const tz = c.attorney_id ? timezoneCache.get(c.attorney_id) : undefined;
-    const alerts = await calculateCaseDeadlines(c.id, tz);
+  // Process cases in parallel batches to avoid overwhelming the DB.
+  // Each batch resolves concurrently; batches run sequentially.
+  const BATCH_SIZE = 10;
+  for (let i = 0; i < cases.length; i += BATCH_SIZE) {
+    const batch = cases.slice(i, i + BATCH_SIZE);
+    const batchResults = await Promise.all(
+      batch.map(c => {
+        const tz = c.attorney_id ? timezoneCache.get(c.attorney_id) : undefined;
+        return calculateCaseDeadlines(c.id, tz);
+      })
+    );
 
-    for (const alert of alerts) {
-      // Upsert alert (insert or update if exists)
-      const { error } = await supabase.from('deadline_alerts').upsert(
-        {
-          case_id: alert.caseId,
-          user_id: alert.userId,
-          alert_type: alert.alertType,
-          deadline_date: alert.deadlineDate.toISOString().split('T')[0],
-          severity: alert.severity,
-          message: alert.message,
-        },
-        {
-          onConflict: 'case_id,alert_type,deadline_date',
-        }
-      );
+    for (const alerts of batchResults) {
+      for (const alert of alerts) {
+        // Upsert alert (insert or update if exists)
+        const { error } = await supabase.from('deadline_alerts').upsert(
+          {
+            case_id: alert.caseId,
+            user_id: alert.userId,
+            alert_type: alert.alertType,
+            deadline_date: alert.deadlineDate.toISOString().split('T')[0],
+            severity: alert.severity,
+            message: alert.message,
+          },
+          {
+            onConflict: 'case_id,alert_type,deadline_date',
+          }
+        );
 
-      if (!error) syncCount++;
+        if (!error) syncCount++;
+      }
     }
   }
 

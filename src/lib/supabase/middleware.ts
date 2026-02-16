@@ -52,10 +52,11 @@ export async function updateSession(request: NextRequest) {
       return csrfResponse;
     }
 
-    // Best-effort request body size limit (DoS mitigation).
-    // Checks Content-Length header when present. Chunked transfer-encoding
-    // requests without Content-Length bypass this check; the hosting platform
-    // (Vercel/Cloudflare) enforces hard limits at the edge layer.
+    // Advisory request body size check (NOT a security boundary).
+    // Only checks the Content-Length header, which is a client declaration
+    // and trivially spoofable. Chunked transfers bypass it entirely.
+    // Real enforcement happens at the edge layer (Vercel/Cloudflare).
+    // This exists only to reject obviously oversized requests early.
     const contentLength = request.headers.get('content-length');
     if (contentLength) {
       const bodySize = parseInt(contentLength, 10);

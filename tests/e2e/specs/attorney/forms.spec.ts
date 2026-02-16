@@ -6,23 +6,15 @@ import { generateTestId } from '../../fixtures/factories';
 const hasTestCredentials = process.env.E2E_TEST_USER && process.env.E2E_TEST_PASSWORD;
 
 test.describe('Form Management - Attorney', () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async () => {
     test.skip(!hasTestCredentials, 'No test credentials - skipping authenticated tests');
-
-    await page.goto('/login');
-    await page.waitForLoadState('networkidle');
-
-    await page.fill('input[name="email"]', process.env.E2E_TEST_USER!);
-    await page.fill('input[name="password"]', process.env.E2E_TEST_PASSWORD!);
-    await page.click('button[type="submit"]');
-
-    await page.waitForURL(/\/dashboard/, { timeout: 15000 });
+    // Attorney auth is pre-loaded via storageState in playwright.config.ts
   });
 
   test.describe('Form List Page', () => {
     test('should display forms page with available templates', async ({ page }) => {
       await page.goto('/dashboard/forms');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       await expect(page).toHaveURL(/\/dashboard\/forms/);
 
@@ -39,7 +31,7 @@ test.describe('Form Management - Attorney', () => {
 
     test('should show create form button', async ({ page }) => {
       await page.goto('/dashboard/forms');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       const createButton = page.locator('button:has-text("New Form")')
         .or(page.locator('button:has-text("Create")')
@@ -49,7 +41,7 @@ test.describe('Form Management - Attorney', () => {
 
     test('should display form templates selection', async ({ page }) => {
       await page.goto('/dashboard/forms');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // Should show I-130, I-485, I-765 form types
       const i130Template = page.locator('text=I-130');
@@ -66,7 +58,7 @@ test.describe('Form Management - Attorney', () => {
 
     test('should display forms by case section', async ({ page }) => {
       await page.goto('/dashboard/forms');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // Should show forms by case section or empty state
       const formsByCase = page.locator('text=Forms by Case')
@@ -84,7 +76,7 @@ test.describe('Form Management - Attorney', () => {
   test.describe('Create New Form', () => {
     test('should open create form dialog when clicking New Form', async ({ page }) => {
       await page.goto('/dashboard/forms');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       const createButton = page.locator('button:has-text("New Form")');
       await createButton.first().click();
@@ -104,7 +96,7 @@ test.describe('Form Management - Attorney', () => {
 
     test('should create new I-130 form', async ({ page }) => {
       await page.goto('/dashboard/forms');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // Click on I-130 template card or open dialog
       const i130Card = page.locator('[data-testid="form-template-I-130"]')
@@ -150,7 +142,7 @@ test.describe('Form Management - Attorney', () => {
 
     test('should create new I-485 form', async ({ page }) => {
       await page.goto('/dashboard/forms');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // Open create dialog
       const createButton = page.locator('button:has-text("New Form")');
@@ -174,7 +166,7 @@ test.describe('Form Management - Attorney', () => {
 
     test('should create new I-765 form', async ({ page }) => {
       await page.goto('/dashboard/forms');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // Open create dialog
       const createButton = page.locator('button:has-text("New Form")');
@@ -192,7 +184,7 @@ test.describe('Form Management - Attorney', () => {
 
     test('should require form type and case selection', async ({ page }) => {
       await page.goto('/dashboard/forms');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // Open create dialog
       const createButton = page.locator('button:has-text("New Form")');
@@ -224,13 +216,13 @@ test.describe('Form Management - Attorney', () => {
     test('should navigate to form editor when clicking on form', async ({ page }) => {
       // First go to cases to find an existing form
       await page.goto('/dashboard/cases');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       const caseLink = page.locator('a[href^="/dashboard/cases/"]').first();
 
       if (await caseLink.isVisible()) {
         await caseLink.click();
-        await page.waitForLoadState('networkidle');
+        await page.waitForLoadState('domcontentloaded');
 
         // Look for forms tab or forms section
         const formsTab = page.locator('button:has-text("Forms")')
@@ -252,7 +244,7 @@ test.describe('Form Management - Attorney', () => {
     test('should display form sections and fields', async ({ page }) => {
       // Navigate directly to forms page to find any form
       await page.goto('/dashboard/forms');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // Try to access first available form via case
       const viewFormLink = page.locator('a:has-text("View all")')
@@ -260,7 +252,7 @@ test.describe('Form Management - Attorney', () => {
 
       if (await viewFormLink.first().isVisible()) {
         await viewFormLink.first().click();
-        await page.waitForLoadState('networkidle');
+        await page.waitForLoadState('domcontentloaded');
 
         // On form detail page, should have sections
         const formSection = page.locator('[data-testid="form-section"]')
@@ -274,20 +266,20 @@ test.describe('Form Management - Attorney', () => {
     test('should save form as draft', async ({ page }) => {
       // Navigate to a form
       await page.goto('/dashboard/forms');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // Try to get to a form detail page
       const viewFormLink = page.locator('a:has-text("View all")').first();
 
       if (await viewFormLink.isVisible()) {
         await viewFormLink.click();
-        await page.waitForLoadState('networkidle');
+        await page.waitForLoadState('domcontentloaded');
 
         // Look for a form to click
         const formLink = page.locator('a[href^="/dashboard/forms/"]').first();
         if (await formLink.isVisible()) {
           await formLink.click();
-          await page.waitForLoadState('networkidle');
+          await page.waitForLoadState('domcontentloaded');
 
           // On form editor page
           // Fill a field
@@ -317,7 +309,7 @@ test.describe('Form Management - Attorney', () => {
     test('should show form validation errors for required fields', async ({ page }) => {
       // Navigate to a form editor
       await page.goto('/dashboard/forms');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // Try to create a new form and submit without required fields
       const createButton = page.locator('button:has-text("New Form")');
@@ -344,7 +336,7 @@ test.describe('Form Management - Attorney', () => {
   test.describe('Form Actions', () => {
     test('should have edit option for existing form', async ({ page }) => {
       await page.goto('/dashboard/forms');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // Find cases with forms
       const caseWithForms = page.locator('text=forms').first();
@@ -354,7 +346,7 @@ test.describe('Form Management - Attorney', () => {
         const viewLink = page.locator('a:has-text("View all")').first();
         if (await viewLink.isVisible()) {
           await viewLink.click();
-          await page.waitForLoadState('networkidle');
+          await page.waitForLoadState('domcontentloaded');
 
           // Should be on case detail with forms
           const editButton = page.locator('button:has-text("Edit")')
@@ -365,7 +357,7 @@ test.describe('Form Management - Attorney', () => {
 
     test('should have delete option for forms', async ({ page }) => {
       await page.goto('/dashboard/forms');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // Check for delete capability in the UI
       const deleteButton = page.locator('button:has-text("Delete")')
@@ -378,19 +370,14 @@ test.describe('Form Management - Attorney', () => {
 });
 
 test.describe('Form Templates', () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async () => {
     test.skip(!hasTestCredentials, 'No test credentials');
-
-    await page.goto('/login');
-    await page.fill('input[name="email"]', process.env.E2E_TEST_USER!);
-    await page.fill('input[name="password"]', process.env.E2E_TEST_PASSWORD!);
-    await page.click('button[type="submit"]');
-    await page.waitForURL(/\/dashboard/);
+    // Attorney auth is pre-loaded via storageState in playwright.config.ts
   });
 
   test('should display form template information', async ({ page }) => {
     await page.goto('/dashboard/forms');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Each template should show estimated time and filing fee
     const templateCard = page.locator('div[class*="rounded-lg"]')
@@ -407,7 +394,7 @@ test.describe('Form Templates', () => {
 
   test('should show AI autofill feature promotion', async ({ page }) => {
     await page.goto('/dashboard/forms');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Should show AI feature card
     const aiFeatureCard = page.locator('text=AI-Powered')

@@ -1,28 +1,16 @@
 import { test, expect } from '@playwright/test';
-import { TEST_USERS, hasValidCredentials } from '../../fixtures/factories';
+import { hasValidCredentials } from '../../fixtures/factories';
 
 test.describe('Client Portal Dashboard', () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async () => {
     test.skip(!hasValidCredentials('client'), 'No client credentials - skipping client portal tests');
-
-    await page.goto('/login');
-    await page.waitForLoadState('networkidle');
-
-    // Login as client
-    const email = process.env.E2E_CLIENT_EMAIL || TEST_USERS.client.email;
-    const password = process.env.E2E_CLIENT_PASSWORD || TEST_USERS.client.password;
-
-    await page.fill('input[name="email"]', email);
-    await page.fill('input[name="password"]', password);
-    await page.click('button[type="submit"]');
-
-    await page.waitForURL(/\/dashboard/, { timeout: 15000 });
+    // Client auth is pre-loaded via storageState in playwright.config.ts
   });
 
   test.describe('Dashboard Overview', () => {
     test('should display client dashboard with My Cases heading', async ({ page }) => {
       await page.goto('/dashboard/client');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // Should show client dashboard
       const heading = page.locator('h1:has-text("My Cases")')
@@ -34,7 +22,7 @@ test.describe('Client Portal Dashboard', () => {
 
     test('should show case tracking description', async ({ page }) => {
       await page.goto('/dashboard/client');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // Should show description text
       const description = page.locator('text=Track the progress')
@@ -48,7 +36,7 @@ test.describe('Client Portal Dashboard', () => {
 
     test('should display assigned cases or empty state', async ({ page }) => {
       await page.goto('/dashboard/client');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // Should show either cases or empty state
       const caseCard = page.locator('[data-testid="case-card"]')
@@ -67,7 +55,7 @@ test.describe('Client Portal Dashboard', () => {
 
     test('should show visa type for each case', async ({ page }) => {
       await page.goto('/dashboard/client');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // If there are cases, they should show visa type
       const caseCard = page.locator('[data-testid="case-card"]')
@@ -84,7 +72,7 @@ test.describe('Client Portal Dashboard', () => {
   test.describe('Case Status Display', () => {
     test('should display case status with appropriate indicator', async ({ page }) => {
       await page.goto('/dashboard/client');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // Look for status badges
       const statusBadge = page.locator('[data-testid="case-status"]')
@@ -106,7 +94,7 @@ test.describe('Client Portal Dashboard', () => {
 
     test('should show overall progress bar', async ({ page }) => {
       await page.goto('/dashboard/client');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // Look for progress indicators
       const progressBar = page.locator('[role="progressbar"]')
@@ -125,7 +113,7 @@ test.describe('Client Portal Dashboard', () => {
 
     test('should display deadline if set', async ({ page }) => {
       await page.goto('/dashboard/client');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // Look for deadline display
       const deadline = page.locator('text=Deadline')
@@ -139,7 +127,7 @@ test.describe('Client Portal Dashboard', () => {
   test.describe('Document Progress', () => {
     test('should show documents section with progress', async ({ page }) => {
       await page.goto('/dashboard/client');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // Look for documents section
       const documentsSection = page.locator('text=Documents')
@@ -156,7 +144,7 @@ test.describe('Client Portal Dashboard', () => {
 
     test('should display document count', async ({ page }) => {
       await page.goto('/dashboard/client');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // Look for document count display (e.g., "3 / 5")
       const documentCount = page.locator('text=/\\d+\\s*\\/\\s*\\d+/')
@@ -173,7 +161,7 @@ test.describe('Client Portal Dashboard', () => {
   test.describe('Forms Progress', () => {
     test('should show forms section with progress', async ({ page }) => {
       await page.goto('/dashboard/client');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // Look for forms section
       const formsSection = page.locator('text=Forms')
@@ -193,7 +181,7 @@ test.describe('Client Portal Dashboard', () => {
     test('should display notifications if available', async ({ page }) => {
       // Navigate to notifications page
       await page.goto('/dashboard/notifications');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // Should be on notifications page or redirect
       const notificationsHeading = page.locator('h1:has-text("Notifications")')
@@ -212,7 +200,7 @@ test.describe('Client Portal Dashboard', () => {
 
     test('should show notification bell or indicator in header', async ({ page }) => {
       await page.goto('/dashboard/client');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // Look for notification indicator in the header
       const notificationBell = page.locator('[data-testid="notification-bell"]')
@@ -225,22 +213,14 @@ test.describe('Client Portal Dashboard', () => {
 });
 
 test.describe('Client Portal - Case Access', () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async () => {
     test.skip(!hasValidCredentials('client'), 'No client credentials');
-
-    await page.goto('/login');
-    const email = process.env.E2E_CLIENT_EMAIL || TEST_USERS.client.email;
-    const password = process.env.E2E_CLIENT_PASSWORD || TEST_USERS.client.password;
-
-    await page.fill('input[name="email"]', email);
-    await page.fill('input[name="password"]', password);
-    await page.click('button[type="submit"]');
-    await page.waitForURL(/\/dashboard/);
+    // Client auth is pre-loaded via storageState in playwright.config.ts
   });
 
   test('should navigate to case detail when clicking on case', async ({ page }) => {
     await page.goto('/dashboard/client');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Find and click on a case
     const caseCard = page.locator('[data-testid="case-card"]')
@@ -259,7 +239,7 @@ test.describe('Client Portal - Case Access', () => {
 
   test('should show case timeline on detail page', async ({ page }) => {
     await page.goto('/dashboard/client');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Check if there's a timeline component
     const timeline = page.locator('[data-testid="case-timeline"]')
@@ -283,18 +263,10 @@ test.describe('Client Portal - Security', () => {
 
   test('should only show client-accessible cases', async ({ page }) => {
     test.skip(!hasValidCredentials('client'), 'No client credentials');
-
-    await page.goto('/login');
-    const email = process.env.E2E_CLIENT_EMAIL || TEST_USERS.client.email;
-    const password = process.env.E2E_CLIENT_PASSWORD || TEST_USERS.client.password;
-
-    await page.fill('input[name="email"]', email);
-    await page.fill('input[name="password"]', password);
-    await page.click('button[type="submit"]');
-    await page.waitForURL(/\/dashboard/);
+    // Client auth is pre-loaded via storageState in playwright.config.ts
 
     await page.goto('/dashboard/client');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Client should only see their cases
     // This is validated by RLS policies on the backend

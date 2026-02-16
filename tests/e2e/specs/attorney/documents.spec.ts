@@ -8,7 +8,6 @@
 
 import { test, expect } from '@playwright/test';
 import {
-  AuthHelpers,
   NavHelpers,
   DocumentFactory,
   generateTestId,
@@ -17,9 +16,9 @@ import {
 } from '../../fixtures/factories';
 
 test.describe('Attorney Document Management', () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async () => {
     test.skip(!hasValidCredentials('attorney'), 'Missing attorney test credentials');
-    await AuthHelpers.loginAs(page, 'attorney');
+    // Attorney auth is pre-loaded via storageState in playwright.config.ts
   });
 
   test.describe('Document Upload - Valid Files', () => {
@@ -44,7 +43,7 @@ test.describe('Attorney Document Management', () => {
         });
 
         // Wait for upload to process
-        await page.waitForLoadState('networkidle');
+        await page.waitForLoadState('domcontentloaded');
 
         // Check for success indication
         const successIndicator = page.locator('text=uploaded')
@@ -63,7 +62,7 @@ test.describe('Attorney Document Management', () => {
 
           if (await caseLink.isVisible()) {
             await caseLink.click();
-            await page.waitForLoadState('networkidle');
+            await page.waitForLoadState('domcontentloaded');
 
             // Click on Documents tab
             const documentsTab = page.locator('button:has-text("Documents")');
@@ -103,7 +102,7 @@ test.describe('Attorney Document Management', () => {
 
       if (await caseLink.isVisible()) {
         await caseLink.click();
-        await page.waitForLoadState('networkidle');
+        await page.waitForLoadState('domcontentloaded');
 
         // Click on Documents tab
         const documentsTab = page.locator('button:has-text("Documents")');
@@ -161,7 +160,7 @@ test.describe('Attorney Document Management', () => {
 
       if (await caseLink.isVisible()) {
         await caseLink.click();
-        await page.waitForLoadState('networkidle');
+        await page.waitForLoadState('domcontentloaded');
 
         const documentsTab = page.locator('button:has-text("Documents")');
         if (await documentsTab.isVisible()) {
@@ -209,7 +208,7 @@ test.describe('Attorney Document Management', () => {
 
       if (await caseLink.isVisible()) {
         await caseLink.click();
-        await page.waitForLoadState('networkidle');
+        await page.waitForLoadState('domcontentloaded');
 
         const documentsTab = page.locator('button:has-text("Documents")');
         if (await documentsTab.isVisible()) {
@@ -259,12 +258,12 @@ test.describe('Attorney Document Management', () => {
 
       if (await caseLink.isVisible()) {
         await caseLink.click();
-        await page.waitForLoadState('networkidle');
+        await page.waitForLoadState('domcontentloaded');
 
         const documentsTab = page.locator('button:has-text("Documents")');
         if (await documentsTab.isVisible()) {
           await documentsTab.click();
-          await page.waitForLoadState('networkidle');
+          await page.waitForLoadState('domcontentloaded');
 
           // Check for existing documents with AI analysis status
           const documentItems = page.locator('[class*="card"]')
@@ -313,7 +312,7 @@ test.describe('Attorney Document Management', () => {
 
       if (await caseLink.isVisible()) {
         await caseLink.click();
-        await page.waitForLoadState('networkidle');
+        await page.waitForLoadState('domcontentloaded');
 
         const documentsTab = page.locator('button:has-text("Documents")');
         if (await documentsTab.isVisible()) {
@@ -358,7 +357,7 @@ test.describe('Attorney Document Management', () => {
 
       if (await caseLink.isVisible()) {
         await caseLink.click();
-        await page.waitForLoadState('networkidle');
+        await page.waitForLoadState('domcontentloaded');
 
         const documentsTab = page.locator('button:has-text("Documents")');
         if (await documentsTab.isVisible()) {
@@ -408,7 +407,7 @@ test.describe('Attorney Document Management', () => {
 
       if (await caseLink.isVisible()) {
         await caseLink.click();
-        await page.waitForLoadState('networkidle');
+        await page.waitForLoadState('domcontentloaded');
 
         const documentsTab = page.locator('button:has-text("Documents")');
         if (await documentsTab.isVisible()) {

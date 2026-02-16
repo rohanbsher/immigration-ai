@@ -400,6 +400,15 @@ export const AuthHelpers = {
     await page.goto('/login');
     await page.waitForLoadState('domcontentloaded');
 
+    // If redirected away from login (already authenticated via storageState),
+    // clear all auth state (cookies + localStorage) and retry
+    if (!page.url().includes('/login')) {
+      await page.context().clearCookies();
+      await page.evaluate(() => localStorage.clear());
+      await page.goto('/login');
+      await page.waitForLoadState('domcontentloaded');
+    }
+
     const emailInput = page.locator('input[placeholder*="example.com"]').or(page.locator('input[type="email"]'));
     const passwordInput = page.locator('input[placeholder*="password"]').or(page.locator('input[type="password"]'));
 

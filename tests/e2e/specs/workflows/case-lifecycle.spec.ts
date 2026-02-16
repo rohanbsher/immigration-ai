@@ -8,7 +8,6 @@
 
 import { test, expect, Page } from '@playwright/test';
 import {
-  AuthHelpers,
   NavHelpers,
   generateCaseTitle,
   WaitHelpers,
@@ -42,9 +41,9 @@ async function verifyCaseStatus(page: Page, expectedStatus: string): Promise<boo
 }
 
 test.describe('Case Lifecycle Workflow', () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async () => {
     test.skip(!hasValidCredentials('attorney'), 'Missing attorney test credentials');
-    await AuthHelpers.loginAs(page, 'attorney');
+    // Attorney auth is pre-loaded via storageState in playwright.config.ts
   });
 
   test.describe('Intake Phase', () => {
@@ -114,7 +113,7 @@ test.describe('Case Lifecycle Workflow', () => {
 
       if (await caseLink.isVisible()) {
         await caseLink.click();
-        await page.waitForLoadState('networkidle');
+        await page.waitForLoadState('domcontentloaded');
 
         // Change status to document_collection
         const statusChanged = await changeCaseStatus(page, 'document_collection');
@@ -150,7 +149,7 @@ test.describe('Case Lifecycle Workflow', () => {
 
       if (await caseLink.isVisible()) {
         await caseLink.click();
-        await page.waitForLoadState('networkidle');
+        await page.waitForLoadState('domcontentloaded');
 
         // Change to in_review status
         const statusChanged = await changeCaseStatus(page, 'in_review');
@@ -183,11 +182,11 @@ test.describe('Case Lifecycle Workflow', () => {
 
       if (await caseLink.isVisible()) {
         await caseLink.click();
-        await page.waitForLoadState('networkidle');
+        await page.waitForLoadState('domcontentloaded');
 
         // Transition through statuses
         await changeCaseStatus(page, 'forms_preparation');
-        await page.waitForLoadState('networkidle');
+        await page.waitForLoadState('domcontentloaded');
 
         await changeCaseStatus(page, 'ready_for_filing');
 
@@ -221,7 +220,7 @@ test.describe('Case Lifecycle Workflow', () => {
 
       if (await caseLink.isVisible()) {
         await caseLink.click();
-        await page.waitForLoadState('networkidle');
+        await page.waitForLoadState('domcontentloaded');
 
         // Change to filed status
         const statusChanged = await changeCaseStatus(page, 'filed');
@@ -260,7 +259,7 @@ test.describe('Case Lifecycle Workflow', () => {
 
       if (await caseLink.isVisible()) {
         await caseLink.click();
-        await page.waitForLoadState('networkidle');
+        await page.waitForLoadState('domcontentloaded');
 
         // Change to approved status
         const statusChanged = await changeCaseStatus(page, 'approved');
@@ -297,7 +296,7 @@ test.describe('Case Lifecycle Workflow', () => {
 
       if (await caseLink.isVisible()) {
         await caseLink.click();
-        await page.waitForLoadState('networkidle');
+        await page.waitForLoadState('domcontentloaded');
 
         // Change to closed status (archive)
         const statusChanged = await changeCaseStatus(page, 'closed');
@@ -324,9 +323,9 @@ test.describe('Case Lifecycle Workflow', () => {
 });
 
 test.describe('Case Lifecycle - Edge Cases', () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async () => {
     test.skip(!hasValidCredentials('attorney'), 'Missing attorney test credentials');
-    await AuthHelpers.loginAs(page, 'attorney');
+    // Attorney auth is pre-loaded via storageState in playwright.config.ts
   });
 
   test('should handle denied case status', async ({ page }) => {
@@ -336,7 +335,7 @@ test.describe('Case Lifecycle - Edge Cases', () => {
 
     if (await caseLink.isVisible()) {
       await caseLink.click();
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // Change to denied status
       const statusChanged = await changeCaseStatus(page, 'denied');
@@ -366,7 +365,7 @@ test.describe('Case Lifecycle - Edge Cases', () => {
 
     if (await caseLink.isVisible()) {
       await caseLink.click();
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // Get current status
       const statusSelect = page.locator('select').filter({

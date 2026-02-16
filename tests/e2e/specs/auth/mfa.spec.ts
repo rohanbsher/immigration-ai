@@ -6,7 +6,7 @@
  */
 
 import { test, expect } from '@playwright/test';
-import { TEST_USERS, AuthHelpers, WaitHelpers } from '../../fixtures/factories';
+import '../../fixtures/factories';
 
 // NOTE: Uses E2E_TEST_USER (legacy generic user) instead of E2E_ATTORNEY_EMAIL (role-based)
 // TODO: Migrate to hasValidCredentials() when env vars are standardized across CI/CD
@@ -18,7 +18,7 @@ test.describe('MFA (Multi-Factor Authentication)', () => {
 
     // Login before MFA tests
     await page.goto('/login');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     await page.fill('input[name="email"]', process.env.E2E_TEST_USER!);
     await page.fill('input[name="password"]', process.env.E2E_TEST_PASSWORD!);
@@ -31,7 +31,7 @@ test.describe('MFA (Multi-Factor Authentication)', () => {
     test('should navigate to MFA settings', async ({ page }) => {
       // Go to settings
       await page.goto('/dashboard/settings');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // Look for security/MFA section
       const securityTab = page.locator('button:has-text("Security")')
@@ -54,7 +54,7 @@ test.describe('MFA (Multi-Factor Authentication)', () => {
 
     test('should display QR code when enabling MFA', async ({ page }) => {
       await page.goto('/dashboard/settings');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // Navigate to security section
       const securityTab = page.locator('button:has-text("Security")')
@@ -92,7 +92,7 @@ test.describe('MFA (Multi-Factor Authentication)', () => {
 
     test('should show manual setup code option', async ({ page }) => {
       await page.goto('/dashboard/settings');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // Navigate to security section
       const securityTab = page.locator('button:has-text("Security")');
@@ -106,7 +106,7 @@ test.describe('MFA (Multi-Factor Authentication)', () => {
 
       if (await enableMfaButton.first().isVisible()) {
         await enableMfaButton.first().click();
-        await page.waitForLoadState('networkidle');
+        await page.waitForLoadState('domcontentloaded');
 
         // Should have manual entry option
         const manualEntry = page.locator('text=manual')
@@ -126,7 +126,7 @@ test.describe('MFA (Multi-Factor Authentication)', () => {
   test.describe('MFA Verification', () => {
     test('should show verification code input after MFA setup attempt', async ({ page }) => {
       await page.goto('/dashboard/settings');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // Navigate to security section
       const securityTab = page.locator('button:has-text("Security")');
@@ -140,7 +140,7 @@ test.describe('MFA (Multi-Factor Authentication)', () => {
 
       if (await enableMfaButton.first().isVisible()) {
         await enableMfaButton.first().click();
-        await page.waitForLoadState('networkidle');
+        await page.waitForLoadState('domcontentloaded');
 
         // Should show verification code input
         const codeInput = page.locator('input[placeholder*="code"]')
@@ -164,7 +164,7 @@ test.describe('MFA (Multi-Factor Authentication)', () => {
   test.describe('MFA Disable', () => {
     test('should show disable MFA option when MFA is enabled', async ({ page }) => {
       await page.goto('/dashboard/settings');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // Navigate to security section
       const securityTab = page.locator('button:has-text("Security")');

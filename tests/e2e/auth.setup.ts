@@ -31,7 +31,7 @@ async function authenticateRole(
   const user = TEST_USERS[role];
 
   await page.goto('/login');
-  await page.waitForLoadState('networkidle');
+  await page.waitForLoadState('domcontentloaded');
 
   // Fill login form
   const emailInput = page.locator('input[placeholder*="example.com"]')

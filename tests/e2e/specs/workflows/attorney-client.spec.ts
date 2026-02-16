@@ -31,7 +31,7 @@ test.describe('Attorney-Client Cross-Role Interactions', () => {
     });
 
     test('should allow attorney to create case for client', async ({ page }) => {
-      await AuthHelpers.loginAs(page, 'attorney');
+      // Attorney auth is pre-loaded via storageState in playwright.config.ts
       await NavHelpers.goToCases(page);
 
       // Open create case dialog
@@ -97,7 +97,7 @@ test.describe('Attorney-Client Cross-Role Interactions', () => {
       // Navigate to client's cases view
       // Clients typically have a different dashboard layout
       await page.goto('/dashboard/client');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // Or navigate to cases if accessible
       const casesLink = page.locator('a[href*="cases"]')
@@ -106,7 +106,7 @@ test.describe('Attorney-Client Cross-Role Interactions', () => {
 
       if (await casesLink.first().isVisible({ timeout: 5000 })) {
         await casesLink.first().click();
-        await page.waitForLoadState('networkidle');
+        await page.waitForLoadState('domcontentloaded');
       }
 
       // Look for the shared case or any assigned case
@@ -126,7 +126,7 @@ test.describe('Attorney-Client Cross-Role Interactions', () => {
         const sharedCase = page.locator(`text="${sharedCaseTitle}"`);
         if (await sharedCase.isVisible({ timeout: 3000 })) {
           await sharedCase.click();
-          await page.waitForLoadState('networkidle');
+          await page.waitForLoadState('domcontentloaded');
 
           // Verify case details are visible
           const caseDetails = page.locator('[data-testid="case-detail"]')
@@ -137,7 +137,7 @@ test.describe('Attorney-Client Cross-Role Interactions', () => {
       } else if (hasCases) {
         // Click on first available case
         await caseList.first().click();
-        await page.waitForLoadState('networkidle');
+        await page.waitForLoadState('domcontentloaded');
 
         // Verify case view
         const caseContent = page.locator('h1')
@@ -158,7 +158,7 @@ test.describe('Attorney-Client Cross-Role Interactions', () => {
 
       // Navigate to client's case
       await page.goto('/dashboard/client');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // Find a case
       const casesLink = page.locator('a[href*="cases"]')
@@ -166,7 +166,7 @@ test.describe('Attorney-Client Cross-Role Interactions', () => {
 
       if (await casesLink.first().isVisible({ timeout: 5000 })) {
         await casesLink.first().click();
-        await page.waitForLoadState('networkidle');
+        await page.waitForLoadState('domcontentloaded');
       }
 
       const caseItem = page.locator('[class*="card"]')
@@ -174,7 +174,7 @@ test.describe('Attorney-Client Cross-Role Interactions', () => {
 
       if (await caseItem.first().isVisible({ timeout: 5000 })) {
         await caseItem.first().click();
-        await page.waitForLoadState('networkidle');
+        await page.waitForLoadState('domcontentloaded');
 
         // Look for documents section
         const documentsSection = page.locator('text=Documents')
@@ -234,7 +234,7 @@ test.describe('Attorney-Client Cross-Role Interactions', () => {
     });
 
     test('should allow attorney to review document uploaded by client', async ({ page }) => {
-      await AuthHelpers.loginAs(page, 'attorney');
+      // Attorney auth is pre-loaded via storageState in playwright.config.ts
       await NavHelpers.goToCases(page);
 
       // Find a case with documents
@@ -242,13 +242,13 @@ test.describe('Attorney-Client Cross-Role Interactions', () => {
 
       if (await caseLink.isVisible()) {
         await caseLink.click();
-        await page.waitForLoadState('networkidle');
+        await page.waitForLoadState('domcontentloaded');
 
         // Navigate to documents tab
         const documentsTab = page.locator('button:has-text("Documents")');
         if (await documentsTab.isVisible()) {
           await documentsTab.click();
-          await page.waitForLoadState('networkidle');
+          await page.waitForLoadState('domcontentloaded');
 
           // Check for documents
           const documents = page.locator('[class*="card"]')
@@ -306,7 +306,7 @@ test.describe('Attorney-Client Cross-Role Interactions', () => {
 
         if (await caseLink.isVisible()) {
           await caseLink.click();
-          await attorneyPage.waitForLoadState('networkidle');
+          await attorneyPage.waitForLoadState('domcontentloaded');
 
           // Get case ID from URL
           const currentUrl = attorneyPage.url();
@@ -325,7 +325,7 @@ test.describe('Attorney-Client Cross-Role Interactions', () => {
             // Login as client
             await AuthHelpers.loginAs(clientPage, 'client');
             await clientPage.goto('/dashboard/client');
-            await clientPage.waitForLoadState('networkidle');
+            await clientPage.waitForLoadState('domcontentloaded');
 
             // Navigate to client's cases
             const clientCasesLink = clientPage.locator('a[href*="cases"]')
@@ -333,7 +333,7 @@ test.describe('Attorney-Client Cross-Role Interactions', () => {
 
             if (await clientCasesLink.first().isVisible({ timeout: 5000 })) {
               await clientCasesLink.first().click();
-              await clientPage.waitForLoadState('networkidle');
+              await clientPage.waitForLoadState('domcontentloaded');
 
               // Find the same case
               const clientCaseItem = clientPage.locator('[class*="card"]').first()
@@ -341,7 +341,7 @@ test.describe('Attorney-Client Cross-Role Interactions', () => {
 
               if (await clientCaseItem.isVisible({ timeout: 5000 })) {
                 await clientCaseItem.click();
-                await clientPage.waitForLoadState('networkidle');
+                await clientPage.waitForLoadState('domcontentloaded');
 
                 // Get status as client sees it
                 const clientStatusBadge = clientPage.locator('[class*="badge"]')
@@ -377,7 +377,7 @@ test.describe('Attorney-Client Cross-Role Interactions', () => {
     });
 
     test('should notify relevant parties on case updates', async ({ page }) => {
-      await AuthHelpers.loginAs(page, 'attorney');
+      // Attorney auth is pre-loaded via storageState in playwright.config.ts
       await NavHelpers.goToCases(page);
 
       // Find a case
@@ -385,7 +385,7 @@ test.describe('Attorney-Client Cross-Role Interactions', () => {
 
       if (await caseLink.isVisible()) {
         await caseLink.click();
-        await page.waitForLoadState('networkidle');
+        await page.waitForLoadState('domcontentloaded');
 
         // Make a status change that should trigger notification
         const statusSelect = page.locator('select').filter({
@@ -417,7 +417,7 @@ test.describe('Attorney-Client Cross-Role Interactions', () => {
 
         if (await notificationsLink.first().isVisible({ timeout: 3000 })) {
           await notificationsLink.first().click();
-          await page.waitForLoadState('networkidle');
+          await page.waitForLoadState('domcontentloaded');
 
           // Check if notifications list is visible
           await page.locator('[data-testid="notifications-list"]')
@@ -456,7 +456,7 @@ test.describe('Cross-Role Security', () => {
 
     // Navigate to client's case view
     await page.goto('/dashboard/client');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Find and open a case
     const casesLink = page.locator('a[href*="cases"]')
@@ -464,13 +464,13 @@ test.describe('Cross-Role Security', () => {
 
     if (await casesLink.first().isVisible({ timeout: 5000 })) {
       await casesLink.first().click();
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       const caseItem = page.locator('[class*="card"]').first();
 
       if (await caseItem.isVisible({ timeout: 5000 })) {
         await caseItem.click();
-        await page.waitForLoadState('networkidle');
+        await page.waitForLoadState('domcontentloaded');
 
         // Client should NOT have status change dropdown
         const statusSelect = page.locator('select').filter({

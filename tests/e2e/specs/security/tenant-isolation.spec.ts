@@ -48,7 +48,7 @@ test.describe('Tenant Isolation Security', () => {
 
       // Via UI navigation
       await page.goto(`/dashboard/cases/${otherFirmCaseId}`);
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // Should show error or redirect away
       const currentUrl = page.url();

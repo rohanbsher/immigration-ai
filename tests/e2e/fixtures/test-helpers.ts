@@ -52,7 +52,7 @@ export { expect };
 // Login helper function
 export async function loginAs(page: Page, email: string, password: string): Promise<void> {
   await page.goto('/login');
-  await page.waitForLoadState('networkidle');
+  await page.waitForLoadState('domcontentloaded');
 
   await page.fill('input[name="email"]', email);
   await page.fill('input[name="password"]', password);
@@ -87,7 +87,7 @@ export async function waitForToast(page: Page, message: string): Promise<void> {
 // Navigate to a dashboard section
 export async function navigateTo(page: Page, section: string): Promise<void> {
   await page.goto(`/dashboard/${section}`);
-  await page.waitForLoadState('networkidle');
+  await page.waitForLoadState('domcontentloaded');
 }
 
 // Generate unique test data

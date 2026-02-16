@@ -31,14 +31,36 @@ export default defineConfig({
       testMatch: /cleanup\.teardown\.ts/,
     },
 
-    // Main browser tests (Desktop Chrome)
+    // Main browser tests — attorney-authenticated (Desktop Chrome)
     {
       name: 'chromium',
       use: {
         ...devices['Desktop Chrome'],
-        // Reuse auth state from setup (tests can override with test.use())
         storageState: 'tests/e2e/.auth/attorney.json',
       },
+      testIgnore: /\/(security|auth|client)\//,
+      dependencies: ['auth-setup'],
+    },
+
+    // Client-role tests — client-authenticated
+    {
+      name: 'client',
+      use: {
+        ...devices['Desktop Chrome'],
+        storageState: 'tests/e2e/.auth/client.json',
+      },
+      testMatch: /client\/.*\.spec\.ts/,
+      dependencies: ['auth-setup'],
+    },
+
+    // Auth tests — need unauthenticated context to test login/register forms
+    {
+      name: 'auth-tests',
+      use: {
+        ...devices['Desktop Chrome'],
+        storageState: { cookies: [], origins: [] },
+      },
+      testMatch: /auth\/.*\.spec\.ts/,
       dependencies: ['auth-setup'],
     },
 
@@ -48,7 +70,6 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
       testMatch: /security\/.*\.spec\.ts/,
       dependencies: ['auth-setup'],
-      // Security tests get extra time
       timeout: 60000,
     },
   ],

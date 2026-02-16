@@ -6,7 +6,7 @@
  */
 
 import { test, expect } from '@playwright/test';
-import { TEST_USERS, AuthHelpers, WaitHelpers, generateTestEmail } from '../../fixtures/factories';
+import { AuthHelpers, generateTestEmail } from '../../fixtures/factories';
 
 // NOTE: Uses E2E_TEST_USER (legacy generic user) instead of E2E_ATTORNEY_EMAIL (role-based)
 // TODO: Migrate to hasValidCredentials() when env vars are standardized across CI/CD
@@ -18,7 +18,7 @@ test.describe('Login Flow', () => {
       test.skip(!hasTestCredentials, 'No test credentials - skipping authenticated tests');
 
       await page.goto('/login');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       const emailInput = page.locator('input[placeholder*="example.com"]')
         .or(page.locator('input[type="email"]'))
@@ -44,7 +44,7 @@ test.describe('Login Flow', () => {
 
       // Navigate to login page while logged in
       await page.goto('/login');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // Should redirect back to dashboard
       const url = page.url();
@@ -55,7 +55,7 @@ test.describe('Login Flow', () => {
   test.describe('Error Cases', () => {
     test('should show error for invalid email format', async ({ page }) => {
       await page.goto('/login');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       const emailInput = page.locator('input[placeholder*="example.com"]')
         .or(page.locator('input[type="email"]'))
@@ -81,7 +81,7 @@ test.describe('Login Flow', () => {
 
     test('should show error for incorrect password', async ({ page }) => {
       await page.goto('/login');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       const emailInput = page.locator('input[placeholder*="example.com"]')
         .or(page.locator('input[type="email"]'))
@@ -107,7 +107,7 @@ test.describe('Login Flow', () => {
 
     test('should show error for non-existent user', async ({ page }) => {
       await page.goto('/login');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       const uniqueEmail = generateTestEmail();
 

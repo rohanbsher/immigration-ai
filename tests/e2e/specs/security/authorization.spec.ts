@@ -33,7 +33,7 @@ test.describe('Authorization and Access Control', () => {
       await page.goto('/dashboard/clients');
 
       // Should be redirected away or shown access denied
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       const url = page.url();
       const accessDenied = page.locator('text=Access denied')
@@ -59,7 +59,7 @@ test.describe('Authorization and Access Control', () => {
       await AuthHelpers.loginAs(page, 'client');
       await page.goto('/dashboard/firm');
 
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       const url = page.url();
       // Should not be on firm page
@@ -76,7 +76,7 @@ test.describe('Authorization and Access Control', () => {
       await AuthHelpers.loginAs(page, 'client');
       await page.goto('/dashboard/billing');
 
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       const url = page.url();
       // Should not be on billing page
@@ -95,7 +95,7 @@ test.describe('Authorization and Access Control', () => {
       await AuthHelpers.loginAs(page, 'attorney');
       await page.goto('/admin/dashboard');
 
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       const url = page.url();
       // Should be redirected away from admin
@@ -231,7 +231,7 @@ test.describe('Authorization and Access Control', () => {
 
       for (const url of sensitiveUrls) {
         await page.goto(url);
-        await page.waitForLoadState('networkidle');
+        await page.waitForLoadState('domcontentloaded');
 
         // Should redirect to login or show error
         const currentUrl = page.url();
@@ -283,7 +283,7 @@ test.describe('Authorization and Access Control', () => {
        * to prevent session hijacking via XSS or network interception.
        */
       await page.goto('/login');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       const cookies = await context.cookies();
       const sessionCookies = cookies.filter(c =>

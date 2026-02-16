@@ -30,7 +30,7 @@ test.describe('Authentication Attack Prevention', () => {
        * revealing whether the email exists (prevents user enumeration).
        */
       await page.goto('/login');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       const emailInput = page.locator('input[placeholder*="example.com"]')
         .or(page.locator('input[type="email"]'))
@@ -62,7 +62,7 @@ test.describe('Authentication Attack Prevention', () => {
        * malformed input from reaching the server.
        */
       await page.goto('/login');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       const emailInput = page.locator('input[placeholder*="example.com"]')
         .or(page.locator('input[type="email"]'))
@@ -100,7 +100,7 @@ test.describe('Authentication Attack Prevention', () => {
        * are properly sanitized and do not cause authentication bypass.
        */
       await page.goto('/login');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       const emailInput = page.locator('input[placeholder*="example.com"]')
         .or(page.locator('input[type="email"]'))
@@ -124,7 +124,7 @@ test.describe('Authentication Attack Prevention', () => {
         await page.click('button:has-text("Sign in")');
 
         // Wait for response
-        await page.waitForLoadState('networkidle');
+        await page.waitForLoadState('domcontentloaded');
 
         // Should NOT be authenticated (redirected to dashboard)
         expect(page.url()).not.toContain('/dashboard');
@@ -145,7 +145,7 @@ test.describe('Authentication Attack Prevention', () => {
        * and not reflected back to the user.
        */
       await page.goto('/login');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       const emailInput = page.locator('input[placeholder*="example.com"]')
         .or(page.locator('input[type="email"]'))
@@ -169,7 +169,7 @@ test.describe('Authentication Attack Prevention', () => {
         await page.click('button:has-text("Sign in")');
 
         // Wait for any response
-        await page.waitForLoadState('networkidle');
+        await page.waitForLoadState('domcontentloaded');
 
         // Check that no alert dialog appeared (XSS not executed)
         // Playwright would throw if an unexpected dialog appeared
@@ -194,7 +194,7 @@ test.describe('Authentication Attack Prevention', () => {
        * This test attempts to trigger the rate limit.
        */
       await page.goto('/login');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       const emailInput = page.locator('input[placeholder*="example.com"]')
         .or(page.locator('input[type="email"]'))
@@ -358,7 +358,7 @@ test.describe('Authentication Attack Prevention', () => {
        * an email is registered, preventing user enumeration.
        */
       await page.goto('/forgot-password');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       const emailInput = page.locator('input[placeholder*="example.com"]')
         .or(page.locator('input[type="email"]'));
@@ -374,7 +374,7 @@ test.describe('Authentication Attack Prevention', () => {
 
       // Should show generic success message (not revealing email existence)
       // Wait for either success message or generic message
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // Check page content - should not say "email not found" or similar
       const content = await page.content();

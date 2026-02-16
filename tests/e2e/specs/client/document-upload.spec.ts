@@ -1,28 +1,16 @@
 import { test, expect } from '@playwright/test';
-import { TEST_USERS, DocumentFactory, generateTestId, hasValidCredentials } from '../../fixtures/factories';
+import { DocumentFactory, generateTestId, hasValidCredentials } from '../../fixtures/factories';
 
 test.describe('Client Document Upload', () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async () => {
     test.skip(!hasValidCredentials('client'), 'No client credentials - skipping client document tests');
-
-    await page.goto('/login');
-    await page.waitForLoadState('networkidle');
-
-    // Login as client
-    const email = process.env.E2E_CLIENT_EMAIL || TEST_USERS.client.email;
-    const password = process.env.E2E_CLIENT_PASSWORD || TEST_USERS.client.password;
-
-    await page.fill('input[name="email"]', email);
-    await page.fill('input[name="password"]', password);
-    await page.click('button[type="submit"]');
-
-    await page.waitForURL(/\/dashboard/, { timeout: 15000 });
+    // Client auth is pre-loaded via storageState in playwright.config.ts
   });
 
   test.describe('Document Upload Interface', () => {
     test('should display upload interface on documents page', async ({ page }) => {
       await page.goto('/dashboard/documents');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // Should show upload area
       const uploadArea = page.locator('[data-testid="upload-dropzone"]')
@@ -35,7 +23,7 @@ test.describe('Client Document Upload', () => {
 
     test('should upload passport document', async ({ page }) => {
       await page.goto('/dashboard/documents');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // Find file input
       const fileInput = page.locator('input[type="file"]');
@@ -74,7 +62,7 @@ test.describe('Client Document Upload', () => {
           await uploadButton.first().click();
 
           // Wait for upload to complete
-          await page.waitForLoadState('networkidle');
+          await page.waitForLoadState('domcontentloaded');
 
           // Should show success message
           const successMessage = page.locator('text=uploaded')
@@ -90,7 +78,7 @@ test.describe('Client Document Upload', () => {
 
     test('should upload supporting document', async ({ page }) => {
       await page.goto('/dashboard/documents');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // Find file input
       const fileInput = page.locator('input[type="file"]');
@@ -125,14 +113,14 @@ test.describe('Client Document Upload', () => {
 
         if (await uploadButton.isVisible()) {
           await uploadButton.click();
-          await page.waitForLoadState('networkidle');
+          await page.waitForLoadState('domcontentloaded');
         }
       }
     });
 
     test('should show upload progress during upload', async ({ page }) => {
       await page.goto('/dashboard/documents');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // Find file input
       const fileInput = page.locator('input[type="file"]');
@@ -168,7 +156,7 @@ test.describe('Client Document Upload', () => {
 
     test('should display upload status after upload', async ({ page }) => {
       await page.goto('/dashboard/documents');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // Look for existing documents with status
       const documentList = page.locator('[data-testid="document-list"]')
@@ -185,7 +173,7 @@ test.describe('Client Document Upload', () => {
   test.describe('Document Rejection and Re-upload', () => {
     test('should allow re-upload after rejection', async ({ page }) => {
       await page.goto('/dashboard/documents');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // Look for rejected document indicator
       const rejectedDocument = page.locator('text=Rejected')
@@ -221,7 +209,7 @@ test.describe('Client Document Upload', () => {
   test.describe('Document Type Selection', () => {
     test('should display document type options', async ({ page }) => {
       await page.goto('/dashboard/documents');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // Find file input and add a file
       const fileInput = page.locator('input[type="file"]');
@@ -257,7 +245,7 @@ test.describe('Client Document Upload', () => {
 
     test('should support file type validation', async ({ page }) => {
       await page.goto('/dashboard/documents');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // File input should have accept attribute
       const fileInput = page.locator('input[type="file"]');
@@ -287,18 +275,10 @@ test.describe('Client Document Upload - Security', () => {
 
   test('should validate file types on upload', async ({ page }) => {
     test.skip(!hasValidCredentials('client'), 'No client credentials');
-
-    await page.goto('/login');
-    const email = process.env.E2E_CLIENT_EMAIL || TEST_USERS.client.email;
-    const password = process.env.E2E_CLIENT_PASSWORD || TEST_USERS.client.password;
-
-    await page.fill('input[name="email"]', email);
-    await page.fill('input[name="password"]', password);
-    await page.click('button[type="submit"]');
-    await page.waitForURL(/\/dashboard/);
+    // Client auth is pre-loaded via storageState in playwright.config.ts
 
     await page.goto('/dashboard/documents');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Try to upload invalid file type
     const fileInput = page.locator('input[type="file"]');
@@ -324,18 +304,10 @@ test.describe('Client Document Upload - Security', () => {
 
   test('should enforce file size limits', async ({ page }) => {
     test.skip(!hasValidCredentials('client'), 'No client credentials');
-
-    await page.goto('/login');
-    const email = process.env.E2E_CLIENT_EMAIL || TEST_USERS.client.email;
-    const password = process.env.E2E_CLIENT_PASSWORD || TEST_USERS.client.password;
-
-    await page.fill('input[name="email"]', email);
-    await page.fill('input[name="password"]', password);
-    await page.click('button[type="submit"]');
-    await page.waitForURL(/\/dashboard/);
+    // Client auth is pre-loaded via storageState in playwright.config.ts
 
     await page.goto('/dashboard/documents');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Verify file size limit is displayed
     const sizeLimit = page.locator('text=10MB')

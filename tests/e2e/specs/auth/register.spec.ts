@@ -12,7 +12,7 @@ test.describe('Registration Flow', () => {
   test.describe('Role Selection', () => {
     test('should allow selecting Attorney role and show attorney fields', async ({ page }) => {
       await page.goto('/register');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // Find and click Attorney option
       const attorneyButton = page.locator('button:has-text("Attorney")')
@@ -34,7 +34,7 @@ test.describe('Registration Flow', () => {
 
     test('should allow selecting Client role', async ({ page }) => {
       await page.goto('/register');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // Find and click Client option
       const clientButton = page.locator('button:has-text("Client")')
@@ -59,7 +59,7 @@ test.describe('Registration Flow', () => {
   test.describe('Form Validation', () => {
     test('should validate password requirements', async ({ page }) => {
       await page.goto('/register');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       const passwordInput = page.locator('input[type="password"]')
         .or(page.locator('input[name="password"]'));
@@ -81,7 +81,7 @@ test.describe('Registration Flow', () => {
 
     test('should prevent registration with existing email', async ({ page }) => {
       await page.goto('/register');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // Use a common test email that likely exists
       const existingEmail = process.env.E2E_TEST_USER || 'test@example.com';

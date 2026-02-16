@@ -6,38 +6,30 @@
  */
 
 import { test, expect } from '@playwright/test';
-import { TEST_USERS, AuthHelpers, NavHelpers } from '../../fixtures/factories';
+import '../../fixtures/factories';
 
 // NOTE: Uses E2E_TEST_USER (legacy generic user) instead of E2E_ATTORNEY_EMAIL (role-based)
 // TODO: Migrate to hasValidCredentials() when env vars are standardized across CI/CD
 const hasTestCredentials = process.env.E2E_TEST_USER && process.env.E2E_TEST_PASSWORD;
 
 test.describe('Quota Enforcement', () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async () => {
     test.skip(!hasTestCredentials, 'No test credentials - skipping authenticated tests');
-
-    await page.goto('/login');
-    await page.waitForLoadState('networkidle');
-
-    await page.fill('input[name="email"]', process.env.E2E_TEST_USER!);
-    await page.fill('input[name="password"]', process.env.E2E_TEST_PASSWORD!);
-    await page.click('button[type="submit"]');
-
-    await page.waitForURL(/\/dashboard/, { timeout: 15000 });
+    // Attorney auth is pre-loaded via storageState in playwright.config.ts
   });
 
   test.describe('Usage Display', () => {
     test('should display current usage statistics', async ({ page }) => {
       // Navigate to billing settings
       await page.goto('/dashboard/settings');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // Navigate to billing tab
       const billingTab = page.locator('button:has-text("Billing")')
         .or(page.locator('a:has-text("Billing")'));
       if (await billingTab.first().isVisible()) {
         await billingTab.first().click();
-        await page.waitForLoadState('networkidle');
+        await page.waitForLoadState('domcontentloaded');
       }
 
       // Should show usage metrics
@@ -54,7 +46,7 @@ test.describe('Quota Enforcement', () => {
     test('should show upgrade prompt when approaching limits', async ({ page }) => {
       // This test verifies the UI shows upgrade prompts appropriately
       await page.goto('/dashboard');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // Look for any upgrade prompts or limit warnings
       const upgradePrompt = page.locator('[data-testid="upgrade-prompt"]')
@@ -75,7 +67,7 @@ test.describe('Quota Enforcement', () => {
   test.describe('Limit Enforcement', () => {
     test('should display plan limits in pricing comparison', async ({ page }) => {
       await page.goto('/pricing');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // Should show case limits for each plan
       const limitInfo = page.locator('text=cases')

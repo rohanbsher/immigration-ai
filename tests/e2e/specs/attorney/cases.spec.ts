@@ -8,7 +8,6 @@
 
 import { test, expect } from '@playwright/test';
 import {
-  AuthHelpers,
   NavHelpers,
   generateCaseTitle,
   WaitHelpers,
@@ -16,9 +15,9 @@ import {
 } from '../../fixtures/factories';
 
 test.describe('Attorney Case Management', () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async () => {
     test.skip(!hasValidCredentials('attorney'), 'Missing attorney test credentials');
-    await AuthHelpers.loginAs(page, 'attorney');
+    // Attorney auth is pre-loaded via storageState in playwright.config.ts
   });
 
   test.describe('Case Creation', () => {
@@ -178,7 +177,7 @@ test.describe('Attorney Case Management', () => {
 
       if (await caseLink.isVisible()) {
         await caseLink.click();
-        await page.waitForLoadState('networkidle');
+        await page.waitForLoadState('domcontentloaded');
 
         // Look for edit button
         const editButton = page.locator('button[aria-label*="Edit"]')
@@ -220,7 +219,7 @@ test.describe('Attorney Case Management', () => {
 
       if (await caseLink.isVisible()) {
         await caseLink.click();
-        await page.waitForLoadState('networkidle');
+        await page.waitForLoadState('domcontentloaded');
 
         // Find status dropdown/selector
         const statusSelect = page.locator('select')
@@ -261,7 +260,7 @@ test.describe('Attorney Case Management', () => {
 
       if (await caseLink.isVisible()) {
         await caseLink.click();
-        await page.waitForLoadState('networkidle');
+        await page.waitForLoadState('domcontentloaded');
 
         // Find delete button (might be in a dropdown menu)
         const deleteButton = page.locator('button:has-text("Delete")')

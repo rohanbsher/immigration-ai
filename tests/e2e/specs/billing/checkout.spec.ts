@@ -6,7 +6,7 @@
  */
 
 import { test, expect } from '@playwright/test';
-import { TEST_USERS, AuthHelpers, WaitHelpers, NavHelpers } from '../../fixtures/factories';
+import '../../fixtures/factories';
 
 // NOTE: Uses E2E_TEST_USER (legacy generic user) instead of E2E_ATTORNEY_EMAIL (role-based)
 // TODO: Migrate to hasValidCredentials() when env vars are standardized across CI/CD
@@ -20,23 +20,15 @@ const STRIPE_TEST_CARDS = {
 };
 
 test.describe('Billing Checkout', () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async () => {
     test.skip(!hasTestCredentials, 'No test credentials - skipping authenticated tests');
-
-    await page.goto('/login');
-    await page.waitForLoadState('networkidle');
-
-    await page.fill('input[name="email"]', process.env.E2E_TEST_USER!);
-    await page.fill('input[name="password"]', process.env.E2E_TEST_PASSWORD!);
-    await page.click('button[type="submit"]');
-
-    await page.waitForURL(/\/dashboard/, { timeout: 15000 });
+    // Attorney auth is pre-loaded via storageState in playwright.config.ts
   });
 
   test.describe('Checkout Flow', () => {
     test('should display pricing plans with upgrade options', async ({ page }) => {
       await page.goto('/pricing');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // Should show pricing plans
       const pricingSection = page.locator('text=Pricing')
@@ -56,7 +48,7 @@ test.describe('Billing Checkout', () => {
 
     test('should initiate checkout when clicking upgrade', async ({ page }) => {
       await page.goto('/pricing');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       const upgradeButton = page.locator('button:has-text("Upgrade")')
         .or(page.locator('button:has-text("Subscribe")'))
@@ -73,7 +65,7 @@ test.describe('Billing Checkout', () => {
           upgradeButton.first().click(),
         ]);
 
-        await page.waitForLoadState('networkidle');
+        await page.waitForLoadState('domcontentloaded');
 
         // Should either redirect to Stripe or show checkout modal
         const url = page.url();
@@ -90,7 +82,7 @@ test.describe('Billing Checkout', () => {
 
     test('should display plan details before checkout', async ({ page }) => {
       await page.goto('/pricing');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // Should show plan features
       const features = page.locator('[data-testid="plan-features"]')
@@ -109,7 +101,7 @@ test.describe('Billing Checkout', () => {
   test.describe('Subscription Management', () => {
     test('should display current subscription status in billing settings', async ({ page }) => {
       await page.goto('/dashboard/settings');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // Navigate to billing tab
       const billingTab = page.locator('button:has-text("Billing")')
@@ -118,7 +110,7 @@ test.describe('Billing Checkout', () => {
 
       if (await billingTab.first().isVisible()) {
         await billingTab.first().click();
-        await page.waitForLoadState('networkidle');
+        await page.waitForLoadState('domcontentloaded');
       }
 
       // Should show subscription info
@@ -133,13 +125,13 @@ test.describe('Billing Checkout', () => {
 
     test('should show billing history or invoices section', async ({ page }) => {
       await page.goto('/dashboard/settings');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // Navigate to billing tab
       const billingTab = page.locator('button:has-text("Billing")');
       if (await billingTab.first().isVisible()) {
         await billingTab.first().click();
-        await page.waitForLoadState('networkidle');
+        await page.waitForLoadState('domcontentloaded');
       }
 
       // Look for billing history or invoices

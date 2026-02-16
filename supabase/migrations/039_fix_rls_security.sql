@@ -15,7 +15,10 @@
 -- ============================================================================
 -- 1. Fix soft_delete_case() - require case ownership or admin role
 -- ============================================================================
-CREATE OR REPLACE FUNCTION public.soft_delete_case(p_case_id UUID)
+-- Must DROP first because we're renaming parameter from case_id to p_case_id
+-- (PostgreSQL does not allow parameter renames via CREATE OR REPLACE)
+DROP FUNCTION IF EXISTS public.soft_delete_case(UUID);
+CREATE FUNCTION public.soft_delete_case(p_case_id UUID)
 RETURNS VOID
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -61,7 +64,9 @@ $$;
 -- ============================================================================
 -- 2. Fix restore_case() - require case ownership or admin role
 -- ============================================================================
-CREATE OR REPLACE FUNCTION public.restore_case(p_case_id UUID)
+-- Must DROP first because we're renaming parameter from case_id to p_case_id
+DROP FUNCTION IF EXISTS public.restore_case(UUID);
+CREATE FUNCTION public.restore_case(p_case_id UUID)
 RETURNS VOID
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -103,6 +108,10 @@ BEGIN
   WHERE case_id = p_case_id AND deleted_at IS NOT NULL;
 END;
 $$;
+
+-- Re-grant permissions (DROP FUNCTION removes grants)
+GRANT EXECUTE ON FUNCTION public.soft_delete_case(UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.restore_case(UUID) TO authenticated;
 
 -- ============================================================================
 -- 3. Fix document_access_log INSERT policy

@@ -20,9 +20,15 @@
  */
 
 import { test, expect } from '@playwright/test';
-import { generateTestEmail } from '../../fixtures/factories';
+import { generateTestEmail, dismissConsent } from '../../fixtures/factories';
 
 test.describe('Authentication Attack Prevention', () => {
+  // Dismiss cookie consent banner before each test to prevent it from
+  // blocking form elements (storageState origins may not match in CI)
+  test.beforeEach(async ({ page }) => {
+    await dismissConsent(page);
+  });
+
   test.describe('Input Validation', () => {
     test('should reject invalid credentials with appropriate error', async ({ page }) => {
       /**

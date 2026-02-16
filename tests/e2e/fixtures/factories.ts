@@ -502,6 +502,19 @@ export const CleanupHelpers = {
 };
 
 /**
+ * Dismiss cookie consent banner by setting localStorage directly.
+ * Works regardless of storageState origin matching (which can fail in CI
+ * when E2E_BASE_URL doesn't exactly match the playwright config origin).
+ */
+export async function dismissConsent(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    localStorage.setItem('immigration-ai-consent', JSON.stringify({
+      analytics: false, timestamp: '2026-01-01T00:00:00Z', version: '1.0',
+    }));
+  });
+}
+
+/**
  * Wait helpers for async operations
  */
 export const WaitHelpers = {

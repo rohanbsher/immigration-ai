@@ -248,11 +248,12 @@ test.describe('Authorization and Access Control', () => {
        * SECURITY: Users should not bypass authorization by directly
        * navigating to URLs with manipulated IDs.
        */
-      // Try accessing admin-only URLs directly (not attorney features)
+      // Try accessing admin-only page URLs directly (not attorney features)
+      // NOTE: Only test page routes, not API routes — API routes don't redirect
+      // in the browser and would keep /api/admin in the URL bar
       const adminOnlyUrls = [
         '/admin/users',
         '/admin/dashboard',
-        '/api/admin/stats',
       ];
 
       for (const url of adminOnlyUrls) {
@@ -269,6 +270,8 @@ test.describe('Authorization and Access Control', () => {
 
         expect(isProtected).toBe(true);
       }
+
+      // API admin endpoints are tested separately in the API Authorization test above
     });
   });
 

@@ -138,8 +138,9 @@ test.describe('Tenant Isolation Security', () => {
       for (const req of crossFirmRequests) {
         const response = await request.get(req.path);
 
-        // All should be blocked — accept 200 with empty data (RLS) or 403/404
-        expect([200, 400, 403, 404].includes(response.status())).toBe(true);
+        // All should be blocked — accept various valid security responses:
+        // 200 with empty data (RLS), 400, 401, 403, 404, 405 (method not allowed)
+        expect([200, 400, 401, 403, 404, 405].includes(response.status())).toBe(true);
 
         // Verify no sensitive data in error response
         if (response.status() === 404 || response.status() === 403) {
@@ -147,7 +148,6 @@ test.describe('Tenant Isolation Security', () => {
           const bodyStr = JSON.stringify(body);
 
           // Should not leak internal information in error responses
-          // (field names in data schemas are acceptable, only in error details)
           expect(bodyStr).not.toContain('other_firm');
         }
       }

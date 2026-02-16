@@ -6,13 +6,19 @@
  */
 
 import { test, expect } from '@playwright/test';
-import { AuthHelpers, generateTestEmail } from '../../fixtures/factories';
+import { AuthHelpers, generateTestEmail, dismissConsent } from '../../fixtures/factories';
 
 // NOTE: Uses E2E_TEST_USER (legacy generic user) instead of E2E_ATTORNEY_EMAIL (role-based)
 // TODO: Migrate to hasValidCredentials() when env vars are standardized across CI/CD
 const hasTestCredentials = process.env.E2E_TEST_USER && process.env.E2E_TEST_PASSWORD;
 
 test.describe('Login Flow', () => {
+  // Dismiss cookie consent banner before each test to prevent it from
+  // blocking form elements (storageState origins may not match in CI)
+  test.beforeEach(async ({ page }) => {
+    await dismissConsent(page);
+  });
+
   test.describe('Happy Path', () => {
     test('should successfully login with valid credentials', async ({ page }) => {
       test.skip(!hasTestCredentials, 'No test credentials - skipping authenticated tests');

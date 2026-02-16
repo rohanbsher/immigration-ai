@@ -39,7 +39,7 @@ test.describe('Attorney-Client Cross-Role Interactions', () => {
       await expect(newCaseButton).toBeVisible();
       await newCaseButton.click();
 
-      const dialog = page.locator('[role="dialog"]');
+      const dialog = page.locator('[role="dialog"]:not([aria-label="Cookie consent"])');
       await expect(dialog).toBeVisible();
 
       // Fill case details

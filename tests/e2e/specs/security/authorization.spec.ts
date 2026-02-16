@@ -15,13 +15,19 @@
  * These tests verify proper enforcement of the principle of least privilege.
  * Authorization failures could lead to data breaches, privilege escalation,
  * and unauthorized access to sensitive immigration case data.
+ *
+ * Auth strategy: Uses test.use() per describe block to set the correct
+ * storageState for each role, avoiding loginAs() calls that hit rate limits.
  */
 
 import { test, expect } from '@playwright/test';
-import { AuthHelpers, generateTestId, hasValidCredentials } from '../../fixtures/factories';
+import { generateTestId, hasValidCredentials } from '../../fixtures/factories';
 
 test.describe('Authorization and Access Control', () => {
   test.describe('Client Role Restrictions', () => {
+    // Client auth is loaded via storageState — no loginAs needed
+    test.use({ storageState: 'tests/e2e/.auth/client.json' });
+
     test('client cannot access /dashboard/clients', async ({ page }) => {
       /**
        * SECURITY: Clients should not be able to view other clients.
@@ -29,10 +35,7 @@ test.describe('Authorization and Access Control', () => {
        */
       test.skip(!hasValidCredentials('client'), 'No client credentials configured');
 
-      await AuthHelpers.loginAs(page, 'client');
       await page.goto('/dashboard/clients');
-
-      // Should be redirected away or shown access denied
       await page.waitForLoadState('domcontentloaded');
 
       const url = page.url();
@@ -56,9 +59,7 @@ test.describe('Authorization and Access Control', () => {
        */
       test.skip(!hasValidCredentials('client'), 'No client credentials configured');
 
-      await AuthHelpers.loginAs(page, 'client');
       await page.goto('/dashboard/firm');
-
       await page.waitForLoadState('domcontentloaded');
 
       const url = page.url();
@@ -73,9 +74,7 @@ test.describe('Authorization and Access Control', () => {
        */
       test.skip(!hasValidCredentials('client'), 'No client credentials configured');
 
-      await AuthHelpers.loginAs(page, 'client');
       await page.goto('/dashboard/billing');
-
       await page.waitForLoadState('domcontentloaded');
 
       const url = page.url();
@@ -85,6 +84,8 @@ test.describe('Authorization and Access Control', () => {
   });
 
   test.describe('Attorney Role Restrictions', () => {
+    // Attorney auth is pre-loaded via storageState in playwright.config.ts (security-access project)
+
     test('attorney cannot access admin routes', async ({ page }) => {
       /**
        * SECURITY: Attorneys should not have administrative access.
@@ -92,9 +93,7 @@ test.describe('Authorization and Access Control', () => {
        */
       test.skip(!hasValidCredentials('attorney'), 'No attorney credentials configured');
 
-      await AuthHelpers.loginAs(page, 'attorney');
       await page.goto('/admin/dashboard');
-
       await page.waitForLoadState('domcontentloaded');
 
       const url = page.url();
@@ -104,6 +103,9 @@ test.describe('Authorization and Access Control', () => {
   });
 
   test.describe('Unauthenticated User Protection', () => {
+    // Override to unauthenticated context
+    test.use({ storageState: { cookies: [], origins: [] } });
+
     test('unauthenticated user redirected from protected routes', async ({ page }) => {
       /**
        * SECURITY: All dashboard routes require authentication.
@@ -127,14 +129,15 @@ test.describe('Authorization and Access Control', () => {
   });
 
   test.describe('Role Elevation Prevention', () => {
+    // Client auth loaded via storageState
+    test.use({ storageState: 'tests/e2e/.auth/client.json' });
+
     test('role elevation attempt fails', async ({ page, request }) => {
       /**
        * SECURITY: Users should not be able to elevate their own role.
        * This prevents privilege escalation attacks.
        */
       test.skip(!hasValidCredentials('client'), 'No client credentials configured');
-
-      await AuthHelpers.loginAs(page, 'client');
 
       // Attempt to update profile with elevated role
       const response = await request.put('/api/profile', {
@@ -156,14 +159,14 @@ test.describe('Authorization and Access Control', () => {
   });
 
   test.describe('Cross-Tenant Access Control', () => {
+    // Attorney auth is pre-loaded via storageState in playwright.config.ts
+
     test('cross-tenant case access denied', async ({ page, request }) => {
       /**
        * SECURITY: Users from one firm should not access cases from another firm.
        * This is critical for legal confidentiality and data isolation.
        */
       test.skip(!hasValidCredentials('attorney'), 'No attorney credentials configured');
-
-      await AuthHelpers.loginAs(page, 'attorney');
 
       // Attempt to access a case with a random UUID (likely different tenant)
       const randomCaseId = `${generateTestId()}-0000-0000-0000-000000000000`;
@@ -181,8 +184,6 @@ test.describe('Authorization and Access Control', () => {
        */
       test.skip(!hasValidCredentials('attorney'), 'No attorney credentials configured');
 
-      await AuthHelpers.loginAs(page, 'attorney');
-
       // Attempt to access a document with a random UUID
       const randomDocId = `${generateTestId()}-0000-0000-0000-000000000000`;
 
@@ -194,6 +195,9 @@ test.describe('Authorization and Access Control', () => {
   });
 
   test.describe('API Authorization', () => {
+    // Override to unauthenticated context for testing API auth enforcement
+    test.use({ storageState: { cookies: [], origins: [] } });
+
     test('API returns 403 for unauthorized requests', async ({ request }) => {
       /**
        * SECURITY: API endpoints must enforce authentication.
@@ -216,6 +220,8 @@ test.describe('Authorization and Access Control', () => {
   });
 
   test.describe('URL Manipulation Protection', () => {
+    // Attorney auth is pre-loaded via storageState in playwright.config.ts
+
     test('direct URL manipulation blocked', async ({ page }) => {
       /**
        * SECURITY: Users should not bypass authorization by directly
@@ -246,6 +252,8 @@ test.describe('Authorization and Access Control', () => {
   });
 
   test.describe('Token Security', () => {
+    // Attorney auth is pre-loaded via storageState in playwright.config.ts
+
     test('JWT tampering detected', async ({ context, request }) => {
       /**
        * SECURITY: Modified JWTs should be rejected by the server.

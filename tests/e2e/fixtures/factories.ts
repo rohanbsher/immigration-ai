@@ -404,7 +404,13 @@ export const AuthHelpers = {
     // clear all auth state (cookies + localStorage) and retry
     if (!page.url().includes('/login')) {
       await page.context().clearCookies();
-      await page.evaluate(() => localStorage.clear());
+      await page.evaluate(() => {
+        localStorage.clear();
+        // Re-set cookie consent to prevent consent banner from appearing
+        localStorage.setItem('immigration-ai-consent', JSON.stringify({
+          analytics: false, timestamp: new Date().toISOString(), version: '1.0',
+        }));
+      });
       await page.goto('/login');
       await page.waitForLoadState('domcontentloaded');
     }

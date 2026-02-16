@@ -20,6 +20,8 @@
 import { test, expect } from '@playwright/test';
 import { AuthHelpers, generateTestId, hasValidCredentials } from '../../fixtures/factories';
 
+// Attorney auth is pre-loaded via storageState in playwright.config.ts (security-access project)
+
 // Generate UUIDs that look realistic but won't exist
 function generateNonExistentUUID(): string {
   return `${generateTestId().substring(0, 8)}-0000-4000-a000-000000000000`;
@@ -34,7 +36,7 @@ test.describe('Tenant Isolation Security', () => {
        */
       test.skip(!hasValidCredentials('attorney'), 'No attorney credentials configured');
 
-      await AuthHelpers.loginAs(page, 'attorney');
+      // Attorney auth is pre-loaded via storageState
 
       // Try to access a case that belongs to a different firm
       const otherFirmCaseId = generateNonExistentUUID();
@@ -76,7 +78,7 @@ test.describe('Tenant Isolation Security', () => {
        */
       test.skip(!hasValidCredentials('attorney'), 'No attorney credentials configured');
 
-      await AuthHelpers.loginAs(page, 'attorney');
+      // Attorney auth is pre-loaded via storageState
 
       // Try to access a document that belongs to a different firm
       const otherFirmDocId = generateNonExistentUUID();
@@ -99,7 +101,7 @@ test.describe('Tenant Isolation Security', () => {
        */
       test.skip(!hasValidCredentials('attorney'), 'No attorney credentials configured');
 
-      await AuthHelpers.loginAs(page, 'attorney');
+      // Attorney auth is pre-loaded via storageState
 
       // Try to access a client from another firm
       const otherFirmClientId = generateNonExistentUUID();
@@ -118,7 +120,7 @@ test.describe('Tenant Isolation Security', () => {
        */
       test.skip(!hasValidCredentials('attorney'), 'No attorney credentials configured');
 
-      await AuthHelpers.loginAs(page, 'attorney');
+      // Attorney auth is pre-loaded via storageState
 
       // Array of endpoints to test with cross-firm IDs
       const crossFirmRequests = [
@@ -157,7 +159,7 @@ test.describe('Tenant Isolation Security', () => {
        */
       test.skip(!hasValidCredentials('attorney'), 'No attorney credentials configured');
 
-      await AuthHelpers.loginAs(page, 'attorney');
+      // Attorney auth is pre-loaded via storageState
 
       // Get list endpoints and verify no cross-firm data
       const listEndpoints = [
@@ -195,7 +197,7 @@ test.describe('Tenant Isolation Security', () => {
        */
       test.skip(!hasValidCredentials('attorney'), 'No attorney credentials configured');
 
-      await AuthHelpers.loginAs(page, 'attorney');
+      // Attorney auth is pre-loaded via storageState
 
       // Perform search queries
       const searchEndpoints = [
@@ -231,7 +233,7 @@ test.describe('Tenant Isolation Security', () => {
        */
       test.skip(!hasValidCredentials('attorney'), 'No attorney credentials configured');
 
-      await AuthHelpers.loginAs(page, 'attorney');
+      // Attorney auth is pre-loaded via storageState
 
       // Test export endpoints if they exist
       const exportEndpoints = [

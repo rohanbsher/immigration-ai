@@ -31,7 +31,7 @@ test.describe('Attorney Case Management', () => {
       await newCaseButton.click();
 
       // Wait for dialog to open
-      const dialog = page.locator('[role="dialog"]');
+      const dialog = page.locator('[role="dialog"]:not([aria-label="Cookie consent"])');
       await expect(dialog).toBeVisible();
 
       // Fill in case details
@@ -309,7 +309,7 @@ test.describe('Attorney Case Management', () => {
       if (await newCaseButton.isVisible()) {
         await newCaseButton.click();
 
-        const dialog = page.locator('[role="dialog"]');
+        const dialog = page.locator('[role="dialog"]:not([aria-label="Cookie consent"])');
         await expect(dialog).toBeVisible();
 
         // Verify client ID field is required

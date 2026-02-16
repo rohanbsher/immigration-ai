@@ -322,7 +322,7 @@ test.describe('AI Form Autofill Workflow', () => {
             await startReviewButton.first().click();
 
             // Review workflow should start
-            const reviewDialog = page.locator('[role="dialog"]')
+            const reviewDialog = page.locator('[role="dialog"]:not([aria-label="Cookie consent"])')
               .or(page.locator('[data-testid="review-dialog"]'));
 
             // Or inline review mode

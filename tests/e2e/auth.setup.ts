@@ -56,7 +56,16 @@ async function authenticateRole(
     throw wrappedError;
   }
 
-  // Store authenticated state
+  // Dismiss cookie consent banner to prevent dialog conflicts in tests
+  await page.evaluate(() => {
+    localStorage.setItem('immigration-ai-consent', JSON.stringify({
+      analytics: false,
+      timestamp: new Date().toISOString(),
+      version: '1.0',
+    }));
+  });
+
+  // Store authenticated state (includes cookies + localStorage with consent)
   await page.context().storageState({ path: authFile });
   console.log(`✅ ${role} auth state saved`);
 }

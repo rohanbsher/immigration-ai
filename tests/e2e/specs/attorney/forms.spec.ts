@@ -82,7 +82,7 @@ test.describe('Form Management - Attorney', () => {
       await createButton.first().click();
 
       // Dialog should open
-      const dialog = page.locator('[role="dialog"]')
+      const dialog = page.locator('[role="dialog"]:not([aria-label="Cookie consent"])')
         .or(page.locator('[data-testid="create-form-dialog"]'));
       await expect(dialog.first()).toBeVisible({ timeout: 5000 });
 
@@ -110,14 +110,14 @@ test.describe('Form Management - Attorney', () => {
         await createButton.first().click();
 
         // Select I-130 in dialog
-        const i130Option = page.locator('[role="dialog"]').locator('text=I-130');
+        const i130Option = page.locator('[role="dialog"]:not([aria-label="Cookie consent"])').locator('text=I-130');
         if (await i130Option.first().isVisible()) {
           await i130Option.first().click();
         }
       }
 
       // Dialog should be open for case selection
-      const dialog = page.locator('[role="dialog"]');
+      const dialog = page.locator('[role="dialog"]:not([aria-label="Cookie consent"])');
       await expect(dialog).toBeVisible({ timeout: 5000 });
 
       // Select a case if available
@@ -148,7 +148,7 @@ test.describe('Form Management - Attorney', () => {
       const createButton = page.locator('button:has-text("New Form")');
       await createButton.first().click();
 
-      const dialog = page.locator('[role="dialog"]');
+      const dialog = page.locator('[role="dialog"]:not([aria-label="Cookie consent"])');
       await expect(dialog).toBeVisible({ timeout: 5000 });
 
       // Select I-485
@@ -172,7 +172,7 @@ test.describe('Form Management - Attorney', () => {
       const createButton = page.locator('button:has-text("New Form")');
       await createButton.first().click();
 
-      const dialog = page.locator('[role="dialog"]');
+      const dialog = page.locator('[role="dialog"]:not([aria-label="Cookie consent"])');
       await expect(dialog).toBeVisible({ timeout: 5000 });
 
       // Select I-765
@@ -190,7 +190,7 @@ test.describe('Form Management - Attorney', () => {
       const createButton = page.locator('button:has-text("New Form")');
       await createButton.first().click();
 
-      const dialog = page.locator('[role="dialog"]');
+      const dialog = page.locator('[role="dialog"]:not([aria-label="Cookie consent"])');
       await expect(dialog).toBeVisible({ timeout: 5000 });
 
       // Try to create without selections
@@ -315,7 +315,7 @@ test.describe('Form Management - Attorney', () => {
       const createButton = page.locator('button:has-text("New Form")');
       await createButton.first().click();
 
-      const dialog = page.locator('[role="dialog"]');
+      const dialog = page.locator('[role="dialog"]:not([aria-label="Cookie consent"])');
       await expect(dialog).toBeVisible({ timeout: 5000 });
 
       // Without selecting anything, the button should be disabled or show error

@@ -64,11 +64,26 @@ export default defineConfig({
       dependencies: ['auth-setup'],
     },
 
-    // Security tests (separate project for isolation)
+    // Security login tests — test the login page directly (unauthenticated)
     {
-      name: 'security',
-      use: { ...devices['Desktop Chrome'] },
-      testMatch: /security\/.*\.spec\.ts/,
+      name: 'security-login',
+      use: {
+        ...devices['Desktop Chrome'],
+        storageState: { cookies: [], origins: [] },
+      },
+      testMatch: /security\/auth-attacks\.spec\.ts/,
+      dependencies: ['auth-setup'],
+      timeout: 60000,
+    },
+
+    // Security access tests — attorney pre-authenticated for authorization + tenant isolation
+    {
+      name: 'security-access',
+      use: {
+        ...devices['Desktop Chrome'],
+        storageState: 'tests/e2e/.auth/attorney.json',
+      },
+      testMatch: /security\/(authorization|tenant-isolation)\.spec\.ts/,
       dependencies: ['auth-setup'],
       timeout: 60000,
     },

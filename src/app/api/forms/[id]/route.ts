@@ -5,7 +5,7 @@ import { auditService } from '@/lib/audit';
 import { z } from 'zod';
 import { standardRateLimiter, sensitiveRateLimiter } from '@/lib/rate-limit';
 import { createLogger } from '@/lib/logger';
-import { FORM_STATUSES } from '@/lib/validation';
+import { FORM_STATUSES, isValidFormTransition, type FormStatusType } from '@/lib/validation';
 
 const log = createLogger('api:forms-detail');
 
@@ -120,6 +120,18 @@ export async function PATCH(
 
     // Get the current form state for audit comparison
     const currentForm = accessResult.form;
+
+    // Validate form status transition if status is being changed
+    if (validatedData.status && currentForm) {
+      const currentStatus = currentForm.status as FormStatusType;
+      const newStatus = validatedData.status as FormStatusType;
+      if (!isValidFormTransition(currentStatus, newStatus)) {
+        return NextResponse.json(
+          { error: `Invalid status transition from '${currentStatus}' to '${newStatus}'` },
+          { status: 400 }
+        );
+      }
+    }
 
     // Track which fields are being modified
     const modifiedFields: Record<string, { old: unknown; new: unknown }> = {};

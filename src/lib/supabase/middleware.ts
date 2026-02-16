@@ -9,6 +9,11 @@ const log = createLogger('middleware');
 const IDLE_TIMEOUT_MS = 30 * 60 * 1000;
 const IDLE_COOKIE_NAME = 'last_activity';
 
+/** Max request body size: 5 MB for API routes (document uploads use storage directly). */
+const MAX_BODY_SIZE = 5 * 1024 * 1024;
+/** Webhook routes may have larger payloads from Stripe. */
+const MAX_WEBHOOK_BODY_SIZE = 10 * 1024 * 1024;
+
 /**
  * Generate a unique request ID for tracing.
  */
@@ -45,6 +50,23 @@ export async function updateSession(request: NextRequest) {
       );
       csrfResponse.headers.set('x-request-id', requestId);
       return csrfResponse;
+    }
+
+    // Request body size limit (DoS prevention)
+    const contentLength = request.headers.get('content-length');
+    if (contentLength) {
+      const bodySize = parseInt(contentLength, 10);
+      const isWebhook = request.nextUrl.pathname.startsWith('/api/billing/webhooks');
+      const limit = isWebhook ? MAX_WEBHOOK_BODY_SIZE : MAX_BODY_SIZE;
+      if (!isNaN(bodySize) && bodySize > limit) {
+        log.warn('Request body too large', { requestId, bodySize, limit });
+        const sizeResponse = NextResponse.json(
+          { error: 'Request body too large' },
+          { status: 413 }
+        );
+        sizeResponse.headers.set('x-request-id', requestId);
+        return sizeResponse;
+      }
     }
   }
 

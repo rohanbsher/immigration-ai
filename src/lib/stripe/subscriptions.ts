@@ -35,6 +35,11 @@ export function getPriceId(planType: PlanType, billingPeriod: BillingPeriod): st
     throw new Error(`Price ID not configured for ${planType} ${billingPeriod}`);
   }
 
+  // Validate Stripe price ID format to catch misconfiguration early
+  if (!priceId.startsWith('price_')) {
+    throw new Error(`Invalid Stripe price ID format for ${planType} ${billingPeriod}. Expected format: price_*`);
+  }
+
   return priceId;
 }
 

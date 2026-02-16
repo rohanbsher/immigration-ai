@@ -151,6 +151,7 @@ export type FormStatus =
   | 'autofilling'
   | 'ai_filled'
   | 'in_review'
+  | 'needs_review'
   | 'approved'
   | 'filed'
   | 'rejected';

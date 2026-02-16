@@ -169,8 +169,35 @@ export const FORM_TYPES = [
 
 export const FORM_STATUSES = [
   'draft', 'autofilling', 'ai_filled', 'in_review',
-  'approved', 'filed', 'rejected',
+  'needs_review', 'approved', 'filed', 'rejected',
 ] as const;
+
+export type FormStatusType = typeof FORM_STATUSES[number];
+
+/**
+ * Valid form status transitions.
+ * Key = current status, Value = allowed next statuses.
+ * Prevents invalid transitions like filed->draft.
+ */
+export const VALID_FORM_TRANSITIONS: Record<FormStatusType, readonly FormStatusType[]> = {
+  draft: ['autofilling', 'in_review'],
+  autofilling: ['ai_filled', 'draft'],        // draft = reset on failure
+  ai_filled: ['in_review', 'needs_review', 'draft'], // needs_review = source doc deleted
+  in_review: ['approved', 'rejected', 'needs_review', 'draft'], // draft = back to editing
+  needs_review: ['in_review', 'draft'],        // needs_review = flagged for re-review
+  approved: ['filed', 'in_review'],            // in_review = re-review
+  filed: [],                                    // terminal state
+  rejected: ['draft', 'in_review'],            // draft = start over
+} as const;
+
+/**
+ * Check if a form status transition is valid.
+ */
+export function isValidFormTransition(from: FormStatusType, to: FormStatusType): boolean {
+  if (from === to) return true; // No-op is always valid
+  const allowed = VALID_FORM_TRANSITIONS[from];
+  return allowed.includes(to);
+}
 
 /**
  * Common validation schemas for reuse.

@@ -74,30 +74,24 @@ export async function POST(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Recover stuck forms: if autofilling for >5 min, reset to draft
-    if (form.status === 'autofilling') {
-      const updatedAt = new Date(form.updated_at).getTime();
-      const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
-      if (updatedAt < fiveMinutesAgo) {
-        log.warn('Resetting stuck autofilling form', { formId: id, updatedAt: form.updated_at });
-        await formsService.updateForm(id, { status: 'draft' });
-        form.status = 'draft' as typeof form.status;
-      }
-    }
-
-    // CAS (Compare-and-Swap) protection against concurrent autofill
+    // Atomic autofill lock: uses DB advisory lock to serialize concurrent
+    // autofill requests per form. Also handles stuck form recovery (>5 min).
     previousStatus = form.status;
-    const { data: casResult, error: casError } = await supabase
-      .from('forms')
-      .update({ status: 'autofilling', updated_at: new Date().toISOString() })
-      .eq('id', id)
-      .eq('status', previousStatus)
-      .select('id')
-      .single();
+    const { data: lockResult, error: lockError } = await supabase.rpc(
+      'try_start_form_autofill',
+      { p_form_id: id }
+    );
 
-    if (casError || !casResult) {
+    // Handle both single-row and array returns from RPC
+    const lockRow = Array.isArray(lockResult) ? lockResult[0] : lockResult;
+
+    if (lockError || !lockRow?.acquired) {
+      const currentStatus = lockRow?.current_status || 'unknown';
+      log.info('Form autofill lock not acquired', { formId: id, currentStatus });
       return NextResponse.json(
-        { error: 'Form autofill is already in progress. Please try again later.' },
+        { error: currentStatus === 'autofilling'
+            ? 'Form autofill is already in progress. Please try again later.'
+            : `Form cannot be autofilled in its current state (${currentStatus}).` },
         { status: 409 }
       );
     }

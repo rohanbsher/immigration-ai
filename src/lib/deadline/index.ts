@@ -427,12 +427,15 @@ export async function syncDeadlineAlerts(caseId?: string): Promise<number> {
 
   // Cache timezone lookups by attorney to avoid redundant DB queries.
   // An attorney with 50 cases would otherwise trigger 50 identical queries.
+  // Deduplicate attorney IDs and resolve all in parallel.
+  const uniqueAttorneyIds = [...new Set(
+    cases.map(c => c.attorney_id).filter((id): id is string => !!id)
+  )];
+  const timezoneResults = await Promise.all(
+    uniqueAttorneyIds.map(id => getUserTimezone(id, supabase))
+  );
   const timezoneCache = new Map<string, string>();
-  for (const c of cases) {
-    if (c.attorney_id && !timezoneCache.has(c.attorney_id)) {
-      timezoneCache.set(c.attorney_id, await getUserTimezone(c.attorney_id, supabase));
-    }
-  }
+  uniqueAttorneyIds.forEach((id, i) => timezoneCache.set(id, timezoneResults[i]));
 
   for (const c of cases) {
     const tz = c.attorney_id ? timezoneCache.get(c.attorney_id) : undefined;

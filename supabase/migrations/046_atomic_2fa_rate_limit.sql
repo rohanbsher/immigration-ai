@@ -14,8 +14,9 @@
 --   Uses two-argument pg_advisory_xact_lock(classid, objid) with a fixed
 --   namespace constant (200001) to avoid collisions with other advisory
 --   lock users. The objid is derived from the user UUID's first 8 hex
---   chars, giving ~4 billion distinct slots (no birthday-paradox risk
---   at realistic user counts).
+--   chars, giving ~4 billion distinct slots — negligible collision
+--   probability at realistic concurrent lock volumes (birthday bound
+--   ~65K concurrent locks for 50% collision chance).
 
 CREATE OR REPLACE FUNCTION check_and_record_2fa_attempt(
   p_user_id UUID,

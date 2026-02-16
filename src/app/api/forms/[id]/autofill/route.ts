@@ -69,7 +69,11 @@ export async function POST(
       return NextResponse.json({ error: 'Case not found' }, { status: 404 });
     }
 
-    // Authorization check - only attorney can trigger autofill
+    // Authorization check - only attorney can trigger autofill.
+    // Note: this pre-lock read could theoretically be stale (form reassigned
+    // between read and RPC), but the RPC itself re-verifies attorney_id under
+    // the advisory lock (migration 049), so stale data here is a fast-reject
+    // optimization, not a security boundary.
     if (caseData.attorney_id !== user.id) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }

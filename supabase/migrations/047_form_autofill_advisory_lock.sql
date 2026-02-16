@@ -7,7 +7,8 @@
 --   Uses two-argument pg_advisory_xact_lock(classid, objid) with a fixed
 --   namespace constant (200002) to avoid collisions with other advisory
 --   lock users (e.g., 2FA rate limiting uses 200001). The objid is derived
---   from the form UUID's first 8 hex chars.
+--   from the form UUID's first 8 hex chars (~4 billion slots, negligible
+--   collision probability at realistic concurrent lock volumes).
 
 CREATE OR REPLACE FUNCTION try_start_form_autofill(
   p_form_id UUID,

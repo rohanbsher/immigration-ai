@@ -5,8 +5,12 @@ import {
   validate,
   validateSearchParams,
   schemas,
+  isValidFormTransition,
+  VALID_FORM_TRANSITIONS,
+  FORM_STATUSES,
   type ValidationError,
   type ValidationResult,
+  type FormStatusType,
 } from './index';
 
 describe('validation utilities', () => {
@@ -259,6 +263,74 @@ describe('validation utilities', () => {
         const result = schemas.nonEmptyString.safeParse('');
         expect(result.success).toBe(false);
       });
+    });
+  });
+
+  describe('isValidFormTransition', () => {
+    it('should allow no-op transitions (same status)', () => {
+      for (const status of FORM_STATUSES) {
+        expect(isValidFormTransition(status, status)).toBe(true);
+      }
+    });
+
+    it('should allow valid transitions from draft', () => {
+      expect(isValidFormTransition('draft', 'autofilling')).toBe(true);
+      expect(isValidFormTransition('draft', 'in_review')).toBe(true);
+    });
+
+    it('should block invalid transitions from draft', () => {
+      expect(isValidFormTransition('draft', 'filed')).toBe(false);
+      expect(isValidFormTransition('draft', 'approved')).toBe(false);
+      expect(isValidFormTransition('draft', 'ai_filled')).toBe(false);
+    });
+
+    it('should allow autofilling to resolve to ai_filled or reset to draft', () => {
+      expect(isValidFormTransition('autofilling', 'ai_filled')).toBe(true);
+      expect(isValidFormTransition('autofilling', 'draft')).toBe(true);
+    });
+
+    it('should block autofilling from jumping to terminal states', () => {
+      expect(isValidFormTransition('autofilling', 'filed')).toBe(false);
+      expect(isValidFormTransition('autofilling', 'approved')).toBe(false);
+    });
+
+    it('should allow re-running AI from ai_filled, in_review, needs_review, rejected', () => {
+      expect(isValidFormTransition('ai_filled', 'autofilling')).toBe(true);
+      expect(isValidFormTransition('in_review', 'autofilling')).toBe(true);
+      expect(isValidFormTransition('needs_review', 'autofilling')).toBe(true);
+      expect(isValidFormTransition('rejected', 'autofilling')).toBe(true);
+    });
+
+    it('should treat filed as terminal — no transitions allowed', () => {
+      const allOtherStatuses = FORM_STATUSES.filter(s => s !== 'filed');
+      for (const target of allOtherStatuses) {
+        expect(isValidFormTransition('filed', target)).toBe(false);
+      }
+    });
+
+    it('should block backwards transitions from approved to draft', () => {
+      expect(isValidFormTransition('approved', 'draft')).toBe(false);
+      expect(isValidFormTransition('approved', 'rejected')).toBe(false);
+    });
+
+    it('should allow approved to filed or back to in_review', () => {
+      expect(isValidFormTransition('approved', 'filed')).toBe(true);
+      expect(isValidFormTransition('approved', 'in_review')).toBe(true);
+    });
+
+    it('should have every FORM_STATUSES entry in the transition map', () => {
+      for (const status of FORM_STATUSES) {
+        expect(VALID_FORM_TRANSITIONS).toHaveProperty(status);
+      }
+    });
+
+    it('should only contain valid statuses as transition targets', () => {
+      const validStatuses = new Set<string>(FORM_STATUSES);
+      for (const [from, targets] of Object.entries(VALID_FORM_TRANSITIONS)) {
+        for (const target of targets) {
+          expect(validStatuses.has(target)).toBe(true);
+        }
+      }
     });
   });
 });

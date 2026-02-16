@@ -163,7 +163,30 @@ export async function PATCH(
       }
     }
 
-    const updatedForm = await formsService.updateForm(id, validatedData as Parameters<typeof formsService.updateForm>[1]);
+    // When status is changing, use CAS (Compare-and-Swap) to prevent TOCTOU races.
+    // Without this, two concurrent requests could both validate the same transition
+    // and both succeed, even though the second should see the updated status.
+    let updatedForm;
+    if (validatedData.status && currentForm) {
+      const currentStatus = currentForm.status;
+      const { data: casResult, error: casError } = await supabase
+        .from('forms')
+        .update(validatedData)
+        .eq('id', id)
+        .eq('status', currentStatus)
+        .select()
+        .single();
+
+      if (casError || !casResult) {
+        return NextResponse.json(
+          { error: 'Form status changed concurrently. Please refresh and try again.' },
+          { status: 409 }
+        );
+      }
+      updatedForm = casResult;
+    } else {
+      updatedForm = await formsService.updateForm(id, validatedData as Parameters<typeof formsService.updateForm>[1]);
+    }
 
     // Log audit trail for attorney modifications
     if (Object.keys(modifiedFields).length > 0) {

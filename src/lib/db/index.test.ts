@@ -858,15 +858,36 @@ describe('Database Services', () => {
     });
 
     describe('permanentlyDeleteDocument', () => {
-      it('should permanently delete a document with audit log', async () => {
-        const mockDoc = createMockDocument();
+      it('should soft-delete then hard-delete when deleted_at is null', async () => {
+        const mockDoc = createMockDocument({ deleted_at: null });
+        const fetchQueryBuilder = createMockQueryBuilder([mockDoc]);
+        const softDeleteQueryBuilder = createMockQueryBuilder([]);
+        softDeleteQueryBuilder.eq = vi.fn().mockResolvedValue({ data: null, error: null });
+        const deleteQueryBuilder = createMockQueryBuilder([]);
+        deleteQueryBuilder.eq = vi.fn().mockResolvedValue({ data: null, error: null });
+
+        mockSupabase.from
+          .mockReturnValueOnce(fetchQueryBuilder)   // 1. fetch
+          .mockReturnValueOnce(softDeleteQueryBuilder) // 2. soft-delete (UPDATE)
+          .mockReturnValueOnce(deleteQueryBuilder);    // 3. hard-delete (DELETE)
+
+        await documentsService.permanentlyDeleteDocument('doc-123');
+
+        expect(softDeleteQueryBuilder.update).toHaveBeenCalledWith(
+          expect.objectContaining({ deleted_at: expect.any(String) })
+        );
+        expect(deleteQueryBuilder.delete).toHaveBeenCalled();
+      });
+
+      it('should skip soft-delete when deleted_at is already set', async () => {
+        const mockDoc = createMockDocument({ deleted_at: '2024-06-01T00:00:00Z' });
         const fetchQueryBuilder = createMockQueryBuilder([mockDoc]);
         const deleteQueryBuilder = createMockQueryBuilder([]);
         deleteQueryBuilder.eq = vi.fn().mockResolvedValue({ data: null, error: null });
 
         mockSupabase.from
-          .mockReturnValueOnce(fetchQueryBuilder)
-          .mockReturnValueOnce(deleteQueryBuilder);
+          .mockReturnValueOnce(fetchQueryBuilder)   // 1. fetch
+          .mockReturnValueOnce(deleteQueryBuilder);  // 2. hard-delete (no soft-delete needed)
 
         await documentsService.permanentlyDeleteDocument('doc-123');
 

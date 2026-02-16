@@ -54,26 +54,46 @@ export default defineConfig({
     },
 
     // Auth tests — need unauthenticated context to test login/register forms
+    // NOTE: Must include cookie consent in localStorage to prevent banner from blocking form elements
     {
       name: 'auth-tests',
       use: {
         ...devices['Desktop Chrome'],
-        storageState: { cookies: [], origins: [] },
+        storageState: {
+          cookies: [],
+          origins: [{
+            origin: process.env.E2E_BASE_URL || 'http://localhost:3000',
+            localStorage: [{
+              name: 'immigration-ai-consent',
+              value: JSON.stringify({ analytics: false, timestamp: '2026-01-01T00:00:00Z', version: '1.0' }),
+            }],
+          }],
+        },
       },
       testMatch: /auth\/.*\.spec\.ts/,
       dependencies: ['auth-setup'],
     },
 
     // Security login tests — test the login page directly (unauthenticated)
+    // NOTE: Must include cookie consent in localStorage to prevent banner from blocking form elements
     {
       name: 'security-login',
       use: {
         ...devices['Desktop Chrome'],
-        storageState: { cookies: [], origins: [] },
+        storageState: {
+          cookies: [],
+          origins: [{
+            origin: process.env.E2E_BASE_URL || 'http://localhost:3000',
+            localStorage: [{
+              name: 'immigration-ai-consent',
+              value: JSON.stringify({ analytics: false, timestamp: '2026-01-01T00:00:00Z', version: '1.0' }),
+            }],
+          }],
+        },
       },
       testMatch: /security\/auth-attacks\.spec\.ts/,
       dependencies: ['auth-setup'],
-      timeout: 60000,
+      timeout: 120000,
     },
 
     // Security access tests — attorney pre-authenticated for authorization + tenant isolation

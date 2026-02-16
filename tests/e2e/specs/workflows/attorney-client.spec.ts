@@ -87,12 +87,15 @@ test.describe('Attorney-Client Cross-Role Interactions', () => {
   });
 
   test.describe('Client Views Assigned Case', () => {
+    // Client auth loaded via storageState — no loginAs needed
+    test.use({ storageState: 'tests/e2e/.auth/client.json' });
+
     test.beforeEach(async () => {
       test.skip(!hasValidCredentials('client'), 'Missing client test credentials');
     });
 
     test('should allow client to view their assigned case', async ({ page }) => {
-      await AuthHelpers.loginAs(page, 'client');
+      // Client auth is pre-loaded via storageState
 
       // Navigate to client's cases view
       // Clients typically have a different dashboard layout
@@ -149,12 +152,15 @@ test.describe('Attorney-Client Cross-Role Interactions', () => {
   });
 
   test.describe('Client Document Upload', () => {
+    // Client auth loaded via storageState — no loginAs needed
+    test.use({ storageState: 'tests/e2e/.auth/client.json' });
+
     test.beforeEach(async () => {
       test.skip(!hasValidCredentials('client'), 'Missing client test credentials');
     });
 
     test('should allow client to upload document to their case', async ({ page }) => {
-      await AuthHelpers.loginAs(page, 'client');
+      // Client auth is pre-loaded via storageState
 
       // Navigate to client's case
       await page.goto('/dashboard/client');
@@ -289,16 +295,19 @@ test.describe('Attorney-Client Cross-Role Interactions', () => {
     });
 
     test('should show consistent case status to both attorney and client', async ({ browser }) => {
-      // Create two browser contexts - one for each role
-      const attorneyContext = await browser.newContext();
-      const clientContext = await browser.newContext();
+      // Create two browser contexts with pre-loaded auth — no loginAs needed
+      const attorneyContext = await browser.newContext({
+        storageState: 'tests/e2e/.auth/attorney.json',
+      });
+      const clientContext = await browser.newContext({
+        storageState: 'tests/e2e/.auth/client.json',
+      });
 
       const attorneyPage = await attorneyContext.newPage();
       const clientPage = await clientContext.newPage();
 
       try {
-        // Login as attorney
-        await AuthHelpers.loginAs(attorneyPage, 'attorney');
+        // Attorney auth is pre-loaded via storageState
         await NavHelpers.goToCases(attorneyPage);
 
         // Find a case
@@ -322,8 +331,7 @@ test.describe('Attorney-Client Cross-Role Interactions', () => {
               attorneyStatus = await attorneyStatusSelect.inputValue();
             }
 
-            // Login as client
-            await AuthHelpers.loginAs(clientPage, 'client');
+            // Client auth is pre-loaded via storageState
             await clientPage.goto('/dashboard/client');
             await clientPage.waitForLoadState('domcontentloaded');
 
@@ -433,10 +441,13 @@ test.describe('Attorney-Client Cross-Role Interactions', () => {
 });
 
 test.describe('Cross-Role Security', () => {
+  // Client auth loaded via storageState — no loginAs needed
+  test.use({ storageState: 'tests/e2e/.auth/client.json' });
+
   test('should not allow client to access other clients\' cases', async ({ page }) => {
     test.skip(!hasValidCredentials('client'), 'Missing client test credentials');
 
-    await AuthHelpers.loginAs(page, 'client');
+    // Client auth is pre-loaded via storageState
 
     // Try to access a random case ID directly
     await page.goto('/dashboard/cases/random-invalid-case-id');
@@ -452,7 +463,7 @@ test.describe('Cross-Role Security', () => {
   test('should not allow client to modify case status', async ({ page }) => {
     test.skip(!hasValidCredentials('client'), 'Missing client test credentials');
 
-    await AuthHelpers.loginAs(page, 'client');
+    // Client auth is pre-loaded via storageState
 
     // Navigate to client's case view
     await page.goto('/dashboard/client');

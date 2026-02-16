@@ -2,7 +2,7 @@
  * Integration tests for Cron API routes.
  *
  * Tests cover:
- * - POST /api/cron/deadline-alerts - Sync deadline alerts
+ * - GET /api/cron/deadline-alerts - Sync deadline alerts (Vercel Cron sends GET)
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -43,7 +43,7 @@ vi.mock('@/lib/logger', () => ({
 // Imports (after mocks)
 // ---------------------------------------------------------------------------
 
-import { POST } from './deadline-alerts/route';
+import { GET } from './deadline-alerts/route';
 import { syncDeadlineAlerts } from '@/lib/deadline';
 import { features, serverEnv } from '@/lib/config';
 import { safeCompare } from '@/lib/security/timing-safe';
@@ -82,16 +82,16 @@ describe('Cron API Routes', () => {
   });
 
   // ==========================================================================
-  // POST /api/cron/deadline-alerts
+  // GET /api/cron/deadline-alerts (Vercel Cron sends GET)
   // ==========================================================================
-  describe('POST /api/cron/deadline-alerts', () => {
+  describe('GET /api/cron/deadline-alerts', () => {
     it('should return 500 when CRON_SECRET not configured (cronJobs = false)', async () => {
       vi.mocked(features).cronJobs = false;
 
-      const request = createRequest('POST', {
+      const request = createRequest('GET', {
         authorization: 'Bearer test-cron-secret',
       });
-      const response = await POST(request);
+      const response = await GET(request);
       const data = await response.json();
 
       expect(response.status).toBe(500);
@@ -99,8 +99,8 @@ describe('Cron API Routes', () => {
     });
 
     it('should return 401 when no authorization header', async () => {
-      const request = createRequest('POST');
-      const response = await POST(request);
+      const request = createRequest('GET');
+      const response = await GET(request);
       const data = await response.json();
 
       expect(response.status).toBe(401);
@@ -110,10 +110,10 @@ describe('Cron API Routes', () => {
     it('should return 401 when invalid authorization token', async () => {
       vi.mocked(safeCompare).mockReturnValue(false);
 
-      const request = createRequest('POST', {
+      const request = createRequest('GET', {
         authorization: 'Bearer wrong-secret',
       });
-      const response = await POST(request);
+      const response = await GET(request);
       const data = await response.json();
 
       expect(response.status).toBe(401);
@@ -121,10 +121,10 @@ describe('Cron API Routes', () => {
     });
 
     it('should call safeCompare with correct arguments', async () => {
-      const request = createRequest('POST', {
+      const request = createRequest('GET', {
         authorization: 'Bearer test-cron-secret',
       });
-      await POST(request);
+      await GET(request);
 
       expect(safeCompare).toHaveBeenCalledWith(
         'Bearer test-cron-secret',
@@ -135,10 +135,10 @@ describe('Cron API Routes', () => {
     it('should return 200 with sync count on success', async () => {
       vi.mocked(syncDeadlineAlerts).mockResolvedValue(5);
 
-      const request = createRequest('POST', {
+      const request = createRequest('GET', {
         authorization: 'Bearer test-cron-secret',
       });
-      const response = await POST(request);
+      const response = await GET(request);
       const data = await response.json();
 
       expect(response.status).toBe(200);
@@ -151,10 +151,10 @@ describe('Cron API Routes', () => {
     it('should return 200 with zero sync count', async () => {
       vi.mocked(syncDeadlineAlerts).mockResolvedValue(0);
 
-      const request = createRequest('POST', {
+      const request = createRequest('GET', {
         authorization: 'Bearer test-cron-secret',
       });
-      const response = await POST(request);
+      const response = await GET(request);
       const data = await response.json();
 
       expect(response.status).toBe(200);
@@ -165,10 +165,10 @@ describe('Cron API Routes', () => {
     it('should return 500 when syncDeadlineAlerts throws', async () => {
       vi.mocked(syncDeadlineAlerts).mockRejectedValue(new Error('Sync failed'));
 
-      const request = createRequest('POST', {
+      const request = createRequest('GET', {
         authorization: 'Bearer test-cron-secret',
       });
-      const response = await POST(request);
+      const response = await GET(request);
       const data = await response.json();
 
       expect(response.status).toBe(500);

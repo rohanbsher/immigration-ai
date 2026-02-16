@@ -1,28 +1,27 @@
 -- Migration: Soft delete enforcement triggers
 -- Prevents accidental hard DELETE on cases, documents, and forms.
 -- Instead of deleting, sets deleted_at timestamp.
--- Hard deletes are only allowed via the bypass function for admin cleanup.
+-- Hard deletes are allowed when deleted_at is already set (cleanup path).
 
--- Generic soft delete trigger function
+-- Generic soft delete trigger function.
+-- Uses SECURITY INVOKER so the UPDATE inherits the caller's permissions
+-- and respects RLS policies (no privilege escalation).
 CREATE OR REPLACE FUNCTION enforce_soft_delete()
 RETURNS TRIGGER AS $$
 BEGIN
-  -- If the row already has deleted_at set, allow the hard delete
-  -- (this is the cleanup path for already-soft-deleted records)
+  -- If the row already has deleted_at set, allow the hard delete.
+  -- This is the cleanup path: soft-delete first, then hard-delete.
   IF OLD.deleted_at IS NOT NULL THEN
     RETURN OLD;
   END IF;
 
-  -- Instead of deleting, set deleted_at
-  EXECUTE format(
-    'UPDATE %I.%I SET deleted_at = NOW() WHERE id = $1',
-    TG_TABLE_SCHEMA, TG_TABLE_NAME
-  ) USING OLD.id;
-
-  -- Return NULL to cancel the DELETE
+  -- Instead of deleting, set deleted_at.
+  -- Return NULL to cancel the original DELETE statement.
+  RAISE NOTICE 'Hard DELETE blocked on %.% row %. Use soft delete (UPDATE deleted_at) first.',
+    TG_TABLE_SCHEMA, TG_TABLE_NAME, OLD.id;
   RETURN NULL;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY INVOKER;
 
 -- Apply to cases table
 DROP TRIGGER IF EXISTS trg_enforce_soft_delete_cases ON cases;

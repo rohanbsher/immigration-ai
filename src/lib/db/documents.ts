@@ -259,6 +259,17 @@ class DocumentsService extends BaseService {
         } as { ip_address?: string; user_agent?: string }
       );
 
+      // Two-step permanent delete: soft-delete first (set deleted_at),
+      // then hard-delete. The enforce_soft_delete trigger only allows
+      // hard DELETE when deleted_at IS NOT NULL.
+      if (!document.deleted_at) {
+        const { error: softDeleteError } = await supabase
+          .from('documents')
+          .update({ deleted_at: new Date().toISOString() })
+          .eq('id', id);
+        if (softDeleteError) throw softDeleteError;
+      }
+
       const { error } = await supabase
         .from('documents')
         .delete()

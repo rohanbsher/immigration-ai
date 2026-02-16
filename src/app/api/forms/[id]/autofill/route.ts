@@ -76,7 +76,6 @@ export async function POST(
 
     // Atomic autofill lock: uses DB advisory lock to serialize concurrent
     // autofill requests per form. Also handles stuck form recovery (>5 min).
-    previousStatus = form.status;
     const { data: lockResult, error: lockError } = await supabase.rpc(
       'try_start_form_autofill',
       { p_form_id: id }
@@ -95,6 +94,11 @@ export async function POST(
         { status: 409 }
       );
     }
+
+    // Use the status returned by the RPC, not the pre-lock read.
+    // The RPC may have recovered a stuck form (autofilling → draft),
+    // so the pre-lock form.status would be stale.
+    previousStatus = (lockRow.current_status as FormStatus) || form.status;
 
     // Get all analyzed documents for the case
     const documents = await documentsService.getDocumentsByCase(form.case_id);

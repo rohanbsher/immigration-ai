@@ -45,6 +45,7 @@ export async function createStripeCustomer(params: CreateCustomerParams): Promis
 export async function getOrCreateStripeCustomer(userId: string): Promise<string> {
   const supabase = await createClient();
 
+  // First check: fast path for existing customers
   const { data: customer, error: fetchError } = await supabase
     .from('customers')
     .select('stripe_customer_id, email, name')
@@ -69,30 +70,73 @@ export async function getOrCreateStripeCustomer(userId: string): Promise<string>
     throw new Error('User profile not found');
   }
 
+  // Ensure a customer row exists before creating a Stripe customer.
+  // Use upsert with onConflict to prevent race conditions where two
+  // concurrent requests both try to insert for the same user_id.
+  const customerName = profile.first_name && profile.last_name
+    ? `${profile.first_name} ${profile.last_name}`
+    : null;
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await (supabase.from('customers') as any).upsert(
+    {
+      user_id: userId,
+      email: profile.email,
+      name: customerName,
+    },
+    { onConflict: 'user_id', ignoreDuplicates: true }
+  );
+
+  // Re-check if another request already created a Stripe customer
+  const { data: raceCheck } = await supabase
+    .from('customers')
+    .select('stripe_customer_id')
+    .eq('user_id', userId)
+    .single();
+
+  if (raceCheck?.stripe_customer_id) {
+    return raceCheck.stripe_customer_id;
+  }
+
+  // Create Stripe customer
   const stripeCustomer = await createStripeCustomer({
     userId,
     email: profile.email,
-    name: profile.first_name && profile.last_name
-      ? `${profile.first_name} ${profile.last_name}`
-      : undefined,
+    name: customerName || undefined,
   });
 
-  if (customer) {
-    await supabase
-      .from('customers')
-      .update({ stripe_customer_id: stripeCustomer.id })
-      .eq('user_id', userId);
-  } else {
-    await supabase.from('customers').insert({
-      user_id: userId,
-      stripe_customer_id: stripeCustomer.id,
-      email: profile.email,
-      name: profile.first_name && profile.last_name
-        ? `${profile.first_name} ${profile.last_name}`
-        : null,
-    });
+  // Atomically set stripe_customer_id only if it's still NULL.
+  // This prevents overwriting if another concurrent request already set it.
+  const { data: updated } = await supabase
+    .from('customers')
+    .update({ stripe_customer_id: stripeCustomer.id })
+    .eq('user_id', userId)
+    .is('stripe_customer_id', null)
+    .select('stripe_customer_id')
+    .single();
+
+  if (updated?.stripe_customer_id) {
+    return updated.stripe_customer_id;
   }
 
+  // Another request won the race — use their customer ID and clean up ours
+  const { data: existing } = await supabase
+    .from('customers')
+    .select('stripe_customer_id')
+    .eq('user_id', userId)
+    .single();
+
+  if (existing?.stripe_customer_id) {
+    // Clean up the orphaned Stripe customer we just created
+    try {
+      await stripe.customers.del(stripeCustomer.id);
+    } catch {
+      // Non-critical: orphaned Stripe customer can be cleaned up later
+    }
+    return existing.stripe_customer_id;
+  }
+
+  // Fallback: should never reach here, but return what we created
   return stripeCustomer.id;
 }
 

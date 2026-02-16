@@ -52,10 +52,61 @@ export function calculateSeverity(daysRemaining: number): DeadlineAlert['severit
 
 /**
  * Calculate days between two dates.
+ * When a timezone is provided, normalizes both dates to that timezone's
+ * midnight for accurate day-boundary calculations.
  */
-function daysBetween(date1: Date, date2: Date): number {
+function daysBetween(date1: Date, date2: Date, timezone?: string): number {
   const oneDay = 24 * 60 * 60 * 1000;
+
+  if (timezone) {
+    // Normalize to the user's timezone for accurate day boundaries.
+    // Without this, a deadline at midnight PST calculated from a UTC server
+    // could be off by a day.
+    const d1 = getDateInTimezone(date1, timezone);
+    const d2 = getDateInTimezone(date2, timezone);
+    return Math.ceil((d2.getTime() - d1.getTime()) / oneDay);
+  }
+
   return Math.ceil((date2.getTime() - date1.getTime()) / oneDay);
+}
+
+/**
+ * Get a Date normalized to midnight in a specific timezone.
+ * Uses Intl.DateTimeFormat to extract date components in the target timezone,
+ * then creates a UTC date at midnight for that timezone-local date.
+ */
+function getDateInTimezone(date: Date, timezone: string): Date {
+  try {
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: timezone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+    const parts = formatter.formatToParts(date);
+    const year = parseInt(parts.find(p => p.type === 'year')?.value || '0', 10);
+    const month = parseInt(parts.find(p => p.type === 'month')?.value || '0', 10);
+    const day = parseInt(parts.find(p => p.type === 'day')?.value || '0', 10);
+    return new Date(Date.UTC(year, month - 1, day));
+  } catch {
+    // Invalid timezone — fall back to UTC
+    return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  }
+}
+
+/**
+ * Look up the user's timezone from notification preferences.
+ * Falls back to 'America/New_York' (the DB default) if not found.
+ */
+async function getUserTimezone(userId: string): Promise<string> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from('notification_preferences')
+    .select('timezone')
+    .eq('user_id', userId)
+    .single();
+
+  return data?.timezone || 'America/New_York';
 }
 
 /**
@@ -65,7 +116,8 @@ function daysBetween(date1: Date, date2: Date): number {
  * @returns Array of deadline alerts
  */
 export async function calculateCaseDeadlines(
-  caseId: string
+  caseId: string,
+  timezone?: string
 ): Promise<DeadlineAlert[]> {
   const supabase = await createClient();
   const now = new Date();
@@ -95,10 +147,13 @@ export async function calculateCaseDeadlines(
     ? `${clientData.first_name} ${clientData.last_name}`
     : 'Unknown Client';
 
+  // Resolve timezone: use provided timezone, or look up from user preferences
+  const tz = timezone || await getUserTimezone(caseData.attorney_id);
+
   // 1. Case deadline alert
   if (caseData.deadline) {
     const deadlineDate = new Date(caseData.deadline);
-    const daysRemaining = daysBetween(now, deadlineDate);
+    const daysRemaining = daysBetween(now, deadlineDate, tz);
 
     if (daysRemaining <= ALERT_THRESHOLDS.info && daysRemaining >= -30) {
       alerts.push({
@@ -140,7 +195,7 @@ export async function calculateCaseDeadlines(
     if (!doc.expiration_date) continue;
 
     const expirationDate = new Date(doc.expiration_date);
-    const daysRemaining = daysBetween(now, expirationDate);
+    const daysRemaining = daysBetween(now, expirationDate, tz);
 
     if (daysRemaining <= ALERT_THRESHOLDS.info && daysRemaining >= -30) {
       const docTypeName = formatDocumentType(doc.document_type);
@@ -189,7 +244,7 @@ export async function calculateCaseDeadlines(
     const estimatedDate = new Date(filedDate);
     estimatedDate.setDate(estimatedDate.getDate() + processingTime.medianDays);
 
-    const daysUntilEstimate = daysBetween(now, estimatedDate);
+    const daysUntilEstimate = daysBetween(now, estimatedDate, tz);
 
     // Only alert if we're approaching or past the median estimate
     if (daysUntilEstimate <= ALERT_THRESHOLDS.warning) {
@@ -234,6 +289,7 @@ export async function getUpcomingDeadlines(
 ): Promise<DeadlineAlert[]> {
   const supabase = await createClient();
   const now = new Date();
+  const tz = await getUserTimezone(userId);
   const cutoffDate = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
 
   // Fetch existing alerts from database
@@ -257,7 +313,7 @@ export async function getUpcomingDeadlines(
 
   return dbAlerts.map((alert) => {
     const deadlineDate = new Date(alert.deadline_date);
-    const daysRemaining = daysBetween(now, deadlineDate);
+    const daysRemaining = daysBetween(now, deadlineDate, tz);
     const clientName = alert.case?.client
       ? `${alert.case.client.first_name} ${alert.case.client.last_name}`
       : 'Unknown';

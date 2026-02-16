@@ -37,29 +37,44 @@ const securityHeaders = [
     value: "camera=(), microphone=(), geolocation=(), interest-cohort=()",
   },
   {
+    // Cross-Origin isolation headers
+    key: "Cross-Origin-Opener-Policy",
+    value: "same-origin",
+  },
+  {
+    key: "Cross-Origin-Resource-Policy",
+    value: "same-origin",
+  },
+  {
     // Content Security Policy
-    // Adjust the policy based on your application's needs
+    // Note: unsafe-inline is required for Next.js hydration scripts and Tailwind CSS.
+    // For stricter CSP, implement nonce-based CSP via middleware.
     key: "Content-Security-Policy",
     value: [
       "default-src 'self'",
       // Allow inline scripts for Next.js hydration
-      // Note: unsafe-inline is required for Next.js; unsafe-eval is removed for security
       "script-src 'self' 'unsafe-inline'",
       "style-src 'self' 'unsafe-inline'",
       // Allow images from self, data URIs, and Supabase storage
       "img-src 'self' data: blob: https://*.supabase.co",
       // Allow fonts from self and common CDNs
       "font-src 'self' data:",
-      // Allow connections to self, Supabase, AI APIs, and Sentry
-      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.openai.com https://api.anthropic.com https://*.sentry.io https://*.ingest.sentry.io",
+      // Allow connections to self, Supabase, AI APIs, Sentry, and Stripe
+      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.openai.com https://api.anthropic.com https://*.sentry.io https://*.ingest.sentry.io https://api.stripe.com https://js.stripe.com",
       // Prevent framing
       "frame-ancestors 'none'",
+      // Stripe iframe for checkout
+      "frame-src https://js.stripe.com https://hooks.stripe.com",
       // Form submissions only to self
       "form-action 'self'",
       // Base URI restriction
       "base-uri 'self'",
       // Object sources
       "object-src 'none'",
+      // Worker sources
+      "worker-src 'self' blob:",
+      // Upgrade insecure requests in production
+      "upgrade-insecure-requests",
     ].join("; "),
   },
 ];

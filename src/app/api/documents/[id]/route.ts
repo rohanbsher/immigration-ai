@@ -195,6 +195,44 @@ export async function DELETE(
 
     await documentsService.deleteDocument(id);
 
+    // Flag AI-filled forms in the same case as needing re-review.
+    // When a source document is deleted, AI-extracted data in forms may be stale.
+    try {
+      const caseId = accessResult.document?.case_id;
+      if (caseId) {
+        const { data: affectedForms } = await supabase
+          .from('forms')
+          .select('id, status')
+          .eq('case_id', caseId)
+          .is('deleted_at', null)
+          .in('status', ['ai_filled', 'in_review'])
+          .not('ai_filled_data', 'is', null);
+
+        if (affectedForms && affectedForms.length > 0) {
+          const formIds = affectedForms.map(f => f.id);
+          await supabase
+            .from('forms')
+            .update({
+              status: 'needs_review',
+              review_notes: `Source document deleted on ${new Date().toISOString().split('T')[0]}. Please verify AI-filled data.`,
+            })
+            .in('id', formIds);
+
+          log.info('Flagged forms for re-review after document deletion', {
+            documentId: id,
+            caseId,
+            affectedFormIds: formIds,
+          });
+        }
+      }
+    } catch (formUpdateError) {
+      // Non-critical: don't fail document deletion if form flagging fails
+      log.warn('Failed to flag forms after document deletion', {
+        documentId: id,
+        error: formUpdateError instanceof Error ? formUpdateError.message : String(formUpdateError),
+      });
+    }
+
     return NextResponse.json({ message: 'Document deleted successfully' });
   } catch (error) {
     log.logError('Error deleting document', error);

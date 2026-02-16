@@ -27,33 +27,41 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Event too old' }, { status: 400 });
     }
 
-    // Idempotency: check if this event was already processed.
+    // Idempotency: claim the event BEFORE processing using INSERT ON CONFLICT.
+    // This prevents race conditions where two concurrent webhook deliveries
+    // both pass a SELECT check and both process the same event.
     // Admin client required — RLS on stripe_processed_events restricts to service_role.
     const supabase = getAdminClient();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: existing } = await (supabase.from('stripe_processed_events') as any)
-      .select('id')
-      .eq('event_id', event.id)
-      .maybeSingle();
 
-    if (existing) {
-      log.info('Skipping duplicate webhook event', { eventId: event.id });
-      return NextResponse.json({ received: true, deduplicated: true });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: claimed, error: claimError } = await (supabase.from('stripe_processed_events') as any)
+      .insert({ event_id: event.id, event_type: event.type })
+      .select('id')
+      .single();
+
+    if (claimError) {
+      // Unique constraint violation (code 23505) means another request already claimed it
+      if (claimError.code === '23505') {
+        log.info('Skipping duplicate webhook event', { eventId: event.id });
+        return NextResponse.json({ received: true, deduplicated: true });
+      }
+      // Other insert errors are non-critical — process anyway to avoid missing events
+      log.warn('Failed to claim webhook event for dedup', { eventId: event.id, error: claimError.message });
     }
 
-    // Process the event BEFORE marking it as handled.
-    // If processing fails, the event is NOT marked — Stripe will retry.
-    await handleWebhookEvent(event);
-
-    // Mark as processed only after successful handling.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error: insertError } = await (supabase.from('stripe_processed_events') as any)
-      .insert({ event_id: event.id, event_type: event.type });
-
-    if (insertError) {
-      // Non-critical: event was processed but dedup record failed.
-      // Worst case: event gets reprocessed on retry (idempotent handlers).
-      log.warn('Failed to record processed webhook event', { eventId: event.id, error: insertError.message });
+    // Process the event. If processing fails, delete the dedup record so
+    // Stripe can retry successfully.
+    try {
+      await handleWebhookEvent(event);
+    } catch (processingError) {
+      // Remove the dedup record so Stripe's retry will be processed
+      if (claimed?.id) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (supabase.from('stripe_processed_events') as any)
+          .delete()
+          .eq('id', claimed.id);
+      }
+      throw processingError;
     }
 
     return NextResponse.json({ received: true });

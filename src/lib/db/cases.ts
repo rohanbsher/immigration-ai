@@ -179,11 +179,36 @@ class CasesService extends BaseService {
         throw new Error('Unauthorized');
       }
 
+      // Look up attorney's firm for multi-tenant isolation.
+      // Priority: primary_firm_id on profile > first firm_members entry.
+      let firmId: string | null = null;
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('primary_firm_id')
+        .eq('id', user.id)
+        .single();
+
+      firmId = profile?.primary_firm_id || null;
+
+      if (!firmId) {
+        // Fallback: check firm_members table
+        const { data: membership } = await supabase
+          .from('firm_members')
+          .select('firm_id')
+          .eq('user_id', user.id)
+          .limit(1)
+          .single();
+
+        firmId = membership?.firm_id || null;
+      }
+
       const { data: newCase, error } = await supabase
         .from('cases')
         .insert({
           ...data,
           attorney_id: user.id,
+          firm_id: firmId,
           status: 'intake',
         })
         .select()

@@ -5,6 +5,10 @@ import { createLogger } from '@/lib/logger';
 
 const log = createLogger('middleware');
 
+/** Idle timeout: 30 minutes of inactivity triggers logout for security. */
+const IDLE_TIMEOUT_MS = 30 * 60 * 1000;
+const IDLE_COOKIE_NAME = 'last_activity';
+
 /**
  * Generate a unique request ID for tracing.
  */
@@ -71,6 +75,39 @@ export async function updateSession(request: NextRequest) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
+  // Idle timeout: check if the user has been inactive too long.
+  // For authenticated users on protected routes, enforce a 30-minute idle timeout.
+  if (user) {
+    const lastActivity = request.cookies.get(IDLE_COOKIE_NAME)?.value;
+    const now = Date.now();
+
+    if (lastActivity) {
+      const lastActivityTime = parseInt(lastActivity, 10);
+      if (!isNaN(lastActivityTime) && (now - lastActivityTime) > IDLE_TIMEOUT_MS) {
+        // Session has been idle too long — sign out and redirect to login
+        log.info('Session idle timeout exceeded', { requestId, userId: user.id });
+        await supabase.auth.signOut();
+        const url = request.nextUrl.clone();
+        url.pathname = '/login';
+        url.searchParams.set('reason', 'idle_timeout');
+        const redirectResponse = NextResponse.redirect(url);
+        redirectResponse.headers.set('x-request-id', requestId);
+        // Clear the idle cookie
+        redirectResponse.cookies.delete(IDLE_COOKIE_NAME);
+        return redirectResponse;
+      }
+    }
+
+    // Update last activity timestamp
+    supabaseResponse.cookies.set(IDLE_COOKIE_NAME, now.toString(), {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: IDLE_TIMEOUT_MS / 1000,
+    });
+  }
 
   // Define protected routes
   const protectedPaths = ['/dashboard', '/cases', '/documents', '/forms', '/settings', '/admin'];

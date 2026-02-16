@@ -141,8 +141,18 @@ export async function verifyTwoFactorToken(
 ): Promise<boolean> {
   const supabase = await createClient();
 
-  const failedAttempts = await getRecentFailedAttempts(userId);
-  if (failedAttempts >= 5) {
+  // Atomic rate limit check: uses advisory lock to prevent race conditions
+  // where multiple concurrent requests all read count=4 and bypass the limit.
+  const { data: rateCheck } = await supabase.rpc('check_and_record_2fa_attempt', {
+    p_user_id: userId,
+    p_attempt_type: 'totp',
+    p_max_attempts: 5,
+    p_window_minutes: 15,
+  });
+
+  // Handle both single-row and array returns from RPC
+  const rateResult = Array.isArray(rateCheck) ? rateCheck[0] : rateCheck;
+  if (rateResult && !rateResult.allowed) {
     throw new Error('Too many failed attempts. Please try again later.');
   }
 
@@ -321,13 +331,6 @@ async function recordAttempt(
   });
 }
 
-async function getRecentFailedAttempts(userId: string): Promise<number> {
-  const supabase = await createClient();
-
-  const { data } = await supabase.rpc('get_recent_2fa_failures', {
-    p_user_id: userId,
-    p_minutes: 15,
-  });
-
-  return data || 0;
-}
+// Note: getRecentFailedAttempts was replaced by the atomic
+// check_and_record_2fa_attempt RPC to prevent race condition bypass.
+// See migration 046_atomic_2fa_rate_limit.sql.

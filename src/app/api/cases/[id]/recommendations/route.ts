@@ -197,9 +197,10 @@ export async function GET(
   request: NextRequest,
   { params }: RouteParams
 ): Promise<NextResponse> {
+  const { id: caseId } = await params;
+
   try {
     const supabase = await createClient();
-    const { id: caseId } = await params;
 
     // Authenticate user
     const {
@@ -308,10 +309,15 @@ export async function GET(
   } catch (error) {
     log.logError('Error generating recommendations', error);
 
-    return NextResponse.json(
-      { error: 'Internal Server Error', message: 'Failed to generate recommendations' },
-      { status: 500 }
-    );
+    // Return a degraded result instead of 500
+    return NextResponse.json({
+      caseId,
+      recommendations: [],
+      generatedAt: new Date().toISOString(),
+      expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+      source: 'fallback',
+      degraded: true,
+    } as CachedRecommendations);
   }
 }
 

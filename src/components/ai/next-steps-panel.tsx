@@ -13,7 +13,6 @@ import {
   Clock,
   Eye,
   Lightbulb,
-  AlertCircle,
   Check,
   X,
   RefreshCw,
@@ -60,16 +59,10 @@ export function NextStepsPanel({
     );
   }
 
-  if (error) {
-    return (
-      <div className={cn('p-4 text-red-600 flex items-center gap-2', className)}>
-        <AlertCircle size={16} />
-        <span className="text-sm">Failed to load recommendations</span>
-      </div>
-    );
-  }
+  // Show empty state for errors or degraded results
+  const isDegraded = error || (data as (typeof data) & { degraded?: boolean })?.degraded;
 
-  if (!data || data.recommendations.length === 0) {
+  if (isDegraded || !data || data.recommendations.length === 0) {
     return (
       <EmptyState caseId={caseId} onRefresh={refetch} className={className} />
     );

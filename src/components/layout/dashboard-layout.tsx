@@ -25,7 +25,7 @@ interface DashboardLayoutProps {
 export function DashboardLayout({ children, title }: DashboardLayoutProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [timedOut, setTimedOut] = useState(false);
-  const { profile, isLoading, authError, profileError, refetch } = useUser();
+  const { profile, isLoading, error, authError, profileError, refetch } = useUser();
   const router = useRouter();
 
   // Master timeout to prevent infinite loading state
@@ -105,19 +105,29 @@ export function DashboardLayout({ children, title }: DashboardLayoutProps) {
     );
   }
 
-  if (authError) {
+  if (authError || error) {
     return (
       <div className="flex items-center justify-center h-screen bg-slate-50">
         <div className="text-center max-w-md p-6">
           <AlertCircle className="h-12 w-12 text-amber-500 mx-auto mb-4" />
           <h2 className="text-xl font-semibold text-slate-900 mb-2">
-            Session Expired
+            {authError ? 'Connection Issue' : 'Session Expired'}
           </h2>
           <p className="text-slate-600 mb-6">
-            Your session has timed out or could not be verified. Please log in again to continue.
+            {authError
+              ? 'We couldn\u2019t verify your session in time. This may be a connection issue \u2014 try again.'
+              : 'Your session could not be verified. Please log in again to continue.'}
           </p>
           <div className="space-y-3">
             <Button
+              onClick={() => refetch()}
+              className="w-full"
+            >
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Try Again
+            </Button>
+            <Button
+              variant="outline"
               onClick={async () => {
                 const supabase = createBrowserClient(
                   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -129,13 +139,6 @@ export function DashboardLayout({ children, title }: DashboardLayoutProps) {
               className="w-full"
             >
               Go to Login
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => window.location.reload()}
-              className="w-full"
-            >
-              Refresh Page
             </Button>
           </div>
         </div>

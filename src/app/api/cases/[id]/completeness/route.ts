@@ -74,24 +74,52 @@ export async function GET(
     }
 
     // Perform completeness analysis
-    const result = await analyzeDocumentCompleteness(caseId);
-
-    return NextResponse.json(result);
-  } catch (error) {
-    log.logError('Error analyzing document completeness', error);
-
-    if (error instanceof Error) {
-      if (error.message === 'Case not found') {
+    let result;
+    try {
+      result = await analyzeDocumentCompleteness(caseId);
+    } catch (analysisError) {
+      if (analysisError instanceof Error && analysisError.message === 'Case not found') {
         return NextResponse.json(
           { error: 'Not Found', message: 'Case not found' },
           { status: 404 }
         );
       }
+
+      log.warn('Completeness analysis failed, returning defaults', {
+        error: analysisError instanceof Error ? analysisError.message : String(analysisError),
+      });
+
+      // Return a sensible default instead of failing
+      result = {
+        overallCompleteness: 0,
+        filingReadiness: 'incomplete' as const,
+        missingRequired: [],
+        missingOptional: [],
+        uploadedDocs: [],
+        recommendations: ['Upload documents to see completeness analysis.'],
+        totalRequired: 0,
+        uploadedRequired: 0,
+        analyzedAt: new Date().toISOString(),
+        degraded: true,
+      };
     }
 
-    return NextResponse.json(
-      { error: 'Internal Server Error', message: 'Failed to analyze document completeness' },
-      { status: 500 }
-    );
+    return NextResponse.json(result);
+  } catch (error) {
+    log.logError('Error analyzing document completeness', error);
+
+    // Even for unexpected errors, return a degraded result instead of 500
+    return NextResponse.json({
+      overallCompleteness: 0,
+      filingReadiness: 'incomplete',
+      missingRequired: [],
+      missingOptional: [],
+      uploadedDocs: [],
+      recommendations: [],
+      totalRequired: 0,
+      uploadedRequired: 0,
+      analyzedAt: new Date().toISOString(),
+      degraded: true,
+    });
   }
 }

@@ -54,7 +54,7 @@ export function SuccessScoreBadge({
     );
   }
 
-  if (error || !data) {
+  if (error || !data || (data as typeof data & { degraded?: boolean }).degraded) {
     return null;
   }
 

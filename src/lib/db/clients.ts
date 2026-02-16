@@ -290,6 +290,7 @@ class ClientsService extends BaseService {
   async searchClients(query: string): Promise<Client[]> {
     return this.withErrorHandling(async () => {
       const supabase = await this.getSupabaseClient();
+      const admin = getAdminClient();
 
       const { data: { user } } = await supabase.auth.getUser();
 
@@ -297,38 +298,145 @@ class ClientsService extends BaseService {
         throw new Error('Unauthorized');
       }
 
-      // First get client IDs from cases for this attorney
-      const { data: cases } = await supabase
-        .from('cases')
-        .select('client_id')
-        .eq('attorney_id', user.id)
-        .is('deleted_at', null);
-
-      const clientIds = [...new Set((cases || []).map((c) => c.client_id))];
-
-      if (clientIds.length === 0) {
-        return [];
-      }
-
       const sanitizedQuery = sanitizeSearchInput(query);
       if (sanitizedQuery.length === 0) {
         return [];
       }
 
-      // Search within those clients
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .in('id', clientIds)
-        .or(`first_name.ilike.%${sanitizedQuery}%,last_name.ilike.%${sanitizedQuery}%,email.ilike.%${sanitizedQuery}%`)
-        .limit(10);
-
-      if (error) {
-        throw error;
+      // Strategy 1: Find all clients visible to the attorney's firm.
+      // This includes newly created clients who don't have cases yet.
+      const firmClients = await this.searchClientsByFirm(admin, user.id, sanitizedQuery);
+      if (firmClients !== null) {
+        return firmClients;
       }
 
-      return data || [];
+      // Strategy 2 (fallback): Search clients from the attorney's own cases.
+      // Used when firm lookup fails (e.g., attorney has no firm).
+      return this.searchClientsByCases(supabase, user.id, sanitizedQuery);
     }, 'searchClients', { query });
+  }
+
+  /**
+   * Search clients scoped to the attorney's firm.
+   * Finds clients who have cases within the firm OR have no cases yet
+   * (newly created clients). Uses admin client to bypass RLS.
+   * Returns null if firm lookup fails.
+   */
+  private async searchClientsByFirm(
+    admin: ReturnType<typeof getAdminClient>,
+    userId: string,
+    sanitizedQuery: string
+  ): Promise<Client[] | null> {
+    // Get the attorney's firm_id from their profile
+    const { data: profile } = await admin
+      .from('profiles')
+      .select('primary_firm_id')
+      .eq('id', userId)
+      .single();
+
+    const profileRow = profile as { primary_firm_id: string | null } | null;
+    let firmId = profileRow?.primary_firm_id;
+
+    // Fallback: check firm_members if primary_firm_id is not set
+    if (!firmId) {
+      const { data: membership } = await admin
+        .from('firm_members')
+        .select('firm_id')
+        .eq('user_id', userId)
+        .limit(1)
+        .single();
+
+      const memberRow = membership as { firm_id: string } | null;
+      firmId = memberRow?.firm_id ?? null;
+    }
+
+    if (!firmId) {
+      return null;
+    }
+
+    // Get all client IDs from cases belonging to this firm
+    const { data: firmCases } = await admin
+      .from('cases')
+      .select('client_id')
+      .eq('firm_id', firmId)
+      .is('deleted_at', null);
+
+    const firmCaseRows = (firmCases || []) as { client_id: string }[];
+    const firmClientIds = [...new Set(firmCaseRows.map((c) => c.client_id))];
+
+    // Search profiles matching the query with role = 'client'
+    // Include clients linked to this firm's cases AND clients with no cases yet
+    const { data, error } = await admin
+      .from('profiles')
+      .select('*')
+      .eq('role', 'client')
+      .or(`first_name.ilike.%${sanitizedQuery}%,last_name.ilike.%${sanitizedQuery}%,email.ilike.%${sanitizedQuery}%`)
+      .limit(50);
+
+    if (error) {
+      throw error;
+    }
+
+    const matchedClients = (data || []) as Client[];
+
+    if (matchedClients.length === 0) {
+      return [];
+    }
+
+    // Filter: keep clients who belong to this firm OR have no cases at all
+    const firmClientIdSet = new Set(firmClientIds);
+
+    // Get all client IDs that have ANY case (to identify truly new clients)
+    const matchedIds = matchedClients.map((p) => p.id);
+    const { data: anyCases } = await admin
+      .from('cases')
+      .select('client_id')
+      .in('client_id', matchedIds)
+      .is('deleted_at', null);
+
+    const anyCaseRows = (anyCases || []) as { client_id: string }[];
+    const clientsWithAnyCaseId = new Set(anyCaseRows.map((c) => c.client_id));
+
+    const filtered = matchedClients.filter((client) =>
+      firmClientIdSet.has(client.id) || !clientsWithAnyCaseId.has(client.id)
+    );
+
+    return filtered.slice(0, 10);
+  }
+
+  /**
+   * Fallback: search clients from the attorney's own cases.
+   * Used when the attorney has no firm association.
+   */
+  private async searchClientsByCases(
+    supabase: Awaited<ReturnType<typeof this.getSupabaseClient>>,
+    userId: string,
+    sanitizedQuery: string
+  ): Promise<Client[]> {
+    const { data: cases } = await supabase
+      .from('cases')
+      .select('client_id')
+      .eq('attorney_id', userId)
+      .is('deleted_at', null);
+
+    const clientIds = [...new Set((cases || []).map((c) => c.client_id))];
+
+    if (clientIds.length === 0) {
+      return [];
+    }
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .in('id', clientIds)
+      .or(`first_name.ilike.%${sanitizedQuery}%,last_name.ilike.%${sanitizedQuery}%,email.ilike.%${sanitizedQuery}%`)
+      .limit(10);
+
+    if (error) {
+      throw error;
+    }
+
+    return data || [];
   }
 }
 

@@ -59,8 +59,30 @@ export function useUser(): UseUserReturn {
     setProfileError(null);
 
     // Step 1: Auth check (own try-catch)
+    // First call getSession() to initialize from cookies and trigger client-side
+    // token refresh if needed. This is critical on direct navigation / page reload
+    // because getUser() alone will fail if the access token is stale and hasn't
+    // been refreshed yet.
     let user: Awaited<ReturnType<typeof supabase.auth.getUser>>['data']['user'] = null;
     try {
+      // getSession() reads from cookies/storage and refreshes the token if expired
+      const { data: { session }, error: sessionError } = await Promise.race([
+        supabase.auth.getSession(),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new AuthTimeoutError()), AUTH_TIMEOUT_MS)
+        ),
+      ]);
+
+      if (sessionError) throw sessionError;
+
+      // No session means user is not logged in
+      if (!session) {
+        setProfile(null);
+        setIsLoading(false);
+        return;
+      }
+
+      // Now validate with the server via getUser()
       const userResult = await Promise.race([
         supabase.auth.getUser(),
         new Promise<never>((_, reject) =>

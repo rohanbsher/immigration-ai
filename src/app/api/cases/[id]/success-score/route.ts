@@ -74,7 +74,25 @@ export async function GET(
     }
 
     // Calculate success score
-    const result = await calculateSuccessScore(caseId);
+    let result;
+    try {
+      result = await calculateSuccessScore(caseId);
+    } catch (calcError) {
+      log.warn('Success score calculation failed, returning defaults', {
+        error: calcError instanceof Error ? calcError.message : String(calcError),
+      });
+
+      // Return a sensible default instead of failing
+      result = {
+        overallScore: 0,
+        confidence: 0,
+        factors: [],
+        riskFactors: [],
+        improvements: ['Upload documents and create forms to see your success score.'],
+        calculatedAt: new Date().toISOString(),
+        degraded: true,
+      };
+    }
 
     // Add cache headers (score is relatively stable, cache for 1 hour)
     const response = NextResponse.json(result);
@@ -84,9 +102,15 @@ export async function GET(
   } catch (error) {
     log.logError('Error calculating success score', error);
 
-    return NextResponse.json(
-      { error: 'Internal Server Error', message: 'Failed to calculate success score' },
-      { status: 500 }
-    );
+    // Even for unexpected errors, return a degraded result instead of 500
+    return NextResponse.json({
+      overallScore: 0,
+      confidence: 0,
+      factors: [],
+      riskFactors: [],
+      improvements: [],
+      calculatedAt: new Date().toISOString(),
+      degraded: true,
+    });
   }
 }

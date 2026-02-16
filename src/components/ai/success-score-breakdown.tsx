@@ -13,7 +13,6 @@ import {
   AlertTriangle,
   XCircle,
   TrendingUp,
-  AlertCircle,
   ChevronDown,
   ChevronUp,
   Info,
@@ -55,17 +54,23 @@ export function SuccessScoreBreakdown({
     );
   }
 
-  if (error) {
+  // Show empty state for errors or degraded results (missing AI keys, no data, etc.)
+  const isDegraded = error || !data || (data as typeof data & { degraded?: boolean })?.degraded;
+
+  if (isDegraded) {
     return (
-      <div className={cn('p-4 text-red-600 flex items-center gap-2', className)}>
-        <AlertCircle size={16} />
-        <span className="text-sm">Failed to calculate score</span>
+      <div className={cn('p-4 rounded-lg border border-dashed border-slate-200 bg-slate-50/50', className)}>
+        <div className="flex items-center gap-3 text-slate-400">
+          <TrendingUp size={20} />
+          <div>
+            <p className="text-sm font-medium text-slate-500">Success Score</p>
+            <p className="text-xs text-slate-400">
+              Upload documents and create forms to see your success probability.
+            </p>
+          </div>
+        </div>
       </div>
     );
-  }
-
-  if (!data) {
-    return null;
   }
 
   const colors = getSuccessScoreColors(data.overallScore);

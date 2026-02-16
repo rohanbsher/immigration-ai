@@ -25,6 +25,17 @@ vi.mock('@/lib/supabase/server', () => ({
   createClient: vi.fn(() => Promise.resolve(mockSupabase)),
 }));
 
+// Create mock admin client for searchClients firm-based search
+const mockAdminQueryBuilder = createMockQueryBuilder([]);
+const mockAdminClient = {
+  from: vi.fn().mockReturnValue(mockAdminQueryBuilder),
+  auth: { admin: { createUser: vi.fn() } },
+};
+
+vi.mock('@/lib/supabase/admin', () => ({
+  getAdminClient: vi.fn(() => mockAdminClient),
+}));
+
 // Mock crypto module for documents service
 vi.mock('@/lib/crypto', () => ({
   encryptSensitiveFields: vi.fn((data) => data),
@@ -668,8 +679,76 @@ describe('Database Services', () => {
     });
 
     describe('searchClients', () => {
-      it('should search clients by query', async () => {
-        const mockCases = [{ client_id: 'client-1' }, { client_id: 'client-2' }];
+      beforeEach(() => {
+        mockAdminClient.from.mockReset();
+      });
+
+      it('should search clients via firm-based lookup', async () => {
+        const firmCaseRows = [{ client_id: 'client-1' }, { client_id: 'client-2' }];
+        const matchedProfiles = [
+          createMockProfile({ id: 'client-1', first_name: 'Test', role: 'client' }),
+        ];
+        const anyCaseRows = [{ client_id: 'client-1' }];
+
+        // Admin client calls in order:
+        // 1. profiles .single() -> attorney profile with primary_firm_id
+        const profileQB = createMockQueryBuilder([{ primary_firm_id: 'firm-abc' }]);
+        // 2. cases (firm cases) -> awaited array
+        const firmCasesQB = createMockQueryBuilder(firmCaseRows);
+        // 3. profiles (search) -> awaited array
+        const searchQB = createMockQueryBuilder(matchedProfiles);
+        // 4. cases (any cases check) -> awaited array
+        const anyCasesQB = createMockQueryBuilder(anyCaseRows);
+
+        mockAdminClient.from
+          .mockReturnValueOnce(profileQB)
+          .mockReturnValueOnce(firmCasesQB)
+          .mockReturnValueOnce(searchQB)
+          .mockReturnValueOnce(anyCasesQB);
+
+        const result = await clientsService.searchClients('Test');
+
+        expect(result).toHaveLength(1);
+        expect(result[0].first_name).toBe('Test');
+      });
+
+      it('should include newly created clients with no cases', async () => {
+        const firmCaseRows = [{ client_id: 'client-1' }];
+        const matchedProfiles = [
+          createMockProfile({ id: 'client-1', first_name: 'Existing', role: 'client' }),
+          createMockProfile({ id: 'client-new', first_name: 'NewClient', role: 'client' }),
+        ];
+        // Only client-1 has cases; client-new has none
+        const anyCaseRows = [{ client_id: 'client-1' }];
+
+        const profileQB = createMockQueryBuilder([{ primary_firm_id: 'firm-abc' }]);
+        const firmCasesQB = createMockQueryBuilder(firmCaseRows);
+        const searchQB = createMockQueryBuilder(matchedProfiles);
+        const anyCasesQB = createMockQueryBuilder(anyCaseRows);
+
+        mockAdminClient.from
+          .mockReturnValueOnce(profileQB)
+          .mockReturnValueOnce(firmCasesQB)
+          .mockReturnValueOnce(searchQB)
+          .mockReturnValueOnce(anyCasesQB);
+
+        const result = await clientsService.searchClients('Client');
+
+        // Both: client-1 (in firm cases) and client-new (no cases at all)
+        expect(result).toHaveLength(2);
+      });
+
+      it('should fall back to cases-based search when no firm found', async () => {
+        // Admin: profile with no firm, firm_members with no result
+        const noFirmProfileQB = createMockQueryBuilder([{ primary_firm_id: null }]);
+        const noFirmMemberQB = createMockQueryBuilder([]);
+
+        mockAdminClient.from
+          .mockReturnValueOnce(noFirmProfileQB)
+          .mockReturnValueOnce(noFirmMemberQB);
+
+        // Fallback uses regular supabase client
+        const mockCases = [{ client_id: 'client-1' }];
         const mockProfiles = [createMockProfile({ id: 'client-1', first_name: 'Test' })];
 
         const casesQueryBuilder = createMockQueryBuilder(mockCases);
@@ -682,16 +761,10 @@ describe('Database Services', () => {
         const result = await clientsService.searchClients('Test');
 
         expect(result).toHaveLength(1);
-        expect(profilesQueryBuilder.or).toHaveBeenCalled();
-        expect(profilesQueryBuilder.limit).toHaveBeenCalledWith(10);
       });
 
-      it('should return empty array when no clients for attorney', async () => {
-        const casesQueryBuilder = createMockQueryBuilder([]);
-        mockSupabase.from.mockReturnValue(casesQueryBuilder);
-
-        const result = await clientsService.searchClients('Test');
-
+      it('should return empty array for empty sanitized query', async () => {
+        const result = await clientsService.searchClients('');
         expect(result).toEqual([]);
       });
     });

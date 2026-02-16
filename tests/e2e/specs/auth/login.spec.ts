@@ -66,19 +66,24 @@ test.describe('Login Flow', () => {
       const emailInput = page.locator('input[placeholder*="example.com"]')
         .or(page.locator('input[type="email"]'))
         .or(page.locator('input[name="email"]'));
-      const passwordInput = page.locator('input[placeholder*="password"]')
-        .or(page.locator('input[type="password"]'))
-        .or(page.locator('input[name="password"]'));
 
       await emailInput.first().fill('not-an-email');
-      await passwordInput.first().fill('SomePassword123!');
-      await page.click('button:has-text("Sign in")');
 
-      // Wait briefly for any form processing
-      await page.waitForTimeout(2000);
+      // The login form disables the submit button when email format is invalid.
+      // Verify the button is disabled OR there's a validation indicator.
+      const submitButton = page.locator('button:has-text("Sign in")')
+        .or(page.locator('button[type="submit"]'));
 
-      // Should remain on login page — either browser HTML5 validation blocked
-      // submission, or server returned an error without redirecting
+      const isDisabled = await submitButton.first().isDisabled().catch(() => false);
+      const hasValidationError = await page.locator('text=valid email')
+        .or(page.locator('.text-red'))
+        .or(page.locator('[role="alert"]'))
+        .first().isVisible({ timeout: 2000 }).catch(() => false);
+
+      // Either button is disabled or validation error shows — email is blocked
+      expect(isDisabled || hasValidationError).toBeTruthy();
+
+      // Should remain on login page
       expect(page.url()).toContain('/login');
     });
 

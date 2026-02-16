@@ -73,15 +73,19 @@ vi.mock('@/lib/logger', () => ({
   }),
 }));
 
-const mockAdminInsert = vi.fn().mockResolvedValue({ error: null });
-const mockAdminMaybeSingle = vi.fn().mockResolvedValue({ data: null });
-const mockAdminEq = vi.fn(() => ({ maybeSingle: mockAdminMaybeSingle }));
-const mockAdminSelect = vi.fn(() => ({ eq: mockAdminEq }));
+// Admin client mock – supports the webhook route's INSERT ON CONFLICT pattern:
+//   from().insert().select().single()  – claim an event
+//   from().delete().eq()               – remove claim on failure
+const mockAdminSingle = vi.fn().mockResolvedValue({ data: { id: 'claimed-1' }, error: null });
+const mockAdminClaimSelect = vi.fn(() => ({ single: mockAdminSingle }));
+const mockAdminInsert = vi.fn(() => ({ select: mockAdminClaimSelect }));
+const mockAdminDeleteEq = vi.fn().mockResolvedValue({ error: null });
+const mockAdminDelete = vi.fn(() => ({ eq: mockAdminDeleteEq }));
 vi.mock('@/lib/supabase/admin', () => ({
   getAdminClient: vi.fn(() => ({
     from: vi.fn(() => ({
-      select: mockAdminSelect,
       insert: mockAdminInsert,
+      delete: mockAdminDelete,
     })),
   })),
 }));
@@ -773,8 +777,11 @@ describe('Billing API Routes', () => {
         type: 'checkout.session.completed',
       } as any);
 
-      // SELECT finds an existing record — event was already processed
-      mockAdminMaybeSingle.mockResolvedValueOnce({ data: { id: 'existing-row' } });
+      // INSERT hits unique constraint — event was already claimed
+      mockAdminSingle.mockResolvedValueOnce({
+        data: null,
+        error: { code: '23505', message: 'duplicate key value' },
+      });
 
       const req = createWebhookRequest('{}', 'valid_sig');
       const res = await webhookPOST(req);
@@ -795,8 +802,7 @@ describe('Billing API Routes', () => {
       } as any);
       vi.mocked(handleWebhookEvent).mockResolvedValue(undefined);
 
-      // SELECT finds no existing record — event is new
-      mockAdminMaybeSingle.mockResolvedValueOnce({ data: null });
+      // INSERT claims the event successfully (default mock)
 
       const req = createWebhookRequest('{}', 'valid_sig');
       const res = await webhookPOST(req);
@@ -808,7 +814,7 @@ describe('Billing API Routes', () => {
       expect(mockAdminInsert).toHaveBeenCalled();
     });
 
-    it('still returns success when post-processing dedup insert fails', async () => {
+    it('still returns success when claim insert fails with non-critical error', async () => {
       const recentTimestamp = Math.floor(Date.now() / 1000);
       vi.mocked(constructWebhookEvent).mockResolvedValue({
         id: 'evt_3',
@@ -817,16 +823,17 @@ describe('Billing API Routes', () => {
       } as any);
       vi.mocked(handleWebhookEvent).mockResolvedValue(undefined);
 
-      // SELECT: no existing record
-      mockAdminMaybeSingle.mockResolvedValueOnce({ data: null });
-      // INSERT fails (e.g., table unavailable)
-      mockAdminInsert.mockResolvedValueOnce({ error: { code: '42P01', message: 'relation does not exist' } });
+      // INSERT fails with non-23505 error (e.g., table unavailable) — non-critical
+      mockAdminSingle.mockResolvedValueOnce({
+        data: null,
+        error: { code: '42P01', message: 'relation does not exist' },
+      });
 
       const req = createWebhookRequest('{}', 'valid_sig');
       const res = await webhookPOST(req);
       const data = await res.json();
 
-      // Event was processed successfully — insert failure is non-critical
+      // Event was processed successfully — claim failure is non-critical
       expect(res.status).toBe(200);
       expect(data.received).toBe(true);
       expect(handleWebhookEvent).toHaveBeenCalled();

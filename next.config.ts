@@ -42,8 +42,11 @@ const securityHeaders = [
     value: "same-origin",
   },
   {
+    // cross-origin is required because Supabase storage signed URLs
+    // are served from *.supabase.co (a different origin). same-origin
+    // would block images and document previews from loading.
     key: "Cross-Origin-Resource-Policy",
-    value: "same-origin",
+    value: "cross-origin",
   },
   {
     // Content Security Policy

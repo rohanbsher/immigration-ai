@@ -5,6 +5,7 @@
  */
 
 import { createClient } from '@/lib/supabase/server';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { getProcessingTime, formatProcessingTime } from './processing-times';
 import { formatDocumentType } from '@/lib/ai/utils';
 
@@ -97,10 +98,14 @@ function getDateInTimezone(date: Date, timezone: string): Date {
 /**
  * Look up the user's timezone from notification preferences.
  * Falls back to 'America/New_York' (the DB default) if not found.
+ * Accepts an optional Supabase client to avoid creating a new one per call.
  */
-async function getUserTimezone(userId: string): Promise<string> {
-  const supabase = await createClient();
-  const { data } = await supabase
+async function getUserTimezone(
+  userId: string,
+  supabase?: SupabaseClient
+): Promise<string> {
+  const client = supabase || await createClient();
+  const { data } = await client
     .from('notification_preferences')
     .select('timezone')
     .eq('user_id', userId)
@@ -147,8 +152,9 @@ export async function calculateCaseDeadlines(
     ? `${clientData.first_name} ${clientData.last_name}`
     : 'Unknown Client';
 
-  // Resolve timezone: use provided timezone, or look up from user preferences
-  const tz = timezone || await getUserTimezone(caseData.attorney_id);
+  // Resolve timezone: use provided timezone, or look up from user preferences.
+  // Pass the existing Supabase client to avoid creating a redundant one.
+  const tz = timezone || await getUserTimezone(caseData.attorney_id, supabase);
 
   // 1. Case deadline alert
   if (caseData.deadline) {
@@ -289,7 +295,7 @@ export async function getUpcomingDeadlines(
 ): Promise<DeadlineAlert[]> {
   const supabase = await createClient();
   const now = new Date();
-  const tz = await getUserTimezone(userId);
+  const tz = await getUserTimezone(userId, supabase);
   const cutoffDate = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
 
   // Fetch existing alerts from database
@@ -404,10 +410,10 @@ export async function syncDeadlineAlerts(caseId?: string): Promise<number> {
   const supabase = await createClient();
   let syncCount = 0;
 
-  // Get cases to process
+  // Get cases to process (include attorney_id for timezone caching)
   let casesQuery = supabase
     .from('cases')
-    .select('id')
+    .select('id, attorney_id')
     .is('deleted_at', null)
     .not('status', 'in', '("approved","denied","closed")');
 
@@ -419,8 +425,18 @@ export async function syncDeadlineAlerts(caseId?: string): Promise<number> {
 
   if (!cases) return 0;
 
+  // Cache timezone lookups by attorney to avoid redundant DB queries.
+  // An attorney with 50 cases would otherwise trigger 50 identical queries.
+  const timezoneCache = new Map<string, string>();
   for (const c of cases) {
-    const alerts = await calculateCaseDeadlines(c.id);
+    if (c.attorney_id && !timezoneCache.has(c.attorney_id)) {
+      timezoneCache.set(c.attorney_id, await getUserTimezone(c.attorney_id, supabase));
+    }
+  }
+
+  for (const c of cases) {
+    const tz = c.attorney_id ? timezoneCache.get(c.attorney_id) : undefined;
+    const alerts = await calculateCaseDeadlines(c.id, tz);
 
     for (const alert of alerts) {
       // Upsert alert (insert or update if exists)

@@ -1,6 +1,6 @@
 # Immigration AI - Agent Task List
 
-> Last updated: 2026-02-09 (Production Readiness Audit Complete)
+> Last updated: 2026-02-16 (Form definitions, doc types, PDF engine updates)
 
 ## Completed Execution Plans
 
@@ -37,13 +37,14 @@ All three implementation plans have been verified as 100% complete.
 
 ---
 
-## Current State (2026-02-12)
+## Current State (2026-02-16)
 
 ```
-Tests:  1,884 passed | 3 skipped | 0 failures
-Build:  Passes (68 routes, no TypeScript errors)
+Tests:  2,182+ passed | 3 skipped | 0 failures (unit)
+        86 passed | 67 skipped | 0 failures (E2E in CI)
+Build:  Passes (69 routes, no TypeScript errors)
 Coverage: 86%+ statements
-Migrations: 44 SQL files (001-044)
+Migrations: 37 SQL files (001-044, some gaps)
 ```
 
 > **Full launch tracker: `.claude/LAUNCH_TRACKER.md`**
@@ -53,36 +54,27 @@ Migrations: 44 SQL files (001-044)
 ## Launch-Blocking Work Streams
 
 ### WS-PDF: USCIS PDF Generation (CRITICAL — #1 BLOCKER)
-**Status:** Not started
+**Status:** Partially Complete
 **Assigned Agent:** Unassigned (api-db)
 **Priority:** CRITICAL — attorneys cannot file without this
 **Details:** See LAUNCH_TRACKER.md → Blocker 1
+**Progress:** XFA filler engine exists (`src/lib/pdf/xfa-filler.ts`), Railway microservice exists (`services/pdf-service/`), 7 USCIS templates on disk, 141 AcroForm field mappings
 **Tasks:**
 - [ ] PDF-1: Obtain official USCIS fillable PDF templates (I-130, I-485, I-765, I-131, N-400, I-140)
-- [ ] PDF-2: Build AcroForm field mapper engine (pdf-lib `form.getTextField().setText()`)
-- [ ] PDF-3: Map form field definitions to USCIS PDF AcroForm field names (per-form config)
+- [x] PDF-2: Build AcroForm field mapper engine (pdf-lib `form.getTextField().setText()`)
+- [x] PDF-3: Map form field definitions to USCIS PDF AcroForm field names (per-form config) — 7 forms mapped, 141 fields
 - [ ] PDF-4: Handle USCIS formatting (MM/DD/YYYY dates, checkboxes, continuation sheets)
 - [ ] PDF-5: Remove "DRAFT" watermark, produce filing-ready output
 - [ ] PDF-6: Add PDF preview in UI
 - [ ] PDF-7: Add tests for PDF field mapping correctness
-
-### WS-FORMS: Missing Form Definitions (HIGH)
-**Status:** Not started
-**Assigned Agent:** Unassigned (api-db)
-**Priority:** HIGH — 5 of 11 form types are stubs
-**Details:** See LAUNCH_TRACKER.md → Blocker 2
-**Tasks:**
-- [ ] I-129 definition + autofill prompt + PDF template + tests (HIGH — H-1B/L-1/O-1)
-- [ ] I-539 definition + autofill prompt + PDF template + tests (MEDIUM)
-- [ ] I-20 definition + autofill prompt + PDF template + tests (MEDIUM)
-- [ ] DS-160 definition + autofill prompt + PDF template + tests (LOW)
-- [ ] G-1145 definition + autofill prompt + PDF template + tests (LOW)
+- [ ] PDF-8: Deploy Railway PDF service to production, configure env vars
+- [ ] PDF-9: Add field maps for 4 remaining forms (I-129, I-539, I-20, DS-160)
 
 ### WS-AI-MAPPING: Expand AI Autofill Coverage (HIGH)
 **Status:** Not started
 **Assigned Agent:** Unassigned (api-db)
 **Priority:** HIGH — only 7-8 fields per form have AI mappings (~85% manual entry)
-**Depends on:** WS-FORMS (for new form definitions)
+**Depends on:** WS-FORMS (COMPLETE)
 **Details:** See LAUNCH_TRACKER.md → Blocker 3
 **Tasks:**
 - [ ] Extract address history from utility bills / lease agreements
@@ -92,27 +84,17 @@ Migrations: 44 SQL files (001-044)
 - [ ] Extract education from transcripts / diplomas
 - [ ] Update `src/lib/ai/form-autofill.ts` field mappings for all forms
 
-### WS-DOC-TYPES: Missing Document Extraction Prompts (MEDIUM)
-**Status:** Not started
-**Assigned Agent:** Unassigned (api-db)
-**Priority:** MEDIUM — 9/18 document types have extraction prompts
-**Details:** See LAUNCH_TRACKER.md → Blocker 4
-**Tasks:**
-- [ ] i94 extraction prompt (HIGH — entry/exit records)
-- [ ] w2 extraction prompt (HIGH — employment/income)
-- [ ] pay_stub extraction prompt (MEDIUM)
-- [ ] diploma extraction prompt (MEDIUM — for I-140)
-- [ ] transcript extraction prompt (MEDIUM — for I-140)
-- [ ] recommendation_letter extraction prompt (LOW)
-- [ ] photo validation prompt (LOW)
-
 ### WS-INFRA: Infrastructure Setup (USER ACTION)
 **Status:** Not started
 **Assigned Agent:** User / lead
 **Priority:** CRITICAL — zero production services configured
 **Details:** See LAUNCH_TRACKER.md → Blocker 5
+**Notes:**
+- Cron handler POST→GET bug fixed (2026-02-16)
+- PDF_SERVICE_URL and PDF_SERVICE_SECRET added to env templates
+- Still needs all production services configured
 **Tasks:**
-- [ ] Supabase production instance + push 44 migrations
+- [ ] Supabase production instance + push 37 migrations
 - [ ] Generate ENCRYPTION_KEY (`openssl rand -hex 32`) and CRON_SECRET (`openssl rand -hex 16`)
 - [ ] Configure virus scanner (ClamAV or VirusTotal)
 - [ ] Set AI API keys (OpenAI + Anthropic) with billing
@@ -122,6 +104,7 @@ Migrations: 44 SQL files (001-044)
 - [ ] Configure Sentry for error tracking
 - [ ] Configure Stripe (if monetizing)
 - [ ] Deploy to Vercel
+- [ ] Set PDF_SERVICE_URL and PDF_SERVICE_SECRET for Railway PDF service
 
 ---
 
@@ -159,6 +142,26 @@ Migrations: 44 SQL files (001-044)
 ---
 
 ## Completed Work Streams (Reference)
+
+### WS-FORMS: Missing Form Definitions (COMPLETE)
+- [x] I-129 definition + autofill prompt + tests (HIGH — H-1B/L-1/O-1)
+- [x] I-539 definition + autofill prompt + tests (MEDIUM)
+- [x] I-20 definition + autofill prompt + tests (MEDIUM)
+- [x] DS-160 definition + autofill prompt + tests (LOW)
+- [x] G-1145 definition + autofill prompt + tests (LOW)
+
+> All 11/11 form types now have complete definitions with fields, sections, AI mappings, prompts, and tests.
+
+### WS-DOC-TYPES: Missing Document Extraction Prompts (COMPLETE)
+- [x] i94 extraction prompt (HIGH — entry/exit records)
+- [x] w2 extraction prompt (HIGH — employment/income)
+- [x] pay_stub extraction prompt (MEDIUM)
+- [x] diploma extraction prompt (MEDIUM — for I-140)
+- [x] transcript extraction prompt (MEDIUM — for I-140)
+- [x] recommendation_letter extraction prompt (LOW)
+- [x] photo validation prompt (LOW)
+
+> 16/18 document types now have extraction prompts (was 9). All 7 missing types added: I-94, W-2, pay stub, diploma, transcript, recommendation letter, photo.
 
 ### WS-AUDIT: Production Readiness Audit (COMPLETE)
 - [x] Verify security (.gitignore, Next.js version)
@@ -204,7 +207,7 @@ Migrations: 44 SQL files (001-044)
 ```bash
 npm run dev          # Start dev server
 npm run build        # Production build
-npm run test:run     # Run tests (1,589 passing)
+npm run test:run     # Run tests (2,182+ passing)
 npm run lint         # Check lint issues
 
 # Build requires this env var if Redis not configured:

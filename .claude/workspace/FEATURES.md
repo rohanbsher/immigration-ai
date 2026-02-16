@@ -1,6 +1,6 @@
 # Immigration AI - Features
 
-> Last updated: 2026-02-09 (Verified via production readiness audit)
+> Last updated: 2026-02-16 (Feature inventory update)
 
 ## Shipped Features
 
@@ -48,10 +48,26 @@
 | Legal Pages | Privacy policy, terms, AI disclaimer | `src/app/(legal)/` | 2026-02-07 |
 | SEO | Sitemap, robots.txt, Open Graph metadata | `src/app/sitemap.ts`, `src/app/robots.ts` | 2026-02-06 |
 | Session Expiry Warning | 5-min countdown + extend option | `src/components/session/session-expiry-warning.tsx` | 2026-02-06 |
+| Forgot Password | Password reset flow | `src/app/(auth)/forgot-password/` | 2026-01 |
+| Case Success Scoring | Probability scoring for case approval | `src/lib/scoring/success-probability.ts` | 2026-02 |
+| Processing Time Estimates | USCIS processing time estimates per form type | `src/lib/deadline/processing-times.ts` | 2026-02 |
+| Natural Language Search | AI-powered semantic search across cases | `src/lib/ai/natural-search.ts` | 2026-02 |
+| Document Completeness | AI analysis of case document sufficiency | `src/lib/ai/document-completeness.ts` | 2026-02 |
+| Document State Machine | Status transition logic for document workflow | `src/lib/documents/state-machine.ts` | 2026-02 |
+| Background Cleanup Jobs | Scheduled cleanup of stale data | `src/lib/jobs/cleanup.ts` | 2026-02 |
+| CSRF Protection | Cross-site request forgery prevention | `src/lib/csrf/index.ts` | 2026-02 |
+| XFA PDF Filler | Railway microservice for official USCIS PDF filling | `services/pdf-service/main.py`, `src/lib/pdf/xfa-filler.ts` | 2026-02 |
+| Case Recommendations | AI-powered next-step recommendations for cases | `src/app/api/cases/[id]/recommendations/route.ts` | 2026-02 |
+| Case Completeness API | Document completeness check endpoint | `src/app/api/cases/[id]/completeness/route.ts` | 2026-02 |
+| Case Messaging | In-case attorney-client communication | `src/app/api/cases/[id]/messages/route.ts` | 2026-02 |
+| Form Filing Workflow | Mark forms as filed | `src/app/api/forms/[id]/file/route.ts` | 2026-02 |
+| Form Attorney Review | Attorney review workflow for AI-filled forms | `src/app/api/forms/[id]/review/route.ts` | 2026-02 |
+| USCIS Field Mappings | AcroForm field maps for 7 USCIS forms (141 fields total) | `src/lib/pdf/uscis-fields/` | 2026-02 |
+| Timing-Safe Comparisons | Constant-time secret comparison utility | `src/lib/security/timing-safe.ts` | 2026-02 |
 
 ## Planned
 
-_No features currently planned. All 30+ features shipped._
+_No features currently planned. All 50+ features shipped._
 
 ## Deferred
 
@@ -63,7 +79,9 @@ _No features currently planned. All 30+ features shipped._
 
 ---
 
-## Verified Quality (2026-02-05)
+## Verified Quality (2026-02-16)
+
+- Tests: 2,182+ passing
 
 ### Bug Fixes Verified
 - updateMessage metadata: Atomic JSONB merge (PROVEN)

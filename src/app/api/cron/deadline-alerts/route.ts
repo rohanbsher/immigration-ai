@@ -7,10 +7,12 @@ import { safeCompare } from '@/lib/security/timing-safe';
 const log = createLogger('cron:deadline-alerts');
 
 /**
- * POST /api/cron/deadline-alerts
+ * GET /api/cron/deadline-alerts
  *
  * Cron job endpoint to sync deadline alerts.
- * Should be called daily via Vercel Cron.
+ * Called daily at 6 AM UTC via Vercel Cron.
+ *
+ * IMPORTANT: Vercel Cron sends GET requests, not POST.
  *
  * Vercel Cron config (in vercel.json):
  * {
@@ -22,7 +24,7 @@ const log = createLogger('cron:deadline-alerts');
  *   ]
  * }
  */
-export async function POST(request: NextRequest): Promise<NextResponse> {
+export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     // Verify cron jobs are properly configured
     if (!features.cronJobs) {

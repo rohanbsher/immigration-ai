@@ -137,7 +137,7 @@ function SummaryBadges({
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium bg-destructive/10 text-destructive">
                 <AlertCircle size={10} />
                 {summary.critical}
               </span>
@@ -152,7 +152,7 @@ function SummaryBadges({
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium bg-warning/10 text-warning">
                 <AlertTriangle size={10} />
                 {summary.warning}
               </span>
@@ -241,7 +241,7 @@ function DeadlineItem({
                   size="sm"
                   onClick={onAcknowledge}
                   disabled={isUpdating}
-                  className="h-7 w-7 p-0 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                  className="h-7 w-7 p-0 text-success hover:text-success hover:bg-success/5"
                 >
                   <Check size={14} />
                 </Button>

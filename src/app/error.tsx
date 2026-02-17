@@ -31,34 +31,34 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
   }, [error]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <Card className="w-full max-w-lg">
         <CardHeader className="text-center">
-          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-100 flex items-center justify-center">
-            <AlertTriangle className="h-8 w-8 text-red-600" />
+          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-destructive/10 flex items-center justify-center">
+            <AlertTriangle className="h-8 w-8 text-destructive" />
           </div>
-          <CardTitle className="text-xl text-slate-900">
+          <CardTitle className="text-xl text-foreground">
             Something went wrong
           </CardTitle>
-          <CardDescription className="text-slate-600">
+          <CardDescription className="text-muted-foreground">
             We apologize for the inconvenience. An unexpected error has
             occurred.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {process.env.NODE_ENV === 'development' && (
-            <div className="p-4 bg-slate-100 rounded-lg overflow-auto">
-              <p className="text-sm font-mono text-red-600 break-all">
+            <div className="p-4 bg-muted rounded-lg overflow-auto">
+              <p className="text-sm font-mono text-destructive break-all">
                 {error.message}
               </p>
               {error.digest && (
-                <p className="mt-2 text-xs text-slate-500">
+                <p className="mt-2 text-xs text-muted-foreground">
                   Error ID: {error.digest}
                 </p>
               )}
             </div>
           )}
-          <p className="text-sm text-slate-500 text-center">
+          <p className="text-sm text-muted-foreground text-center">
             Please try again or return to the home page. If this problem
             persists, contact our support team.
           </p>

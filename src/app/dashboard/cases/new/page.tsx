@@ -69,7 +69,7 @@ export default function NewCasePage() {
   if (isAuthLoading || !hasAccess || isQuotaLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
@@ -220,8 +220,8 @@ export default function NewCasePage() {
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Create New Case</h1>
-          <p className="text-slate-600">Set up a new immigration case</p>
+          <h1 className="text-2xl font-bold text-foreground">Create New Case</h1>
+          <p className="text-muted-foreground">Set up a new immigration case</p>
         </div>
       </div>
 

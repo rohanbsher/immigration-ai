@@ -63,7 +63,7 @@ export function FirmSwitcher({ collapsed, selectedFirmId, onFirmChange }: FirmSw
             <Building2 size={14} />
             <span className="flex-1 truncate">{firm.name}</span>
             {firm.id === selectedFirm.id && (
-              <Check size={14} className="text-green-600" />
+              <Check size={14} className="text-success" />
             )}
           </DropdownMenuItem>
         ))}

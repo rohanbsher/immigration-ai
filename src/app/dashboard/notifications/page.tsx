@@ -11,10 +11,10 @@ import { NotificationsEmptyState } from '@/components/ui/empty-state';
 import { Skeleton, NotificationSkeleton, ListSkeleton } from '@/components/ui/skeletons';
 
 const typeConfig: Record<string, { className: string; label: string }> = {
-  info: { className: 'bg-blue-100 text-blue-700', label: 'Info' },
-  warning: { className: 'bg-amber-100 text-amber-700', label: 'Warning' },
-  success: { className: 'bg-green-100 text-green-700', label: 'Success' },
-  error: { className: 'bg-red-100 text-red-700', label: 'Error' },
+  info: { className: 'bg-info/10 text-info', label: 'Info' },
+  warning: { className: 'bg-warning/10 text-warning', label: 'Warning' },
+  success: { className: 'bg-success/10 text-success', label: 'Success' },
+  error: { className: 'bg-destructive/10 text-destructive', label: 'Error' },
 };
 
 export default function NotificationsPage() {
@@ -54,7 +54,7 @@ export default function NotificationsPage() {
     return (
       <Card>
         <CardContent className="p-8 text-center">
-          <p className="text-red-600">Failed to load notifications. Please try again.</p>
+          <p className="text-destructive">Failed to load notifications. Please try again.</p>
         </CardContent>
       </Card>
     );

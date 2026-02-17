@@ -46,7 +46,7 @@ function ClientCaseDetailContent({ id }: { id: string }) {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
@@ -60,7 +60,7 @@ function ClientCaseDetailContent({ id }: { id: string }) {
         </Button>
         <Card>
           <CardContent className="p-8 text-center">
-            <p className="text-slate-600">Case not found or you don&apos;t have access.</p>
+            <p className="text-muted-foreground">Case not found or you don&apos;t have access.</p>
           </CardContent>
         </Card>
       </div>
@@ -93,10 +93,10 @@ function ClientCaseDetailContent({ id }: { id: string }) {
         </Button>
         <div className="flex-1">
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-slate-900">{caseData.title}</h1>
+            <h1 className="text-2xl font-bold text-foreground">{caseData.title}</h1>
             <CaseStatusBadge status={caseData.status} />
           </div>
-          <div className="flex items-center gap-4 mt-1 text-sm text-slate-500">
+          <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
             <Badge variant="outline">{caseData.visa_type}</Badge>
             {caseData.deadline && (
               <span className="flex items-center gap-1">
@@ -109,15 +109,15 @@ function ClientCaseDetailContent({ id }: { id: string }) {
       </div>
 
       {/* Status Card */}
-      <Card className="border-l-4 border-l-blue-500">
+      <Card className="border-l-4 border-l-primary">
         <CardContent className="p-4">
           <div className="flex items-start gap-3">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <Clock className="h-5 w-5 text-blue-600" />
+            <div className="p-2 bg-primary/10 rounded-lg">
+              <Clock className="h-5 w-5 text-primary" />
             </div>
             <div>
               <h3 className="font-medium">Current Status</h3>
-              <p className="text-sm text-slate-600 mt-1">
+              <p className="text-sm text-muted-foreground mt-1">
                 {getStatusDescription(caseData.status)}
               </p>
             </div>
@@ -148,12 +148,12 @@ function ClientCaseDetailContent({ id }: { id: string }) {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
-                    <p className="text-sm text-slate-500">Visa Type</p>
+                    <p className="text-sm text-muted-foreground">Visa Type</p>
                     <p className="font-medium">{caseData.visa_type}</p>
                   </div>
                   {caseData.priority_date && (
                     <div>
-                      <p className="text-sm text-slate-500">Priority Date</p>
+                      <p className="text-sm text-muted-foreground">Priority Date</p>
                       <p className="font-medium">
                         {format(new Date(caseData.priority_date), 'MMM d, yyyy')}
                       </p>
@@ -161,14 +161,14 @@ function ClientCaseDetailContent({ id }: { id: string }) {
                   )}
                   {caseData.deadline && (
                     <div>
-                      <p className="text-sm text-slate-500">Deadline</p>
+                      <p className="text-sm text-muted-foreground">Deadline</p>
                       <p className="font-medium">
                         {format(new Date(caseData.deadline), 'MMM d, yyyy')}
                       </p>
                     </div>
                   )}
                   <div>
-                    <p className="text-sm text-slate-500">Case Opened</p>
+                    <p className="text-sm text-muted-foreground">Case Opened</p>
                     <p className="font-medium">
                       {format(new Date(caseData.created_at), 'MMM d, yyyy')}
                     </p>
@@ -187,13 +187,13 @@ function ClientCaseDetailContent({ id }: { id: string }) {
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div>
-                      <p className="text-sm text-slate-500">Name</p>
+                      <p className="text-sm text-muted-foreground">Name</p>
                       <p className="font-medium">
                         {caseData.attorney.first_name} {caseData.attorney.last_name}
                       </p>
                     </div>
                     <div>
-                      <p className="text-sm text-slate-500">Email</p>
+                      <p className="text-sm text-muted-foreground">Email</p>
                       <p className="font-medium">{caseData.attorney.email}</p>
                     </div>
                   </CardContent>
@@ -213,17 +213,17 @@ function ClientCaseDetailContent({ id }: { id: string }) {
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-2 gap-4">
-                    <div className="p-3 bg-slate-50 rounded-lg text-center">
-                      <p className="text-2xl font-bold text-slate-900">
+                    <div className="p-3 bg-muted/50 rounded-lg text-center">
+                      <p className="text-2xl font-bold text-foreground">
                         {caseData.documents_count || 0}
                       </p>
-                      <p className="text-sm text-slate-500">Documents</p>
+                      <p className="text-sm text-muted-foreground">Documents</p>
                     </div>
-                    <div className="p-3 bg-slate-50 rounded-lg text-center">
-                      <p className="text-2xl font-bold text-slate-900">
+                    <div className="p-3 bg-muted/50 rounded-lg text-center">
+                      <p className="text-2xl font-bold text-foreground">
                         {caseData.forms_count || 0}
                       </p>
-                      <p className="text-sm text-slate-500">Forms</p>
+                      <p className="text-sm text-muted-foreground">Forms</p>
                     </div>
                   </div>
                 </CardContent>
@@ -241,7 +241,7 @@ function ClientCaseDetailContent({ id }: { id: string }) {
                 <CardTitle>Description</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-slate-600">{caseData.description}</p>
+                <p className="text-muted-foreground">{caseData.description}</p>
               </CardContent>
             </Card>
           )}
@@ -251,7 +251,7 @@ function ClientCaseDetailContent({ id }: { id: string }) {
           <div className="flex justify-between items-center">
             <div>
               <h3 className="text-lg font-semibold">Your Documents</h3>
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-muted-foreground">
                 Upload documents requested by your attorney
               </p>
             </div>
@@ -307,7 +307,7 @@ export default function ClientCaseDetailPage({
     <Suspense
       fallback={
         <div className="flex items-center justify-center min-h-[400px]">
-          <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
       }
     >

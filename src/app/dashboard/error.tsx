@@ -34,30 +34,30 @@ export default function DashboardError({ error, reset }: DashboardErrorProps) {
     <div className="flex items-center justify-center min-h-[60vh] px-4">
       <Card className="w-full max-w-lg">
         <CardHeader className="text-center">
-          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-amber-100 flex items-center justify-center">
-            <AlertTriangle className="h-8 w-8 text-amber-600" />
+          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-warning/10 flex items-center justify-center">
+            <AlertTriangle className="h-8 w-8 text-warning" />
           </div>
-          <CardTitle className="text-xl text-slate-900">
+          <CardTitle className="text-xl text-foreground">
             Dashboard Error
           </CardTitle>
-          <CardDescription className="text-slate-600">
+          <CardDescription className="text-muted-foreground">
             Something went wrong while loading this page.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {process.env.NODE_ENV === 'development' && (
-            <div className="p-4 bg-slate-100 rounded-lg overflow-auto">
-              <p className="text-sm font-mono text-red-600 break-all">
+            <div className="p-4 bg-muted rounded-lg overflow-auto">
+              <p className="text-sm font-mono text-destructive break-all">
                 {error.message}
               </p>
               {error.digest && (
-                <p className="mt-2 text-xs text-slate-500">
+                <p className="mt-2 text-xs text-muted-foreground">
                   Error ID: {error.digest}
                 </p>
               )}
             </div>
           )}
-          <p className="text-sm text-slate-500 text-center">
+          <p className="text-sm text-muted-foreground text-center">
             This error has been logged. Try refreshing or navigate to a
             different page.
           </p>

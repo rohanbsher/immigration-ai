@@ -100,7 +100,7 @@ function FirmDashboard({ firmId, userRole }: { firmId: string; userRole: FirmRol
   if (!firm) {
     return (
       <div className="text-center py-12">
-        <p className="text-red-600">Failed to load firm information</p>
+        <p className="text-destructive">Failed to load firm information</p>
       </div>
     );
   }

@@ -179,7 +179,7 @@ export function CreateCaseDialog({ open, onOpenChange }: CreateCaseDialogProps) 
           <div className="space-y-2">
             <div className="flex items-center gap-1">
               <Label htmlFor="title">
-                Case Title <span className="text-red-500">*</span>
+                Case Title <span className="text-destructive">*</span>
               </Label>
               <FieldHelp
                 title="Case Title"
@@ -200,7 +200,7 @@ export function CreateCaseDialog({ open, onOpenChange }: CreateCaseDialogProps) 
 
           <div className="space-y-2">
             <Label htmlFor="client_search">
-              Client <span className="text-red-500">*</span>
+              Client <span className="text-destructive">*</span>
             </Label>
 
             {selectedClient ? (
@@ -281,7 +281,7 @@ export function CreateCaseDialog({ open, onOpenChange }: CreateCaseDialogProps) 
           <div className="space-y-2">
             <div className="flex items-center gap-1">
               <Label htmlFor="visa_type">
-                Visa Type <span className="text-red-500">*</span>
+                Visa Type <span className="text-destructive">*</span>
               </Label>
               <FieldHelp
                 title="Visa Type"

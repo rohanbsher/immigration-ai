@@ -4,16 +4,16 @@ import { Badge } from '@/components/ui/badge';
 import type { CaseStatus } from '@/types';
 
 const statusConfig: Record<CaseStatus, { label: string; className: string }> = {
-  intake: { label: 'Intake', className: 'bg-slate-100 text-slate-700 hover:bg-slate-100' },
-  document_collection: { label: 'Collecting Docs', className: 'bg-yellow-100 text-yellow-700 hover:bg-yellow-100' },
-  in_review: { label: 'In Review', className: 'bg-blue-100 text-blue-700 hover:bg-blue-100' },
-  forms_preparation: { label: 'Preparing Forms', className: 'bg-purple-100 text-purple-700 hover:bg-purple-100' },
-  ready_for_filing: { label: 'Ready to File', className: 'bg-indigo-100 text-indigo-700 hover:bg-indigo-100' },
-  filed: { label: 'Filed', className: 'bg-green-100 text-green-700 hover:bg-green-100' },
-  pending_response: { label: 'Pending Response', className: 'bg-orange-100 text-orange-700 hover:bg-orange-100' },
-  approved: { label: 'Approved', className: 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100' },
-  denied: { label: 'Denied', className: 'bg-red-100 text-red-700 hover:bg-red-100' },
-  closed: { label: 'Closed', className: 'bg-gray-100 text-gray-700 hover:bg-gray-100' },
+  intake: { label: 'Intake', className: 'bg-muted text-muted-foreground hover:bg-muted' },
+  document_collection: { label: 'Collecting Docs', className: 'bg-warning/10 text-warning hover:bg-warning/10' },
+  in_review: { label: 'In Review', className: 'bg-info/10 text-info hover:bg-info/10' },
+  forms_preparation: { label: 'Preparing Forms', className: 'bg-ai-accent-muted text-ai-accent hover:bg-ai-accent-muted' },
+  ready_for_filing: { label: 'Ready to File', className: 'bg-primary/10 text-primary hover:bg-primary/10' },
+  filed: { label: 'Filed', className: 'bg-success/10 text-success hover:bg-success/10' },
+  pending_response: { label: 'Pending Response', className: 'bg-warning/10 text-warning hover:bg-warning/10' },
+  approved: { label: 'Approved', className: 'bg-success/10 text-success hover:bg-success/10' },
+  denied: { label: 'Denied', className: 'bg-destructive/10 text-destructive hover:bg-destructive/10' },
+  closed: { label: 'Closed', className: 'bg-muted text-muted-foreground hover:bg-muted' },
 };
 
 interface CaseStatusBadgeProps {

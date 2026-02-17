@@ -69,12 +69,12 @@ export function PendingInvites({ firmId, invitations }: PendingInvitesProps) {
           {pendingInvitations.map((invitation) => (
             <div key={invitation.id} className="flex items-center justify-between py-3">
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center">
-                  <Mail className="h-5 w-5 text-slate-500" />
+                <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
+                  <Mail className="h-5 w-5 text-muted-foreground" />
                 </div>
                 <div>
                   <p className="font-medium text-sm">{invitation.email}</p>
-                  <div className="flex items-center gap-2 text-xs text-slate-500">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <Clock size={12} />
                     <span>{formatExpiry(invitation.expiresAt)}</span>
                   </div>
@@ -85,7 +85,7 @@ export function PendingInvites({ firmId, invitations }: PendingInvitesProps) {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 text-slate-500 hover:text-red-600"
+                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
                   onClick={() => handleRevoke(invitation.id)}
                   disabled={revokeInvitation.isPending}
                 >

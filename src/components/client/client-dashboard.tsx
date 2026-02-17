@@ -43,18 +43,18 @@ async function fetchClientCases(): Promise<ClientCase[]> {
 }
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.ElementType }> = {
-  intake: { label: 'Intake', color: 'bg-blue-500', icon: Clock },
-  document_collection: { label: 'Collecting Documents', color: 'bg-yellow-500', icon: FileText },
-  document_review: { label: 'Under Review', color: 'bg-purple-500', icon: FileText },
-  form_preparation: { label: 'Preparing Forms', color: 'bg-indigo-500', icon: FileText },
-  client_review: { label: 'Needs Your Review', color: 'bg-orange-500', icon: AlertTriangle },
-  ready_to_file: { label: 'Ready to File', color: 'bg-green-500', icon: CheckCircle },
-  filed: { label: 'Filed', color: 'bg-teal-500', icon: CheckCircle },
-  rfe_received: { label: 'RFE Received', color: 'bg-red-500', icon: AlertTriangle },
-  approved: { label: 'Approved', color: 'bg-emerald-500', icon: CheckCircle },
-  denied: { label: 'Denied', color: 'bg-red-600', icon: AlertTriangle },
-  completed: { label: 'Completed', color: 'bg-gray-500', icon: CheckCircle },
-  closed: { label: 'Closed', color: 'bg-gray-400', icon: CheckCircle },
+  intake: { label: 'Intake', color: 'bg-primary', icon: Clock },
+  document_collection: { label: 'Collecting Documents', color: 'bg-warning', icon: FileText },
+  document_review: { label: 'Under Review', color: 'bg-ai-accent', icon: FileText },
+  form_preparation: { label: 'Preparing Forms', color: 'bg-primary', icon: FileText },
+  client_review: { label: 'Needs Your Review', color: 'bg-warning', icon: AlertTriangle },
+  ready_to_file: { label: 'Ready to File', color: 'bg-success', icon: CheckCircle },
+  filed: { label: 'Filed', color: 'bg-info', icon: CheckCircle },
+  rfe_received: { label: 'RFE Received', color: 'bg-destructive', icon: AlertTriangle },
+  approved: { label: 'Approved', color: 'bg-success', icon: CheckCircle },
+  denied: { label: 'Denied', color: 'bg-destructive', icon: AlertTriangle },
+  completed: { label: 'Completed', color: 'bg-muted-foreground', icon: CheckCircle },
+  closed: { label: 'Closed', color: 'bg-muted-foreground', icon: CheckCircle },
 };
 
 function getStatusProgress(status: string): number {

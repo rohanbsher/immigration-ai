@@ -43,7 +43,7 @@ export function TwoFactorBackupDialog({
               If you lose access to your authenticator app, you can use these codes to sign in.
             </AlertDescription>
           </Alert>
-          <div className="bg-slate-100 rounded-lg p-4 font-mono text-sm">
+          <div className="bg-muted rounded-lg p-4 font-mono text-sm">
             <div className="grid grid-cols-2 gap-2">
               {backupCodes.map((code, index) => (
                 <div key={index} className="text-center py-1 bg-white rounded border">

@@ -20,7 +20,7 @@ import { toast } from 'sonner';
 const PRIORITY_CONFIG: Record<TaskPriority, { label: string; className: string }> = {
   low: { label: 'Low', className: 'bg-muted text-muted-foreground' },
   medium: { label: 'Medium', className: 'bg-primary/10 text-primary' },
-  high: { label: 'High', className: 'bg-amber-100 text-amber-700' },
+  high: { label: 'High', className: 'bg-warning/10 text-warning' },
   urgent: { label: 'Urgent', className: 'bg-destructive/10 text-destructive' },
 };
 

@@ -122,8 +122,8 @@ export default function ClientsPage() {
         </Card>
         <Card>
           <CardContent className="p-4 flex items-center gap-4">
-            <div className="w-12 h-12 rounded-lg bg-green-100 flex items-center justify-center">
-              <FolderOpen className="text-green-600" size={24} />
+            <div className="w-12 h-12 rounded-lg bg-success/10 flex items-center justify-center">
+              <FolderOpen className="text-success" size={24} />
             </div>
             <div>
               <p className="text-2xl font-bold">
@@ -190,7 +190,7 @@ export default function ClientsPage() {
                       {client.cases_count} cases
                     </Badge>
                     {client.active_cases_count > 0 && (
-                      <Badge variant="secondary" className="bg-green-100 text-green-700">
+                      <Badge variant="secondary" className="bg-success/10 text-success">
                         {client.active_cases_count} active
                       </Badge>
                     )}

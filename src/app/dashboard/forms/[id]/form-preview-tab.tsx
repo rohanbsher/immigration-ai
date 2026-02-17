@@ -18,7 +18,7 @@ export function FormPreviewTab({ formDefinition, formValues }: FormPreviewTabPro
         <div className="space-y-6">
           {formDefinition.sections.map((section) => (
             <div key={section.id}>
-              <h3 className="font-semibold text-slate-900 mb-3 pb-2 border-b">
+              <h3 className="font-semibold text-foreground mb-3 pb-2 border-b">
                 {section.title}
               </h3>
               <div className="grid md:grid-cols-2 gap-4">
@@ -34,7 +34,7 @@ export function FormPreviewTab({ formDefinition, formValues }: FormPreviewTabPro
 
                   return (
                     <div key={field.id}>
-                      <p className="text-sm text-slate-500">{field.label}</p>
+                      <p className="text-sm text-muted-foreground">{field.label}</p>
                       <p className="font-medium">{displayValue}</p>
                     </div>
                   );

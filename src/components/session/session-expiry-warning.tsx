@@ -130,12 +130,12 @@ export function SessionExpiryWarning() {
       <AlertDialogContent>
         <AlertDialogHeader>
           <div className="flex items-center gap-3 mb-2">
-            <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center">
-              <Clock className="h-6 w-6 text-amber-600" />
+            <div className="w-12 h-12 rounded-full bg-warning/10 flex items-center justify-center">
+              <Clock className="h-6 w-6 text-warning" />
             </div>
             <div>
               <AlertDialogTitle>Session Expiring Soon</AlertDialogTitle>
-              <p className="text-2xl font-bold text-amber-600 tabular-nums">
+              <p className="text-2xl font-bold text-warning tabular-nums">
                 {formatTime(timeRemaining)}
               </p>
             </div>

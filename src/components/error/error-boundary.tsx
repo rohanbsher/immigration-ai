@@ -111,38 +111,38 @@ function ErrorFallbackUI({ error, eventId, onReset, onReload }: ErrorFallbackUIP
   const isDev = process.env.NODE_ENV === 'development';
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <Card className="w-full max-w-lg">
         <CardHeader className="text-center">
-          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-100 flex items-center justify-center">
-            <AlertTriangle className="h-8 w-8 text-red-600" />
+          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-destructive/10 flex items-center justify-center">
+            <AlertTriangle className="h-8 w-8 text-destructive" />
           </div>
-          <CardTitle className="text-xl text-slate-900">
+          <CardTitle className="text-xl text-foreground">
             Something went wrong
           </CardTitle>
-          <CardDescription className="text-slate-600">
+          <CardDescription className="text-muted-foreground">
             We encountered an unexpected error. Our team has been notified.
           </CardDescription>
           {eventId && (
-            <p className="text-xs text-slate-400 mt-2 font-mono">
+            <p className="text-xs text-muted-foreground mt-2 font-mono">
               Error ID: {eventId}
             </p>
           )}
         </CardHeader>
         <CardContent className="space-y-4">
           {isDev && error && (
-            <div className="p-4 bg-slate-100 rounded-lg overflow-auto">
-              <p className="text-sm font-mono text-red-600 break-all">
+            <div className="p-4 bg-muted rounded-lg overflow-auto">
+              <p className="text-sm font-mono text-destructive break-all">
                 {error.message}
               </p>
               {error.stack && (
-                <pre className="mt-2 text-xs text-slate-500 whitespace-pre-wrap">
+                <pre className="mt-2 text-xs text-muted-foreground whitespace-pre-wrap">
                   {error.stack.split('\n').slice(0, 5).join('\n')}
                 </pre>
               )}
             </div>
           )}
-          <p className="text-sm text-slate-500 text-center">
+          <p className="text-sm text-muted-foreground text-center">
             Try refreshing the page or returning to the dashboard. If the
             problem persists, please contact support.
           </p>
@@ -173,7 +173,7 @@ function ErrorFallbackUI({ error, eventId, onReset, onReload }: ErrorFallbackUIP
         </CardFooter>
         {isDev && (
           <div className="px-6 pb-6">
-            <div className="flex items-center gap-2 text-xs text-slate-400 justify-center">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground justify-center">
               <Bug size={12} />
               <span>Development mode - error details shown above</span>
             </div>

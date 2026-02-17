@@ -45,7 +45,7 @@ export function TwoFactorQrDialog({
               unoptimized
             />
           )}
-          <p className="text-sm text-slate-500 text-center">
+          <p className="text-sm text-muted-foreground text-center">
             After scanning, your app will display a 6-digit code. Click Continue to enter it.
           </p>
         </div>

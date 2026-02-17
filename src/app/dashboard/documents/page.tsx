@@ -36,8 +36,8 @@ const STATUS_CONFIG: Record<DocumentStatus, { label: string; className: string }
   uploaded: { label: 'Uploaded', className: 'bg-muted text-muted-foreground' },
   processing: { label: 'Processing', className: 'bg-primary/10 text-primary' },
   analyzed: { label: 'Analyzed', className: 'bg-primary/10 text-primary' },
-  needs_review: { label: 'Needs Review', className: 'bg-amber-100 text-amber-700' },
-  verified: { label: 'Verified', className: 'bg-emerald-100 text-emerald-700' },
+  needs_review: { label: 'Needs Review', className: 'bg-warning/10 text-warning' },
+  verified: { label: 'Verified', className: 'bg-success/10 text-success' },
   rejected: { label: 'Rejected', className: 'bg-destructive/10 text-destructive' },
   expired: { label: 'Expired', className: 'bg-muted text-muted-foreground' },
 };

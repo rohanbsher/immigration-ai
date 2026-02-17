@@ -13,14 +13,14 @@ export default function AIDisclaimerPage() {
       <p className="text-muted-foreground mb-8">Last updated: February 2026</p>
 
       {/* Critical Warning Banner */}
-      <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-6 mb-8">
+      <div className="bg-warning/5 dark:bg-warning/10 border border-warning/20 dark:border-warning/30 rounded-lg p-6 mb-8">
         <div className="flex items-start gap-4">
-          <AlertTriangle className="h-6 w-6 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-1" />
+          <AlertTriangle className="h-6 w-6 text-warning dark:text-warning flex-shrink-0 mt-1" />
           <div>
-            <h2 className="text-lg font-semibold text-amber-800 dark:text-amber-200 mb-2">
+            <h2 className="text-lg font-semibold text-warning-foreground dark:text-warning mb-2">
               Important Notice
             </h2>
-            <p className="text-amber-700 dark:text-amber-300">
+            <p className="text-warning-foreground/80 dark:text-warning/80">
               Immigration AI is a technology tool designed to assist licensed immigration
               attorneys. It is <strong>NOT</strong> a substitute for professional legal advice.
               All AI-generated content must be reviewed by a qualified immigration attorney

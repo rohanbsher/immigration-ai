@@ -19,18 +19,18 @@ export function FormInstructionsTab({ formDefinition }: FormInstructionsTabProps
       </CardHeader>
       <CardContent className="prose prose-slate max-w-none">
         <div className="grid md:grid-cols-3 gap-4 mb-6 not-prose">
-          <div className="p-4 rounded-lg bg-slate-50">
-            <p className="text-sm text-slate-500">Estimated Time</p>
+          <div className="p-4 rounded-lg bg-muted/50">
+            <p className="text-sm text-muted-foreground">Estimated Time</p>
             <p className="font-semibold">{formDefinition.estimatedTime || 'N/A'}</p>
           </div>
-          <div className="p-4 rounded-lg bg-slate-50">
-            <p className="text-sm text-slate-500">Filing Fee</p>
+          <div className="p-4 rounded-lg bg-muted/50">
+            <p className="text-sm text-muted-foreground">Filing Fee</p>
             <p className="font-semibold">
               {formDefinition.filingFee ? `$${formDefinition.filingFee}` : 'N/A'}
             </p>
           </div>
-          <div className="p-4 rounded-lg bg-slate-50">
-            <p className="text-sm text-slate-500">USCIS Form Number</p>
+          <div className="p-4 rounded-lg bg-muted/50">
+            <p className="text-sm text-muted-foreground">USCIS Form Number</p>
             <p className="font-semibold">{formDefinition.uscisFormNumber}</p>
           </div>
         </div>

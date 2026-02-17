@@ -400,7 +400,7 @@ export default function SettingsPage() {
                       This device - Last active now
                     </p>
                   </div>
-                  <span className="text-sm text-green-600 font-medium">Active</span>
+                  <span className="text-sm text-success font-medium">Active</span>
                 </div>
               </div>
             </CardContent>

@@ -29,19 +29,19 @@ export function StepIndicator({ steps, currentStepId }: StepIndicatorProps) {
             <div
               className={`flex items-center gap-2 ${
                 isActive
-                  ? 'text-blue-600'
+                  ? 'text-primary'
                   : isCompleted
-                  ? 'text-green-600'
-                  : 'text-slate-400'
+                  ? 'text-success'
+                  : 'text-muted-foreground'
               }`}
             >
               <div
                 className={`w-10 h-10 rounded-full flex items-center justify-center ${
                   isActive
-                    ? 'bg-blue-100'
+                    ? 'bg-primary/10'
                     : isCompleted
-                    ? 'bg-green-100'
-                    : 'bg-slate-100'
+                    ? 'bg-success/10'
+                    : 'bg-muted'
                 }`}
               >
                 {isCompleted ? <Check size={20} /> : <Icon size={20} />}
@@ -51,7 +51,7 @@ export function StepIndicator({ steps, currentStepId }: StepIndicatorProps) {
             {index < steps.length - 1 && (
               <div
                 className={`w-12 sm:w-24 h-1 mx-2 rounded ${
-                  isCompleted ? 'bg-green-400' : 'bg-slate-200'
+                  isCompleted ? 'bg-success' : 'bg-muted'
                 }`}
               />
             )}

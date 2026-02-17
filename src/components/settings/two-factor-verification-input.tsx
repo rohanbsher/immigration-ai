@@ -49,7 +49,7 @@ export function TwoFactorVerificationInput({
           autoFocus
         />
         {helpText && (
-          <p className="text-xs text-slate-500">{helpText}</p>
+          <p className="text-xs text-muted-foreground">{helpText}</p>
         )}
       </div>
     </div>

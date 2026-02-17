@@ -71,7 +71,7 @@ const PRIORITY_OPTIONS: { value: TaskPriority | 'all'; label: string }[] = [
 
 const PRIORITY_CONFIG: Record<TaskPriority, { label: string; className: string; sortOrder: number }> = {
   urgent: { label: 'Urgent', className: 'bg-destructive/10 text-destructive', sortOrder: 0 },
-  high: { label: 'High', className: 'bg-amber-100 text-amber-700', sortOrder: 1 },
+  high: { label: 'High', className: 'bg-warning/10 text-warning', sortOrder: 1 },
   medium: { label: 'Medium', className: 'bg-primary/10 text-primary', sortOrder: 2 },
   low: { label: 'Low', className: 'bg-muted text-muted-foreground', sortOrder: 3 },
 };
@@ -79,7 +79,7 @@ const PRIORITY_CONFIG: Record<TaskPriority, { label: string; className: string; 
 const STATUS_CONFIG: Record<TaskStatus, { label: string; className: string; sortOrder: number }> = {
   pending: { label: 'To Do', className: 'bg-muted text-muted-foreground', sortOrder: 0 },
   in_progress: { label: 'In Progress', className: 'bg-primary/10 text-primary', sortOrder: 1 },
-  completed: { label: 'Completed', className: 'bg-emerald-100 text-emerald-700', sortOrder: 2 },
+  completed: { label: 'Completed', className: 'bg-success/10 text-success', sortOrder: 2 },
   cancelled: { label: 'Cancelled', className: 'bg-muted text-muted-foreground', sortOrder: 3 },
 };
 

@@ -78,8 +78,8 @@ function InterpretationHeader({
     <AIContentBox variant="subtle" className="py-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Sparkles size={16} className="text-purple-500" />
-          <span className="text-sm text-slate-700">
+          <Sparkles size={16} className="text-ai-accent" />
+          <span className="text-sm text-foreground">
             {interpretation.understood}
           </span>
         </div>
@@ -93,7 +93,7 @@ function InterpretationHeader({
           >
             {Math.round(interpretation.confidence * 100)}%
           </span>
-          <span className="text-sm text-slate-500">
+          <span className="text-sm text-muted-foreground">
             {resultCount} result{resultCount !== 1 ? 's' : ''}
           </span>
         </div>
@@ -114,14 +114,14 @@ function AppliedFilters({ filters }: { filters: SearchFilters }) {
 
   return (
     <div className="flex flex-wrap gap-2">
-      <span className="text-xs text-slate-500 flex items-center gap-1">
+      <span className="text-xs text-muted-foreground flex items-center gap-1">
         <Tag size={12} />
         Filters:
       </span>
       {filterEntries.map(([key, value]) => (
         <span
           key={key}
-          className="px-2 py-0.5 rounded-full text-xs bg-purple-100 text-purple-700"
+          className="px-2 py-0.5 rounded-full text-xs bg-ai-accent-muted text-ai-accent"
         >
           {getFilterDisplayName(key)}: {formatFilterValue(key, value)}
         </span>
@@ -139,17 +139,17 @@ function SearchResultCard({ result }: { result: SearchResult }) {
   return (
     <Link
       href={`/dashboard/cases/${caseData.id}`}
-      className="block p-4 rounded-lg border border-slate-200 hover:border-purple-300 hover:bg-purple-50/30 transition-colors"
+      className="block p-4 rounded-lg border border-border hover:border-ai-accent/50 hover:bg-ai-accent-muted/30 transition-colors"
     >
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
           {/* Title */}
-          <h4 className="text-sm font-medium text-slate-900 truncate">
+          <h4 className="text-sm font-medium text-foreground truncate">
             {caseData.title}
           </h4>
 
           {/* Meta info */}
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-xs text-slate-500">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-xs text-muted-foreground">
             <span className="flex items-center gap-1">
               <Tag size={10} />
               {caseData.visaType}
@@ -170,14 +170,14 @@ function SearchResultCard({ result }: { result: SearchResult }) {
           </div>
 
           {/* Match reason */}
-          <p className="mt-2 text-xs text-purple-600 flex items-center gap-1">
+          <p className="mt-2 text-xs text-ai-accent flex items-center gap-1">
             <Info size={10} />
             {matchReason}
           </p>
         </div>
 
         {/* Arrow */}
-        <ArrowRight size={16} className="text-slate-400 flex-shrink-0 mt-1" />
+        <ArrowRight size={16} className="text-muted-foreground flex-shrink-0 mt-1" />
       </div>
     </Link>
   );
@@ -188,16 +188,16 @@ function SearchResultCard({ result }: { result: SearchResult }) {
  */
 function EmptyResults({ suggestions }: { suggestions: string[] }) {
   return (
-    <div className="p-8 text-center border border-dashed border-slate-200 rounded-lg">
-      <Search size={32} className="mx-auto text-slate-300 mb-3" />
-      <h4 className="text-sm font-medium text-slate-700 mb-1">
+    <div className="p-8 text-center border border-dashed border-border rounded-lg">
+      <Search size={32} className="mx-auto text-muted-foreground/40 mb-3" />
+      <h4 className="text-sm font-medium text-foreground mb-1">
         No cases found
       </h4>
-      <p className="text-xs text-slate-500 mb-4">
+      <p className="text-xs text-muted-foreground mb-4">
         Try adjusting your search or use different terms.
       </p>
       {suggestions.length > 0 && (
-        <div className="text-xs text-slate-500">
+        <div className="text-xs text-muted-foreground">
           <span>Suggestions: </span>
           {suggestions.map((s, i) => (
             <span key={i}>
@@ -216,10 +216,10 @@ function EmptyResults({ suggestions }: { suggestions: string[] }) {
  */
 function SearchSuggestions({ suggestions }: { suggestions: string[] }) {
   return (
-    <div className="flex items-center gap-2 text-xs text-slate-500">
+    <div className="flex items-center gap-2 text-xs text-muted-foreground">
       <span>Related searches:</span>
       {suggestions.map((suggestion, i) => (
-        <span key={i} className="text-purple-600 hover:underline cursor-pointer">
+        <span key={i} className="text-ai-accent hover:underline cursor-pointer">
           {suggestion}
         </span>
       ))}

@@ -42,7 +42,7 @@ export function UpgradePromptDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5 text-amber-500" />
+            <AlertTriangle className="h-5 w-5 text-warning" />
             Limit Reached
           </DialogTitle>
           <DialogDescription>
@@ -50,21 +50,21 @@ export function UpgradePromptDialog({
           </DialogDescription>
         </DialogHeader>
         <div className="py-4 space-y-4">
-          <div className="bg-slate-50 rounded-lg p-4">
+          <div className="bg-muted/50 rounded-lg p-4">
             <div className="flex justify-between items-center mb-2">
-              <span className="text-sm text-slate-600">Current Usage</span>
+              <span className="text-sm text-muted-foreground">Current Usage</span>
               <span className="font-semibold">
                 {quota.current} / {quota.limit} {labels.plural}
               </span>
             </div>
-            <div className="w-full bg-slate-200 rounded-full h-2">
+            <div className="w-full bg-muted rounded-full h-2">
               <div
-                className="bg-amber-500 h-2 rounded-full"
+                className="bg-warning h-2 rounded-full"
                 style={{ width: `${Math.min(100, (quota.current / quota.limit) * 100)}%` }}
               />
             </div>
           </div>
-          <p className="text-sm text-slate-600">
+          <p className="text-sm text-muted-foreground">
             Upgrade to Pro or Enterprise to unlock more {labels.plural} and additional features.
           </p>
         </div>
@@ -141,29 +141,29 @@ export function QuotaUsageIndicator({
 
   if (quota.isUnlimited) {
     return showLabel ? (
-      <span className={`text-sm text-slate-500 ${className}`}>Unlimited {labels.plural}</span>
+      <span className={`text-sm text-muted-foreground ${className}`}>Unlimited {labels.plural}</span>
     ) : null;
   }
 
   const usagePercent = Math.min(100, (quota.current / quota.limit) * 100);
   const colorClass =
     usagePercent >= 100
-      ? 'bg-red-500'
+      ? 'bg-destructive'
       : usagePercent >= 80
-        ? 'bg-amber-500'
-        : 'bg-green-500';
+        ? 'bg-warning'
+        : 'bg-success';
 
   return (
     <div className={`space-y-1 ${className}`}>
       {showLabel && (
         <div className="flex justify-between text-sm">
-          <span className="text-slate-600 capitalize">{labels.plural}</span>
-          <span className="text-slate-900 font-medium">
+          <span className="text-muted-foreground capitalize">{labels.plural}</span>
+          <span className="text-foreground font-medium">
             {quota.current} / {quota.limit}
           </span>
         </div>
       )}
-      <div className="w-full bg-slate-200 rounded-full h-1.5">
+      <div className="w-full bg-muted rounded-full h-1.5">
         <div
           className={`${colorClass} h-1.5 rounded-full transition-all`}
           style={{ width: `${usagePercent}%` }}

@@ -393,7 +393,7 @@ function TestimonialCard({
     <div className="bg-card rounded-xl p-6 shadow-md shadow-primary/5 border border-border/50">
       <div className="flex gap-1 mb-4">
         {Array.from({ length: rating }).map((_, i) => (
-          <Star key={i} size={18} className="text-yellow-500 fill-yellow-500" />
+          <Star key={i} size={18} className="text-warning fill-warning" />
         ))}
       </div>
       <p className="text-foreground mb-4 italic">&ldquo;{quote}&rdquo;</p>

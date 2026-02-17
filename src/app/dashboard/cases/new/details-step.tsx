@@ -24,7 +24,7 @@ export function DetailsStep({
     <div className="space-y-6">
       <div>
         <h2 className="text-lg font-semibold mb-1">Case Details</h2>
-        <p className="text-slate-600">
+        <p className="text-muted-foreground">
           Provide additional information about this case.
         </p>
       </div>

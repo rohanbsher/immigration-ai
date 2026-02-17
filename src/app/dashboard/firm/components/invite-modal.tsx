@@ -115,12 +115,12 @@ export function InviteModal({ firmId, open, onOpenChange }: InviteModalProps) {
                     className="flex flex-col items-start py-2"
                   >
                     <span className="font-medium">{r.label}</span>
-                    <span className="text-xs text-slate-500">{r.description}</span>
+                    <span className="text-xs text-muted-foreground">{r.description}</span>
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
-            <p className="text-xs text-slate-500">{selectedRole?.description}</p>
+            <p className="text-xs text-muted-foreground">{selectedRole?.description}</p>
           </div>
 
           <DialogFooter>

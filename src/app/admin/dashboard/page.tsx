@@ -114,11 +114,11 @@ export default function AdminDashboardPage() {
                   {stat.trend !== undefined && (
                     <>
                       {stat.trend >= 0 ? (
-                        <TrendingUp className="h-3 w-3 text-green-500" />
+                        <TrendingUp className="h-3 w-3 text-success" />
                       ) : (
-                        <TrendingDown className="h-3 w-3 text-red-500" />
+                        <TrendingDown className="h-3 w-3 text-destructive" />
                       )}
-                      <span className={stat.trend >= 0 ? 'text-green-500' : 'text-red-500'}>
+                      <span className={stat.trend >= 0 ? 'text-success' : 'text-destructive'}>
                         {Math.abs(stat.trend)}%
                       </span>
                     </>
@@ -151,15 +151,15 @@ export default function AdminDashboardPage() {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-sm">Database</span>
-                <span className="text-sm text-green-500">Healthy</span>
+                <span className="text-sm text-success">Healthy</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm">API</span>
-                <span className="text-sm text-green-500">Operational</span>
+                <span className="text-sm text-success">Operational</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm">Storage</span>
-                <span className="text-sm text-green-500">Available</span>
+                <span className="text-sm text-success">Available</span>
               </div>
             </div>
           </CardContent>

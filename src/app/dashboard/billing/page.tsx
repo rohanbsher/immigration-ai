@@ -86,7 +86,7 @@ export default function BillingPage() {
   if (error) {
     return (
       <div className="text-center py-12">
-        <p className="text-red-600">Failed to load billing information</p>
+        <p className="text-destructive">Failed to load billing information</p>
         <p className="text-sm text-muted-foreground mt-2">Please try again later</p>
       </div>
     );
@@ -143,8 +143,8 @@ export default function BillingPage() {
               <CardTitle className="text-lg">Usage This Period</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
-                <p className="text-amber-800 text-sm">
+              <div className="p-4 bg-warning/5 border border-warning/20 rounded-lg">
+                <p className="text-warning-foreground text-sm">
                   Unable to load usage data. Please try again later.
                 </p>
               </div>
@@ -174,7 +174,7 @@ export default function BillingPage() {
               <TabsTrigger value="monthly">Monthly</TabsTrigger>
               <TabsTrigger value="yearly">
                 Yearly
-                <span className="ml-1 text-xs text-green-600 font-medium">(Save 20%)</span>
+                <span className="ml-1 text-xs text-success font-medium">(Save 20%)</span>
               </TabsTrigger>
             </TabsList>
           </Tabs>

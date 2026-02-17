@@ -137,15 +137,15 @@ export default function FormsPage() {
             {formSummaries.map((form) => (
               <div
                 key={form.formType}
-                className="p-4 rounded-lg border hover:border-blue-400 hover:bg-blue-50 transition-colors cursor-pointer"
+                className="p-4 rounded-lg border hover:border-primary/60 hover:bg-primary/5 transition-colors cursor-pointer"
                 onClick={() => {
                   setSelectedFormType(form.formType);
                   setCreateDialogOpen(true);
                 }}
               >
                 <div className="flex items-center gap-3 mb-2">
-                  <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
-                    <FileText className="text-blue-600" size={20} />
+                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <FileText className="text-primary" size={20} />
                   </div>
                   <div>
                     <p className="font-semibold text-foreground">{form.formType}</p>
@@ -229,11 +229,11 @@ export default function FormsPage() {
       </Card>
 
       {/* AI Features */}
-      <Card className="bg-gradient-to-r from-purple-50 to-blue-50 border-purple-200">
+      <Card className="bg-gradient-to-r from-ai-accent-muted/50 to-primary/5 border-ai-accent/20">
         <CardContent className="p-6">
           <div className="flex items-start gap-4">
-            <div className="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0">
-              <Sparkles className="text-purple-600" size={24} />
+            <div className="w-12 h-12 rounded-full bg-ai-accent-muted flex items-center justify-center flex-shrink-0">
+              <Sparkles className="text-ai-accent" size={24} />
             </div>
             <div>
               <h3 className="font-semibold text-foreground mb-1">AI-Powered Form Filling</h3>
@@ -243,10 +243,10 @@ export default function FormsPage() {
                 more.
               </p>
               <div className="flex gap-2">
-                <Badge className="bg-purple-100 text-purple-700 border-purple-200">
+                <Badge className="bg-ai-accent-muted text-ai-accent border-ai-accent/20">
                   GPT-4 Vision for OCR
                 </Badge>
-                <Badge className="bg-blue-100 text-blue-700 border-blue-200">
+                <Badge className="bg-primary/10 text-primary border-primary/20">
                   Claude for Reasoning
                 </Badge>
               </div>
@@ -273,8 +273,8 @@ export default function FormsPage() {
                     key={form.formType}
                     className={`p-3 rounded-lg border cursor-pointer transition-colors ${
                       selectedFormType === form.formType
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'hover:border-slate-300'
+                        ? 'border-primary bg-primary/5'
+                        : 'hover:border-border'
                     }`}
                     onClick={() => setSelectedFormType(form.formType)}
                   >
@@ -293,8 +293,8 @@ export default function FormsPage() {
                       key={caseItem.id}
                       className={`p-3 rounded-lg border cursor-pointer transition-colors ${
                         selectedCaseId === caseItem.id
-                          ? 'border-blue-500 bg-blue-50'
-                          : 'hover:border-slate-300'
+                          ? 'border-primary bg-primary/5'
+                          : 'hover:border-border'
                       }`}
                       onClick={() => setSelectedCaseId(caseItem.id)}
                     >

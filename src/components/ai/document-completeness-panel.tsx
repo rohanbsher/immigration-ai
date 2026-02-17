@@ -102,7 +102,7 @@ export function DocumentCompletenessPanel({
           <DocumentSection
             title="Missing Required"
             documents={data.missingRequired}
-            icon={<AlertCircle className="text-red-500" size={16} />}
+            icon={<AlertCircle className="text-destructive" size={16} />}
             type="missing"
             onUploadClick={onUploadClick}
             caseId={caseId}

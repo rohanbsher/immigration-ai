@@ -33,7 +33,7 @@ function ExportStatusBadge({ status }: { status: string }) {
   switch (status) {
     case 'completed':
       return (
-        <Badge variant="secondary" className="bg-green-100 text-green-700">
+        <Badge variant="secondary" className="bg-success/10 text-success">
           <CheckCircle2 size={12} className="mr-1" />
           Completed
         </Badge>
@@ -41,14 +41,14 @@ function ExportStatusBadge({ status }: { status: string }) {
     case 'processing':
     case 'pending':
       return (
-        <Badge variant="secondary" className="bg-yellow-100 text-yellow-700">
+        <Badge variant="secondary" className="bg-warning/10 text-warning">
           <Clock size={12} className="mr-1" />
           {status === 'processing' ? 'Processing' : 'Pending'}
         </Badge>
       );
     case 'failed':
       return (
-        <Badge variant="secondary" className="bg-red-100 text-red-700">
+        <Badge variant="secondary" className="bg-destructive/10 text-destructive">
           <XCircle size={12} className="mr-1" />
           Failed
         </Badge>
@@ -144,18 +144,18 @@ export function GdprDataManagement() {
 
           {exportsLoading ? (
             <div className="flex justify-center py-4">
-              <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
             </div>
           ) : exportJobs && exportJobs.length > 0 ? (
             <div className="space-y-2">
-              <p className="text-sm font-medium text-slate-700">Export History</p>
+              <p className="text-sm font-medium text-foreground">Export History</p>
               <div className="space-y-2">
                 {exportJobs.map((job) => (
                   <div
                     key={job.id}
                     className="flex items-center justify-between p-3 rounded-lg border text-sm"
                   >
-                    <span className="text-slate-600">
+                    <span className="text-muted-foreground">
                       {new Date(job.created_at).toLocaleString()}
                     </span>
                     <ExportStatusBadge status={job.status} />
@@ -170,7 +170,7 @@ export function GdprDataManagement() {
       {/* Account Deletion */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-red-700">
+          <CardTitle className="flex items-center gap-2 text-destructive">
             <Trash2 size={20} />
             Account Deletion
           </CardTitle>
@@ -182,15 +182,15 @@ export function GdprDataManagement() {
         <CardContent className="space-y-4">
           {deletionLoading ? (
             <div className="flex justify-center py-4">
-              <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
             </div>
           ) : deletionRequest ? (
             <div className="space-y-3">
-              <div className="flex items-start gap-3 p-4 rounded-lg bg-red-50 border border-red-200">
-                <AlertTriangle className="h-5 w-5 text-red-600 mt-0.5 shrink-0" />
+              <div className="flex items-start gap-3 p-4 rounded-lg bg-destructive/5 border border-destructive/20">
+                <AlertTriangle className="h-5 w-5 text-destructive mt-0.5 shrink-0" />
                 <div className="space-y-1">
-                  <p className="text-sm font-medium text-red-800">Deletion Scheduled</p>
-                  <p className="text-sm text-red-700">
+                  <p className="text-sm font-medium text-destructive">Deletion Scheduled</p>
+                  <p className="text-sm text-destructive">
                     Your account is scheduled for permanent deletion on{' '}
                     <strong>{new Date(deletionRequest.scheduled_for).toLocaleDateString()}</strong>.
                     All your data will be permanently removed after this date.
@@ -228,7 +228,7 @@ export function GdprDataManagement() {
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-red-700">
+            <DialogTitle className="flex items-center gap-2 text-destructive">
               <AlertTriangle size={20} />
               Delete Your Account
             </DialogTitle>
@@ -238,7 +238,7 @@ export function GdprDataManagement() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 pt-2">
-            <div className="rounded-lg bg-red-50 border border-red-200 p-4 text-sm text-red-800 space-y-2">
+            <div className="rounded-lg bg-destructive/5 border border-destructive/20 p-4 text-sm text-destructive space-y-2">
               <p className="font-medium">The following data will be deleted:</p>
               <ul className="list-disc pl-5 space-y-1">
                 <li>Your profile and account settings</li>

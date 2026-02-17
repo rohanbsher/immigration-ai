@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/lib/utils';
@@ -95,14 +95,14 @@ function saveState(state: OnboardingState) {
   }
 }
 
-export function OnboardingChecklist() {
-  const [state, setState] = useState<OnboardingState>({ dismissed: false, completedSteps: [] });
-  const [mounted, setMounted] = useState(false);
+const emptySubscribe = () => () => {};
 
-  useEffect(() => {
-    setState(loadState());
-    setMounted(true);
-  }, []);
+export function OnboardingChecklist() {
+  const [state, setState] = useState<OnboardingState>(() => {
+    if (typeof window === 'undefined') return { dismissed: false, completedSteps: [] };
+    return loadState();
+  });
+  const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
 
   const toggleStep = useCallback((stepId: string) => {
     setState((prev) => {

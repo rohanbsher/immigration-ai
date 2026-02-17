@@ -30,7 +30,7 @@ export function FormSectionComponent({ section, values, onChange, aiData }: Sect
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
       <Card>
         <CollapsibleTrigger asChild>
-          <CardHeader className="cursor-pointer hover:bg-slate-50">
+          <CardHeader className="cursor-pointer hover:bg-muted/50">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 {isOpen ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
@@ -41,7 +41,7 @@ export function FormSectionComponent({ section, values, onChange, aiData }: Sect
               </Badge>
             </div>
             {section.description && (
-              <p className="text-sm text-slate-500 ml-7">{section.description}</p>
+              <p className="text-sm text-muted-foreground ml-7">{section.description}</p>
             )}
           </CardHeader>
         </CollapsibleTrigger>

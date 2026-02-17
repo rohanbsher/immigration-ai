@@ -40,7 +40,7 @@ export function ClientStep({
     <div className="space-y-6">
       <div>
         <h2 className="text-lg font-semibold mb-1">Select or Add Client</h2>
-        <p className="text-slate-600">
+        <p className="text-muted-foreground">
           Choose an existing client or add a new one for this case.
         </p>
       </div>
@@ -55,7 +55,7 @@ export function ClientStep({
         />
         {isSearching && (
           <div className="flex justify-center py-4">
-            <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+            <Loader2 className="h-6 w-6 animate-spin text-primary" />
           </div>
         )}
         {searchResults && searchResults.length > 0 && (
@@ -63,8 +63,8 @@ export function ClientStep({
             {searchResults.map((client) => (
               <div
                 key={client.id}
-                className={`p-3 cursor-pointer hover:bg-slate-50 ${
-                  selectedClientId === client.id ? 'bg-blue-50' : ''
+                className={`p-3 cursor-pointer hover:bg-muted/50 ${
+                  selectedClientId === client.id ? 'bg-primary/5' : ''
                 }`}
                 onClick={() =>
                   onClientSelect(
@@ -76,7 +76,7 @@ export function ClientStep({
                 <p className="font-medium">
                   {client.first_name} {client.last_name}
                 </p>
-                <p className="text-sm text-slate-500">{client.email}</p>
+                <p className="text-sm text-muted-foreground">{client.email}</p>
               </div>
             ))}
           </div>
@@ -88,7 +88,7 @@ export function ClientStep({
           <span className="w-full border-t" />
         </div>
         <div className="relative flex justify-center text-xs uppercase">
-          <span className="bg-white px-2 text-slate-500">Or add new client</span>
+          <span className="bg-white px-2 text-muted-foreground">Or add new client</span>
         </div>
       </div>
 

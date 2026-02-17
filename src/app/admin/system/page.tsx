@@ -36,9 +36,9 @@ function formatUptime(seconds: number): string {
 function getStatusBadge(status: string) {
   switch (status) {
     case 'healthy':
-      return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Healthy</Badge>;
+      return <Badge className="bg-success/10 text-success hover:bg-success/10">Healthy</Badge>;
     case 'degraded':
-      return <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">Degraded</Badge>;
+      return <Badge className="bg-warning/10 text-warning hover:bg-warning/10">Degraded</Badge>;
     case 'unhealthy':
       return <Badge variant="destructive">Unhealthy</Badge>;
     default:

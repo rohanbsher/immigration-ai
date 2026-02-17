@@ -15,20 +15,20 @@ export default function DashboardNotFound() {
     <div className="flex items-center justify-center min-h-[60vh] px-4">
       <Card className="w-full max-w-lg">
         <CardHeader className="text-center">
-          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-blue-100 flex items-center justify-center">
-            <FolderSearch className="h-8 w-8 text-blue-600" />
+          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-primary/10 flex items-center justify-center">
+            <FolderSearch className="h-8 w-8 text-primary" />
           </div>
-          <CardTitle className="text-xl text-slate-900">
+          <CardTitle className="text-xl text-foreground">
             Resource Not Found
           </CardTitle>
-          <CardDescription className="text-slate-600">
+          <CardDescription className="text-muted-foreground">
             The case, document, or resource you requested could not be found.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="text-center space-y-4">
-            <p className="text-6xl font-bold text-slate-200">404</p>
-            <p className="text-sm text-slate-500">
+            <p className="text-6xl font-bold text-muted">404</p>
+            <p className="text-sm text-muted-foreground">
               It may have been deleted or you may not have permission to view
               it.
             </p>

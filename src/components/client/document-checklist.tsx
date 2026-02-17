@@ -40,19 +40,19 @@ const STATUS_CONFIG = {
   uploaded: {
     icon: Upload,
     label: 'Uploaded',
-    className: 'text-blue-500',
+    className: 'text-primary',
     badgeVariant: 'default' as const,
   },
   verified: {
     icon: CheckCircle,
     label: 'Verified',
-    className: 'text-green-500',
+    className: 'text-success',
     badgeVariant: 'default' as const,
   },
   rejected: {
     icon: AlertCircle,
     label: 'Needs Revision',
-    className: 'text-red-500',
+    className: 'text-destructive',
     badgeVariant: 'destructive' as const,
   },
 };
@@ -120,7 +120,7 @@ export function DocumentChecklist({ caseId }: DocumentChecklistProps) {
                 key={req.id}
                 className={cn(
                   'flex items-center justify-between p-3 rounded-lg border',
-                  req.status === 'rejected' && 'border-red-200 bg-red-50'
+                  req.status === 'rejected' && 'border-destructive/20 bg-destructive/5'
                 )}
               >
                 <div className="flex items-center gap-3">

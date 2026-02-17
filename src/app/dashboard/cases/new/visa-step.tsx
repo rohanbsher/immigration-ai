@@ -55,7 +55,7 @@ export function VisaStep({ selectedVisaType, onVisaSelect }: VisaStepProps) {
     <div className="space-y-6">
       <div>
         <h2 className="text-lg font-semibold mb-1">Select Visa Type</h2>
-        <p className="text-slate-600">
+        <p className="text-muted-foreground">
           Choose the type of immigration application for this case.
         </p>
       </div>
@@ -66,13 +66,13 @@ export function VisaStep({ selectedVisaType, onVisaSelect }: VisaStepProps) {
             key={visa.value}
             className={`p-4 rounded-lg border-2 cursor-pointer transition-colors ${
               selectedVisaType === visa.value
-                ? 'border-blue-500 bg-blue-50'
-                : 'border-slate-200 hover:border-slate-300'
+                ? 'border-primary bg-primary/5'
+                : 'border-border hover:border-border/80'
             }`}
             onClick={() => onVisaSelect(visa.value)}
           >
-            <p className="font-semibold text-slate-900">{visa.label}</p>
-            <p className="text-sm text-slate-600 mt-1">{visa.description}</p>
+            <p className="font-semibold text-foreground">{visa.label}</p>
+            <p className="text-sm text-muted-foreground mt-1">{visa.description}</p>
           </div>
         ))}
       </div>

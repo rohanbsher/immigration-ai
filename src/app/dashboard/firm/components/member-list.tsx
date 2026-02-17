@@ -31,10 +31,10 @@ interface MemberListProps {
 }
 
 const ROLE_BADGE_COLORS: Record<FirmRole, string> = {
-  owner: 'bg-purple-100 text-purple-700',
-  admin: 'bg-blue-100 text-blue-700',
-  attorney: 'bg-green-100 text-green-700',
-  staff: 'bg-slate-100 text-slate-700',
+  owner: 'bg-ai-accent-muted text-ai-accent',
+  admin: 'bg-primary/10 text-primary',
+  attorney: 'bg-success/10 text-success',
+  staff: 'bg-muted text-muted-foreground',
 };
 
 const ROLE_LABELS: Record<FirmRole, string> = {
@@ -130,7 +130,7 @@ export function MemberList({ firmId, members, currentUserRole, currentUserId }: 
         </CardHeader>
         <CardContent>
           {members.length === 0 ? (
-            <p className="text-sm text-slate-500 text-center py-4">No members yet</p>
+            <p className="text-sm text-muted-foreground text-center py-4">No members yet</p>
           ) : (
             <div className="divide-y">
               {members.map((member) => (
@@ -138,13 +138,13 @@ export function MemberList({ firmId, members, currentUserRole, currentUserId }: 
                   <div className="flex items-center gap-3">
                     <Avatar className="h-10 w-10">
                       <AvatarImage src={member.user?.avatarUrl || undefined} />
-                      <AvatarFallback className="bg-blue-100 text-blue-700">
+                      <AvatarFallback className="bg-primary/10 text-primary">
                         {getMemberInitials(member)}
                       </AvatarFallback>
                     </Avatar>
                     <div>
                       <p className="font-medium text-sm">{getMemberName(member)}</p>
-                      <p className="text-xs text-slate-500">{member.user?.email}</p>
+                      <p className="text-xs text-muted-foreground">{member.user?.email}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
@@ -182,7 +182,7 @@ export function MemberList({ firmId, members, currentUserRole, currentUserId }: 
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
-                            className="text-red-600"
+                            className="text-destructive"
                             onClick={() => {
                               setSelectedMember(member);
                               setShowRemoveDialog(true);
@@ -196,12 +196,12 @@ export function MemberList({ firmId, members, currentUserRole, currentUserId }: 
                     )}
                     {member.userId === currentUserId && (
                       <div className="flex items-center gap-2">
-                        <span className="text-xs text-slate-400">(You)</span>
+                        <span className="text-xs text-muted-foreground">(You)</span>
                         {canLeave && (
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="text-red-600 hover:text-red-700 hover:bg-red-50 h-7 text-xs"
+                            className="text-destructive hover:text-destructive hover:bg-destructive/5 h-7 text-xs"
                             onClick={() => setLeaveFirm({ showDialog: true })}
                           >
                             <LogOut size={12} className="mr-1" />

@@ -27,7 +27,7 @@ export default function AdminAuditLogsPage() {
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
-              <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Configured</Badge>
+              <Badge className="bg-success/10 text-success hover:bg-success/10">Configured</Badge>
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               Audit triggers are configured for the tables below

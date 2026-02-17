@@ -126,13 +126,13 @@ export function FormFieldComponent({ field, value, onChange, confidence, aiSugge
         <div className="flex items-center gap-2">
           <Label htmlFor={field.id} className="flex items-center gap-1">
             {field.label}
-            {field.validation?.required && <span className="text-red-500">*</span>}
+            {field.validation?.required && <span className="text-destructive">*</span>}
           </Label>
           {aiSuggested && confidence !== undefined && (
             <ConfidenceIndicator confidence={confidence} size="sm" />
           )}
           {aiSuggested && (
-            <Badge variant="secondary" className="bg-purple-100 text-purple-700 text-xs">
+            <Badge variant="secondary" className="bg-ai-accent-muted text-ai-accent text-xs">
               <Sparkles size={10} className="mr-1" />
               AI
             </Badge>
@@ -140,7 +140,7 @@ export function FormFieldComponent({ field, value, onChange, confidence, aiSugge
         </div>
       )}
       {renderField()}
-      {field.helpText && <p className="text-xs text-slate-500">{field.helpText}</p>}
+      {field.helpText && <p className="text-xs text-muted-foreground">{field.helpText}</p>}
     </div>
   );
 }

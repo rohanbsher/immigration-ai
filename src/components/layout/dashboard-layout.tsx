@@ -84,7 +84,7 @@ export function DashboardLayout({ children, title }: DashboardLayoutProps) {
     return (
       <div className="flex items-center justify-center h-screen bg-background">
         <div className="text-center max-w-md p-6">
-          <AlertCircle className="h-12 w-12 text-amber-500 mx-auto mb-4" />
+          <AlertCircle className="h-12 w-12 text-warning mx-auto mb-4" />
           <h2 className="text-xl font-semibold text-foreground mb-2">
             Loading Taking Too Long
           </h2>
@@ -119,7 +119,7 @@ export function DashboardLayout({ children, title }: DashboardLayoutProps) {
     return (
       <div className="flex items-center justify-center h-screen bg-background">
         <div className="text-center max-w-md p-6">
-          <AlertCircle className="h-12 w-12 text-amber-500 mx-auto mb-4" />
+          <AlertCircle className="h-12 w-12 text-warning mx-auto mb-4" />
           <h2 className="text-xl font-semibold text-foreground mb-2">
             {authError ? 'Connection Issue' : 'Session Expired'}
           </h2>
@@ -152,7 +152,7 @@ export function DashboardLayout({ children, title }: DashboardLayoutProps) {
   if (profileError) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-background gap-4">
-        <AlertCircle className="h-12 w-12 text-orange-500" />
+        <AlertCircle className="h-12 w-12 text-warning" />
         <h2 className="text-xl font-bold">Unable to Load Profile</h2>
         <p className="text-muted-foreground text-center max-w-md">
           We couldn&apos;t load your profile data. This is usually temporary.

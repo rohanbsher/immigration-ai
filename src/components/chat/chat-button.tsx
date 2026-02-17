@@ -2,6 +2,7 @@
 
 import { cn } from '@/lib/utils';
 import { useChat } from '@/hooks/use-chat';
+import { useConsent } from '@/hooks/use-consent';
 import { MessageSquare, Sparkles } from 'lucide-react';
 
 interface ChatButtonProps {
@@ -13,6 +14,10 @@ interface ChatButtonProps {
  */
 export function ChatButton({ className }: ChatButtonProps) {
   const { isOpen, toggleChat, messages } = useChat();
+  const { analyticsConsented } = useConsent();
+
+  // Shift button up when the cookie consent banner is visible
+  const isCookieBannerVisible = analyticsConsented === null;
 
   // Count unread/active messages (assistant messages that are streaming)
   const hasActiveMessage = messages.some(
@@ -23,13 +28,14 @@ export function ChatButton({ className }: ChatButtonProps) {
     <button
       onClick={toggleChat}
       className={cn(
-        'fixed bottom-6 right-6 z-30',
+        'fixed right-6 z-50',
         'w-14 h-14 rounded-full',
         'bg-ai-accent hover:bg-ai-accent/90 text-ai-accent-foreground',
         'shadow-lg hover:shadow-xl',
         'transition-all duration-200',
         'flex items-center justify-center',
         'group',
+        isCookieBannerVisible ? 'bottom-20' : 'bottom-6',
         isOpen && 'scale-95 opacity-0 pointer-events-none',
         className
       )}

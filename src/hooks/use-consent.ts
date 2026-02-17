@@ -12,6 +12,7 @@ interface ConsentState {
 
 interface UseConsentReturn {
   analyticsConsented: boolean | null;
+  consentLoaded: boolean;
   acceptAll: () => void;
   rejectAll: () => void;
 }
@@ -38,7 +39,8 @@ function writeConsent(analytics: boolean): void {
 }
 
 export function useConsent(): UseConsentReturn {
-  const [analyticsConsented, setAnalyticsConsented] = useState<boolean | null>(() => readConsent());
+  const [analyticsConsented, setAnalyticsConsented] = useState<boolean | null>(readConsent);
+  const [consentLoaded] = useState(() => typeof window !== 'undefined');
 
   const acceptAll = useCallback(() => {
     writeConsent(true);
@@ -50,5 +52,5 @@ export function useConsent(): UseConsentReturn {
     setAnalyticsConsented(false);
   }, []);
 
-  return { analyticsConsented, acceptAll, rejectAll };
+  return { analyticsConsented, consentLoaded, acceptAll, rejectAll };
 }

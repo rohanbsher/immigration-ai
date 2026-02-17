@@ -58,6 +58,13 @@ function ExportStatusBadge({ status }: { status: string }) {
   }
 }
 
+function formatDate(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const date = new Date(value);
+  if (isNaN(date.getTime())) return null;
+  return date.toLocaleDateString();
+}
+
 export function GdprDataManagement() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
@@ -66,6 +73,9 @@ export function GdprDataManagement() {
   const { data: deletionRequest, isLoading: deletionLoading } = useDeletionRequest();
   const { mutate: requestDeletion, isPending: isDeleting } = useRequestDeletion();
   const { mutate: cancelDeletion, isPending: isCancelling } = useCancelDeletion();
+
+  const scheduledDate = deletionRequest ? formatDate(deletionRequest.scheduled_for) : null;
+  const hasPendingDeletion = deletionRequest != null && scheduledDate != null;
 
   const handleRequestExport = () => {
     requestExport(undefined, {
@@ -93,8 +103,11 @@ export function GdprDataManagement() {
     requestDeletion(undefined, {
       onSuccess: (data) => {
         setShowDeleteDialog(false);
+        const formattedDate = formatDate(data.scheduledFor);
         toast.success(
-          `Account scheduled for deletion on ${new Date(data.scheduledFor).toLocaleDateString()}`
+          formattedDate
+            ? `Account scheduled for deletion on ${formattedDate}`
+            : 'Account scheduled for deletion'
         );
       },
       onError: (error) => {
@@ -184,7 +197,7 @@ export function GdprDataManagement() {
             <div className="flex justify-center py-4">
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
             </div>
-          ) : deletionRequest ? (
+          ) : hasPendingDeletion ? (
             <div className="space-y-3">
               <div className="flex items-start gap-3 p-4 rounded-lg bg-destructive/5 border border-destructive/20">
                 <AlertTriangle className="h-5 w-5 text-destructive mt-0.5 shrink-0" />
@@ -192,7 +205,7 @@ export function GdprDataManagement() {
                   <p className="text-sm font-medium text-destructive">Deletion Scheduled</p>
                   <p className="text-sm text-destructive">
                     Your account is scheduled for permanent deletion on{' '}
-                    <strong>{new Date(deletionRequest.scheduled_for).toLocaleDateString()}</strong>.
+                    <strong>{scheduledDate}</strong>.
                     All your data will be permanently removed after this date.
                   </p>
                 </div>

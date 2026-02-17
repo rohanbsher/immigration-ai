@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - develop
     paths:
       - 'supabase/migrations/**'
 
@@ -35,6 +36,8 @@ jobs:
     name: Deploy to Production
     needs: deploy-staging
     runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    # Requires manual approval via GitHub Environment Protection Rules
     environment: production
 
     steps:
@@ -51,7 +54,28 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
 
+      - name: Dry-run migration check
+        run: supabase db push --dry-run
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
       - name: Push database migrations to production
         run: supabase db push
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
+      - name: Post-migration smoke test
+        run: |
+          echo "Verifying production health after migration..."
+          PROD_URL="${{ secrets.PRODUCTION_URL || 'https://immigration-ai-topaz.vercel.app' }}"
+          for i in 1 2 3 4 5; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$PROD_URL/api/health" || echo "000")
+            if [ "$STATUS" = "200" ]; then
+              echo "Health check passed (attempt $i)"
+              exit 0
+            fi
+            echo "Attempt $i: got $STATUS, waiting 15s..."
+            sleep 15
+          done
+          echo "::warning::Health check failed after migration - manual verification required"
+          exit 1

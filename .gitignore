@@ -61,3 +61,15 @@ scripts/uscis-field-names/
 
 # Python cache
 __pycache__/
+
+# Local Claude Code tooling (settings, hooks, skills are per-developer)
+.claude/settings.json
+.claude/hooks/
+.claude/skills/
+.claude/agents/sessions/*.png
+
+# MCP server config (local dev tooling)
+.mcp.json
+
+# One-off test scripts
+scripts/test-case-insert.ts

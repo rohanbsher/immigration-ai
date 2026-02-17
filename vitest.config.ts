@@ -20,10 +20,10 @@ export default defineConfig({
         'src/__mocks__/**',
       ],
       thresholds: {
-        statements: 70,
+        statements: 75,
         branches: 70,
-        functions: 70,
-        lines: 70,
+        functions: 75,
+        lines: 75,
       },
     },
     testTimeout: 10000,

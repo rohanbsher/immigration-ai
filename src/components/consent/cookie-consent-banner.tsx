@@ -4,8 +4,12 @@ import { useConsent } from '@/hooks/use-consent';
 import { Button } from '@/components/ui/button';
 
 export function CookieConsentBanner() {
-  const { analyticsConsented, acceptAll, rejectAll } = useConsent();
+  const { analyticsConsented, consentLoaded, acceptAll, rejectAll } = useConsent();
 
+  // Don't render until we've checked localStorage (prevents flash on load)
+  if (!consentLoaded) return null;
+
+  // User already made a choice — stay dismissed
   if (analyticsConsented !== null) return null;
 
   return (

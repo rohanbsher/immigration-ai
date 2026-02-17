@@ -4,20 +4,45 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+      day: "monday"
     open-pull-requests-limit: 10
     labels:
       - "dependencies"
-  - package-ecosystem: "pip"
-    directory: "/services/pdf-service"
-    schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 5
-    labels:
-      - "dependencies"
+    groups:
+      # Group minor/patch updates together
+      production-deps:
+        patterns:
+          - "*"
+        exclude-patterns:
+          - "@anthropic-ai/*"
+          - "openai"
+        update-types:
+          - "minor"
+          - "patch"
+      dev-deps:
+        dependency-type: "development"
+        update-types:
+          - "minor"
+          - "patch"
+    # AI SDKs ungrouped — they often have breaking changes
+    ignore:
+      # Ignore major version bumps (review manually)
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
+      day: "monday"
     open-pull-requests-limit: 5
     labels:
       - "dependencies"
+      - "ci"
+    groups:
+      actions:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"

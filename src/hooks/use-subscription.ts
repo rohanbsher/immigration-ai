@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { PlanType, BillingPeriod, PlanLimits } from '@/lib/db/subscriptions';
 import type { UsageData } from '@/types/billing';
 import { fetchWithTimeout } from '@/lib/api/fetch-with-timeout';
-import { safeParseErrorJson } from '@/lib/api/safe-json';
+import { parseApiResponse, parseApiVoidResponse } from '@/lib/api/parse-response';
 
 interface Subscription {
   id: string;
@@ -38,13 +38,7 @@ interface CheckoutParams {
 
 async function fetchSubscription(): Promise<SubscriptionData> {
   const response = await fetchWithTimeout('/api/billing/subscription');
-
-  if (!response.ok) {
-    throw new Error('Failed to fetch subscription');
-  }
-
-  const data = await response.json();
-  return data.data;
+  return parseApiResponse<SubscriptionData>(response);
 }
 
 async function createCheckout(params: CheckoutParams): Promise<{ url: string }> {
@@ -53,14 +47,7 @@ async function createCheckout(params: CheckoutParams): Promise<{ url: string }> 
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(params),
   });
-
-  if (!response.ok) {
-    const error = await safeParseErrorJson(response);
-    throw new Error(error.error || 'Failed to create checkout');
-  }
-
-  const data = await response.json();
-  return data.data;
+  return parseApiResponse<{ url: string }>(response);
 }
 
 async function createPortalSession(): Promise<{ url: string }> {
@@ -68,14 +55,7 @@ async function createPortalSession(): Promise<{ url: string }> {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
   });
-
-  if (!response.ok) {
-    const error = await safeParseErrorJson(response);
-    throw new Error(error.error || 'Failed to create portal session');
-  }
-
-  const data = await response.json();
-  return data.data;
+  return parseApiResponse<{ url: string }>(response);
 }
 
 async function cancelSubscription(immediately = false): Promise<void> {
@@ -84,11 +64,7 @@ async function cancelSubscription(immediately = false): Promise<void> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ immediately }),
   });
-
-  if (!response.ok) {
-    const error = await safeParseErrorJson(response);
-    throw new Error(error.error || 'Failed to cancel subscription');
-  }
+  await parseApiVoidResponse(response);
 }
 
 async function resumeSubscription(): Promise<void> {
@@ -96,11 +72,7 @@ async function resumeSubscription(): Promise<void> {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
   });
-
-  if (!response.ok) {
-    const error = await safeParseErrorJson(response);
-    throw new Error(error.error || 'Failed to resume subscription');
-  }
+  await parseApiVoidResponse(response);
 }
 
 export function useSubscription() {
@@ -216,13 +188,7 @@ export function useQuotaCheck(metric: 'maxCases' | 'maxDocumentsPerCase' | 'maxA
 
 async function fetchUsage(): Promise<UsageData> {
   const response = await fetchWithTimeout('/api/billing/usage');
-
-  if (!response.ok) {
-    throw new Error('Failed to fetch usage data');
-  }
-
-  const data = await response.json();
-  return data.data;
+  return parseApiResponse<UsageData>(response);
 }
 
 export function useUsage() {

@@ -25,7 +25,7 @@ export function ChatButton({ className }: ChatButtonProps) {
       className={cn(
         'fixed bottom-6 right-6 z-30',
         'w-14 h-14 rounded-full',
-        'bg-purple-600 hover:bg-purple-700 text-white',
+        'bg-ai-accent hover:bg-ai-accent/90 text-ai-accent-foreground',
         'shadow-lg hover:shadow-xl',
         'transition-all duration-200',
         'flex items-center justify-center',
@@ -43,20 +43,20 @@ export function ChatButton({ className }: ChatButtonProps) {
         />
         <Sparkles
           size={12}
-          className="absolute -top-1 -right-1 text-yellow-300"
+          className="absolute -top-1 -right-1 text-warning"
         />
       </div>
 
       {/* Active indicator */}
       {hasActiveMessage && (
-        <span className="absolute top-0 right-0 w-4 h-4 bg-green-500 rounded-full border-2 border-white animate-pulse" />
+        <span className="absolute top-0 right-0 w-4 h-4 bg-success rounded-full border-2 border-background animate-pulse" />
       )}
 
       {/* Tooltip */}
       <span
         className={cn(
           'absolute right-full mr-3 px-3 py-1.5 rounded-lg',
-          'bg-slate-900 text-white text-sm whitespace-nowrap',
+          'bg-foreground text-background text-sm whitespace-nowrap',
           'opacity-0 group-hover:opacity-100 transition-opacity',
           'pointer-events-none'
         )}
@@ -84,7 +84,7 @@ export function CaseChatButton({
       onClick={() => openChat(caseId)}
       className={cn(
         'flex items-center gap-2 px-3 py-1.5 rounded-lg',
-        'bg-purple-50 hover:bg-purple-100 text-purple-700',
+        'bg-ai-accent-muted hover:bg-ai-accent-muted/80 text-ai-accent',
         'transition-colors text-sm font-medium',
         className
       )}

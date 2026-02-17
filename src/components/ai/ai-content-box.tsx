@@ -26,9 +26,9 @@ export function AIContentBox({
   className,
 }: AIContentBoxProps) {
   const variantClasses = {
-    default: 'border-l-2 border-dashed border-purple-400 bg-purple-50/50 dark:bg-purple-950/20',
-    subtle: 'border-l-2 border-purple-200 bg-purple-50/30 dark:bg-purple-950/10',
-    bordered: 'border border-dashed border-purple-300 rounded-lg bg-purple-50/30 dark:bg-purple-950/10',
+    default: 'border-l-2 border-dashed border-ai-accent/60 bg-ai-accent-muted/50 dark:bg-ai-accent-muted/20',
+    subtle: 'border-l-2 border-ai-accent/30 bg-ai-accent-muted/30 dark:bg-ai-accent-muted/10',
+    bordered: 'border border-dashed border-ai-accent/40 rounded-lg bg-ai-accent-muted/30 dark:bg-ai-accent-muted/10',
   };
 
   return (
@@ -40,8 +40,8 @@ export function AIContentBox({
       )}
     >
       {title && (
-        <div className="flex items-center gap-2 mb-3 text-sm font-medium text-purple-700 dark:text-purple-300">
-          {showIcon && <Sparkles size={14} className="text-purple-500" />}
+        <div className="flex items-center gap-2 mb-3 text-sm font-medium text-ai-accent dark:text-ai-accent">
+          {showIcon && <Sparkles size={14} className="text-ai-accent" />}
           <span>{title}</span>
         </div>
       )}
@@ -71,24 +71,24 @@ export function AICard({
   return (
     <div
       className={cn(
-        'rounded-lg border border-purple-200 dark:border-purple-800',
-        'bg-gradient-to-br from-purple-50/50 to-white dark:from-purple-950/20 dark:to-slate-900',
+        'rounded-lg border border-ai-accent/30 dark:border-ai-accent/20',
+        'bg-gradient-to-br from-ai-accent-muted/50 to-card dark:from-ai-accent-muted/20 dark:to-card',
         'shadow-sm',
         className
       )}
     >
       {(title || description) && (
-        <div className="px-4 py-3 border-b border-purple-100 dark:border-purple-800">
+        <div className="px-4 py-3 border-b border-ai-accent/20 dark:border-ai-accent/15">
           <div className="flex items-center gap-2">
-            {icon || <Sparkles size={16} className="text-purple-500" />}
+            {icon || <Sparkles size={16} className="text-ai-accent" />}
             {title && (
-              <h3 className="text-sm font-semibold text-purple-900 dark:text-purple-100">
+              <h3 className="text-sm font-semibold text-foreground dark:text-foreground">
                 {title}
               </h3>
             )}
           </div>
           {description && (
-            <p className="mt-1 text-xs text-purple-600 dark:text-purple-400">
+            <p className="mt-1 text-xs text-ai-accent dark:text-ai-accent">
               {description}
             </p>
           )}
@@ -112,8 +112,8 @@ export function AIHighlight({ children, className }: AIHighlightProps) {
     <span
       className={cn(
         'px-1 py-0.5 rounded',
-        'bg-purple-100 text-purple-800',
-        'dark:bg-purple-900/50 dark:text-purple-200',
+        'bg-ai-accent-muted text-ai-accent',
+        'dark:bg-ai-accent-muted dark:text-ai-accent',
         className
       )}
     >

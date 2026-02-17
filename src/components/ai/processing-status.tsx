@@ -34,47 +34,47 @@ const stageConfig: Record<
   idle: {
     icon: Brain,
     label: 'Ready to analyze',
-    color: 'text-slate-400',
+    color: 'text-muted-foreground',
   },
   validating: {
     icon: FileSearch,
     label: 'Validating document',
-    color: 'text-blue-500',
+    color: 'text-primary',
     animate: true,
   },
   detecting_type: {
     icon: FileSearch,
     label: 'Detecting document type',
-    color: 'text-blue-500',
+    color: 'text-primary',
     animate: true,
   },
   extracting: {
     icon: Sparkles,
     label: 'Extracting information',
-    color: 'text-purple-500',
+    color: 'text-ai-accent',
     animate: true,
   },
   analyzing: {
     icon: Brain,
     label: 'Analyzing data',
-    color: 'text-purple-500',
+    color: 'text-ai-accent',
     animate: true,
   },
   mapping: {
     icon: Sparkles,
     label: 'Mapping to form fields',
-    color: 'text-purple-500',
+    color: 'text-ai-accent',
     animate: true,
   },
   complete: {
     icon: CheckCircle,
     label: 'Complete',
-    color: 'text-green-500',
+    color: 'text-success',
   },
   error: {
     icon: XCircle,
     label: 'Error',
-    color: 'text-red-500',
+    color: 'text-destructive',
   },
 };
 
@@ -99,10 +99,10 @@ export function ProcessingStatus({
         <div className="flex-1">
           <p className={cn('font-medium', config.color)}>{config.label}</p>
           {message && (
-            <p className="text-sm text-slate-500">{message}</p>
+            <p className="text-sm text-muted-foreground">{message}</p>
           )}
           {error && stage === 'error' && (
-            <p className="text-sm text-red-600">{error}</p>
+            <p className="text-sm text-destructive">{error}</p>
           )}
         </div>
       </div>
@@ -157,10 +157,10 @@ export function ProcessingSteps({ currentStage, className }: ProcessingStepsProp
               <div
                 className={cn(
                   'w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium',
-                  status === 'complete' && 'bg-green-100 text-green-600',
-                  status === 'current' && 'bg-blue-100 text-blue-600',
-                  status === 'pending' && 'bg-slate-100 text-slate-400',
-                  status === 'error' && 'bg-red-100 text-red-600'
+                  status === 'complete' && 'bg-success/10 text-success',
+                  status === 'current' && 'bg-primary/10 text-primary',
+                  status === 'pending' && 'bg-muted text-muted-foreground',
+                  status === 'error' && 'bg-destructive/10 text-destructive'
                 )}
               >
                 {status === 'complete' ? (
@@ -176,7 +176,7 @@ export function ProcessingSteps({ currentStage, className }: ProcessingStepsProp
               <span
                 className={cn(
                   'text-xs mt-1',
-                  status === 'current' ? 'text-blue-600 font-medium' : 'text-slate-500'
+                  status === 'current' ? 'text-primary font-medium' : 'text-muted-foreground'
                 )}
               >
                 {step.label}
@@ -187,8 +187,8 @@ export function ProcessingSteps({ currentStage, className }: ProcessingStepsProp
                 className={cn(
                   'w-12 h-0.5 mx-2',
                   getStepStatus(steps[index + 1].stage) === 'pending'
-                    ? 'bg-slate-200'
-                    : 'bg-green-300'
+                    ? 'bg-border'
+                    : 'bg-success/50'
                 )}
               />
             )}

@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchWithTimeout } from '@/lib/api/fetch-with-timeout';
-import { safeParseErrorJson } from '@/lib/api/safe-json';
+import { parseApiResponse } from '@/lib/api/parse-response';
 
 export type QuotaMetric = 'cases' | 'documents' | 'ai_requests' | 'storage' | 'team_members';
 
@@ -17,14 +17,7 @@ export interface QuotaCheck {
 
 async function fetchQuota(metric: QuotaMetric): Promise<QuotaCheck> {
   const response = await fetchWithTimeout(`/api/billing/quota?metric=${metric}`);
-
-  if (!response.ok) {
-    const error = await safeParseErrorJson(response);
-    throw new Error(error.error || 'Failed to check quota');
-  }
-
-  const data = await response.json();
-  return data.data;
+  return parseApiResponse<QuotaCheck>(response);
 }
 
 export function useQuota(metric: QuotaMetric) {
@@ -42,14 +35,7 @@ export function useQuotaCheck() {
   return useMutation({
     mutationFn: async (metric: QuotaMetric) => {
       const response = await fetchWithTimeout(`/api/billing/quota?metric=${metric}`);
-
-      if (!response.ok) {
-        const error = await safeParseErrorJson(response);
-        throw new Error(error.error || 'Failed to check quota');
-      }
-
-      const data = await response.json();
-      return data.data as QuotaCheck;
+      return parseApiResponse<QuotaCheck>(response);
     },
     onSuccess: (data, metric) => {
       queryClient.setQueryData(['quota', metric], data);

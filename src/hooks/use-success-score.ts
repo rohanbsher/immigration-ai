@@ -3,7 +3,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { SuccessScore } from '@/lib/scoring/success-probability';
 import { fetchWithTimeout } from '@/lib/api/fetch-with-timeout';
-import { safeParseErrorJson } from '@/lib/api/safe-json';
+import { parseApiResponse } from '@/lib/api/parse-response';
 
 /**
  * Fetch success probability score for a case.
@@ -15,13 +15,7 @@ async function fetchSuccessScore(caseId: string): Promise<SuccessScore> {
       'Content-Type': 'application/json',
     },
   });
-
-  if (!response.ok) {
-    const error = await safeParseErrorJson(response);
-    throw new Error(error.message || 'Failed to fetch success score');
-  }
-
-  return response.json();
+  return parseApiResponse<SuccessScore>(response);
 }
 
 /**
@@ -102,33 +96,33 @@ export function getSuccessScoreColors(score: number): {
 } {
   if (score >= 80) {
     return {
-      bg: 'bg-green-100',
-      text: 'text-green-700',
-      border: 'border-green-500',
-      gradient: 'from-green-500 to-emerald-500',
+      bg: 'bg-success/10',
+      text: 'text-success',
+      border: 'border-success',
+      gradient: 'from-success to-success/70',
     };
   }
   if (score >= 60) {
     return {
-      bg: 'bg-blue-100',
-      text: 'text-blue-700',
-      border: 'border-blue-500',
-      gradient: 'from-blue-500 to-cyan-500',
+      bg: 'bg-info/10',
+      text: 'text-info',
+      border: 'border-info',
+      gradient: 'from-info to-info/70',
     };
   }
   if (score >= 40) {
     return {
-      bg: 'bg-yellow-100',
-      text: 'text-yellow-700',
-      border: 'border-yellow-500',
-      gradient: 'from-yellow-500 to-orange-500',
+      bg: 'bg-warning/10',
+      text: 'text-warning',
+      border: 'border-warning',
+      gradient: 'from-warning to-warning/70',
     };
   }
   return {
-    bg: 'bg-red-100',
-    text: 'text-red-700',
-    border: 'border-red-500',
-    gradient: 'from-red-500 to-rose-500',
+    bg: 'bg-destructive/10',
+    text: 'text-destructive',
+    border: 'border-destructive',
+    gradient: 'from-destructive to-destructive/70',
   };
 }
 
@@ -153,10 +147,10 @@ export function getFactorStatusInfo(status: 'good' | 'warning' | 'poor'): {
 } {
   switch (status) {
     case 'good':
-      return { icon: 'check', color: 'text-green-600', bgColor: 'bg-green-100' };
+      return { icon: 'check', color: 'text-success', bgColor: 'bg-success/10' };
     case 'warning':
-      return { icon: 'alert', color: 'text-yellow-600', bgColor: 'bg-yellow-100' };
+      return { icon: 'alert', color: 'text-warning', bgColor: 'bg-warning/10' };
     case 'poor':
-      return { icon: 'x', color: 'text-red-600', bgColor: 'bg-red-100' };
+      return { icon: 'x', color: 'text-destructive', bgColor: 'bg-destructive/10' };
   }
 }

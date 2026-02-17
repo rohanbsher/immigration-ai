@@ -96,12 +96,12 @@ export function ExtractionResults({
       <CardHeader>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <FileText className="h-5 w-5 text-blue-600" />
+            <FileText className="h-5 w-5 text-primary" />
             <div>
               <CardTitle className="text-lg">
                 {formatFieldName(documentType)}
               </CardTitle>
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-muted-foreground">
                 {fields.length} fields extracted
               </p>
             </div>
@@ -113,12 +113,12 @@ export function ExtractionResults({
       <CardContent className="space-y-4">
         {/* Warnings */}
         {warnings && warnings.length > 0 && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+          <div className="bg-warning/10 border border-warning/30 rounded-lg p-3">
             <div className="flex items-start gap-2">
-              <AlertTriangle className="h-4 w-4 text-yellow-600 mt-0.5" />
+              <AlertTriangle className="h-4 w-4 text-warning mt-0.5" />
               <div>
-                <p className="text-sm font-medium text-yellow-800">Warnings</p>
-                <ul className="text-sm text-yellow-700 mt-1 space-y-1">
+                <p className="text-sm font-medium text-warning-foreground">Warnings</p>
+                <ul className="text-sm text-warning-foreground/80 mt-1 space-y-1">
                   {warnings.map((warning, index) => (
                     <li key={index}>• {warning}</li>
                   ))}
@@ -137,11 +137,11 @@ export function ExtractionResults({
             <CollapsibleTrigger asChild>
               <Button
                 variant="ghost"
-                className="w-full justify-between p-3 bg-orange-50 hover:bg-orange-100"
+                className="w-full justify-between p-3 bg-warning/10 hover:bg-warning/15"
               >
                 <div className="flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4 text-orange-600" />
-                  <span className="font-medium text-orange-800">
+                  <AlertTriangle className="h-4 w-4 text-warning" />
+                  <span className="font-medium text-warning-foreground">
                     Requires Verification ({fieldsRequiringVerification.length})
                   </span>
                 </div>
@@ -180,7 +180,7 @@ export function ExtractionResults({
           <CollapsibleTrigger asChild>
             <Button
               variant="ghost"
-              className="w-full justify-between p-3 bg-slate-50 hover:bg-slate-100"
+              className="w-full justify-between p-3 bg-muted/50 hover:bg-muted"
             >
               <span className="font-medium">All Extracted Fields</span>
               {expandedSections.includes('extracted') ? (
@@ -212,22 +212,22 @@ export function ExtractionResults({
         {/* Confidence breakdown */}
         <div className="grid grid-cols-3 gap-3 pt-4 border-t">
           <div className="text-center">
-            <div className="text-2xl font-bold text-green-600">
+            <div className="text-2xl font-bold text-success">
               {highConfidenceFields.length}
             </div>
-            <div className="text-xs text-slate-500">High Confidence</div>
+            <div className="text-xs text-muted-foreground">High Confidence</div>
           </div>
           <div className="text-center">
-            <div className="text-2xl font-bold text-yellow-600">
+            <div className="text-2xl font-bold text-warning">
               {mediumConfidenceFields.length}
             </div>
-            <div className="text-xs text-slate-500">Medium</div>
+            <div className="text-xs text-muted-foreground">Medium</div>
           </div>
           <div className="text-center">
-            <div className="text-2xl font-bold text-red-600">
+            <div className="text-2xl font-bold text-destructive">
               {lowConfidenceFields.length}
             </div>
-            <div className="text-xs text-slate-500">Needs Review</div>
+            <div className="text-xs text-muted-foreground">Needs Review</div>
           </div>
         </div>
       </CardContent>
@@ -260,12 +260,12 @@ function FieldRow({
     <div
       className={cn(
         'flex items-center gap-3 p-2 rounded-lg',
-        field.requires_verification ? 'bg-orange-50' : 'bg-slate-50'
+        field.requires_verification ? 'bg-warning/10' : 'bg-muted/50'
       )}
     >
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-slate-700">
+          <span className="text-sm font-medium text-foreground">
             {formatFieldName(field.field_name)}
           </span>
           <ConfidenceIndicator
@@ -282,8 +282,8 @@ function FieldRow({
             autoFocus
           />
         ) : (
-          <p className="text-sm text-slate-600 truncate">
-            {field.value || <span className="italic text-slate-400">Not found</span>}
+          <p className="text-sm text-muted-foreground truncate">
+            {field.value || <span className="italic text-muted-foreground/60">Not found</span>}
           </p>
         )}
       </div>
@@ -292,15 +292,15 @@ function FieldRow({
         {isEditing ? (
           <>
             <Button size="icon" variant="ghost" className="h-7 w-7" onClick={onSave}>
-              <Check className="h-4 w-4 text-green-600" />
+              <Check className="h-4 w-4 text-success" />
             </Button>
             <Button size="icon" variant="ghost" className="h-7 w-7" onClick={onCancel}>
-              <X className="h-4 w-4 text-red-600" />
+              <X className="h-4 w-4 text-destructive" />
             </Button>
           </>
         ) : (
           <Button size="icon" variant="ghost" className="h-7 w-7" onClick={onEdit}>
-            <Edit2 className="h-3 w-3 text-slate-400" />
+            <Edit2 className="h-3 w-3 text-muted-foreground" />
           </Button>
         )}
       </div>

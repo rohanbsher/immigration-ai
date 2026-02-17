@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { User, Session } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/client';
 import { fetchWithTimeout, TimeoutError } from '@/lib/api/fetch-with-timeout';
+import { parseApiResponse, parseApiVoidResponse } from '@/lib/api/parse-response';
 import type { UserRole } from '@/types';
 
 interface AuthState {
@@ -107,16 +108,10 @@ export function useAuth() {
         timeout: 'STANDARD',
       });
 
-      let result;
-      try {
-        result = await response.json();
-      } catch {
-        throw new Error('Server returned an invalid response. Please try again.');
-      }
-
-      if (!response.ok) {
-        throw new Error(result.error || 'Registration failed');
-      }
+      const result = await parseApiResponse<{
+        requiresConfirmation?: boolean;
+        message?: string;
+      }>(response);
 
       if (result.requiresConfirmation) {
         return { requiresConfirmation: true, message: result.message };
@@ -149,11 +144,7 @@ export function useAuth() {
         timeout: 'STANDARD',
       });
 
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || 'Login failed');
-      }
+      await parseApiResponse(response);
 
       // Redirect to returnUrl if provided, otherwise dashboard
       const redirectTo = data.returnUrl || '/dashboard';
@@ -197,11 +188,7 @@ export function useAuth() {
         method: 'POST',
         timeout: 'QUICK',
       });
-
-      if (!response.ok) {
-        const result = await response.json();
-        throw new Error(result.error || 'Logout failed');
-      }
+      await parseApiVoidResponse(response);
 
       router.push('/login');
       router.refresh();

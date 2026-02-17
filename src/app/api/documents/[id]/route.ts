@@ -7,6 +7,7 @@ import { auditService } from '@/lib/audit';
 import { createLogger } from '@/lib/logger';
 import { SIGNED_URL_EXPIRATION } from '@/lib/storage';
 import { DOCUMENT_TYPES, DOCUMENT_STATUSES } from '@/lib/validation';
+import { safeParseBody } from '@/lib/auth/api-helpers';
 
 const log = createLogger('api:documents');
 
@@ -137,7 +138,9 @@ export async function PATCH(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const body = await request.json();
+    const parsed = await safeParseBody(request);
+    if (!parsed.success) return parsed.response;
+    const body = parsed.data;
     const validatedData = updateDocumentSchema.parse(body);
 
     const updatedDocument = await documentsService.updateDocument(id, validatedData as Parameters<typeof documentsService.updateDocument>[1]);

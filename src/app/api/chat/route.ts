@@ -14,7 +14,7 @@ import { createSSEStream, SSE_CONFIG } from '@/lib/api/sse';
 import { enforceQuota, trackUsage, QuotaExceededError } from '@/lib/billing/quota';
 import { z } from 'zod';
 import { logAIRequest } from '@/lib/audit/ai-audit';
-import { requireAiConsent } from '@/lib/auth/api-helpers';
+import { requireAiConsent, safeParseBody } from '@/lib/auth/api-helpers';
 
 const log = createLogger('api:chat');
 
@@ -83,7 +83,9 @@ export async function POST(request: NextRequest): Promise<Response> {
       message: z.string().min(1, 'Message cannot be empty').max(4000),
     });
 
-    const body = await request.json();
+    const parsed = await safeParseBody(request);
+    if (!parsed.success) return parsed.response;
+    const body = parsed.data;
     const parseResult = chatSchema.safeParse(body);
 
     if (!parseResult.success) {

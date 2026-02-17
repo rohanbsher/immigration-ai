@@ -23,7 +23,7 @@ export function AIConsentModal({ open, onConsent, onCancel }: AIConsentModalProp
       <DialogContent showCloseButton={false}>
         <DialogHeader>
           <div className="flex items-center gap-2">
-            <ShieldCheck className="h-5 w-5 text-purple-600" />
+            <ShieldCheck className="h-5 w-5 text-ai-accent" />
             <DialogTitle>AI Data Processing Consent</DialogTitle>
           </div>
           <DialogDescription>
@@ -31,7 +31,7 @@ export function AIConsentModal({ open, onConsent, onCancel }: AIConsentModalProp
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 text-sm text-slate-700">
+        <div className="space-y-4 text-sm text-foreground">
           <p>
             To provide document analysis and form assistance, your data will be sent to
             third-party AI services:
@@ -48,7 +48,7 @@ export function AIConsentModal({ open, onConsent, onCancel }: AIConsentModalProp
           </ul>
 
           <div>
-            <p className="font-medium text-slate-900 mb-1">Data that may be shared:</p>
+            <p className="font-medium text-foreground mb-1">Data that may be shared:</p>
             <ul className="list-disc pl-5 space-y-1">
               <li>Uploaded document images (passports, visas, supporting documents)</li>
               <li>Case details (visa type, status, timeline information)</li>
@@ -57,14 +57,14 @@ export function AIConsentModal({ open, onConsent, onCancel }: AIConsentModalProp
             </ul>
           </div>
 
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-muted-foreground">
             By proceeding, you acknowledge that data will be transmitted to these providers
             for processing. For more details, see our{' '}
-            <a href="/privacy" className="text-purple-600 hover:underline">
+            <a href="/privacy" className="text-ai-accent hover:underline">
               Privacy Policy
             </a>{' '}
             and{' '}
-            <a href="/ai-disclaimer" className="text-purple-600 hover:underline">
+            <a href="/ai-disclaimer" className="text-ai-accent hover:underline">
               AI Disclaimer
             </a>
             .

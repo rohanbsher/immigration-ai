@@ -58,3 +58,6 @@ public/uscis-templates/
 
 # Extracted XFA field reference data
 scripts/uscis-field-names/
+
+# Python cache
+__pycache__/

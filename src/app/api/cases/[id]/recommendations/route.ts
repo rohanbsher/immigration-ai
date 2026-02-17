@@ -16,7 +16,7 @@ import { createRateLimiter, RATE_LIMITS } from '@/lib/rate-limit';
 import { withAIFallback } from '@/lib/ai/utils';
 import { createLogger } from '@/lib/logger';
 import { enforceQuota, trackUsage, QuotaExceededError } from '@/lib/billing/quota';
-import { requireAiConsent } from '@/lib/auth/api-helpers';
+import { requireAiConsent, safeParseBody } from '@/lib/auth/api-helpers';
 
 const log = createLogger('api:case-recommendations');
 
@@ -348,7 +348,9 @@ export async function PATCH(
     }
 
     // Parse request body
-    const body = await request.json();
+    const parsed = await safeParseBody(request);
+    if (!parsed.success) return parsed.response;
+    const body = parsed.data;
     const { recommendationId, action } = body as {
       recommendationId: string;
       action: 'complete' | 'dismiss';

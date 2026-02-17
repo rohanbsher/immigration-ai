@@ -174,6 +174,10 @@ export function successResponse<T>(
   );
 }
 
+// Re-export from lightweight module so routes that already import from api-helpers
+// don't need an extra import line.
+export { safeParseBody } from '@/lib/api/safe-parse-body';
+
 // =============================================================================
 // Core Authentication
 // =============================================================================

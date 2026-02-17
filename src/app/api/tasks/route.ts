@@ -7,6 +7,7 @@ import {
   withAttorneyAuth,
   errorResponse,
   successResponse,
+  safeParseBody,
 } from '@/lib/auth/api-helpers';
 
 const log = createLogger('api:tasks');
@@ -54,7 +55,9 @@ export const GET = withAuth(async (request, _context, auth) => {
  */
 export const POST = withAttorneyAuth(async (request, _context, auth) => {
   try {
-    const body = await request.json();
+    const parsed = await safeParseBody(request);
+    if (!parsed.success) return parsed.response;
+    const body = parsed.data;
     const validatedData = createTaskSchema.parse(body);
 
     const task = await tasksService.createTask({

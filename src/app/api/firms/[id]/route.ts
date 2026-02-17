@@ -5,6 +5,7 @@ import { getFirmById, updateFirm, deleteFirm, getUserRole } from '@/lib/db/firms
 import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 import { canManageMembers, canDeleteFirm } from '@/types/firms';
 import { createLogger } from '@/lib/logger';
+import { safeParseBody } from '@/lib/auth/api-helpers';
 
 const log = createLogger('api:firms-detail');
 
@@ -94,7 +95,9 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const body = await request.json();
+    const parsed = await safeParseBody(request);
+    if (!parsed.success) return parsed.response;
+    const body = parsed.data;
     const validation = updateFirmSchema.safeParse(body);
 
     if (!validation.success) {

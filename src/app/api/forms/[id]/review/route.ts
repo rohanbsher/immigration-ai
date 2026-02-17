@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { z } from 'zod';
 import { standardRateLimiter } from '@/lib/rate-limit';
 import { createLogger } from '@/lib/logger';
+import { safeParseBody } from '@/lib/auth/api-helpers';
 
 const log = createLogger('api:forms-review');
 
@@ -52,7 +53,9 @@ export async function POST(
       );
     }
 
-    const body = await request.json();
+    const parsed = await safeParseBody(request);
+    if (!parsed.success) return parsed.response;
+    const body = parsed.data;
     const { notes } = reviewSchema.parse(body);
 
     const reviewedForm = await formsService.reviewForm(id, notes);

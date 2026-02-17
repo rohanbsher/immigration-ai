@@ -31,7 +31,8 @@ export function IdleTimeoutProvider({ children }: { children: React.ReactNode })
       const supabase = createClient();
       await supabase.auth.signOut();
       router.push('/login?reason=idle');
-    } catch {
+    } catch (error) {
+      console.error('Idle logout failed:', error);
       // Reset guard so the next interval tick retries logout
       logoutTriggeredRef.current = false;
     }
@@ -79,17 +80,17 @@ export function IdleTimeoutProvider({ children }: { children: React.ReactNode })
           aria-label="Session timeout warning"
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
         >
-          <div className="mx-4 max-w-md rounded-lg border border-slate-200 bg-white p-6">
-            <h2 className="text-lg font-semibold text-gray-900">
+          <div className="mx-4 max-w-md rounded-lg border border-border bg-card p-6">
+            <h2 className="text-lg font-semibold text-foreground">
               Session Expiring Soon
             </h2>
-            <p className="mt-2 text-sm text-gray-600">
+            <p className="mt-2 text-sm text-muted-foreground">
               Your session will expire in less than 2 minutes due to inactivity.
               Move your mouse or press any key to stay logged in.
             </p>
             <button
               onClick={resetTimer}
-              className="mt-4 w-full rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+              className="mt-4 w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
             >
               Stay Logged In
             </button>

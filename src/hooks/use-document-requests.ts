@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchWithTimeout } from '@/lib/api/fetch-with-timeout';
-import { safeParseErrorJson } from '@/lib/api/safe-json';
+import { parseApiResponse, parseApiVoidResponse } from '@/lib/api/parse-response';
 import type { DocumentType } from '@/types';
 
 export type DocumentRequestStatus = 'pending' | 'uploaded' | 'fulfilled' | 'expired' | 'cancelled';
@@ -62,10 +62,7 @@ async function fetchDocumentRequests(
   const response = await fetchWithTimeout(
     `/api/cases/${caseId}/document-requests?${params.toString()}`
   );
-  if (!response.ok) {
-    throw new Error('Failed to fetch document requests');
-  }
-  return response.json();
+  return parseApiResponse<{ data: DocumentRequest[] }>(response);
 }
 
 async function createDocumentRequest(
@@ -77,11 +74,7 @@ async function createDocumentRequest(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
-  if (!response.ok) {
-    const error = await safeParseErrorJson(response);
-    throw new Error(error.error || 'Failed to create document request');
-  }
-  return response.json();
+  return parseApiResponse<DocumentRequest>(response);
 }
 
 async function updateDocumentRequest(
@@ -93,21 +86,14 @@ async function updateDocumentRequest(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
-  if (!response.ok) {
-    const error = await safeParseErrorJson(response);
-    throw new Error(error.error || 'Failed to update document request');
-  }
-  return response.json();
+  return parseApiResponse<DocumentRequest>(response);
 }
 
 async function deleteDocumentRequest(id: string): Promise<void> {
   const response = await fetchWithTimeout(`/api/document-requests/${id}`, {
     method: 'DELETE',
   });
-  if (!response.ok) {
-    const error = await safeParseErrorJson(response);
-    throw new Error(error.error || 'Failed to delete document request');
-  }
+  await parseApiVoidResponse(response);
 }
 
 /**
@@ -118,6 +104,7 @@ export function useDocumentRequests(caseId: string | undefined, pendingOnly = fa
     queryKey: ['document-requests', caseId, pendingOnly],
     queryFn: () => fetchDocumentRequests(caseId!, pendingOnly),
     enabled: !!caseId,
+    staleTime: 30 * 1000, // 30 seconds
     select: (data) => data.data,
   });
 }

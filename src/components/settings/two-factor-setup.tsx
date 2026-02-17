@@ -1,18 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import Image from 'next/image';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import {
   Card,
   CardContent,
@@ -20,11 +9,33 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Shield, Loader2, Check, Copy, AlertTriangle, RefreshCw } from 'lucide-react';
+import { Shield, Loader2, Check, AlertTriangle, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { createLogger } from '@/lib/logger';
 import { fetchWithTimeout } from '@/lib/api/fetch-with-timeout';
+
+import dynamic from 'next/dynamic';
+
+const TwoFactorQrDialog = dynamic(
+  () => import('./two-factor-qr-dialog').then(m => ({ default: m.TwoFactorQrDialog })),
+  { ssr: false }
+);
+const TwoFactorVerifyDialog = dynamic(
+  () => import('./two-factor-verify-dialog').then(m => ({ default: m.TwoFactorVerifyDialog })),
+  { ssr: false }
+);
+const TwoFactorBackupDialog = dynamic(
+  () => import('./two-factor-backup-dialog').then(m => ({ default: m.TwoFactorBackupDialog })),
+  { ssr: false }
+);
+const TwoFactorDisableDialog = dynamic(
+  () => import('./two-factor-disable-dialog').then(m => ({ default: m.TwoFactorDisableDialog })),
+  { ssr: false }
+);
+const TwoFactorRegenerateDialog = dynamic(
+  () => import('./two-factor-regenerate-dialog').then(m => ({ default: m.TwoFactorRegenerateDialog })),
+  { ssr: false }
+);
 
 const log = createLogger('two-factor-setup');
 
@@ -225,7 +236,7 @@ export function TwoFactorSetup() {
     return (
       <Card>
         <CardContent className="flex items-center justify-center py-8">
-          <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </CardContent>
       </Card>
     );
@@ -246,21 +257,21 @@ export function TwoFactorSetup() {
         <CardContent>
           {status?.enabled && status?.verified ? (
             <div className="space-y-4">
-              <div className="flex items-center gap-2 text-green-600">
+              <div className="flex items-center gap-2 text-success">
                 <Check size={20} />
                 <span className="font-medium">Two-factor authentication is enabled</span>
               </div>
               {status.lastUsedAt && (
-                <p className="text-sm text-slate-500">
+                <p className="text-sm text-muted-foreground">
                   Last used: {new Date(status.lastUsedAt).toLocaleDateString()}
                 </p>
               )}
               <div className="flex items-center gap-2">
-                <span className="text-sm text-slate-600">
+                <span className="text-sm text-muted-foreground">
                   Backup codes remaining: {status.backupCodesRemaining}
                 </span>
                 {status.backupCodesRemaining < 3 && (
-                  <AlertTriangle className="h-4 w-4 text-amber-500" />
+                  <AlertTriangle className="h-4 w-4 text-warning" />
                 )}
               </div>
               <div className="flex gap-2 pt-2">
@@ -289,7 +300,7 @@ export function TwoFactorSetup() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="font-medium">Authenticator App</p>
-                <p className="text-sm text-slate-500">
+                <p className="text-sm text-muted-foreground">
                   Use an authenticator app to generate one-time codes.
                 </p>
               </div>
@@ -305,245 +316,58 @@ export function TwoFactorSetup() {
       </Card>
 
       {/* QR Code Dialog */}
-      <Dialog open={step === 'qr-code'} onOpenChange={(open) => !open && handleClose()}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Set Up Authenticator App</DialogTitle>
-            <DialogDescription>
-              Scan this QR code with your authenticator app (like Google Authenticator, Authy, or
-              1Password).
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex flex-col items-center gap-4 py-4">
-            {qrCodeDataUrl && (
-              <Image
-                src={qrCodeDataUrl}
-                alt="2FA QR Code"
-                width={192}
-                height={192}
-                className="border rounded-lg"
-                unoptimized
-              />
-            )}
-            <p className="text-sm text-slate-500 text-center">
-              After scanning, your app will display a 6-digit code. Click Continue to enter it.
-            </p>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={handleClose}>
-              Cancel
-            </Button>
-            <Button onClick={() => setStep('verify')}>Continue</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <TwoFactorQrDialog
+        open={step === 'qr-code'}
+        qrCodeDataUrl={qrCodeDataUrl}
+        onClose={handleClose}
+        onContinue={() => setStep('verify')}
+      />
 
       {/* Verification Dialog */}
-      <Dialog open={step === 'verify'} onOpenChange={(open) => !open && handleClose()}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Verify Your Authenticator</DialogTitle>
-            <DialogDescription>
-              Enter the 6-digit code from your authenticator app to complete setup.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4 space-y-4">
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-            <div className="space-y-2">
-              <Label htmlFor="verification-code">Verification Code</Label>
-              <Input
-                id="verification-code"
-                type="text"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                maxLength={6}
-                placeholder="000000"
-                value={verificationCode}
-                onChange={(e) => {
-                  const value = e.target.value.replace(/\D/g, '').slice(0, 6);
-                  setVerificationCode(value);
-                  setError(null);
-                }}
-                className="text-center text-2xl tracking-widest"
-                autoFocus
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setStep('qr-code')}>
-              Back
-            </Button>
-            <Button onClick={handleVerify} disabled={isSubmitting || verificationCode.length < 6}>
-              {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              Verify & Enable
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <TwoFactorVerifyDialog
+        open={step === 'verify'}
+        verificationCode={verificationCode}
+        onCodeChange={setVerificationCode}
+        error={error}
+        onErrorClear={() => setError(null)}
+        isSubmitting={isSubmitting}
+        onVerify={handleVerify}
+        onBack={() => setStep('qr-code')}
+        onClose={handleClose}
+      />
 
       {/* Backup Codes Dialog */}
-      <Dialog open={step === 'backup-codes'} onOpenChange={(open) => !open && handleClose()}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Save Your Backup Codes</DialogTitle>
-            <DialogDescription>
-              Save these backup codes in a secure location. Each code can only be used once.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4 space-y-4">
-            <Alert>
-              <AlertTriangle className="h-4 w-4" />
-              <AlertDescription>
-                If you lose access to your authenticator app, you can use these codes to sign in.
-              </AlertDescription>
-            </Alert>
-            <div className="bg-slate-100 rounded-lg p-4 font-mono text-sm">
-              <div className="grid grid-cols-2 gap-2">
-                {backupCodes.map((code, index) => (
-                  <div key={index} className="text-center py-1 bg-white rounded border">
-                    {code}
-                  </div>
-                ))}
-              </div>
-            </div>
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={handleCopyBackupCodes}
-            >
-              {copiedCodes ? (
-                <>
-                  <Check className="mr-2 h-4 w-4" />
-                  Copied!
-                </>
-              ) : (
-                <>
-                  <Copy className="mr-2 h-4 w-4" />
-                  Copy All Codes
-                </>
-              )}
-            </Button>
-          </div>
-          <DialogFooter>
-            <Button onClick={handleClose}>Done</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <TwoFactorBackupDialog
+        open={step === 'backup-codes'}
+        backupCodes={backupCodes}
+        copiedCodes={copiedCodes}
+        onCopy={handleCopyBackupCodes}
+        onClose={handleClose}
+      />
 
       {/* Disable 2FA Dialog */}
-      <Dialog open={step === 'disable'} onOpenChange={(open) => !open && handleClose()}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Disable Two-Factor Authentication</DialogTitle>
-            <DialogDescription>
-              Enter a verification code from your authenticator app to confirm.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4 space-y-4">
-            <Alert variant="destructive">
-              <AlertTriangle className="h-4 w-4" />
-              <AlertDescription>
-                Disabling 2FA will make your account less secure.
-              </AlertDescription>
-            </Alert>
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-            <div className="space-y-2">
-              <Label htmlFor="disable-code">Verification Code</Label>
-              <Input
-                id="disable-code"
-                type="text"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                maxLength={8}
-                placeholder="000000"
-                value={verificationCode}
-                onChange={(e) => {
-                  const value = e.target.value.replace(/\D/g, '').slice(0, 8);
-                  setVerificationCode(value);
-                  setError(null);
-                }}
-                className="text-center text-2xl tracking-widest"
-                autoFocus
-              />
-              <p className="text-xs text-slate-500">
-                You can also use a backup code.
-              </p>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={handleClose}>
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleDisable}
-              disabled={isSubmitting || verificationCode.length < 6}
-            >
-              {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              Disable 2FA
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <TwoFactorDisableDialog
+        open={step === 'disable'}
+        verificationCode={verificationCode}
+        onCodeChange={setVerificationCode}
+        error={error}
+        onErrorClear={() => setError(null)}
+        isSubmitting={isSubmitting}
+        onDisable={handleDisable}
+        onClose={handleClose}
+      />
 
       {/* Regenerate Backup Codes Dialog */}
-      <Dialog open={step === 'regenerate'} onOpenChange={(open) => !open && handleClose()}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Regenerate Backup Codes</DialogTitle>
-            <DialogDescription>
-              Enter a verification code to generate new backup codes. Your old codes will be
-              invalidated.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4 space-y-4">
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-            <div className="space-y-2">
-              <Label htmlFor="regenerate-code">Verification Code</Label>
-              <Input
-                id="regenerate-code"
-                type="text"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                maxLength={6}
-                placeholder="000000"
-                value={verificationCode}
-                onChange={(e) => {
-                  const value = e.target.value.replace(/\D/g, '').slice(0, 6);
-                  setVerificationCode(value);
-                  setError(null);
-                }}
-                className="text-center text-2xl tracking-widest"
-                autoFocus
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={handleClose}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleRegenerateBackupCodes}
-              disabled={isSubmitting || verificationCode.length < 6}
-            >
-              {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              Generate New Codes
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <TwoFactorRegenerateDialog
+        open={step === 'regenerate'}
+        verificationCode={verificationCode}
+        onCodeChange={setVerificationCode}
+        error={error}
+        onErrorClear={() => setError(null)}
+        isSubmitting={isSubmitting}
+        onRegenerate={handleRegenerateBackupCodes}
+        onClose={handleClose}
+      />
     </>
   );
 }

@@ -3,7 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { CachedRecommendations, Recommendation } from '@/lib/db/recommendations';
 import { fetchWithTimeout } from '@/lib/api/fetch-with-timeout';
-import { safeParseErrorJson } from '@/lib/api/safe-json';
+import { parseApiResponse } from '@/lib/api/parse-response';
 
 /**
  * Fetch recommendations for a case.
@@ -22,13 +22,7 @@ async function fetchRecommendations(
       'Content-Type': 'application/json',
     },
   });
-
-  if (!response.ok) {
-    const error = await safeParseErrorJson(response);
-    throw new Error(error.message || 'Failed to fetch recommendations');
-  }
-
-  return response.json();
+  return parseApiResponse<CachedRecommendations>(response);
 }
 
 /**
@@ -46,13 +40,7 @@ async function updateRecommendation(
     },
     body: JSON.stringify({ recommendationId, action }),
   });
-
-  if (!response.ok) {
-    const error = await safeParseErrorJson(response);
-    throw new Error(error.message || 'Failed to update recommendation');
-  }
-
-  return response.json();
+  return parseApiResponse<{ success: boolean }>(response);
 }
 
 /**

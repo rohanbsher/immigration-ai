@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import {
   useDocumentRequests,
   useMarkRequestAsFulfilled,
@@ -36,18 +37,18 @@ const STATUS_CONFIG: Record<
   DocumentRequestStatus,
   { label: string; icon: React.ElementType; className: string }
 > = {
-  pending: { label: 'Pending', icon: Clock, className: 'bg-yellow-100 text-yellow-700' },
-  uploaded: { label: 'Uploaded', icon: FileText, className: 'bg-blue-100 text-blue-700' },
-  fulfilled: { label: 'Fulfilled', icon: CheckCircle, className: 'bg-green-100 text-green-700' },
-  expired: { label: 'Expired', icon: AlertCircle, className: 'bg-red-100 text-red-700' },
-  cancelled: { label: 'Cancelled', icon: AlertCircle, className: 'bg-gray-100 text-gray-700' },
+  pending: { label: 'Pending', icon: Clock, className: 'bg-warning/10 text-warning' },
+  uploaded: { label: 'Uploaded', icon: FileText, className: 'bg-info/10 text-info' },
+  fulfilled: { label: 'Fulfilled', icon: CheckCircle, className: 'bg-success/10 text-success' },
+  expired: { label: 'Expired', icon: AlertCircle, className: 'bg-destructive/10 text-destructive' },
+  cancelled: { label: 'Cancelled', icon: AlertCircle, className: 'bg-muted text-muted-foreground' },
 };
 
 const PRIORITY_CONFIG: Record<string, { label: string; className: string }> = {
-  low: { label: 'Low', className: 'bg-slate-100 text-slate-600' },
-  normal: { label: 'Normal', className: 'bg-blue-100 text-blue-600' },
-  high: { label: 'High', className: 'bg-orange-100 text-orange-600' },
-  urgent: { label: 'Urgent', className: 'bg-red-100 text-red-600' },
+  low: { label: 'Low', className: 'bg-muted text-muted-foreground' },
+  normal: { label: 'Normal', className: 'bg-primary/10 text-primary' },
+  high: { label: 'High', className: 'bg-warning/10 text-warning' },
+  urgent: { label: 'Urgent', className: 'bg-destructive/10 text-destructive' },
 };
 
 function RequestCard({
@@ -61,6 +62,7 @@ function RequestCard({
 }) {
   const { mutate: markFulfilled, isPending: isMarkingFulfilled } = useMarkRequestAsFulfilled(caseId);
   const { mutate: deleteRequest, isPending: isDeleting } = useDeleteDocumentRequest(caseId);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   const statusConfig = STATUS_CONFIG[request.status];
   const StatusIcon = statusConfig.icon;
@@ -73,11 +75,20 @@ function RequestCard({
     });
   };
 
-  const handleDelete = () => {
-    if (!confirm('Are you sure you want to delete this request?')) return;
+  const handleDeleteClick = () => {
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = () => {
     deleteRequest(request.id, {
-      onSuccess: () => toast.success('Request deleted'),
-      onError: (error) => toast.error(error.message || 'Failed to delete request'),
+      onSuccess: () => {
+        toast.success('Request deleted');
+        setDeleteDialogOpen(false);
+      },
+      onError: (error) => {
+        toast.error(error.message || 'Failed to delete request');
+        setDeleteDialogOpen(false);
+      },
     });
   };
 
@@ -142,7 +153,7 @@ function RequestCard({
               <Button
                 size="sm"
                 variant="ghost"
-                onClick={handleDelete}
+                onClick={handleDeleteClick}
                 disabled={isDeleting}
                 className="text-destructive hover:text-destructive"
               >
@@ -172,6 +183,18 @@ function RequestCard({
           </p>
         </div>
       )}
+
+      <ConfirmationDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title="Delete Request"
+        description={`Are you sure you want to delete the request "${request.title}"? This action cannot be undone.`}
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        onConfirm={handleConfirmDelete}
+        isLoading={isDeleting}
+        variant="destructive"
+      />
     </div>
   );
 }

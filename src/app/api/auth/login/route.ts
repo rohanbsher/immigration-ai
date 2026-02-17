@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { authRateLimiter } from '@/lib/rate-limit';
 import { createLogger } from '@/lib/logger';
+import { safeParseBody } from '@/lib/api/safe-parse-body';
 
 const log = createLogger('api:auth-login');
 
@@ -28,7 +29,9 @@ export async function POST(request: NextRequest) {
       return rateLimitResult.response;
     }
 
-    const body = await request.json();
+    const parsed = await safeParseBody(request);
+    if (!parsed.success) return parsed.response;
+    const body = parsed.data;
     const validatedData = loginSchema.parse(body);
 
     const supabase = await createClient();

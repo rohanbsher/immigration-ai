@@ -4,6 +4,7 @@ import { getNotificationPreferences, updateNotificationPreferences } from '@/lib
 import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 import { createLogger } from '@/lib/logger';
 import { z } from 'zod';
+import { safeParseBody } from '@/lib/auth/api-helpers';
 
 const log = createLogger('api:notification-preferences');
 
@@ -63,7 +64,9 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const body = await request.json();
+    const parsed = await safeParseBody(request);
+    if (!parsed.success) return parsed.response;
+    const body = parsed.data;
     const validatedData = updateSchema.parse(body);
 
     const preferences = await updateNotificationPreferences(user.id, validatedData);

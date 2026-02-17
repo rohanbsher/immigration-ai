@@ -2,7 +2,7 @@ import { tasksService } from '@/lib/db';
 import { createClient } from '@/lib/supabase/server';
 import { z } from 'zod';
 import { createLogger } from '@/lib/logger';
-import { withAuth, errorResponse, successResponse } from '@/lib/auth/api-helpers';
+import { withAuth, errorResponse, successResponse, safeParseBody } from '@/lib/auth/api-helpers';
 
 const log = createLogger('api:task');
 
@@ -87,7 +87,9 @@ export const PATCH = withAuth(async (request, context, auth) => {
       }
     }
 
-    const body = await request.json();
+    const parsed = await safeParseBody(request);
+    if (!parsed.success) return parsed.response;
+    const body = parsed.data;
     const validatedData = updateTaskSchema.parse(body);
 
     // If marking as complete, set completed_at and completed_by

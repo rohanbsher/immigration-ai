@@ -8,6 +8,7 @@ import {
 } from '@/lib/db/conversations';
 import { standardRateLimiter, sensitiveRateLimiter } from '@/lib/rate-limit';
 import { createLogger } from '@/lib/logger';
+import { safeParseBody } from '@/lib/auth/api-helpers';
 
 const log = createLogger('api:chat-conversation');
 
@@ -116,7 +117,9 @@ export async function PATCH(
       return rateLimitResult.response;
     }
 
-    const body = await request.json();
+    const parsed = await safeParseBody(request);
+    if (!parsed.success) return parsed.response;
+    const body = parsed.data;
     const { title } = body as { title?: string };
 
     if (title !== undefined) {

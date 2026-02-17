@@ -43,8 +43,8 @@ function CreateFirmCard() {
   return (
     <Card className="max-w-md mx-auto">
       <CardHeader className="text-center">
-        <div className="mx-auto w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center mb-4">
-          <Building2 className="h-6 w-6 text-blue-600" />
+        <div className="mx-auto w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+          <Building2 className="h-6 w-6 text-primary" />
         </div>
         <CardTitle>Create Your Firm</CardTitle>
         <CardDescription>
@@ -92,7 +92,7 @@ function FirmDashboard({ firmId, userRole }: { firmId: string; userRole: FirmRol
   if (firmLoading || membersLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
@@ -110,8 +110,8 @@ function FirmDashboard({ firmId, userRole }: { firmId: string; userRole: FirmRol
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Firm Settings</h1>
-          <p className="text-slate-600">Manage your firm and team members</p>
+          <h1 className="text-2xl font-bold text-foreground">Firm Settings</h1>
+          <p className="text-muted-foreground">Manage your firm and team members</p>
         </div>
         {canManageMembers && (
           <Button onClick={() => setShowInviteModal(true)}>
@@ -154,7 +154,7 @@ export default function FirmPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
@@ -164,8 +164,8 @@ export default function FirmPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Firm Management</h1>
-          <p className="text-slate-600">Create or join a firm to collaborate with your team</p>
+          <h1 className="text-2xl font-bold text-foreground">Firm Management</h1>
+          <p className="text-muted-foreground">Create or join a firm to collaborate with your team</p>
         </div>
         <CreateFirmCard />
       </div>

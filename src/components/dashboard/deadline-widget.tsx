@@ -58,7 +58,7 @@ export function DeadlineWidget({
 
   if (error) {
     return (
-      <div className={cn('p-4 text-red-600 flex items-center gap-2', className)}>
+      <div className={cn('p-4 text-destructive flex items-center gap-2', className)}>
         <AlertCircle size={16} />
         <span className="text-sm">Failed to load deadlines</span>
       </div>
@@ -80,13 +80,13 @@ export function DeadlineWidget({
   const hasMore = data.summary.total > maxItems;
 
   return (
-    <div className={cn('rounded-lg border border-slate-200 bg-white', className)}>
+    <div className={cn('rounded-lg border border-border bg-card', className)}>
       {/* Header */}
       {showHeader && (
-        <div className="px-4 py-3 border-b border-slate-100">
+        <div className="px-4 py-3 border-b border-border">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
-              <Calendar size={16} className="text-slate-500" />
+            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+              <Calendar size={16} className="text-muted-foreground" />
               Upcoming Deadlines
             </h3>
             <SummaryBadges summary={data.summary} />
@@ -95,7 +95,7 @@ export function DeadlineWidget({
       )}
 
       {/* Deadline list */}
-      <div className="divide-y divide-slate-100">
+      <div className="divide-y divide-border">
         {urgentDeadlines.map((deadline) => (
           <DeadlineItem
             key={deadline.id}
@@ -109,10 +109,10 @@ export function DeadlineWidget({
 
       {/* Footer with view all link */}
       {hasMore && (
-        <div className="px-4 py-2 border-t border-slate-100 bg-slate-50">
+        <div className="px-4 py-2 border-t border-border bg-muted/50">
           <Link
             href="/dashboard?tab=deadlines"
-            className="text-xs text-purple-600 hover:text-purple-700 flex items-center gap-1"
+            className="text-xs text-primary hover:text-primary/80 flex items-center gap-1"
           >
             View all {data.summary.total} deadlines
             <ChevronRight size={12} />
@@ -196,16 +196,16 @@ function DeadlineItem({
             <span className={cn('text-sm font-medium', colors.text)}>
               {formatDaysRemaining(deadline.daysRemaining)}
             </span>
-            <span className="text-xs text-slate-400">•</span>
-            <span className="text-xs text-slate-500">
+            <span className="text-xs text-muted-foreground/60">•</span>
+            <span className="text-xs text-muted-foreground">
               {getAlertTypeLabel(deadline.alertType)}
             </span>
           </div>
-          <p className="text-sm text-slate-700 line-clamp-1">{deadline.message}</p>
+          <p className="text-sm text-foreground line-clamp-1">{deadline.message}</p>
           {deadline.caseInfo && (
             <Link
               href={`/dashboard/cases/${deadline.caseId}`}
-              className="text-xs text-slate-500 hover:text-purple-600 flex items-center gap-1 mt-1"
+              className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1 mt-1"
             >
               <FileText size={10} />
               {deadline.caseInfo.title}
@@ -223,7 +223,7 @@ function DeadlineItem({
                   size="sm"
                   onClick={onSnooze}
                   disabled={isUpdating}
-                  className="h-7 w-7 p-0 text-slate-400 hover:text-slate-600"
+                  className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
                 >
                   <BellOff size={14} />
                 </Button>
@@ -241,7 +241,7 @@ function DeadlineItem({
                   size="sm"
                   onClick={onAcknowledge}
                   disabled={isUpdating}
-                  className="h-7 w-7 p-0 text-green-500 hover:text-green-600 hover:bg-green-50"
+                  className="h-7 w-7 p-0 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
                 >
                   <Check size={14} />
                 </Button>
@@ -264,15 +264,15 @@ function EmptyState({ className }: { className?: string }) {
   return (
     <div
       className={cn(
-        'p-6 text-center border border-dashed border-slate-200 rounded-lg bg-slate-50',
+        'p-6 text-center border border-dashed border-border rounded-lg bg-muted/50',
         className
       )}
     >
-      <Calendar size={32} className="mx-auto text-slate-300 mb-3" />
-      <h4 className="text-sm font-medium text-slate-700 mb-1">
+      <Calendar size={32} className="mx-auto text-muted-foreground/40 mb-3" />
+      <h4 className="text-sm font-medium text-foreground mb-1">
         No upcoming deadlines
       </h4>
-      <p className="text-xs text-slate-500">
+      <p className="text-xs text-muted-foreground">
         All deadlines are more than 60 days away.
       </p>
     </div>

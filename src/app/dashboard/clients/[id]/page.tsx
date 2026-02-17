@@ -33,6 +33,7 @@ import {
 import { useClient, useClientCases, useUpdateClient } from '@/hooks/use-clients';
 import { CaseStatusBadge } from '@/components/cases';
 import { toast } from 'sonner';
+import { Breadcrumbs, generateClientBreadcrumbs } from '@/components/ui/breadcrumbs';
 import type { CaseStatus, VisaType } from '@/types';
 
 export default function ClientDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -84,7 +85,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
@@ -98,7 +99,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
         </Button>
         <Card>
           <CardContent className="p-8 text-center">
-            <p className="text-slate-600">Client not found or you don&apos;t have access.</p>
+            <p className="text-muted-foreground">Client not found or you don&apos;t have access.</p>
           </CardContent>
         </Card>
       </div>
@@ -107,6 +108,9 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
 
   return (
     <div className="space-y-6">
+      {/* Breadcrumbs */}
+      <Breadcrumbs items={generateClientBreadcrumbs(id, `${client.first_name} ${client.last_name}`)} />
+
       {/* Header */}
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" onClick={() => router.back()}>
@@ -114,16 +118,16 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
         </Button>
         <Avatar className="h-16 w-16">
           <AvatarImage src={client.avatar_url || undefined} />
-          <AvatarFallback className="bg-blue-100 text-blue-700 text-xl font-medium">
+          <AvatarFallback className="bg-primary/10 text-primary text-xl font-medium">
             {client.first_name.charAt(0)}
             {client.last_name.charAt(0)}
           </AvatarFallback>
         </Avatar>
         <div className="flex-1">
-          <h1 className="text-2xl font-bold text-slate-900">
+          <h1 className="text-2xl font-bold text-foreground">
             {client.first_name} {client.last_name}
           </h1>
-          <div className="flex items-center gap-4 mt-1 text-sm text-slate-500">
+          <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
             <span className="flex items-center gap-1">
               <Mail size={14} />
               {client.email}
@@ -146,30 +150,30 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardContent className="p-4 flex items-center gap-4">
-            <div className="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center">
-              <FolderOpen className="text-blue-600" size={24} />
+            <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
+              <FolderOpen className="text-primary" size={24} />
             </div>
             <div>
               <p className="text-2xl font-bold">{client.cases_count}</p>
-              <p className="text-sm text-slate-500">Total Cases</p>
+              <p className="text-sm text-muted-foreground">Total Cases</p>
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 flex items-center gap-4">
-            <div className="w-12 h-12 rounded-lg bg-green-100 flex items-center justify-center">
-              <FileText className="text-green-600" size={24} />
+            <div className="w-12 h-12 rounded-lg bg-success/10 flex items-center justify-center">
+              <FileText className="text-success" size={24} />
             </div>
             <div>
               <p className="text-2xl font-bold">{client.active_cases_count}</p>
-              <p className="text-sm text-slate-500">Active Cases</p>
+              <p className="text-sm text-muted-foreground">Active Cases</p>
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 flex items-center gap-4">
-            <div className="w-12 h-12 rounded-lg bg-purple-100 flex items-center justify-center">
-              <Calendar className="text-purple-600" size={24} />
+            <div className="w-12 h-12 rounded-lg bg-ai-accent-muted flex items-center justify-center">
+              <Calendar className="text-ai-accent" size={24} />
             </div>
             <div>
               <p className="text-2xl font-bold">
@@ -178,7 +182,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                   year: 'numeric',
                 })}
               </p>
-              <p className="text-sm text-slate-500">Client Since</p>
+              <p className="text-sm text-muted-foreground">Client Since</p>
             </div>
           </CardContent>
         </Card>
@@ -204,7 +208,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
 
           {casesLoading ? (
             <div className="flex justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
             </div>
           ) : cases && cases.length > 0 ? (
             <div className="space-y-4">
@@ -217,13 +221,13 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                 created_at: string;
               }) => (
                 <Link key={caseItem.id} href={`/dashboard/cases/${caseItem.id}`}>
-                  <Card className="hover:border-blue-400 hover:shadow-md transition-all cursor-pointer">
+                  <Card className="hover:border-primary/60 hover:shadow-md transition-all cursor-pointer">
                     <CardContent className="p-4 flex items-center justify-between">
                       <div>
-                        <p className="font-medium text-slate-900">{caseItem.title}</p>
+                        <p className="font-medium text-foreground">{caseItem.title}</p>
                         <div className="flex items-center gap-2 mt-1">
                           <Badge variant="outline">{caseItem.visa_type}</Badge>
-                          <span className="text-sm text-slate-500">
+                          <span className="text-sm text-muted-foreground">
                             Created {new Date(caseItem.created_at).toLocaleDateString()}
                           </span>
                         </div>
@@ -231,7 +235,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                       <div className="flex items-center gap-4">
                         <CaseStatusBadge status={caseItem.status} />
                         {caseItem.deadline && (
-                          <span className="text-sm text-slate-500">
+                          <span className="text-sm text-muted-foreground">
                             Due {new Date(caseItem.deadline).toLocaleDateString()}
                           </span>
                         )}
@@ -244,8 +248,8 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
           ) : (
             <Card>
               <CardContent className="p-8 text-center">
-                <FolderOpen className="h-12 w-12 mx-auto text-slate-300 mb-4" />
-                <p className="text-slate-600">No cases for this client yet.</p>
+                <FolderOpen className="h-12 w-12 mx-auto text-muted-foreground/40 mb-4" />
+                <p className="text-muted-foreground">No cases for this client yet.</p>
               </CardContent>
             </Card>
           )}
@@ -259,21 +263,21 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
             <CardContent className="space-y-4">
               <div className="grid md:grid-cols-2 gap-6">
                 <div>
-                  <p className="text-sm text-slate-500">Full Name</p>
+                  <p className="text-sm text-muted-foreground">Full Name</p>
                   <p className="font-medium">
                     {client.first_name} {client.last_name}
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm text-slate-500">Email Address</p>
+                  <p className="text-sm text-muted-foreground">Email Address</p>
                   <p className="font-medium">{client.email}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-slate-500">Phone Number</p>
+                  <p className="text-sm text-muted-foreground">Phone Number</p>
                   <p className="font-medium">{client.phone || 'Not provided'}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-slate-500">Date of Birth</p>
+                  <p className="text-sm text-muted-foreground">Date of Birth</p>
                   <p className="font-medium">
                     {client.date_of_birth
                       ? new Date(client.date_of_birth).toLocaleDateString()
@@ -281,11 +285,11 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm text-slate-500">Country of Birth</p>
+                  <p className="text-sm text-muted-foreground">Country of Birth</p>
                   <p className="font-medium">{client.country_of_birth || 'Not provided'}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-slate-500">Nationality</p>
+                  <p className="text-sm text-muted-foreground">Nationality</p>
                   <p className="font-medium">{client.nationality || 'Not provided'}</p>
                 </div>
               </div>

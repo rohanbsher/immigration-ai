@@ -27,13 +27,13 @@ import { toast } from 'sonner';
 import type { DocumentStatus, DocumentType } from '@/types';
 
 const statusConfig: Record<DocumentStatus, { label: string; className: string }> = {
-  uploaded: { label: 'Uploaded', className: 'bg-slate-100 text-slate-700' },
-  processing: { label: 'Processing', className: 'bg-yellow-100 text-yellow-700' },
-  analyzed: { label: 'Analyzed', className: 'bg-blue-100 text-blue-700' },
-  needs_review: { label: 'Needs Review', className: 'bg-amber-100 text-amber-700' },
-  verified: { label: 'Verified', className: 'bg-green-100 text-green-700' },
-  rejected: { label: 'Rejected', className: 'bg-red-100 text-red-700' },
-  expired: { label: 'Expired', className: 'bg-orange-100 text-orange-700' },
+  uploaded: { label: 'Uploaded', className: 'bg-muted text-muted-foreground' },
+  processing: { label: 'Processing', className: 'bg-warning/10 text-warning' },
+  analyzed: { label: 'Analyzed', className: 'bg-primary/10 text-primary' },
+  needs_review: { label: 'Needs Review', className: 'bg-warning/10 text-warning' },
+  verified: { label: 'Verified', className: 'bg-success/10 text-success' },
+  rejected: { label: 'Rejected', className: 'bg-destructive/10 text-destructive' },
+  expired: { label: 'Expired', className: 'bg-warning/10 text-warning' },
 };
 
 const typeLabels: Record<DocumentType, string> = {
@@ -109,7 +109,7 @@ export function DocumentList({ caseId }: DocumentListProps) {
   if (isLoading) {
     return (
       <div className="flex justify-center py-8">
-        <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
       </div>
     );
   }
@@ -117,8 +117,8 @@ export function DocumentList({ caseId }: DocumentListProps) {
   if (!documents || documents.length === 0) {
     return (
       <div className="text-center py-8">
-        <FileText className="h-12 w-12 mx-auto text-slate-300 mb-4" />
-        <p className="text-slate-600">No documents uploaded yet.</p>
+        <FileText className="h-12 w-12 mx-auto text-muted-foreground/40 mb-4" />
+        <p className="text-muted-foreground">No documents uploaded yet.</p>
       </div>
     );
   }
@@ -133,12 +133,12 @@ export function DocumentList({ caseId }: DocumentListProps) {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
-                    <FileText className="h-5 w-5 text-blue-600" />
+                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <FileText className="h-5 w-5 text-primary" />
                   </div>
                   <div>
-                    <p className="font-medium text-slate-900">{doc.file_name}</p>
-                    <div className="flex items-center gap-2 text-sm text-slate-500">
+                    <p className="font-medium text-foreground">{doc.file_name}</p>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <span>{typeLabels[doc.document_type as DocumentType] || doc.document_type}</span>
                       <span>-</span>
                       <span>{formatFileSize(doc.file_size)}</span>
@@ -200,7 +200,7 @@ export function DocumentList({ caseId }: DocumentListProps) {
                       <DropdownMenuItem
                         onClick={() => handleDeleteClick(doc.id, doc.file_name)}
                         disabled={isDeleting}
-                        className="text-red-600"
+                        className="text-destructive"
                       >
                         <Trash2 className="mr-2 h-4 w-4" />
                         Delete

@@ -10,6 +10,7 @@ import {
 import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 import { canManageMembers } from '@/types/firms';
 import { createLogger } from '@/lib/logger';
+import { safeParseBody } from '@/lib/auth/api-helpers';
 
 const log = createLogger('api:firms-members');
 
@@ -89,7 +90,9 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const body = await request.json();
+    const parsed = await safeParseBody(request);
+    if (!parsed.success) return parsed.response;
+    const body = parsed.data;
     const validation = updateMemberSchema.safeParse(body);
 
     if (!validation.success) {
@@ -142,7 +145,9 @@ export async function DELETE(request: NextRequest, { params }: Params) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const body = await request.json();
+    const parsed = await safeParseBody(request);
+    if (!parsed.success) return parsed.response;
+    const body = parsed.data;
     const validation = removeMemberSchema.safeParse(body);
 
     if (!validation.success) {

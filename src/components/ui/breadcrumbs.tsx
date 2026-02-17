@@ -24,7 +24,7 @@ export function Breadcrumbs({ items, showHome = true }: BreadcrumbsProps) {
       {showHome && (
         <Link
           href="/dashboard"
-          className="text-slate-500 hover:text-slate-700 transition-colors"
+          className="text-muted-foreground hover:text-foreground transition-colors"
           aria-label="Home"
         >
           <Home className="h-4 w-4" />
@@ -40,7 +40,7 @@ export function Breadcrumbs({ items, showHome = true }: BreadcrumbsProps) {
           return (
             <ChevronRight
               key={`sep-${index}`}
-              className="h-4 w-4 text-slate-400 flex-shrink-0"
+              className="h-4 w-4 text-muted-foreground/60 flex-shrink-0"
               aria-hidden="true"
             />
           );
@@ -50,13 +50,13 @@ export function Breadcrumbs({ items, showHome = true }: BreadcrumbsProps) {
           <Fragment key={item.label}>
             {!isFirst && (
               <ChevronRight
-                className="h-4 w-4 text-slate-400 flex-shrink-0"
+                className="h-4 w-4 text-muted-foreground/60 flex-shrink-0"
                 aria-hidden="true"
               />
             )}
             {isLast || !item.href ? (
               <span
-                className="text-slate-900 font-medium truncate max-w-[200px]"
+                className="text-foreground font-medium truncate max-w-[200px]"
                 aria-current={isLast ? 'page' : undefined}
               >
                 {item.label}
@@ -64,7 +64,7 @@ export function Breadcrumbs({ items, showHome = true }: BreadcrumbsProps) {
             ) : (
               <Link
                 href={item.href}
-                className="text-slate-500 hover:text-slate-700 transition-colors truncate max-w-[200px]"
+                className="text-muted-foreground hover:text-foreground transition-colors truncate max-w-[200px]"
               >
                 {item.label}
               </Link>

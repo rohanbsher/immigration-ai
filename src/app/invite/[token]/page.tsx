@@ -43,19 +43,19 @@ export default function InvitationPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
 
   if (error || !invitation) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
         <Card className="max-w-md w-full">
           <CardHeader className="text-center">
-            <div className="mx-auto w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mb-4">
-              <AlertCircle className="h-6 w-6 text-red-600" />
+            <div className="mx-auto w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center mb-4">
+              <AlertCircle className="h-6 w-6 text-destructive" />
             </div>
             <CardTitle>Invalid Invitation</CardTitle>
             <CardDescription>
@@ -80,11 +80,11 @@ export default function InvitationPage() {
 
   if (isExpired) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
         <Card className="max-w-md w-full">
           <CardHeader className="text-center">
-            <div className="mx-auto w-12 h-12 rounded-full bg-yellow-100 flex items-center justify-center mb-4">
-              <AlertCircle className="h-6 w-6 text-yellow-600" />
+            <div className="mx-auto w-12 h-12 rounded-full bg-warning/10 flex items-center justify-center mb-4">
+              <AlertCircle className="h-6 w-6 text-warning" />
             </div>
             <CardTitle>Invitation Expired</CardTitle>
             <CardDescription>
@@ -103,11 +103,11 @@ export default function InvitationPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="max-w-md w-full">
         <CardHeader className="text-center">
-          <div className="mx-auto w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center mb-4">
-            <Building2 className="h-6 w-6 text-blue-600" />
+          <div className="mx-auto w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+            <Building2 className="h-6 w-6 text-primary" />
           </div>
           <CardTitle>Join {invitation.firm.name}</CardTitle>
           <CardDescription>
@@ -116,23 +116,23 @@ export default function InvitationPage() {
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Invitation Details */}
-          <div className="bg-slate-50 rounded-lg p-4 space-y-3">
+          <div className="bg-background rounded-lg p-4 space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-slate-600">Firm</span>
+              <span className="text-sm text-muted-foreground">Firm</span>
               <span className="font-medium">{invitation.firm.name}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm text-slate-600">Your Role</span>
+              <span className="text-sm text-muted-foreground">Your Role</span>
               <Badge variant="outline">{ROLE_LABELS[invitation.role]}</Badge>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm text-slate-600">Invited By</span>
+              <span className="text-sm text-muted-foreground">Invited By</span>
               <span className="font-medium">{inviterName}</span>
             </div>
           </div>
 
           {/* Role Description */}
-          <div className="text-sm text-slate-600">
+          <div className="text-sm text-muted-foreground">
             {invitation.role === 'admin' && (
               <p>As an Administrator, you&apos;ll be able to manage team members and firm settings.</p>
             )}

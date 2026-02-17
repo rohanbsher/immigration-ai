@@ -44,17 +44,17 @@ export function PlanCard({
     <Card
       className={cn(
         'relative flex flex-col',
-        isCurrentPlan && 'ring-2 ring-blue-600',
-        isPopular && !isCurrentPlan && 'ring-1 ring-blue-200'
+        isCurrentPlan && 'ring-2 ring-primary',
+        isPopular && !isCurrentPlan && 'ring-1 ring-primary/30'
       )}
     >
       {isPopular && !isCurrentPlan && (
-        <Badge className="absolute -top-2.5 left-1/2 -translate-x-1/2 bg-blue-600">
+        <Badge className="absolute -top-2.5 left-1/2 -translate-x-1/2 bg-primary">
           Most Popular
         </Badge>
       )}
       {isCurrentPlan && (
-        <Badge className="absolute -top-2.5 left-1/2 -translate-x-1/2 bg-green-600">
+        <Badge className="absolute -top-2.5 left-1/2 -translate-x-1/2 bg-success">
           Current Plan
         </Badge>
       )}
@@ -65,13 +65,13 @@ export function PlanCard({
         <div className="mt-4">
           <span className="text-4xl font-bold">${price}</span>
           {price > 0 && (
-            <span className="text-slate-500 ml-1">
+            <span className="text-muted-foreground ml-1">
               /{billingPeriod === 'monthly' ? 'month' : 'month, billed yearly'}
             </span>
           )}
         </div>
         {billingPeriod === 'yearly' && yearlySavings > 0 && (
-          <p className="text-sm text-green-600 font-medium mt-1">
+          <p className="text-sm text-success font-medium mt-1">
             Save ${yearlySavings}/year
           </p>
         )}
@@ -80,22 +80,22 @@ export function PlanCard({
       <CardContent className="flex-1 space-y-6">
         {/* Limits */}
         <div className="space-y-2">
-          <p className="text-sm font-medium text-slate-700">Limits</p>
+          <p className="text-sm font-medium text-foreground">Limits</p>
           <ul className="space-y-1.5 text-sm">
             <li className="flex items-center gap-2">
-              <Check size={16} className="text-green-600 flex-shrink-0" />
+              <Check size={16} className="text-success flex-shrink-0" />
               <span>{formatLimit(plan.limits.maxCases)} cases</span>
             </li>
             <li className="flex items-center gap-2">
-              <Check size={16} className="text-green-600 flex-shrink-0" />
+              <Check size={16} className="text-success flex-shrink-0" />
               <span>{formatLimit(plan.limits.maxDocumentsPerCase)} docs/case</span>
             </li>
             <li className="flex items-center gap-2">
-              <Check size={16} className="text-green-600 flex-shrink-0" />
+              <Check size={16} className="text-success flex-shrink-0" />
               <span>{formatLimit(plan.limits.maxAiRequestsPerMonth)} AI requests/month</span>
             </li>
             <li className="flex items-center gap-2">
-              <Check size={16} className="text-green-600 flex-shrink-0" />
+              <Check size={16} className="text-success flex-shrink-0" />
               <span>{formatLimit(plan.limits.maxTeamMembers)} team members</span>
             </li>
           </ul>
@@ -103,16 +103,16 @@ export function PlanCard({
 
         {/* Features */}
         <div className="space-y-2">
-          <p className="text-sm font-medium text-slate-700">Features</p>
+          <p className="text-sm font-medium text-foreground">Features</p>
           <ul className="space-y-1.5 text-sm">
             {Object.entries(plan.features).map(([key, enabled]) => (
               <li key={key} className="flex items-center gap-2">
                 {enabled ? (
-                  <Check size={16} className="text-green-600 flex-shrink-0" />
+                  <Check size={16} className="text-success flex-shrink-0" />
                 ) : (
-                  <X size={16} className="text-slate-300 flex-shrink-0" />
+                  <X size={16} className="text-muted-foreground/40 flex-shrink-0" />
                 )}
-                <span className={cn(!enabled && 'text-slate-400')}>
+                <span className={cn(!enabled && 'text-muted-foreground')}>
                   {FEATURE_LABELS[key] || key}
                 </span>
               </li>
@@ -140,7 +140,7 @@ export function PlanCard({
             </Button>
           ) : (
             <Button
-              className="w-full bg-blue-600 hover:bg-blue-700"
+              className="w-full bg-primary hover:bg-primary/90"
               onClick={() => onSelect('pro')}
               disabled={isLoading || disabled}
             >

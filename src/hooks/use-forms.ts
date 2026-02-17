@@ -3,7 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { FormType, FormStatus } from '@/types';
 import { fetchWithTimeout, fetchAI, TimeoutError } from '@/lib/api/fetch-with-timeout';
-import { safeParseErrorJson } from '@/lib/api/safe-json';
+import { parseApiResponse, parseApiVoidResponse } from '@/lib/api/parse-response';
 
 interface Form {
   id: string;
@@ -40,18 +40,12 @@ interface UpdateFormData {
 
 async function fetchForms(caseId: string): Promise<Form[]> {
   const response = await fetchWithTimeout(`/api/cases/${caseId}/forms`);
-  if (!response.ok) {
-    throw new Error('Failed to fetch forms');
-  }
-  return response.json();
+  return parseApiResponse<Form[]>(response);
 }
 
 async function fetchForm(id: string): Promise<Form> {
   const response = await fetchWithTimeout(`/api/forms/${id}`);
-  if (!response.ok) {
-    throw new Error('Failed to fetch form');
-  }
-  return response.json();
+  return parseApiResponse<Form>(response);
 }
 
 async function createForm(data: CreateFormData): Promise<Form> {
@@ -60,11 +54,7 @@ async function createForm(data: CreateFormData): Promise<Form> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
-  if (!response.ok) {
-    const error = await safeParseErrorJson(response);
-    throw new Error(error.error || 'Failed to create form');
-  }
-  return response.json();
+  return parseApiResponse<Form>(response);
 }
 
 async function updateForm(id: string, data: UpdateFormData): Promise<Form> {
@@ -73,11 +63,7 @@ async function updateForm(id: string, data: UpdateFormData): Promise<Form> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
-  if (!response.ok) {
-    const error = await safeParseErrorJson(response);
-    throw new Error(error.error || 'Failed to update form');
-  }
-  return response.json();
+  return parseApiResponse<Form>(response);
 }
 
 async function autofillForm(id: string): Promise<Form> {
@@ -85,11 +71,7 @@ async function autofillForm(id: string): Promise<Form> {
   const response = await fetchAI(`/api/forms/${id}/autofill`, {
     method: 'POST',
   });
-  if (!response.ok) {
-    const error = await safeParseErrorJson(response);
-    throw new Error(error.error || 'Failed to autofill form');
-  }
-  return response.json();
+  return parseApiResponse<Form>(response);
 }
 
 async function reviewForm(id: string, notes: string): Promise<Form> {
@@ -98,32 +80,21 @@ async function reviewForm(id: string, notes: string): Promise<Form> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ notes }),
   });
-  if (!response.ok) {
-    const error = await safeParseErrorJson(response);
-    throw new Error(error.error || 'Failed to review form');
-  }
-  return response.json();
+  return parseApiResponse<Form>(response);
 }
 
 async function fileForm(id: string): Promise<Form> {
   const response = await fetchWithTimeout(`/api/forms/${id}/file`, {
     method: 'POST',
   });
-  if (!response.ok) {
-    const error = await safeParseErrorJson(response);
-    throw new Error(error.error || 'Failed to mark form as filed');
-  }
-  return response.json();
+  return parseApiResponse<Form>(response);
 }
 
 async function deleteForm(id: string): Promise<void> {
   const response = await fetchWithTimeout(`/api/forms/${id}`, {
     method: 'DELETE',
   });
-  if (!response.ok) {
-    const error = await safeParseErrorJson(response);
-    throw new Error(error.error || 'Failed to delete form');
-  }
+  await parseApiVoidResponse(response);
 }
 
 export function useForms(caseId: string | undefined) {
@@ -131,6 +102,7 @@ export function useForms(caseId: string | undefined) {
     queryKey: ['forms', caseId],
     queryFn: () => fetchForms(caseId!),
     enabled: !!caseId,
+    staleTime: 30 * 1000, // 30 seconds — active editing context
   });
 }
 
@@ -139,6 +111,7 @@ export function useForm(id: string | undefined) {
     queryKey: ['form', id],
     queryFn: () => fetchForm(id!),
     enabled: !!id,
+    staleTime: 30 * 1000, // 30 seconds — active editing context
   });
 }
 

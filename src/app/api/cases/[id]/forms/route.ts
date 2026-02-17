@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { standardRateLimiter } from '@/lib/rate-limit';
 import { createLogger } from '@/lib/logger';
 import { FORM_TYPES } from '@/lib/validation';
+import { safeParseBody } from '@/lib/auth/api-helpers';
 
 const log = createLogger('api:case-forms');
 
@@ -96,7 +97,9 @@ export async function POST(
       );
     }
 
-    const body = await request.json();
+    const parsed = await safeParseBody(request);
+    if (!parsed.success) return parsed.response;
+    const body = parsed.data;
     const validatedData = createFormSchema.parse(body);
 
     const form = await formsService.createForm({

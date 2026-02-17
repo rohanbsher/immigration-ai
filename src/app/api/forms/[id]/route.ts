@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { standardRateLimiter, sensitiveRateLimiter } from '@/lib/rate-limit';
 import { createLogger } from '@/lib/logger';
 import { FORM_STATUSES, isValidFormTransition, type FormStatusType } from '@/lib/validation';
+import { safeParseBody } from '@/lib/auth/api-helpers';
 
 const log = createLogger('api:forms-detail');
 
@@ -115,7 +116,9 @@ export async function PATCH(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const body = await request.json();
+    const parsed = await safeParseBody(request);
+    if (!parsed.success) return parsed.response;
+    const body = parsed.data;
     const validatedData = updateFormSchema.parse(body);
 
     // Get the current form state for audit comparison

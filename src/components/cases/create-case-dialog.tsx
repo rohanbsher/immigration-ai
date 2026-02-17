@@ -12,11 +12,28 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import dynamic from 'next/dynamic';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Loader2, X } from 'lucide-react';
+import { FieldHelp } from '@/components/workflow/contextual-help';
 import { useCreateCase } from '@/hooks/use-cases';
 import { useSearchClients } from '@/hooks/use-clients';
 import { useQuota } from '@/hooks/use-quota';
-import { UpgradePromptDialog, UpgradePromptBanner } from '@/components/billing/upgrade-prompt';
+
+const UpgradePromptDialog = dynamic(
+  () => import('@/components/billing/upgrade-prompt').then(m => ({ default: m.UpgradePromptDialog })),
+  { ssr: false }
+);
+const UpgradePromptBanner = dynamic(
+  () => import('@/components/billing/upgrade-prompt').then(m => ({ default: m.UpgradePromptBanner })),
+  { ssr: false }
+);
 import { toast } from 'sonner';
 import type { VisaType } from '@/types';
 
@@ -160,9 +177,16 @@ export function CreateCaseDialog({ open, onOpenChange }: CreateCaseDialogProps) 
 
         <form onSubmit={handleSubmit} className="space-y-4 mt-4">
           <div className="space-y-2">
-            <Label htmlFor="title">
-              Case Title <span className="text-red-500">*</span>
-            </Label>
+            <div className="flex items-center gap-1">
+              <Label htmlFor="title">
+                Case Title <span className="text-red-500">*</span>
+              </Label>
+              <FieldHelp
+                title="Case Title"
+                description="A descriptive name for this case that helps you identify it quickly. Include the client name or visa type for easy reference."
+                example="Smith Family - I-485 Adjustment of Status"
+              />
+            </div>
             <Input
               id="title"
               name="title"
@@ -180,12 +204,12 @@ export function CreateCaseDialog({ open, onOpenChange }: CreateCaseDialogProps) 
             </Label>
 
             {selectedClient ? (
-              <div className="flex items-center justify-between rounded-md border border-input bg-slate-50 px-3 py-2">
+              <div className="flex items-center justify-between rounded-md border border-input bg-muted/50 px-3 py-2">
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-slate-900 truncate">
+                  <p className="text-sm font-medium text-foreground truncate">
                     {selectedClient.name}
                   </p>
-                  <p className="text-xs text-slate-500 truncate">
+                  <p className="text-xs text-muted-foreground truncate">
                     {selectedClient.email}
                   </p>
                 </div>
@@ -193,7 +217,7 @@ export function CreateCaseDialog({ open, onOpenChange }: CreateCaseDialogProps) 
                   type="button"
                   onClick={handleClearClient}
                   disabled={isPending}
-                  className="ml-2 shrink-0 rounded-full p-1 text-slate-400 hover:bg-slate-200 hover:text-slate-600 disabled:opacity-50"
+                  className="ml-2 shrink-0 rounded-full p-1 text-muted-foreground hover:bg-muted hover:text-muted-foreground disabled:opacity-50"
                   aria-label="Clear client selection"
                 >
                   <X className="h-4 w-4" />
@@ -217,28 +241,28 @@ export function CreateCaseDialog({ open, onOpenChange }: CreateCaseDialogProps) 
                 />
 
                 {isDropdownOpen && (
-                  <div className="absolute z-50 mt-1 w-full rounded-md border border-slate-200 bg-white shadow-lg max-h-48 overflow-y-auto">
+                  <div className="absolute z-50 mt-1 w-full rounded-md border border-border bg-popover shadow-lg max-h-48 overflow-y-auto">
                     {isSearching ? (
                       <div className="flex items-center justify-center py-4">
-                        <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
-                        <span className="ml-2 text-sm text-slate-500">Searching...</span>
+                        <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                        <span className="ml-2 text-sm text-muted-foreground">Searching...</span>
                       </div>
                     ) : searchResults && searchResults.length > 0 ? (
                       searchResults.map((client) => (
                         <button
                           key={client.id}
                           type="button"
-                          className="w-full px-3 py-2 text-left hover:bg-slate-50 focus:bg-slate-50 focus:outline-none"
+                          className="w-full px-3 py-2 text-left hover:bg-muted/50 focus:bg-muted/50 focus:outline-none"
                           onClick={() => handleClientSelect(client)}
                         >
-                          <p className="text-sm font-medium text-slate-900">
+                          <p className="text-sm font-medium text-foreground">
                             {client.first_name} {client.last_name}
                           </p>
-                          <p className="text-xs text-slate-500">{client.email}</p>
+                          <p className="text-xs text-muted-foreground">{client.email}</p>
                         </button>
                       ))
                     ) : debouncedSearch.length >= 2 ? (
-                      <div className="px-3 py-4 text-center text-sm text-slate-500">
+                      <div className="px-3 py-4 text-center text-sm text-muted-foreground">
                         No clients found for &ldquo;{debouncedSearch}&rdquo;
                       </div>
                     ) : null}
@@ -248,32 +272,41 @@ export function CreateCaseDialog({ open, onOpenChange }: CreateCaseDialogProps) 
             )}
 
             {!selectedClient && (
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-muted-foreground">
                 Type at least 2 characters to search
               </p>
             )}
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="visa_type">
-              Visa Type <span className="text-red-500">*</span>
-            </Label>
-            <select
-              id="visa_type"
-              name="visa_type"
-              value={formData.visa_type}
-              onChange={handleInputChange}
-              required
+            <div className="flex items-center gap-1">
+              <Label htmlFor="visa_type">
+                Visa Type <span className="text-red-500">*</span>
+              </Label>
+              <FieldHelp
+                title="Visa Type"
+                description="Select the immigration form or visa category for this case. This determines the required documents and AI recommendations."
+                example="H-1B for employment-based, I-485 for green card adjustment"
+              />
+            </div>
+            <Select
+              value={formData.visa_type || undefined}
+              onValueChange={(value) =>
+                setFormData((prev) => ({ ...prev, visa_type: value as VisaType }))
+              }
               disabled={isPending}
-              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
             >
-              <option value="">Select visa type...</option>
-              {visaTypes.map((type) => (
-                <option key={type.value} value={type.value}>
-                  {type.label}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger id="visa_type" className="w-full">
+                <SelectValue placeholder="Select visa type..." />
+              </SelectTrigger>
+              <SelectContent>
+                {visaTypes.map((type) => (
+                  <SelectItem key={type.value} value={type.value}>
+                    {type.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">
@@ -291,7 +324,13 @@ export function CreateCaseDialog({ open, onOpenChange }: CreateCaseDialogProps) 
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="deadline">Deadline</Label>
+            <div className="flex items-center gap-1">
+              <Label htmlFor="deadline">Deadline</Label>
+              <FieldHelp
+                title="Case Deadline"
+                description="Set a filing deadline or target date for this case. You will receive reminders as the deadline approaches."
+              />
+            </div>
             <Input
               id="deadline"
               name="deadline"

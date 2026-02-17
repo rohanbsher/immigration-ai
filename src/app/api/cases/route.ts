@@ -6,6 +6,7 @@ import {
   withAttorneyAuth,
   errorResponse,
   successResponse,
+  safeParseBody,
 } from '@/lib/auth/api-helpers';
 import { createLogger } from '@/lib/logger';
 import { enforceQuota, QuotaExceededError } from '@/lib/billing/quota';
@@ -77,7 +78,9 @@ export const POST = withAttorneyAuth(async (request, _context, auth) => {
     // Enforce case quota
     await enforceQuota(auth.user.id, 'cases');
 
-    const body = await request.json();
+    const parsed = await safeParseBody(request);
+    if (!parsed.success) return parsed.response;
+    const body = parsed.data;
     const validatedData = createCaseSchema.parse(body);
 
     const newCase = await casesService.createCase(

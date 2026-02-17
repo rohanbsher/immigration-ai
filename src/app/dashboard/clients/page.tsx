@@ -46,7 +46,7 @@ export default function ClientsPage() {
   if (isAuthLoading || !hasAccess) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
@@ -111,8 +111,8 @@ export default function ClientsPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardContent className="p-4 flex items-center gap-4">
-            <div className="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center">
-              <Users className="text-blue-600" size={24} />
+            <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
+              <Users className="text-primary" size={24} />
             </div>
             <div>
               <p className="text-2xl font-bold">{pagination?.total ?? 0}</p>
@@ -135,8 +135,8 @@ export default function ClientsPage() {
         </Card>
         <Card>
           <CardContent className="p-4 flex items-center gap-4">
-            <div className="w-12 h-12 rounded-lg bg-purple-100 flex items-center justify-center">
-              <Calendar className="text-purple-600" size={24} />
+            <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
+              <Calendar className="text-primary" size={24} />
             </div>
             <div>
               <p className="text-2xl font-bold">
@@ -159,12 +159,12 @@ export default function ClientsPage() {
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
           {clients.map((client) => (
             <Link key={client.id} href={`/dashboard/clients/${client.id}`}>
-              <Card className="h-full hover:border-blue-400 hover:shadow-md transition-all cursor-pointer">
+              <Card className="h-full hover:border-primary/40 hover:shadow-md transition-all cursor-pointer">
                 <CardContent className="p-6">
                   <div className="flex items-start gap-4">
                     <Avatar className="h-12 w-12">
                       <AvatarImage src={client.avatar_url || undefined} />
-                      <AvatarFallback className="bg-blue-100 text-blue-700 font-medium">
+                      <AvatarFallback className="bg-primary/10 text-primary font-medium">
                         {client.first_name.charAt(0)}
                         {client.last_name.charAt(0)}
                       </AvatarFallback>
@@ -186,7 +186,7 @@ export default function ClientsPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2 mt-4 pt-4 border-t">
-                    <Badge variant="secondary" className="bg-blue-100 text-blue-700">
+                    <Badge variant="secondary" className="bg-primary/10 text-primary">
                       {client.cases_count} cases
                     </Badge>
                     {client.active_cases_count > 0 && (

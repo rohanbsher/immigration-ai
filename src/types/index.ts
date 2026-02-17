@@ -1,34 +1,6 @@
 // User Types
 export type UserRole = 'attorney' | 'client' | 'admin';
 
-export interface User {
-  id: string;
-  email: string;
-  role: UserRole;
-  firstName: string;
-  lastName: string;
-  phone?: string;
-  mfaEnabled: boolean;
-  avatarUrl?: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface AttorneyProfile extends User {
-  role: 'attorney';
-  barNumber: string;
-  firmName?: string;
-  specializations: VisaType[];
-}
-
-export interface ClientProfile extends User {
-  role: 'client';
-  dateOfBirth?: Date;
-  countryOfBirth?: string;
-  nationality?: string;
-  alienNumber?: string;
-}
-
 // Case Types
 export type CaseStatus =
   | 'intake'
@@ -60,28 +32,6 @@ export type VisaType =
   | 'N-400'
   | 'other';
 
-export interface Case {
-  id: string;
-  attorneyId: string;
-  clientId: string;
-  visaType: VisaType;
-  status: CaseStatus;
-  title: string;
-  description?: string;
-  priorityDate?: Date;
-  deadline?: Date;
-  notes?: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface CaseWithRelations extends Case {
-  attorney: User;
-  client: User;
-  documents: Document[];
-  forms: Form[];
-}
-
 // Document Types
 export type DocumentType =
   | 'passport'
@@ -112,26 +62,6 @@ export type DocumentStatus =
   | 'rejected'
   | 'expired';
 
-export interface Document {
-  id: string;
-  caseId: string;
-  uploadedBy: string;
-  documentType: DocumentType;
-  status: DocumentStatus;
-  fileName: string;
-  fileUrl: string;
-  fileSize: number;
-  mimeType: string;
-  aiExtractedData?: Record<string, unknown>;
-  aiConfidenceScore?: number;
-  verifiedBy?: string;
-  verifiedAt?: Date;
-  expirationDate?: Date;
-  notes?: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
 // Form Types
 export type FormType =
   | 'I-130'
@@ -156,22 +86,6 @@ export type FormStatus =
   | 'filed'
   | 'rejected';
 
-export interface Form {
-  id: string;
-  caseId: string;
-  formType: FormType;
-  status: FormStatus;
-  formData: Record<string, unknown>;
-  aiFilledData?: Record<string, unknown>;
-  aiConfidenceScores?: Record<string, number>;
-  reviewNotes?: string;
-  reviewedBy?: string;
-  reviewedAt?: Date;
-  filedAt?: Date;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
 // Activity/Audit Types
 export type ActivityType =
   | 'case_created'
@@ -185,36 +99,6 @@ export type ActivityType =
   | 'form_filed'
   | 'note_added'
   | 'status_changed';
-
-export interface Activity {
-  id: string;
-  caseId: string;
-  userId: string;
-  activityType: ActivityType;
-  description: string;
-  metadata?: Record<string, unknown>;
-  createdAt: Date;
-}
-
-// Notification Types
-export interface Notification {
-  id: string;
-  userId: string;
-  title: string;
-  message: string;
-  type: 'info' | 'warning' | 'success' | 'error';
-  read: boolean;
-  actionUrl?: string;
-  createdAt: Date;
-}
-
-// API Response Types
-export interface ApiResponse<T> {
-  success: boolean;
-  data?: T;
-  error?: string;
-  message?: string;
-}
 
 // Access Control Types
 export interface CaseAccessResult {

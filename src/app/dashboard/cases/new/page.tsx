@@ -4,8 +4,6 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
   ArrowLeft,
   ArrowRight,
@@ -23,62 +21,30 @@ import { UpgradePromptBanner, UpgradePromptDialog } from '@/components/billing/u
 import { toast } from 'sonner';
 import type { VisaType } from '@/types';
 
-const VISA_TYPES: { value: VisaType; label: string; description: string }[] = [
-  {
-    value: 'I-130',
-    label: 'I-130',
-    description: 'Petition for Alien Relative - Sponsor a family member',
-  },
-  {
-    value: 'I-485',
-    label: 'I-485',
-    description: 'Adjustment of Status - Apply for Green Card while in the U.S.',
-  },
-  {
-    value: 'I-765',
-    label: 'I-765',
-    description: 'Employment Authorization Document (EAD)',
-  },
-  {
-    value: 'I-131',
-    label: 'I-131',
-    description: 'Travel Document (Advance Parole)',
-  },
-  {
-    value: 'N-400',
-    label: 'N-400',
-    description: 'Application for Naturalization - U.S. Citizenship',
-  },
-  {
-    value: 'H1B',
-    label: 'H-1B',
-    description: 'Specialty Occupation Worker',
-  },
-  {
-    value: 'L1',
-    label: 'L-1',
-    description: 'Intracompany Transferee',
-  },
-  {
-    value: 'other',
-    label: 'Other',
-    description: 'Other immigration matter',
-  },
-];
+import { StepIndicator } from './step-indicator';
+import { ClientStep } from './client-step';
+import { VisaStep } from './visa-step';
+import { DetailsStep } from './details-step';
+import { ReviewStep } from './review-step';
 
 type Step = 'client' | 'visa' | 'details' | 'review';
+
+const STEPS = [
+  { id: 'client', label: 'Client', icon: User },
+  { id: 'visa', label: 'Visa Type', icon: FileText },
+  { id: 'details', label: 'Details', icon: FolderOpen },
+  { id: 'review', label: 'Review', icon: Check },
+];
 
 export default function NewCasePage() {
   const router = useRouter();
   const { mutate: createCase, isPending } = useCreateCase();
   const { mutateAsync: createClient, isPending: isCreatingClient } = useCreateClient();
 
-  // Protect this page - only attorneys and admins can create cases
   const { isLoading: isAuthLoading, hasAccess } = useRoleGuard({
     requiredRoles: ['attorney', 'admin'],
   });
 
-  // Check case quota
   const { data: caseQuota, isLoading: isQuotaLoading } = useQuota('cases');
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
 
@@ -86,15 +52,12 @@ export default function NewCasePage() {
   const [clientSearch, setClientSearch] = useState('');
   const { data: searchResults, isLoading: isSearching } = useSearchClients(clientSearch);
 
-  // Form state - must be declared before any early returns to satisfy Rules of Hooks
   const [formData, setFormData] = useState({
-    // Client info (for new client)
     client_id: '',
     client_first_name: '',
     client_last_name: '',
     client_email: '',
     is_new_client: true,
-    // Case info
     visa_type: '' as VisaType | '',
     title: '',
     description: '',
@@ -103,7 +66,6 @@ export default function NewCasePage() {
     notes: '',
   });
 
-  // If still checking access or redirecting, show loading
   if (isAuthLoading || !hasAccess || isQuotaLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -112,8 +74,8 @@ export default function NewCasePage() {
     );
   }
 
-  // Check if user has reached their case limit
   const isAtLimit = caseQuota && !caseQuota.isUnlimited && !caseQuota.allowed;
+  const currentStepIndex = STEPS.findIndex((s) => s.id === step);
 
   const handleClientSelect = (clientId: string, clientName: string) => {
     setFormData((prev) => ({
@@ -121,6 +83,15 @@ export default function NewCasePage() {
       client_id: clientId,
       is_new_client: false,
       title: `${formData.visa_type || 'Immigration'} Application - ${clientName}`,
+    }));
+  };
+
+  const handleClientFieldChange = (field: string, value: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      [field]: value,
+      is_new_client: true,
+      client_id: '',
     }));
   };
 
@@ -136,8 +107,11 @@ export default function NewCasePage() {
     }));
   };
 
+  const handleDetailsFieldChange = (field: string, value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
   const handleSubmit = async () => {
-    // Check quota before creating
     if (isAtLimit) {
       setShowUpgradeDialog(true);
       return;
@@ -150,7 +124,6 @@ export default function NewCasePage() {
 
     let clientId = formData.client_id;
 
-    // If new client, create them first
     if (formData.is_new_client && !clientId) {
       if (!formData.client_email || !formData.client_first_name || !formData.client_last_name) {
         toast.error('Please provide client name and email');
@@ -197,15 +170,6 @@ export default function NewCasePage() {
     );
   };
 
-  const steps = [
-    { id: 'client', label: 'Client', icon: User },
-    { id: 'visa', label: 'Visa Type', icon: FileText },
-    { id: 'details', label: 'Details', icon: FolderOpen },
-    { id: 'review', label: 'Review', icon: Check },
-  ];
-
-  const currentStepIndex = steps.findIndex((s) => s.id === step);
-
   const canProceed = () => {
     switch (step) {
       case 'client':
@@ -221,15 +185,15 @@ export default function NewCasePage() {
 
   const goNext = () => {
     const nextIndex = currentStepIndex + 1;
-    if (nextIndex < steps.length) {
-      setStep(steps[nextIndex].id as Step);
+    if (nextIndex < STEPS.length) {
+      setStep(STEPS[nextIndex].id as Step);
     }
   };
 
   const goBack = () => {
     const prevIndex = currentStepIndex - 1;
     if (prevIndex >= 0) {
-      setStep(steps[prevIndex].id as Step);
+      setStep(STEPS[prevIndex].id as Step);
     } else {
       router.back();
     }
@@ -237,7 +201,6 @@ export default function NewCasePage() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
-      {/* Upgrade Prompt Dialog */}
       {caseQuota && (
         <UpgradePromptDialog
           open={showUpgradeDialog}
@@ -247,7 +210,6 @@ export default function NewCasePage() {
         />
       )}
 
-      {/* Quota Warning Banner */}
       {caseQuota && !caseQuota.isUnlimited && (
         <UpgradePromptBanner metric="cases" quota={caseQuota} />
       )}
@@ -263,328 +225,56 @@ export default function NewCasePage() {
         </div>
       </div>
 
-      {/* Progress Steps */}
-      <div className="flex items-center justify-between">
-        {steps.map((s, index) => {
-          const Icon = s.icon;
-          const isActive = step === s.id;
-          const isCompleted = currentStepIndex > index;
-
-          return (
-            <div key={s.id} className="flex items-center">
-              <div
-                className={`flex items-center gap-2 ${
-                  isActive
-                    ? 'text-blue-600'
-                    : isCompleted
-                    ? 'text-green-600'
-                    : 'text-slate-400'
-                }`}
-              >
-                <div
-                  className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                    isActive
-                      ? 'bg-blue-100'
-                      : isCompleted
-                      ? 'bg-green-100'
-                      : 'bg-slate-100'
-                  }`}
-                >
-                  {isCompleted ? <Check size={20} /> : <Icon size={20} />}
-                </div>
-                <span className="hidden sm:block font-medium">{s.label}</span>
-              </div>
-              {index < steps.length - 1 && (
-                <div
-                  className={`w-12 sm:w-24 h-1 mx-2 rounded ${
-                    isCompleted ? 'bg-green-400' : 'bg-slate-200'
-                  }`}
-                />
-              )}
-            </div>
-          );
-        })}
-      </div>
+      <StepIndicator steps={STEPS} currentStepId={step} />
 
       {/* Step Content */}
       <Card>
         <CardContent className="p-6">
           {step === 'client' && (
-            <div className="space-y-6">
-              <div>
-                <h2 className="text-lg font-semibold mb-1">Select or Add Client</h2>
-                <p className="text-slate-600">
-                  Choose an existing client or add a new one for this case.
-                </p>
-              </div>
-
-              {/* Search Existing Clients */}
-              <div className="space-y-4">
-                <Label>Search Existing Clients</Label>
-                <Input
-                  placeholder="Search by name or email..."
-                  value={clientSearch}
-                  onChange={(e) => setClientSearch(e.target.value)}
-                />
-                {isSearching && (
-                  <div className="flex justify-center py-4">
-                    <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
-                  </div>
-                )}
-                {searchResults && searchResults.length > 0 && (
-                  <div className="border rounded-lg divide-y max-h-48 overflow-y-auto">
-                    {searchResults.map((client) => (
-                      <div
-                        key={client.id}
-                        className={`p-3 cursor-pointer hover:bg-slate-50 ${
-                          formData.client_id === client.id ? 'bg-blue-50' : ''
-                        }`}
-                        onClick={() =>
-                          handleClientSelect(
-                            client.id,
-                            `${client.first_name} ${client.last_name}`
-                          )
-                        }
-                      >
-                        <p className="font-medium">
-                          {client.first_name} {client.last_name}
-                        </p>
-                        <p className="text-sm text-slate-500">{client.email}</p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t" />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-white px-2 text-slate-500">Or add new client</span>
-                </div>
-              </div>
-
-              {/* New Client Form */}
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="first_name">First Name</Label>
-                    <Input
-                      id="first_name"
-                      value={formData.client_first_name}
-                      onChange={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          client_first_name: e.target.value,
-                          is_new_client: true,
-                          client_id: '',
-                        }))
-                      }
-                      disabled={!!formData.client_id}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="last_name">Last Name</Label>
-                    <Input
-                      id="last_name"
-                      value={formData.client_last_name}
-                      onChange={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          client_last_name: e.target.value,
-                          is_new_client: true,
-                          client_id: '',
-                        }))
-                      }
-                      disabled={!!formData.client_id}
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email Address</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={formData.client_email}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        client_email: e.target.value,
-                        is_new_client: true,
-                        client_id: '',
-                      }))
-                    }
-                    disabled={!!formData.client_id}
-                  />
-                </div>
-              </div>
-            </div>
+            <ClientStep
+              clientSearch={clientSearch}
+              onSearchChange={setClientSearch}
+              isSearching={isSearching}
+              searchResults={searchResults}
+              selectedClientId={formData.client_id}
+              onClientSelect={handleClientSelect}
+              clientFirstName={formData.client_first_name}
+              clientLastName={formData.client_last_name}
+              clientEmail={formData.client_email}
+              onFieldChange={handleClientFieldChange}
+            />
           )}
 
           {step === 'visa' && (
-            <div className="space-y-6">
-              <div>
-                <h2 className="text-lg font-semibold mb-1">Select Visa Type</h2>
-                <p className="text-slate-600">
-                  Choose the type of immigration application for this case.
-                </p>
-              </div>
-
-              <div className="grid sm:grid-cols-2 gap-4">
-                {VISA_TYPES.map((visa) => (
-                  <div
-                    key={visa.value}
-                    className={`p-4 rounded-lg border-2 cursor-pointer transition-colors ${
-                      formData.visa_type === visa.value
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-slate-200 hover:border-slate-300'
-                    }`}
-                    onClick={() => handleVisaSelect(visa.value)}
-                  >
-                    <p className="font-semibold text-slate-900">{visa.label}</p>
-                    <p className="text-sm text-slate-600 mt-1">{visa.description}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <VisaStep
+              selectedVisaType={formData.visa_type}
+              onVisaSelect={handleVisaSelect}
+            />
           )}
 
           {step === 'details' && (
-            <div className="space-y-6">
-              <div>
-                <h2 className="text-lg font-semibold mb-1">Case Details</h2>
-                <p className="text-slate-600">
-                  Provide additional information about this case.
-                </p>
-              </div>
-
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="title">Case Title *</Label>
-                  <Input
-                    id="title"
-                    value={formData.title}
-                    onChange={(e) =>
-                      setFormData((prev) => ({ ...prev, title: e.target.value }))
-                    }
-                    placeholder="e.g., I-130 Application - John Doe"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="description">Description</Label>
-                  <textarea
-                    id="description"
-                    value={formData.description}
-                    onChange={(e) =>
-                      setFormData((prev) => ({ ...prev, description: e.target.value }))
-                    }
-                    className="w-full min-h-[100px] rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    placeholder="Brief description of the case..."
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="priority_date">Priority Date</Label>
-                    <Input
-                      id="priority_date"
-                      type="date"
-                      value={formData.priority_date}
-                      onChange={(e) =>
-                        setFormData((prev) => ({ ...prev, priority_date: e.target.value }))
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="deadline">Deadline</Label>
-                    <Input
-                      id="deadline"
-                      type="date"
-                      value={formData.deadline}
-                      onChange={(e) =>
-                        setFormData((prev) => ({ ...prev, deadline: e.target.value }))
-                      }
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="notes">Internal Notes</Label>
-                  <textarea
-                    id="notes"
-                    value={formData.notes}
-                    onChange={(e) =>
-                      setFormData((prev) => ({ ...prev, notes: e.target.value }))
-                    }
-                    className="w-full min-h-[80px] rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    placeholder="Any additional notes..."
-                  />
-                </div>
-              </div>
-            </div>
+            <DetailsStep
+              title={formData.title}
+              description={formData.description}
+              priorityDate={formData.priority_date}
+              deadline={formData.deadline}
+              notes={formData.notes}
+              onFieldChange={handleDetailsFieldChange}
+            />
           )}
 
           {step === 'review' && (
-            <div className="space-y-6">
-              <div>
-                <h2 className="text-lg font-semibold mb-1">Review Case</h2>
-                <p className="text-slate-600">
-                  Review the case details before creating.
-                </p>
-              </div>
-
-              <div className="space-y-4">
-                <div className="p-4 rounded-lg bg-slate-50">
-                  <h3 className="font-medium text-slate-700 mb-2">Client</h3>
-                  <p className="text-slate-900">
-                    {formData.is_new_client
-                      ? `${formData.client_first_name} ${formData.client_last_name}`
-                      : 'Existing client selected'}
-                  </p>
-                  {formData.client_email && (
-                    <p className="text-sm text-slate-600">{formData.client_email}</p>
-                  )}
-                </div>
-
-                <div className="p-4 rounded-lg bg-slate-50">
-                  <h3 className="font-medium text-slate-700 mb-2">Case Information</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-sm text-slate-500">Visa Type</p>
-                      <p className="font-medium">{formData.visa_type}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-slate-500">Title</p>
-                      <p className="font-medium">{formData.title}</p>
-                    </div>
-                    {formData.deadline && (
-                      <div>
-                        <p className="text-sm text-slate-500">Deadline</p>
-                        <p className="font-medium">
-                          {new Date(formData.deadline).toLocaleDateString()}
-                        </p>
-                      </div>
-                    )}
-                    {formData.priority_date && (
-                      <div>
-                        <p className="text-sm text-slate-500">Priority Date</p>
-                        <p className="font-medium">
-                          {new Date(formData.priority_date).toLocaleDateString()}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                  {formData.description && (
-                    <div className="mt-4">
-                      <p className="text-sm text-slate-500">Description</p>
-                      <p className="text-slate-900">{formData.description}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
+            <ReviewStep
+              isNewClient={formData.is_new_client}
+              clientFirstName={formData.client_first_name}
+              clientLastName={formData.client_last_name}
+              clientEmail={formData.client_email}
+              visaType={formData.visa_type}
+              title={formData.title}
+              deadline={formData.deadline}
+              priorityDate={formData.priority_date}
+              description={formData.description}
+            />
           )}
         </CardContent>
       </Card>

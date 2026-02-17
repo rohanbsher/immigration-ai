@@ -1,8 +1,10 @@
 'use client';
 
+import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import {
   Calendar,
   User,
@@ -16,10 +18,10 @@ import { useCompleteTask, useDeleteTask, type Task, type TaskPriority } from '@/
 import { toast } from 'sonner';
 
 const PRIORITY_CONFIG: Record<TaskPriority, { label: string; className: string }> = {
-  low: { label: 'Low', className: 'bg-slate-100 text-slate-600' },
-  medium: { label: 'Medium', className: 'bg-blue-100 text-blue-600' },
-  high: { label: 'High', className: 'bg-orange-100 text-orange-600' },
-  urgent: { label: 'Urgent', className: 'bg-red-100 text-red-600' },
+  low: { label: 'Low', className: 'bg-muted text-muted-foreground' },
+  medium: { label: 'Medium', className: 'bg-primary/10 text-primary' },
+  high: { label: 'High', className: 'bg-amber-100 text-amber-700' },
+  urgent: { label: 'Urgent', className: 'bg-destructive/10 text-destructive' },
 };
 
 interface TaskCardProps {
@@ -32,6 +34,7 @@ interface TaskCardProps {
 export function TaskCard({ task, showCase = false, onDelete, compact = false }: TaskCardProps) {
   const { mutate: completeTask, isPending: isCompleting } = useCompleteTask();
   const { mutate: deleteTask, isPending: isDeleting } = useDeleteTask();
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   const priorityConfig = PRIORITY_CONFIG[task.priority];
 
@@ -44,14 +47,21 @@ export function TaskCard({ task, showCase = false, onDelete, compact = false }: 
     });
   };
 
-  const handleDelete = () => {
-    if (!confirm('Are you sure you want to delete this task?')) return;
+  const handleDeleteClick = () => {
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = () => {
     deleteTask(task.id, {
       onSuccess: () => {
         toast.success('Task deleted');
+        setDeleteDialogOpen(false);
         onDelete?.();
       },
-      onError: (error) => toast.error(error.message),
+      onError: (error) => {
+        toast.error(error.message);
+        setDeleteDialogOpen(false);
+      },
     });
   };
 
@@ -73,7 +83,7 @@ export function TaskCard({ task, showCase = false, onDelete, compact = false }: 
             {task.title}
           </p>
           {task.due_date && (
-            <p className={cn('text-xs', isOverdue ? 'text-red-500' : 'text-muted-foreground')}>
+            <p className={cn('text-xs', isOverdue ? 'text-destructive' : 'text-muted-foreground')}>
               Due {format(new Date(task.due_date), 'MMM d')}
             </p>
           )}
@@ -90,7 +100,7 @@ export function TaskCard({ task, showCase = false, onDelete, compact = false }: 
       className={cn(
         'p-4 rounded-lg border space-y-3',
         task.status === 'completed' && 'opacity-60',
-        isOverdue && 'border-red-200'
+        isOverdue && 'border-destructive/30'
       )}
     >
       <div className="flex items-start justify-between gap-2">
@@ -118,7 +128,7 @@ export function TaskCard({ task, showCase = false, onDelete, compact = false }: 
             <Button
               size="sm"
               variant="ghost"
-              onClick={handleDelete}
+              onClick={handleDeleteClick}
               disabled={isDeleting}
               className="text-destructive hover:text-destructive h-7 w-7 p-0"
             >
@@ -134,7 +144,7 @@ export function TaskCard({ task, showCase = false, onDelete, compact = false }: 
 
       <div className="flex items-center gap-4 text-xs text-muted-foreground">
         {task.due_date && (
-          <span className={cn('flex items-center gap-1', isOverdue && 'text-red-500')}>
+          <span className={cn('flex items-center gap-1', isOverdue && 'text-destructive')}>
             <Calendar className="h-3 w-3" />
             {isOverdue ? 'Overdue: ' : 'Due '}
             {format(new Date(task.due_date), 'MMM d, yyyy')}
@@ -163,6 +173,18 @@ export function TaskCard({ task, showCase = false, onDelete, compact = false }: 
           ))}
         </div>
       )}
+
+      <ConfirmationDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title="Delete Task"
+        description={`Are you sure you want to delete "${task.title}"? This action cannot be undone.`}
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        onConfirm={handleConfirmDelete}
+        isLoading={isDeleting}
+        variant="destructive"
+      />
     </div>
   );
 }

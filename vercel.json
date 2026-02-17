@@ -1,9 +1,42 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "functions": {
+    "src/app/api/documents/[id]/analyze/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/forms/[id]/autofill/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/chat/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/cases/[id]/recommendations/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/cases/[id]/completeness/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/cases/[id]/success-score/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/cases/search/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/cron/deadline-alerts/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/cron/cleanup/route.ts": {
+      "maxDuration": 60
+    }
+  },
   "crons": [
     {
       "path": "/api/cron/deadline-alerts",
       "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron/cleanup",
+      "schedule": "*/15 * * * *"
     }
   ],
   "headers": [

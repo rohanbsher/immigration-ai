@@ -99,7 +99,7 @@ export default function NotificationsPage() {
             {unreadNotifications.map((notification) => {
               const typeInfo = typeConfig[notification.type] || typeConfig.system;
               return (
-                <Card key={notification.id} className="border-l-4 border-l-blue-500">
+                <Card key={notification.id} className="border-l-4 border-l-primary">
                   <CardContent className="p-4">
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1">
@@ -116,7 +116,7 @@ export default function NotificationsPage() {
                         {notification.action_url && (
                           <Link
                             href={notification.action_url}
-                            className="text-sm text-blue-600 hover:underline mt-2 inline-block"
+                            className="text-sm text-primary hover:underline mt-2 inline-block"
                           >
                             View details
                           </Link>
@@ -167,7 +167,7 @@ export default function NotificationsPage() {
                         {notification.action_url && (
                           <Link
                             href={notification.action_url}
-                            className="text-sm text-blue-600 hover:underline mt-2 inline-block"
+                            className="text-sm text-primary hover:underline mt-2 inline-block"
                           >
                             View details
                           </Link>

@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { fetchWithTimeout } from '@/lib/api/fetch-with-timeout';
-import { safeParseErrorJson } from '@/lib/api/safe-json';
+import { parseApiResponse } from '@/lib/api/parse-response';
 
 interface MessageSender {
   id: string;
@@ -55,10 +55,7 @@ async function fetchMessages(
   const response = await fetchWithTimeout(
     `/api/cases/${caseId}/messages?${params.toString()}`
   );
-  if (!response.ok) {
-    throw new Error('Failed to fetch messages');
-  }
-  return response.json();
+  return parseApiResponse<MessagesResponse>(response);
 }
 
 async function sendMessage(caseId: string, content: string): Promise<CaseMessage> {
@@ -67,11 +64,7 @@ async function sendMessage(caseId: string, content: string): Promise<CaseMessage
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ content }),
   });
-  if (!response.ok) {
-    const error = await safeParseErrorJson(response);
-    throw new Error(error.error || 'Failed to send message');
-  }
-  return response.json();
+  return parseApiResponse<CaseMessage>(response);
 }
 
 /**
@@ -85,8 +78,9 @@ export function useCaseMessages(caseId: string | undefined) {
     queryKey: ['case-messages', caseId],
     queryFn: () => fetchMessages(caseId!),
     enabled: !!caseId,
-    refetchInterval: 30000, // Polling fallback every 30 seconds
-    refetchIntervalInBackground: false, // Pause polling when tab is inactive
+    staleTime: 30 * 1000, // 30 seconds — realtime updates supplement polling
+    refetchInterval: 30000,
+    refetchIntervalInBackground: false,
   });
 
   // Set up Supabase Realtime subscription

@@ -4,6 +4,7 @@ import { serverAuth } from '@/lib/auth';
 import { regenerateBackupCodes } from '@/lib/2fa';
 import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 import { createLogger } from '@/lib/logger';
+import { safeParseBody } from '@/lib/api/safe-parse-body';
 
 const log = createLogger('api:2fa-backup-codes');
 
@@ -28,7 +29,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const body = await request.json();
+    const parsed = await safeParseBody(request);
+    if (!parsed.success) return parsed.response;
+    const body = parsed.data;
     const validation = regenerateSchema.safeParse(body);
 
     if (!validation.success) {

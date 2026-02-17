@@ -2,8 +2,9 @@
 
 import { useCallback, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useChatStore } from '@/store/chat-store';
+import { useChatStore, type Conversation } from '@/store/chat-store';
 import { fetchWithTimeout } from '@/lib/api/fetch-with-timeout';
+import { parseApiResponse, parseApiVoidResponse } from '@/lib/api/parse-response';
 import { safeParseErrorJson } from '@/lib/api/safe-json';
 
 /**
@@ -47,11 +48,7 @@ export function useChat() {
       const response = await fetchWithTimeout(`/api/chat?${params.toString()}`, {
         timeout: 'STANDARD',
       });
-      if (!response.ok) {
-        throw new Error('Failed to fetch conversations');
-      }
-
-      const data = await response.json();
+      const data = await parseApiResponse<{ conversations: Conversation[] }>(response);
       setConversations(data.conversations);
       return data.conversations;
     },
@@ -68,11 +65,7 @@ export function useChat() {
         const response = await fetchWithTimeout(`/api/chat/${conversationId}`, {
           timeout: 'STANDARD',
         });
-        if (!response.ok) {
-          throw new Error('Failed to load conversation');
-        }
-
-        const data = await response.json();
+        const data = await parseApiResponse<{ messages: { role: 'user' | 'assistant'; content: string }[] }>(response);
 
         // Clear current messages and load from server
         clearMessages();
@@ -217,10 +210,7 @@ export function useChat() {
         method: 'DELETE',
         timeout: 'STANDARD',
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to delete conversation');
-      }
+      await parseApiVoidResponse(response);
     },
     onSuccess: (_, conversationId) => {
       // If deleting current conversation, start fresh

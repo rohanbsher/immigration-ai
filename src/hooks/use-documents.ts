@@ -8,7 +8,7 @@ import {
   fetchAI,
   TimeoutError,
 } from '@/lib/api/fetch-with-timeout';
-import { safeParseErrorJson } from '@/lib/api/safe-json';
+import { parseApiResponse, parseApiVoidResponse } from '@/lib/api/parse-response';
 
 interface Document {
   id: string;
@@ -57,18 +57,12 @@ interface UpdateDocumentData {
 
 async function fetchDocuments(caseId: string): Promise<Document[]> {
   const response = await fetchWithTimeout(`/api/cases/${caseId}/documents`);
-  if (!response.ok) {
-    throw new Error('Failed to fetch documents');
-  }
-  return response.json();
+  return parseApiResponse<Document[]>(response);
 }
 
 async function fetchDocument(id: string): Promise<Document> {
   const response = await fetchWithTimeout(`/api/documents/${id}`);
-  if (!response.ok) {
-    throw new Error('Failed to fetch document');
-  }
-  return response.json();
+  return parseApiResponse<Document>(response);
 }
 
 async function uploadDocument(data: UploadDocumentData): Promise<Document> {
@@ -82,12 +76,7 @@ async function uploadDocument(data: UploadDocumentData): Promise<Document> {
     `/api/cases/${data.case_id}/documents`,
     formData
   );
-
-  if (!response.ok) {
-    const error = await safeParseErrorJson(response);
-    throw new Error(error.error || 'Failed to upload document');
-  }
-  return response.json();
+  return parseApiResponse<Document>(response);
 }
 
 async function updateDocument(id: string, data: UpdateDocumentData): Promise<Document> {
@@ -96,22 +85,14 @@ async function updateDocument(id: string, data: UpdateDocumentData): Promise<Doc
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
-  if (!response.ok) {
-    const error = await safeParseErrorJson(response);
-    throw new Error(error.error || 'Failed to update document');
-  }
-  return response.json();
+  return parseApiResponse<Document>(response);
 }
 
 async function verifyDocument(id: string): Promise<Document> {
   const response = await fetchWithTimeout(`/api/documents/${id}/verify`, {
     method: 'POST',
   });
-  if (!response.ok) {
-    const error = await safeParseErrorJson(response);
-    throw new Error(error.error || 'Failed to verify document');
-  }
-  return response.json();
+  return parseApiResponse<Document>(response);
 }
 
 async function analyzeDocument(id: string): Promise<Document> {
@@ -119,21 +100,14 @@ async function analyzeDocument(id: string): Promise<Document> {
   const response = await fetchAI(`/api/documents/${id}/analyze`, {
     method: 'POST',
   });
-  if (!response.ok) {
-    const error = await safeParseErrorJson(response);
-    throw new Error(error.error || 'Failed to analyze document');
-  }
-  return response.json();
+  return parseApiResponse<Document>(response);
 }
 
 async function deleteDocument(id: string): Promise<void> {
   const response = await fetchWithTimeout(`/api/documents/${id}`, {
     method: 'DELETE',
   });
-  if (!response.ok) {
-    const error = await safeParseErrorJson(response);
-    throw new Error(error.error || 'Failed to delete document');
-  }
+  await parseApiVoidResponse(response);
 }
 
 export function useDocuments(caseId: string | undefined) {
@@ -141,6 +115,7 @@ export function useDocuments(caseId: string | undefined) {
     queryKey: ['documents', caseId],
     queryFn: () => fetchDocuments(caseId!),
     enabled: !!caseId,
+    staleTime: 30 * 1000, // 30 seconds — may update during active work
   });
 }
 
@@ -149,6 +124,7 @@ export function useDocument(id: string | undefined) {
     queryKey: ['document', id],
     queryFn: () => fetchDocument(id!),
     enabled: !!id,
+    staleTime: 30 * 1000, // 30 seconds — may update during active work
   });
 }
 
@@ -219,12 +195,10 @@ export function useDocumentChecklist(visaType: string | undefined) {
     queryKey: ['documentChecklist', visaType],
     queryFn: async () => {
       const response = await fetchWithTimeout(`/api/document-checklists/${visaType}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch document checklist');
-      }
-      return response.json();
+      return parseApiResponse(response);
     },
     enabled: !!visaType,
+    staleTime: 5 * 60 * 1000, // 5 minutes — checklist definitions rarely change
   });
 }
 

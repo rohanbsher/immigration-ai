@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { acknowledgeAlert, snoozeAlert } from '@/lib/deadline';
 import { standardRateLimiter } from '@/lib/rate-limit';
 import { createLogger } from '@/lib/logger';
+import { safeParseBody } from '@/lib/auth/api-helpers';
 
 const log = createLogger('api:deadlines-alert');
 
@@ -47,7 +48,9 @@ export async function PATCH(
     }
 
     // Parse request body
-    const body = await request.json();
+    const parsed = await safeParseBody(request);
+    if (!parsed.success) return parsed.response;
+    const body = parsed.data;
     const { action, snoozeDays = 1 } = body as {
       action: 'acknowledge' | 'snooze';
       snoozeDays?: number;

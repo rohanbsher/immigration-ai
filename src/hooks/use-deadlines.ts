@@ -3,7 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { DeadlineAlert } from '@/lib/deadline';
 import { fetchWithTimeout } from '@/lib/api/fetch-with-timeout';
-import { safeParseErrorJson } from '@/lib/api/safe-json';
+import { parseApiResponse } from '@/lib/api/parse-response';
 
 /**
  * Response from the deadlines API.
@@ -35,13 +35,7 @@ async function fetchDeadlines(days: number = 60): Promise<DeadlinesResponse> {
       'Content-Type': 'application/json',
     },
   });
-
-  if (!response.ok) {
-    const error = await safeParseErrorJson(response);
-    throw new Error(error.message || 'Failed to fetch deadlines');
-  }
-
-  return response.json();
+  return parseApiResponse<DeadlinesResponse>(response);
 }
 
 /**
@@ -59,13 +53,7 @@ async function updateAlert(
     },
     body: JSON.stringify({ action, snoozeDays }),
   });
-
-  if (!response.ok) {
-    const error = await safeParseErrorJson(response);
-    throw new Error(error.message || 'Failed to update alert');
-  }
-
-  return response.json();
+  return parseApiResponse<{ success: boolean }>(response);
 }
 
 /**

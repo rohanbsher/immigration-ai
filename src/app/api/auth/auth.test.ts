@@ -170,7 +170,7 @@ describe('Auth API Routes', () => {
   });
 
   afterEach(() => {
-    vi.resetAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('POST /api/auth/login', () => {
@@ -933,8 +933,8 @@ describe('Auth API Validation Edge Cases', () => {
       const response = await loginHandler(request);
       const data = await response.json();
 
-      expect(response.status).toBe(500);
-      expect(data.error).toBe('An unexpected error occurred');
+      expect(response.status).toBe(400);
+      expect(data.error).toBe('Invalid JSON in request body');
     });
 
     it('should reject email with leading/trailing whitespace as invalid', async () => {

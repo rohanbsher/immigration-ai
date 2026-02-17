@@ -85,8 +85,8 @@ export function NextStepsPanel({
               className={cn(
                 'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium',
                 highPriority > 0
-                  ? 'bg-red-100 text-red-700'
-                  : 'bg-purple-100 text-purple-700',
+                  ? 'bg-destructive/10 text-destructive'
+                  : 'bg-ai-accent-muted text-ai-accent',
                 className
               )}
             >
@@ -110,14 +110,14 @@ export function NextStepsPanel({
     return (
       <div className={cn('space-y-2', className)}>
         <div className="flex items-center justify-between">
-          <h4 className="text-sm font-medium text-slate-700 flex items-center gap-2">
-            <Lightbulb size={14} className="text-purple-500" />
+          <h4 className="text-sm font-medium text-foreground flex items-center gap-2">
+            <Lightbulb size={14} className="text-ai-accent" />
             Next Steps
           </h4>
           {showRefresh && (
             <button
               onClick={() => forceRefresh()}
-              className="text-slate-400 hover:text-slate-600"
+              className="text-muted-foreground hover:text-foreground"
             >
               <RefreshCw size={14} />
             </button>
@@ -135,7 +135,7 @@ export function NextStepsPanel({
         {data.recommendations.length > maxItems && (
           <Link
             href={`/dashboard/cases/${caseId}#recommendations`}
-            className="text-xs text-purple-600 hover:text-purple-700 flex items-center gap-1"
+            className="text-xs text-ai-accent hover:text-ai-accent/80 flex items-center gap-1"
           >
             View all {data.recommendations.length} recommendations
             <ChevronRight size={12} />
@@ -157,7 +157,7 @@ export function NextStepsPanel({
         <div className="flex items-center gap-2">
           <AIBadge size="sm" label="AI" showTooltip tooltipText="AI-generated recommendations" />
           {data.source === 'cache' && (
-            <span className="text-xs text-slate-400">
+            <span className="text-xs text-muted-foreground">
               Updated {formatTimeAgo(data.generatedAt)}
             </span>
           )}
@@ -190,10 +190,10 @@ export function NextStepsPanel({
 
       {/* View more link */}
       {data.recommendations.length > maxItems && (
-        <div className="mt-4 pt-4 border-t border-purple-100">
+        <div className="mt-4 pt-4 border-t border-ai-accent/20">
           <Link
             href={`/dashboard/cases/${caseId}#recommendations`}
-            className="text-sm text-purple-600 hover:text-purple-700 flex items-center gap-1"
+            className="text-sm text-ai-accent hover:text-ai-accent/80 flex items-center gap-1"
           >
             View all {data.recommendations.length} recommendations
             <ArrowRight size={14} />
@@ -240,14 +240,14 @@ function RecommendationItem({
               {recommendation.action}
             </span>
           </div>
-          <p className="text-xs text-slate-500">{recommendation.reason}</p>
+          <p className="text-xs text-muted-foreground">{recommendation.reason}</p>
 
           {/* Actions */}
           <div className="flex items-center gap-2 mt-2">
             {recommendation.actionUrl && (
               <Link
                 href={recommendation.actionUrl}
-                className="text-xs text-purple-600 hover:text-purple-700 flex items-center gap-1"
+                className="text-xs text-ai-accent hover:text-ai-accent/80 flex items-center gap-1"
               >
                 Go to action
                 <ChevronRight size={12} />
@@ -259,7 +259,7 @@ function RecommendationItem({
               size="sm"
               onClick={onComplete}
               disabled={isUpdating}
-              className="h-6 px-2 text-xs text-green-600 hover:text-green-700 hover:bg-green-50"
+              className="h-6 px-2 text-xs text-success hover:text-success/90 hover:bg-success/10"
             >
               <Check size={12} className="mr-1" />
               Done
@@ -269,7 +269,7 @@ function RecommendationItem({
               size="sm"
               onClick={onDismiss}
               disabled={isUpdating}
-              className="h-6 px-2 text-xs text-slate-400 hover:text-slate-600 hover:bg-slate-50"
+              className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50"
             >
               <X size={12} className="mr-1" />
               Skip
@@ -296,10 +296,10 @@ function CompactRecommendationItem({
   return (
     <li className="flex items-center gap-2 text-sm">
       <span className={cn('w-1.5 h-1.5 rounded-full flex-shrink-0', colors.dot)} />
-      <span className="flex-1 truncate text-slate-700">{recommendation.action}</span>
+      <span className="flex-1 truncate text-foreground">{recommendation.action}</span>
       <button
         onClick={onComplete}
-        className="text-green-500 hover:text-green-600"
+        className="text-success hover:text-success/80"
       >
         <Check size={14} />
       </button>
@@ -321,15 +321,15 @@ function EmptyState({
   return (
     <div
       className={cn(
-        'p-6 text-center border border-dashed border-purple-200 rounded-lg bg-purple-50/30',
+        'p-6 text-center border border-dashed border-ai-accent/30 rounded-lg bg-ai-accent-muted/30',
         className
       )}
     >
-      <Lightbulb size={32} className="mx-auto text-purple-300 mb-3" />
-      <h4 className="text-sm font-medium text-slate-700 mb-1">
+      <Lightbulb size={32} className="mx-auto text-ai-accent/40 mb-3" />
+      <h4 className="text-sm font-medium text-foreground mb-1">
         No recommendations yet
       </h4>
-      <p className="text-xs text-slate-500 mb-4">
+      <p className="text-xs text-muted-foreground mb-4">
         Upload documents or add forms to get AI-powered suggestions.
       </p>
       <Button variant="outline" size="sm" onClick={onRefresh}>

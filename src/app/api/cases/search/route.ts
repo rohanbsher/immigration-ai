@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { naturalLanguageSearch } from '@/lib/ai/natural-search';
 import { createRateLimiter, RATE_LIMITS } from '@/lib/rate-limit';
 import { createLogger } from '@/lib/logger';
+import { safeParseBody } from '@/lib/auth/api-helpers';
 
 const log = createLogger('api:cases-search');
 
@@ -54,7 +55,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     // Parse request body
-    const body = await request.json();
+    const parsed = await safeParseBody(request);
+    if (!parsed.success) return parsed.response;
+    const body = parsed.data;
     const { query } = body as { query: string };
 
     if (!query || typeof query !== 'string') {

@@ -31,24 +31,24 @@ function MeterItem({ icon: Icon, label, current, max }: MeterItemProps) {
   const percentage = unlimited ? 0 : Math.min((current / max) * 100, 100);
 
   const getColor = () => {
-    if (unlimited) return 'bg-green-600';
-    if (percentage >= 90) return 'bg-red-600';
-    if (percentage >= 70) return 'bg-yellow-600';
-    return 'bg-blue-600';
+    if (unlimited) return 'bg-success';
+    if (percentage >= 90) return 'bg-destructive';
+    if (percentage >= 70) return 'bg-warning';
+    return 'bg-primary';
   };
 
   const getTextColor = () => {
-    if (unlimited) return 'text-green-600';
-    if (percentage >= 90) return 'text-red-600';
-    if (percentage >= 70) return 'text-yellow-600';
-    return 'text-slate-700';
+    if (unlimited) return 'text-success';
+    if (percentage >= 90) return 'text-destructive';
+    if (percentage >= 70) return 'text-warning';
+    return 'text-foreground';
   };
 
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Icon size={16} className="text-slate-500" />
+          <Icon size={16} className="text-muted-foreground" />
           <span className="text-sm font-medium">{label}</span>
         </div>
         <span className={cn('text-sm font-medium', getTextColor())}>

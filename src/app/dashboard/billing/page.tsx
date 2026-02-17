@@ -78,7 +78,7 @@ export default function BillingPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
@@ -87,7 +87,7 @@ export default function BillingPage() {
     return (
       <div className="text-center py-12">
         <p className="text-red-600">Failed to load billing information</p>
-        <p className="text-sm text-slate-500 mt-2">Please try again later</p>
+        <p className="text-sm text-muted-foreground mt-2">Please try again later</p>
       </div>
     );
   }
@@ -101,8 +101,8 @@ export default function BillingPage() {
     <div className="space-y-8">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Billing & Subscription</h1>
-        <p className="text-slate-600">Manage your plan and billing information</p>
+        <h1 className="text-2xl font-bold text-foreground">Billing & Subscription</h1>
+        <p className="text-muted-foreground">Manage your plan and billing information</p>
       </div>
 
       {/* Stripe Not Configured Notice */}
@@ -165,7 +165,7 @@ export default function BillingPage() {
       {/* Plan Comparison */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-slate-900">Available Plans</h2>
+          <h2 className="text-lg font-semibold text-foreground">Available Plans</h2>
           <Tabs
             value={billingPeriod}
             onValueChange={(v) => setBillingPeriod(v as 'monthly' | 'yearly')}

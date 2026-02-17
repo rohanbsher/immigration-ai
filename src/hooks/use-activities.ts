@@ -2,6 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { fetchWithTimeout } from '@/lib/api/fetch-with-timeout';
+import { parseApiResponse } from '@/lib/api/parse-response';
 import type { ActivityType } from '@/types';
 
 export interface ActivityWithUser {
@@ -22,11 +23,7 @@ export interface ActivityWithUser {
 
 async function fetchActivities(caseId: string): Promise<ActivityWithUser[]> {
   const response = await fetchWithTimeout(`/api/cases/${caseId}/activities`);
-  if (!response.ok) {
-    throw new Error('Failed to fetch activities');
-  }
-  const result = await response.json();
-  return result.data;
+  return parseApiResponse<ActivityWithUser[]>(response);
 }
 
 export function useActivities(caseId: string) {
@@ -34,5 +31,6 @@ export function useActivities(caseId: string) {
     queryKey: ['activities', caseId],
     queryFn: () => fetchActivities(caseId),
     enabled: !!caseId,
+    staleTime: 30 * 1000, // 30 seconds
   });
 }

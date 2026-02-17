@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+import { parseApiVoidResponse } from '@/lib/api/parse-response';
 
 const CONSENT_KEY = 'immigration-ai-ai-consent';
 const CONSENT_VERSION = '1.0';
@@ -30,9 +31,7 @@ export function useAiConsent() {
   const grantConsent = useCallback(async () => {
     try {
       const res = await fetch('/api/profile/ai-consent', { method: 'POST' });
-      if (!res.ok) {
-        throw new Error('Failed to persist AI consent');
-      }
+      await parseApiVoidResponse(res);
     } catch {
       // Server persistence failed — still set localStorage as cache
       // The server will reject AI requests until consent is persisted
@@ -50,7 +49,8 @@ export function useAiConsent() {
 
   const revokeConsent = useCallback(async () => {
     try {
-      await fetch('/api/profile/ai-consent', { method: 'DELETE' });
+      const res = await fetch('/api/profile/ai-consent', { method: 'DELETE' });
+      await parseApiVoidResponse(res);
     } catch {
       // Best effort
     }

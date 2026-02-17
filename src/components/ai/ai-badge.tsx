@@ -45,7 +45,7 @@ export function AIBadge({
     <span
       className={cn(
         'inline-flex items-center font-medium rounded-full',
-        'bg-gradient-to-r from-purple-500 to-indigo-500 text-white',
+        'bg-ai-accent text-ai-accent-foreground',
         'shadow-sm',
         sizeClasses[size],
         className
@@ -97,7 +97,7 @@ export function AIIconBadge({ size = 'md', className }: AIIconBadgeProps) {
     <span
       className={cn(
         'inline-flex items-center justify-center rounded-full',
-        'bg-gradient-to-r from-purple-500 to-indigo-500 text-white',
+        'bg-ai-accent text-ai-accent-foreground',
         sizeClasses[size],
         className
       )}

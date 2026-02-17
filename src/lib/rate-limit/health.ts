@@ -3,7 +3,8 @@
  * Provides detailed metrics and health status for rate limiting infrastructure.
  */
 
-import { Redis } from '@upstash/redis';
+import { getRedisClient } from '@/lib/redis';
+import { features } from '@/lib/config';
 
 export interface RedisHealthMetrics {
   connected: boolean;
@@ -27,25 +28,8 @@ export interface DetailedRedisHealth {
   recommendations: string[];
 }
 
-// Check if Upstash Redis is configured
-const isUpstashConfigured = !!(
-  process.env.UPSTASH_REDIS_REST_URL &&
-  process.env.UPSTASH_REDIS_REST_TOKEN
-);
-
-// Lazy-initialize Redis client
-let redis: Redis | null = null;
-
-function getRedisClient(): Redis | null {
-  if (!isUpstashConfigured) return null;
-  if (!redis) {
-    redis = new Redis({
-      url: process.env.UPSTASH_REDIS_REST_URL!,
-      token: process.env.UPSTASH_REDIS_REST_TOKEN!,
-    });
-  }
-  return redis;
-}
+// Check if Upstash Redis is configured via feature flag
+const isUpstashConfigured = features.redisRateLimiting;
 
 /**
  * Ping Redis and measure latency.
@@ -90,7 +74,7 @@ async function getRateLimitKeyCount(): Promise<number | null> {
  */
 export async function getDetailedRedisHealth(): Promise<DetailedRedisHealth> {
   const recommendations: string[] = [];
-  const isProduction = process.env.NODE_ENV === 'production';
+  const isProduction = features.isProduction;
 
   // Check Redis connectivity
   const pingResult = await pingRedis();
@@ -166,10 +150,9 @@ export async function checkRedisHealth(): Promise<{
   latency?: number;
 }> {
   if (!isUpstashConfigured) {
-    const isProduction = process.env.NODE_ENV === 'production';
     return {
-      healthy: !isProduction,
-      message: isProduction
+      healthy: !features.isProduction,
+      message: features.isProduction
         ? 'Redis not configured (CRITICAL in production)'
         : 'Using in-memory fallback (development)',
     };
@@ -205,12 +188,9 @@ export function getRedisConfigStatus(): {
   provider: 'upstash' | 'in-memory' | 'none';
   environmentComplete: boolean;
 } {
-  const hasUrl = !!process.env.UPSTASH_REDIS_REST_URL;
-  const hasToken = !!process.env.UPSTASH_REDIS_REST_TOKEN;
-
   return {
     configured: isUpstashConfigured,
     provider: isUpstashConfigured ? 'upstash' : 'in-memory',
-    environmentComplete: hasUrl && hasToken,
+    environmentComplete: isUpstashConfigured,
   };
 }

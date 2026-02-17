@@ -2,18 +2,22 @@
  * Rate limiting utility for API endpoints.
  *
  * Uses Upstash Redis in production for distributed rate limiting.
- * Falls back to in-memory storage in development ONLY.
+ * Falls back to in-memory storage in development.
  *
- * SECURITY: In production, Redis is REQUIRED. The in-memory fallback
- * does not work with multiple server instances and is only suitable
- * for local development.
+ * FAIL-OPEN SEMANTICS: When Redis is down or unconfigured, rate limiting
+ * degrades gracefully by ALLOWING requests through. This ensures attorneys
+ * are never locked out due to infrastructure failures. Warnings are logged
+ * so ops can detect and remediate the degraded state.
+ *
+ * In development: Falls back to in-memory storage automatically.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { Redis } from '@upstash/redis';
 import { Ratelimit } from '@upstash/ratelimit';
 import { createLogger } from '@/lib/logger';
-import { serverEnv, features } from '@/lib/config';
+import { features } from '@/lib/config';
+import { getRedisClient } from '@/lib/redis';
+import { getClientIp } from '@/lib/utils/get-client-ip';
 
 const log = createLogger('rate-limit');
 
@@ -44,28 +48,19 @@ const isProduction = features.isProduction;
 const ALLOW_IN_MEMORY_FALLBACK = process.env.ALLOW_IN_MEMORY_RATE_LIMIT === 'true';
 
 if (isProduction && !isUpstashConfigured && !ALLOW_IN_MEMORY_FALLBACK) {
-  log.error(
-    'CRITICAL SECURITY ERROR: Rate limiting not properly configured. ' +
-    'Upstash Redis is REQUIRED for production deployments. ' +
-    'In-memory rate limiting does NOT work with multiple instances. ' +
+  log.warn(
+    'Rate limiting is DEGRADED: Upstash Redis not configured. ' +
+    'Requests will be allowed through without rate limits (fail-open). ' +
     'To fix: Set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN environment variables. ' +
-    'To bypass (NOT RECOMMENDED): Set ALLOW_IN_MEMORY_RATE_LIMIT=true (single-instance only)'
+    'To use in-memory fallback: Set ALLOW_IN_MEMORY_RATE_LIMIT=true (single-instance only)'
   );
-  // In production, we don't throw to avoid breaking deployments,
-  // but we log prominently and will fail-closed on rate limit checks
 }
 
 // Track if we've warned about missing Redis config
 let hasWarnedAboutMissingRedis = false;
 
-// Initialize Redis client if configured
-let redis: Redis | null = null;
-if (isUpstashConfigured) {
-  redis = new Redis({
-    url: serverEnv.UPSTASH_REDIS_REST_URL!,
-    token: serverEnv.UPSTASH_REDIS_REST_TOKEN!,
-  });
-}
+// Use the shared Redis client singleton
+const redis = getRedisClient();
 
 // In-memory fallback store for development
 interface InMemoryEntry {
@@ -104,25 +99,8 @@ function defaultKeyGenerator(
   userId?: string,
   keyPrefix?: string
 ): string {
-  const identifier = userId || getClientIp(req) || 'anonymous';
+  const identifier = userId || getClientIp(req);
   return keyPrefix ? `${keyPrefix}:${identifier}` : identifier;
-}
-
-/**
- * Get client IP address from request headers.
- */
-function getClientIp(req: NextRequest): string | null {
-  const forwardedFor = req.headers.get('x-forwarded-for');
-  if (forwardedFor) {
-    return forwardedFor.split(',')[0].trim();
-  }
-
-  const realIp = req.headers.get('x-real-ip');
-  if (realIp) {
-    return realIp;
-  }
-
-  return null;
 }
 
 /**
@@ -275,8 +253,9 @@ export const RATE_LIMITS = {
  *
  * In production without Redis:
  * - If ALLOW_IN_MEMORY_RATE_LIMIT is set, falls back to in-memory (single-instance only)
- * - Otherwise, fails closed (rejects all requests) to prevent bypass
+ * - Otherwise, fails open (allows all requests) with a warning log
  *
+ * On Redis errors: Fails open to avoid locking out users.
  * In development: Falls back to in-memory storage.
  */
 export function createRateLimiter(config: RateLimitConfig) {
@@ -292,25 +271,32 @@ export function createRateLimiter(config: RateLimitConfig) {
         : defaultKeyGenerator(req, userId, config.keyPrefix);
 
       if (useRedis) {
-        return checkRateLimitUpstash(key, config);
+        try {
+          return await checkRateLimitUpstash(key, config);
+        } catch (error) {
+          log.warn('Redis rate limit check failed, failing open', { error, key });
+          return {
+            success: true,
+            remaining: config.maxRequests,
+            resetAt: new Date(Date.now() + config.windowMs),
+          };
+        }
       }
 
-      // In production without Redis and without explicit bypass, fail closed
+      // In production without Redis and without explicit bypass, fail open
       if (isProduction && !ALLOW_IN_MEMORY_FALLBACK) {
         if (!hasWarnedAboutMissingRedis) {
-          log.error(
-            'Rate limiting disabled - Redis not configured. ' +
-            'All rate-limited requests will be rejected.'
+          log.warn(
+            'Rate limiting degraded - Redis not configured. ' +
+            'Requests will be allowed through without rate limits.'
           );
           hasWarnedAboutMissingRedis = true;
         }
 
-        // Fail closed: treat as rate limited to prevent abuse
         return {
-          success: false,
-          remaining: 0,
-          resetAt: new Date(Date.now() + 60000),
-          retryAfterMs: 60000,
+          success: true,
+          remaining: config.maxRequests,
+          resetAt: new Date(Date.now() + config.windowMs),
         };
       }
 
@@ -456,7 +442,8 @@ export function isRedisRateLimitingEnabled(): boolean {
  * Simple rate limit function for API routes.
  * Takes a rate limit config and identifier string, returns success/failure.
  *
- * In production without Redis (and without explicit bypass), fails closed.
+ * Fails open on Redis errors or missing Redis configuration to avoid
+ * locking out users due to infrastructure issues.
  */
 export async function rateLimit(
   config: RateLimitConfig,
@@ -465,18 +452,22 @@ export async function rateLimit(
   const useRedis = isUpstashConfigured && redis !== null;
 
   if (useRedis) {
-    const result = await checkRateLimitUpstash(identifier, config);
-    return {
-      success: result.success,
-      retryAfter: result.retryAfterMs ? Math.ceil(result.retryAfterMs / 1000) : undefined,
-    };
+    try {
+      const result = await checkRateLimitUpstash(identifier, config);
+      return {
+        success: result.success,
+        retryAfter: result.retryAfterMs ? Math.ceil(result.retryAfterMs / 1000) : undefined,
+      };
+    } catch (error) {
+      log.warn('Redis rate limit check failed, failing open', { error, identifier });
+      return { success: true };
+    }
   }
 
-  // In production without Redis and without explicit bypass, fail closed
+  // In production without Redis and without explicit bypass, fail open
   if (isProduction && !ALLOW_IN_MEMORY_FALLBACK) {
     return {
-      success: false,
-      retryAfter: 60,
+      success: true,
     };
   }
 

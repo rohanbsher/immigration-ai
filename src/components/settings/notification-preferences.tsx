@@ -90,7 +90,8 @@ export function NotificationPreferences() {
             });
           }
         }
-      } catch {
+      } catch (error) {
+        console.error('Failed to load notification preferences:', error);
         setError('Failed to load notification preferences');
       } finally {
         setIsLoading(false);
@@ -116,7 +117,8 @@ export function NotificationPreferences() {
       }
 
       toast.success('Notification preference updated');
-    } catch {
+    } catch (error) {
+      console.error('Failed to update notification preference:', error);
       setPreferences((prev) => ({ ...prev, [key]: previousValue }));
       toast.error('Failed to update notification preference');
     }
@@ -126,7 +128,7 @@ export function NotificationPreferences() {
     return (
       <Card>
         <CardContent className="flex items-center justify-center py-12">
-          <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+          <Loader2 className="h-6 w-6 animate-spin text-primary" />
         </CardContent>
       </Card>
     );
@@ -136,7 +138,7 @@ export function NotificationPreferences() {
     return (
       <Card>
         <CardContent className="py-8">
-          <p className="text-center text-red-600">{error}</p>
+          <p className="text-center text-destructive">{error}</p>
         </CardContent>
       </Card>
     );
@@ -157,7 +159,7 @@ export function NotificationPreferences() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="font-medium">{item.label}</p>
-                <p className="text-sm text-slate-500">{item.description}</p>
+                <p className="text-sm text-muted-foreground">{item.description}</p>
               </div>
               <Button
                 variant="outline"
@@ -165,8 +167,8 @@ export function NotificationPreferences() {
                 className={cn(
                   'h-8 w-14 rounded-full p-0 transition-colors',
                   preferences[item.key]
-                    ? 'bg-blue-600 hover:bg-blue-700 border-blue-600'
-                    : 'bg-slate-200 hover:bg-slate-300 border-slate-200'
+                    ? 'bg-primary hover:bg-primary/90 border-primary'
+                    : 'bg-muted hover:bg-muted/80 border-muted'
                 )}
                 onClick={() => handleToggle(item.key, !preferences[item.key])}
               >
@@ -175,9 +177,9 @@ export function NotificationPreferences() {
                   preferences[item.key] ? 'translate-x-3' : '-translate-x-3'
                 )}>
                   {preferences[item.key] ? (
-                    <Check size={12} className="text-blue-600" />
+                    <Check size={12} className="text-primary" />
                   ) : (
-                    <X size={12} className="text-slate-400" />
+                    <X size={12} className="text-muted-foreground" />
                   )}
                 </span>
               </Button>

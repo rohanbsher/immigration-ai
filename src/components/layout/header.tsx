@@ -1,6 +1,6 @@
 'use client';
 import Link from 'next/link';
-import { Bell, Menu } from 'lucide-react';
+import { Bell, Menu, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -36,7 +36,8 @@ export function Header({ title, onMenuClick, user }: HeaderProps) {
     try {
       await signOut();
       toast.success('Logged out successfully');
-    } catch {
+    } catch (error) {
+      console.error('Sign out failed:', error);
       toast.error('Failed to log out');
     }
   };
@@ -71,6 +72,21 @@ export function Header({ title, onMenuClick, user }: HeaderProps) {
       </div>
 
       <div className="flex items-center gap-4">
+        {/* Mobile Search Button - opens command palette */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="md:hidden"
+          onClick={() => {
+            document.dispatchEvent(
+              new KeyboardEvent('keydown', { key: 'k', metaKey: true })
+            );
+          }}
+          aria-label="Open search"
+        >
+          <Search size={20} />
+        </Button>
+
         {/* AI-Enhanced Search */}
         <div className="hidden md:block">
           <AISearchInput

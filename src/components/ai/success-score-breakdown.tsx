@@ -59,12 +59,12 @@ export function SuccessScoreBreakdown({
 
   if (isDegraded) {
     return (
-      <div className={cn('p-4 rounded-lg border border-dashed border-slate-200 bg-slate-50/50', className)}>
-        <div className="flex items-center gap-3 text-slate-400">
+      <div className={cn('p-4 rounded-lg border border-dashed border-border bg-muted/50', className)}>
+        <div className="flex items-center gap-3 text-muted-foreground">
           <TrendingUp size={20} />
           <div>
-            <p className="text-sm font-medium text-slate-500">Success Score</p>
-            <p className="text-xs text-slate-400">
+            <p className="text-sm font-medium text-muted-foreground">Success Score</p>
+            <p className="text-xs text-muted-foreground/70">
               Upload documents and create forms to see your success probability.
             </p>
           </div>
@@ -125,10 +125,10 @@ export function SuccessScoreBreakdown({
             <span className={cn('text-sm', colors.text)}>{label}</span>
             <AIBadge size="sm" label="AI" showTooltip tooltipText="AI-powered analysis" />
           </div>
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-muted-foreground">
             Based on {data.factors.length} scoring factors
           </p>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-xs text-muted-foreground/70 mt-1">
             Confidence: {Math.round(data.confidence * 100)}%
           </p>
         </div>
@@ -136,7 +136,7 @@ export function SuccessScoreBreakdown({
 
       {/* Factors Breakdown */}
       <div className="space-y-4 mb-6">
-        <h4 className="text-sm font-medium text-slate-700 flex items-center gap-2">
+        <h4 className="text-sm font-medium text-foreground flex items-center gap-2">
           <TrendingUp size={14} />
           Scoring Factors
         </h4>
@@ -150,7 +150,7 @@ export function SuccessScoreBreakdown({
       {/* Risk Factors */}
       {data.riskFactors.length > 0 && (
         <div className="mb-6">
-          <h4 className="text-sm font-medium text-red-700 flex items-center gap-2 mb-2">
+          <h4 className="text-sm font-medium text-destructive flex items-center gap-2 mb-2">
             <AlertTriangle size={14} />
             Risk Factors ({data.riskFactors.length})
           </h4>
@@ -158,7 +158,7 @@ export function SuccessScoreBreakdown({
             {data.riskFactors.map((risk, index) => (
               <li
                 key={index}
-                className="text-sm text-red-600 flex items-start gap-2"
+                className="text-sm text-destructive flex items-start gap-2"
               >
                 <XCircle size={14} className="mt-0.5 flex-shrink-0" />
                 {risk}
@@ -170,8 +170,8 @@ export function SuccessScoreBreakdown({
 
       {/* Improvements */}
       {showImprovements && data.improvements.length > 0 && (
-        <div className="pt-4 border-t border-purple-100">
-          <h4 className="text-sm font-medium text-green-700 flex items-center gap-2 mb-2">
+        <div className="pt-4 border-t border-ai-accent/20">
+          <h4 className="text-sm font-medium text-success-foreground flex items-center gap-2 mb-2">
             <TrendingUp size={14} />
             How to Improve
           </h4>
@@ -179,7 +179,7 @@ export function SuccessScoreBreakdown({
             {data.improvements.map((improvement, index) => (
               <li
                 key={index}
-                className="text-sm text-green-600 flex items-start gap-2"
+                className="text-sm text-success flex items-start gap-2"
               >
                 <CheckCircle2 size={14} className="mt-0.5 flex-shrink-0" />
                 {improvement}
@@ -269,15 +269,15 @@ function FactorRow({ factor }: { factor: ScoringFactor }) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <StatusIcon size={14} className={statusInfo.color} />
-          <span className="text-sm font-medium text-slate-700">{factor.name}</span>
+          <span className="text-sm font-medium text-foreground">{factor.name}</span>
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger>
-                <Info size={12} className="text-slate-400" />
+                <Info size={12} className="text-muted-foreground" />
               </TooltipTrigger>
               <TooltipContent>
                 <p className="text-xs">{factor.description}</p>
-                <p className="text-xs text-slate-400 mt-1">
+                <p className="text-xs text-muted-foreground mt-1">
                   Weight: {Math.round(factor.weight * 100)}%
                 </p>
               </TooltipContent>
@@ -286,7 +286,7 @@ function FactorRow({ factor }: { factor: ScoringFactor }) {
         </div>
         <div className="flex items-center gap-2">
           {factor.rawValue && (
-            <span className="text-xs text-slate-400">{factor.rawValue}</span>
+            <span className="text-xs text-muted-foreground">{factor.rawValue}</span>
           )}
           <span className={cn('text-sm font-medium', statusInfo.color)}>
             {factor.score}%
@@ -306,7 +306,7 @@ function FactorBar({ factor }: { factor: ScoringFactor }) {
 
   return (
     <div className="flex items-center gap-2">
-      <span className="text-xs text-slate-500 w-24 truncate">{factor.name}</span>
+      <span className="text-xs text-muted-foreground w-24 truncate">{factor.name}</span>
       <div className="flex-1">
         <Progress value={factor.score} className="h-1.5" />
       </div>

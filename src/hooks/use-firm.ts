@@ -3,7 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { Firm, FirmRole, CreateFirmInput, UpdateFirmInput } from '@/types/firms';
 import { fetchWithTimeout } from '@/lib/api/fetch-with-timeout';
-import { safeParseErrorJson } from '@/lib/api/safe-json';
+import { parseApiResponse, parseApiVoidResponse } from '@/lib/api/parse-response';
 
 interface FirmWithRole extends Firm {
   userRole: FirmRole;
@@ -11,24 +11,12 @@ interface FirmWithRole extends Firm {
 
 async function fetchFirms(): Promise<Firm[]> {
   const response = await fetchWithTimeout('/api/firms');
-
-  if (!response.ok) {
-    throw new Error('Failed to fetch firms');
-  }
-
-  const data = await response.json();
-  return data.data;
+  return parseApiResponse<Firm[]>(response);
 }
 
 async function fetchFirm(firmId: string): Promise<FirmWithRole> {
   const response = await fetchWithTimeout(`/api/firms/${firmId}`);
-
-  if (!response.ok) {
-    throw new Error('Failed to fetch firm');
-  }
-
-  const data = await response.json();
-  return data.data;
+  return parseApiResponse<FirmWithRole>(response);
 }
 
 async function createFirm(input: CreateFirmInput): Promise<Firm> {
@@ -37,14 +25,7 @@ async function createFirm(input: CreateFirmInput): Promise<Firm> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
   });
-
-  if (!response.ok) {
-    const error = await safeParseErrorJson(response);
-    throw new Error(error.error || 'Failed to create firm');
-  }
-
-  const data = await response.json();
-  return data.data;
+  return parseApiResponse<Firm>(response);
 }
 
 async function updateFirm({
@@ -59,25 +40,14 @@ async function updateFirm({
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
   });
-
-  if (!response.ok) {
-    const error = await safeParseErrorJson(response);
-    throw new Error(error.error || 'Failed to update firm');
-  }
-
-  const data = await response.json();
-  return data.data;
+  return parseApiResponse<Firm>(response);
 }
 
 async function deleteFirm(firmId: string): Promise<void> {
   const response = await fetchWithTimeout(`/api/firms/${firmId}`, {
     method: 'DELETE',
   });
-
-  if (!response.ok) {
-    const error = await safeParseErrorJson(response);
-    throw new Error(error.error || 'Failed to delete firm');
-  }
+  await parseApiVoidResponse(response);
 }
 
 export function useFirms() {

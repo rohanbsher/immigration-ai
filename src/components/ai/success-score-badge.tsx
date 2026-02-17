@@ -41,7 +41,7 @@ export function SuccessScoreBadge({
       <span
         className={cn(
           'inline-flex items-center gap-1 px-2 py-0.5 rounded-full',
-          'bg-slate-100 text-slate-400 animate-pulse',
+          'bg-muted text-muted-foreground animate-pulse',
           size === 'sm' && 'text-xs',
           size === 'md' && 'text-sm',
           size === 'lg' && 'text-base',
@@ -83,11 +83,11 @@ export function SuccessScoreBadge({
         </TooltipTrigger>
         <TooltipContent>
           <p className="font-medium">Success Probability: {label}</p>
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-muted-foreground">
             Based on {data.factors.length} factors
           </p>
           {data.riskFactors.length > 0 && (
-            <p className="text-xs text-red-400 mt-1">
+            <p className="text-xs text-destructive mt-1">
               {data.riskFactors.length} risk factor(s)
             </p>
           )}

@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { createLogger } from '@/lib/logger';
 import { DOCUMENT_TYPES } from '@/lib/validation';
 import { standardRateLimiter } from '@/lib/rate-limit';
+import { safeParseBody } from '@/lib/auth/api-helpers';
 
 const log = createLogger('api:document-requests');
 
@@ -124,7 +125,9 @@ export async function POST(
       );
     }
 
-    const body = await request.json();
+    const parsed = await safeParseBody(request);
+    if (!parsed.success) return parsed.response;
+    const body = parsed.data;
     const validatedData = createRequestSchema.parse(body);
 
     const documentRequest = await documentRequestsService.createRequest({

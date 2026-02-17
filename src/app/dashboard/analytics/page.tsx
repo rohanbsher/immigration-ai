@@ -4,9 +4,17 @@ import { useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { MotionCard, MotionSlideUp } from '@/components/ui/motion';
-import { AnimatedCounter } from '@/components/visualizations/animated-counter';
 import { Skeleton, StatsCardSkeleton, GridSkeleton } from '@/components/ui/skeletons';
-import { CaseStatusBadge } from '@/components/cases';
+
+const AnimatedCounter = dynamic(
+  () => import('@/components/visualizations/animated-counter').then(mod => ({ default: mod.AnimatedCounter })),
+  { ssr: false, loading: () => <span className="inline-block h-9 w-12 animate-pulse rounded bg-muted" /> }
+);
+
+const CaseStatusBadge = dynamic(
+  () => import('@/components/cases').then(mod => ({ default: mod.CaseStatusBadge })),
+  { ssr: false, loading: () => <Skeleton className="h-6 w-20 rounded-full" /> }
+);
 import { useRoleGuard } from '@/hooks/use-role-guard';
 import { useCases, useCaseStats } from '@/hooks/use-cases';
 import {

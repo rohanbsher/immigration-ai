@@ -175,13 +175,31 @@ vi.mock('@/lib/rate-limit', () => ({
 }));
 
 // Mock auth helpers (verifyFormAccess used in file route)
-vi.mock('@/lib/auth/api-helpers', () => ({
-  verifyFormAccess: vi.fn().mockResolvedValue({
-    success: true,
-    access: { isAttorney: true, isClient: false },
-  }),
-  requireAiConsent: vi.fn().mockResolvedValue(null),
-}));
+vi.mock('@/lib/auth/api-helpers', () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { NextResponse } = require('next/server');
+  return {
+    verifyFormAccess: vi.fn().mockResolvedValue({
+      success: true,
+      access: { isAttorney: true, isClient: false },
+    }),
+    requireAiConsent: vi.fn().mockResolvedValue(null),
+    safeParseBody: async (request: any) => {
+      try {
+        const data = await request.json();
+        return { success: true, data };
+      } catch {
+        return {
+          success: false,
+          response: NextResponse.json(
+            { error: 'Invalid JSON in request body' },
+            { status: 400 }
+          ),
+        };
+      }
+    },
+  };
+});
 
 // Import handlers after mocks are set up
 import { GET, PATCH, DELETE } from './[id]/route';

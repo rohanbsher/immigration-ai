@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { standardRateLimiter } from '@/lib/rate-limit';
 import { encryptSensitiveFields } from '@/lib/crypto';
 import { createLogger } from '@/lib/logger';
+import { safeParseBody } from '@/lib/auth/api-helpers';
 
 const log = createLogger('api:clients-detail');
 
@@ -117,7 +118,9 @@ export async function PATCH(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const body = await request.json();
+    const parsed = await safeParseBody(request);
+    if (!parsed.success) return parsed.response;
+    const body = parsed.data;
     const validatedData = updateClientSchema.parse(body);
     const encryptedData = encryptSensitiveFields(validatedData);
 

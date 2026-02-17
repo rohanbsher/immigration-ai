@@ -9,11 +9,6 @@ import {
   resetMocks,
 } from '@/__mocks__/supabase';
 
-// Mock the client-side Supabase client
-vi.mock('@/lib/supabase/client', () => ({
-  createClient: vi.fn(() => createMockSupabaseClient()),
-}));
-
 // Mock the server-side Supabase client
 vi.mock('@/lib/supabase/server', () => ({
   createClient: vi.fn(async () => createMockSupabaseClient()),
@@ -77,15 +72,7 @@ vi.mock('@/lib/supabase/admin', () => ({
   getAdminClient: vi.fn(),
 }));
 
-// Mock window.location for OAuth tests
-const mockWindow = {
-  location: {
-    origin: 'http://localhost:3000',
-  },
-};
-vi.stubGlobal('window', mockWindow);
-
-import { auth, serverAuth } from './index';
+import { serverAuth } from './index';
 import {
   authenticate,
   requireAuth,
@@ -102,7 +89,6 @@ import {
   errorResponse,
   successResponse,
 } from './api-helpers';
-import { createClient } from '@/lib/supabase/client';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { rateLimit } from '@/lib/rate-limit';
 import { getProfileAsAdmin } from '@/lib/supabase/admin';
@@ -145,257 +131,6 @@ describe('Authentication Module', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
-  });
-
-  describe('Client-side auth object', () => {
-    describe('auth.signUp', () => {
-      it('should sign up a new user successfully', async () => {
-        const signUpData = {
-          email: 'new@example.com',
-          password: 'password123',
-          role: 'client' as const,
-          firstName: 'John',
-          lastName: 'Doe',
-        };
-
-        const result = await auth.signUp(signUpData);
-
-        const client = createClient();
-        expect(client.auth.signUp).toHaveBeenCalledWith({
-          email: signUpData.email,
-          password: signUpData.password,
-          options: {
-            data: {
-              first_name: signUpData.firstName,
-              last_name: signUpData.lastName,
-              role: signUpData.role,
-              bar_number: undefined,
-              firm_name: undefined,
-            },
-          },
-        });
-        expect(result).toBeDefined();
-      });
-
-      it('should include bar number and firm name for attorney signup', async () => {
-        const signUpData = {
-          email: 'attorney@example.com',
-          password: 'password123',
-          role: 'attorney' as const,
-          firstName: 'Jane',
-          lastName: 'Attorney',
-          barNumber: 'BAR123',
-          firmName: 'Law Firm LLC',
-        };
-
-        await auth.signUp(signUpData);
-
-        const client = createClient();
-        expect(client.auth.signUp).toHaveBeenCalledWith({
-          email: signUpData.email,
-          password: signUpData.password,
-          options: {
-            data: {
-              first_name: signUpData.firstName,
-              last_name: signUpData.lastName,
-              role: signUpData.role,
-              bar_number: signUpData.barNumber,
-              firm_name: signUpData.firmName,
-            },
-          },
-        });
-      });
-
-      it('should throw error when signup fails', async () => {
-        const error = new Error('Signup failed');
-        mockAuth.signUp.mockResolvedValueOnce({ data: null, error });
-
-        await expect(
-          auth.signUp({
-            email: 'test@example.com',
-            password: 'password',
-            role: 'client',
-            firstName: 'Test',
-            lastName: 'User',
-          })
-        ).rejects.toThrow('Signup failed');
-      });
-    });
-
-    describe('auth.signIn', () => {
-      it('should sign in a user with email and password', async () => {
-        const signInData = {
-          email: 'test@example.com',
-          password: 'password123',
-        };
-
-        const result = await auth.signIn(signInData);
-
-        const client = createClient();
-        expect(client.auth.signInWithPassword).toHaveBeenCalledWith({
-          email: signInData.email,
-          password: signInData.password,
-        });
-        expect(result).toBeDefined();
-        expect(result.user).toBeDefined();
-      });
-
-      it('should throw error when signin fails', async () => {
-        const error = new Error('Invalid credentials');
-        mockAuth.signInWithPassword.mockResolvedValueOnce({ data: null, error });
-
-        await expect(
-          auth.signIn({ email: 'test@example.com', password: 'wrong' })
-        ).rejects.toThrow('Invalid credentials');
-      });
-    });
-
-    describe('auth.signInWithOAuth', () => {
-      it('should initiate Google OAuth flow', async () => {
-        mockAuth.signInWithOAuth = vi.fn().mockResolvedValue({
-          data: { provider: 'google', url: 'https://oauth.google.com' },
-          error: null,
-        });
-
-        const result = await auth.signInWithOAuth('google');
-
-        const client = createClient();
-        expect(client.auth.signInWithOAuth).toHaveBeenCalledWith({
-          provider: 'google',
-          options: {
-            redirectTo: 'http://localhost:3000/api/auth/callback',
-          },
-        });
-        expect(result).toBeDefined();
-      });
-
-      it('should initiate Azure OAuth flow', async () => {
-        mockAuth.signInWithOAuth = vi.fn().mockResolvedValue({
-          data: { provider: 'azure', url: 'https://login.microsoftonline.com' },
-          error: null,
-        });
-
-        const result = await auth.signInWithOAuth('azure');
-
-        const client = createClient();
-        expect(client.auth.signInWithOAuth).toHaveBeenCalledWith({
-          provider: 'azure',
-          options: {
-            redirectTo: 'http://localhost:3000/api/auth/callback',
-          },
-        });
-        expect(result).toBeDefined();
-      });
-
-      it('should throw error when OAuth fails', async () => {
-        const error = new Error('OAuth failed');
-        mockAuth.signInWithOAuth = vi.fn().mockResolvedValue({ data: null, error });
-
-        await expect(auth.signInWithOAuth('google')).rejects.toThrow('OAuth failed');
-      });
-    });
-
-    describe('auth.signOut', () => {
-      it('should sign out the user successfully', async () => {
-        await auth.signOut();
-
-        const client = createClient();
-        expect(client.auth.signOut).toHaveBeenCalled();
-      });
-
-      it('should throw error when signout fails', async () => {
-        const error = new Error('Signout failed');
-        mockAuth.signOut.mockResolvedValueOnce({ error });
-
-        await expect(auth.signOut()).rejects.toThrow('Signout failed');
-      });
-    });
-
-    describe('auth.getUser', () => {
-      it('should return the current user', async () => {
-        const user = await auth.getUser();
-
-        const client = createClient();
-        expect(client.auth.getUser).toHaveBeenCalled();
-        expect(user).toEqual(mockUser);
-      });
-
-      it('should throw error when getUser fails', async () => {
-        const error = new Error('User not found');
-        mockAuth.getUser.mockResolvedValueOnce({ data: { user: null }, error });
-
-        await expect(auth.getUser()).rejects.toThrow('User not found');
-      });
-    });
-
-    describe('auth.getSession', () => {
-      it('should return the current session', async () => {
-        const session = await auth.getSession();
-
-        const client = createClient();
-        expect(client.auth.getSession).toHaveBeenCalled();
-        expect(session).toEqual(mockSession);
-      });
-
-      it('should throw error when getSession fails', async () => {
-        const error = new Error('Session expired');
-        mockAuth.getSession.mockResolvedValueOnce({ data: { session: null }, error });
-
-        await expect(auth.getSession()).rejects.toThrow('Session expired');
-      });
-    });
-
-    describe('auth.resetPassword', () => {
-      it('should send password reset email', async () => {
-        await auth.resetPassword('test@example.com');
-
-        const client = createClient();
-        expect(client.auth.resetPasswordForEmail).toHaveBeenCalledWith(
-          'test@example.com',
-          { redirectTo: 'http://localhost:3000/reset-password' }
-        );
-      });
-
-      it('should throw error when reset fails', async () => {
-        const error = new Error('Email not found');
-        mockAuth.resetPasswordForEmail.mockResolvedValueOnce({ error });
-
-        await expect(auth.resetPassword('unknown@example.com')).rejects.toThrow(
-          'Email not found'
-        );
-      });
-    });
-
-    describe('auth.updatePassword', () => {
-      it('should update the user password', async () => {
-        await auth.updatePassword('newPassword123');
-
-        const client = createClient();
-        expect(client.auth.updateUser).toHaveBeenCalledWith({
-          password: 'newPassword123',
-        });
-      });
-
-      it('should throw error when password update fails', async () => {
-        const error = new Error('Password too weak');
-        mockAuth.updateUser.mockResolvedValueOnce({ data: { user: null }, error });
-
-        await expect(auth.updatePassword('weak')).rejects.toThrow('Password too weak');
-      });
-    });
-
-    describe('auth.onAuthStateChange', () => {
-      it('should subscribe to auth state changes', () => {
-        const callback = vi.fn();
-
-        const result = auth.onAuthStateChange(callback);
-
-        const client = createClient();
-        expect(client.auth.onAuthStateChange).toHaveBeenCalledWith(callback);
-        expect(result).toBeDefined();
-        expect(result.data.subscription.unsubscribe).toBeDefined();
-      });
-    });
   });
 
   describe('Server-side serverAuth object', () => {
@@ -1254,22 +989,6 @@ describe('Authentication Module', () => {
   });
 
   describe('Edge Cases', () => {
-    describe('Empty and null handling', () => {
-      it('should handle empty email in signIn', async () => {
-        const error = new Error('Invalid email');
-        mockAuth.signInWithPassword.mockResolvedValueOnce({ data: null, error });
-
-        await expect(auth.signIn({ email: '', password: 'password' })).rejects.toThrow();
-      });
-
-      it('should handle empty password in signIn', async () => {
-        const error = new Error('Password required');
-        mockAuth.signInWithPassword.mockResolvedValueOnce({ data: null, error });
-
-        await expect(auth.signIn({ email: 'test@example.com', password: '' })).rejects.toThrow();
-      });
-    });
-
     describe('Rate limiting edge cases', () => {
       it('should use custom rate limit key when provided', async () => {
         const mockProfile = createMockProfile();

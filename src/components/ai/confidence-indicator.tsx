@@ -29,9 +29,9 @@ export function ConfidenceIndicator({
   const level = getConfidenceLevel(confidence);
 
   const colorClasses = {
-    high: 'text-green-600 bg-green-50',
-    medium: 'text-yellow-600 bg-yellow-50',
-    low: 'text-red-600 bg-red-50',
+    high: 'text-success bg-success/10',
+    medium: 'text-warning bg-warning/10',
+    low: 'text-destructive bg-destructive/10',
   };
 
   const sizeClasses = {
@@ -87,18 +87,18 @@ export function ConfidenceBar({ confidence, className }: ConfidenceBarProps) {
   const percentage = Math.round(confidence * 100);
 
   const getColor = () => {
-    if (confidence >= 0.9) return 'bg-green-500';
-    if (confidence >= 0.7) return 'bg-yellow-500';
-    return 'bg-red-500';
+    if (confidence >= 0.9) return 'bg-success';
+    if (confidence >= 0.7) return 'bg-warning';
+    return 'bg-destructive';
   };
 
   return (
     <div className={cn('w-full', className)}>
       <div className="flex justify-between items-center mb-1">
-        <span className="text-xs text-slate-500">Confidence</span>
-        <span className="text-xs font-medium text-slate-700">{percentage}%</span>
+        <span className="text-xs text-muted-foreground">Confidence</span>
+        <span className="text-xs font-medium text-foreground">{percentage}%</span>
       </div>
-      <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+      <div className="h-2 bg-muted rounded-full overflow-hidden">
         <div
           className={cn('h-full rounded-full transition-all duration-300', getColor())}
           style={{ width: `${percentage}%` }}

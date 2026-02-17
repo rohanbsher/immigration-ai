@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchWithTimeout } from '@/lib/api/fetch-with-timeout';
-import { safeParseErrorJson } from '@/lib/api/safe-json';
+import { parseApiResponse, parseApiVoidResponse } from '@/lib/api/parse-response';
 
 export type TaskStatus = 'pending' | 'in_progress' | 'completed' | 'cancelled';
 export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
@@ -82,19 +82,12 @@ async function fetchTasks(filters: TaskFilters = {}): Promise<{ data: Task[] }> 
   if (filters.my) params.set('my', 'true');
 
   const response = await fetchWithTimeout(`/api/tasks?${params.toString()}`);
-  if (!response.ok) {
-    throw new Error('Failed to fetch tasks');
-  }
-  return response.json();
+  return parseApiResponse<{ data: Task[] }>(response);
 }
 
 async function fetchTask(id: string): Promise<Task> {
   const response = await fetchWithTimeout(`/api/tasks/${id}`);
-  if (!response.ok) {
-    throw new Error('Failed to fetch task');
-  }
-  const data = await response.json();
-  return data.data || data;
+  return parseApiResponse<Task>(response);
 }
 
 async function createTask(data: CreateTaskData): Promise<Task> {
@@ -103,12 +96,7 @@ async function createTask(data: CreateTaskData): Promise<Task> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
-  if (!response.ok) {
-    const error = await safeParseErrorJson(response);
-    throw new Error(error.error || 'Failed to create task');
-  }
-  const result = await response.json();
-  return result.data || result;
+  return parseApiResponse<Task>(response);
 }
 
 async function updateTask(id: string, data: UpdateTaskData): Promise<Task> {
@@ -117,22 +105,14 @@ async function updateTask(id: string, data: UpdateTaskData): Promise<Task> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
-  if (!response.ok) {
-    const error = await safeParseErrorJson(response);
-    throw new Error(error.error || 'Failed to update task');
-  }
-  const result = await response.json();
-  return result.data || result;
+  return parseApiResponse<Task>(response);
 }
 
 async function deleteTask(id: string): Promise<void> {
   const response = await fetchWithTimeout(`/api/tasks/${id}`, {
     method: 'DELETE',
   });
-  if (!response.ok) {
-    const error = await safeParseErrorJson(response);
-    throw new Error(error.error || 'Failed to delete task');
-  }
+  await parseApiVoidResponse(response);
 }
 
 /**
@@ -142,6 +122,7 @@ export function useTasks(filters: TaskFilters = {}) {
   return useQuery({
     queryKey: ['tasks', filters],
     queryFn: () => fetchTasks(filters),
+    staleTime: 30 * 1000, // 30 seconds — may update frequently
     select: (data) => data.data,
   });
 }
@@ -161,6 +142,7 @@ export function useCaseTasks(caseId: string | undefined) {
     queryKey: ['tasks', { case_id: caseId }],
     queryFn: () => fetchTasks({ case_id: caseId }),
     enabled: !!caseId,
+    staleTime: 30 * 1000, // 30 seconds
     select: (data) => data.data,
   });
 }
@@ -173,6 +155,7 @@ export function useTask(id: string | undefined) {
     queryKey: ['task', id],
     queryFn: () => fetchTask(id!),
     enabled: !!id,
+    staleTime: 30 * 1000, // 30 seconds
   });
 }
 

@@ -4,6 +4,7 @@ import { useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Upload, X, FileText, Loader2 } from 'lucide-react';
 import { useUploadDocument } from '@/hooks/use-documents';
 import { useQuota } from '@/hooks/use-quota';
@@ -233,14 +234,14 @@ export function DocumentUpload({ caseId, onSuccess }: DocumentUploadProps) {
         onDrop={handleDrop}
         className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
           isDragging
-            ? 'border-blue-500 bg-blue-50'
-            : 'border-slate-200 hover:border-slate-300'
+            ? 'border-primary bg-primary/5'
+            : 'border-border hover:border-muted-foreground/30'
         }`}
       >
-        <Upload className="mx-auto h-12 w-12 text-slate-400 mb-4" />
-        <p className="text-slate-600 mb-2">
+        <Upload className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+        <p className="text-muted-foreground mb-2">
           Drag and drop files here, or{' '}
-          <label className="text-blue-600 hover:underline cursor-pointer">
+          <label className="text-primary hover:underline cursor-pointer">
             browse
             <input
               type="file"
@@ -251,7 +252,7 @@ export function DocumentUpload({ caseId, onSuccess }: DocumentUploadProps) {
             />
           </label>
         </p>
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-muted-foreground">
           Supported: PDF, Images (JPG, PNG), Word documents. Max 10MB each.
         </p>
       </div>
@@ -259,36 +260,40 @@ export function DocumentUpload({ caseId, onSuccess }: DocumentUploadProps) {
       {/* Selected Files */}
       {selectedFiles.length > 0 && (
         <div className="space-y-3">
-          <h4 className="font-medium text-slate-900">
+          <h4 className="font-medium text-foreground">
             Selected Files ({selectedFiles.length})
           </h4>
           {selectedFiles.map((selectedFile, index) => (
             <Card key={selectedFile.id}>
               <CardContent className="p-4">
                 <div className="flex items-start gap-4">
-                  <FileText className="h-8 w-8 text-blue-600 flex-shrink-0" />
+                  <FileText className="h-8 w-8 text-primary flex-shrink-0" />
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-slate-900 truncate">
+                    <p className="font-medium text-foreground truncate">
                       {selectedFile.file.name}
                     </p>
-                    <p className="text-sm text-slate-500">
+                    <p className="text-sm text-muted-foreground">
                       {formatFileSize(selectedFile.file.size)}
                     </p>
                     <div className="mt-2">
                       <Label className="text-xs">Document Type</Label>
-                      <select
+                      <Select
                         value={selectedFile.documentType}
-                        onChange={(e) =>
-                          updateFileType(index, e.target.value as DocumentType)
+                        onValueChange={(value) =>
+                          updateFileType(index, value as DocumentType)
                         }
-                        className="mt-1 w-full h-8 rounded-md border border-input bg-transparent px-2 text-sm"
                       >
-                        {documentTypes.map((type) => (
-                          <option key={type.value} value={type.value}>
-                            {type.label}
-                          </option>
-                        ))}
-                      </select>
+                        <SelectTrigger className="mt-1 w-full" size="sm">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {documentTypes.map((type) => (
+                            <SelectItem key={type.value} value={type.value}>
+                              {type.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
                   <Button

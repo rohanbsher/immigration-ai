@@ -157,9 +157,27 @@ vi.mock('@/lib/security', () => ({
 }));
 
 // Mock AI consent check
-vi.mock('@/lib/auth/api-helpers', () => ({
-  requireAiConsent: vi.fn().mockResolvedValue(null),
-}));
+vi.mock('@/lib/auth/api-helpers', () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { NextResponse } = require('next/server');
+  return {
+    requireAiConsent: vi.fn().mockResolvedValue(null),
+    safeParseBody: async (request: any) => {
+      try {
+        const data = await request.json();
+        return { success: true, data };
+      } catch {
+        return {
+          success: false,
+          response: NextResponse.json(
+            { error: 'Invalid JSON in request body' },
+            { status: 400 }
+          ),
+        };
+      }
+    },
+  };
+});
 
 // Mock billing quota
 vi.mock('@/lib/billing/quota', () => ({

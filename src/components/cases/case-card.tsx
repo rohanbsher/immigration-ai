@@ -54,22 +54,22 @@ export function CaseCard({
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           {/* Left: Case Info */}
           <div className="flex items-start gap-4">
-            <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center font-bold text-blue-600">
+            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center font-bold text-primary">
               {clientInitial}
             </div>
             <div>
               <Link
                 href={`/dashboard/cases/${id}`}
-                className="font-semibold text-slate-900 hover:text-blue-600"
+                className="font-semibold text-foreground hover:text-primary"
               >
                 {title}
               </Link>
               <div className="flex items-center gap-2 mt-1">
-                <User size={14} className="text-slate-400" />
-                <span className="text-sm text-slate-600">{clientName}</span>
+                <User size={14} className="text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">{clientName}</span>
                 <Badge variant="outline">{visaType}</Badge>
               </div>
-              <div className="flex items-center gap-4 mt-2 text-sm text-slate-500">
+              <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
                 <span className="flex items-center gap-1">
                   <FileText size={14} />
                   {documentsCount} docs
@@ -115,7 +115,7 @@ export function CaseCard({
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={onDelete}
-                  className="text-red-600"
+                  className="text-destructive"
                 >
                   Archive Case
                 </DropdownMenuItem>

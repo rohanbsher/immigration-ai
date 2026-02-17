@@ -79,7 +79,8 @@ export default function SettingsPage() {
 
       toast.success('Profile updated successfully');
       refetch(); // Refresh user data
-    } catch {
+    } catch (error) {
+      console.error('Profile update failed:', error);
       toast.error('Failed to update profile');
     } finally {
       setIsSaving(false);
@@ -106,7 +107,8 @@ export default function SettingsPage() {
         new_password: '',
         confirm_password: '',
       });
-    } catch {
+    } catch (error) {
+      console.error('Password update failed:', error);
       toast.error('Failed to update password');
     } finally {
       setIsSaving(false);
@@ -116,7 +118,7 @@ export default function SettingsPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
@@ -125,8 +127,8 @@ export default function SettingsPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Settings</h1>
-        <p className="text-slate-600">Manage your account and preferences</p>
+        <h1 className="text-2xl font-bold text-foreground">Settings</h1>
+        <p className="text-muted-foreground">Manage your account and preferences</p>
       </div>
 
       {/* Settings Tabs */}
@@ -163,14 +165,14 @@ export default function SettingsPage() {
             <CardContent className="flex items-center gap-6">
               <Avatar className="h-20 w-20">
                 <AvatarImage src={profile?.avatar_url || undefined} />
-                <AvatarFallback className="bg-blue-100 text-blue-700 text-2xl font-medium">
+                <AvatarFallback className="bg-primary/10 text-primary text-2xl font-medium">
                   {profile?.first_name?.charAt(0) || 'U'}
                   {profile?.last_name?.charAt(0) || ''}
                 </AvatarFallback>
               </Avatar>
               <div className="space-y-2">
                 <Button variant="outline">Upload Photo</Button>
-                <p className="text-xs text-slate-500">JPG, PNG, or GIF. Max size 2MB.</p>
+                <p className="text-xs text-muted-foreground">JPG, PNG, or GIF. Max size 2MB.</p>
               </div>
             </CardContent>
           </Card>
@@ -207,7 +209,7 @@ export default function SettingsPage() {
               <div className="space-y-2">
                 <Label htmlFor="email">Email Address</Label>
                 <Input id="email" value={profile?.email || ''} disabled />
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-muted-foreground">
                   Email cannot be changed. Contact support if needed.
                 </p>
               </div>
@@ -394,7 +396,7 @@ export default function SettingsPage() {
                 <div className="flex items-center justify-between p-4 rounded-lg border">
                   <div>
                     <p className="font-medium">Current Session</p>
-                    <p className="text-sm text-slate-500">
+                    <p className="text-sm text-muted-foreground">
                       This device - Last active now
                     </p>
                   </div>

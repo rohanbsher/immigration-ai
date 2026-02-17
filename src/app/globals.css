@@ -38,7 +38,15 @@
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
   --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
   --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+  --color-ai-accent: var(--ai-accent);
+  --color-ai-accent-foreground: var(--ai-accent-foreground);
+  --color-ai-accent-muted: var(--ai-accent-muted);
+  --color-ai-accent-muted-foreground: var(--ai-accent-muted-foreground);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -82,14 +90,24 @@
   /* Destructive */
   --destructive: oklch(0.577 0.245 27.325);
 
-  /* Success & Warning */
+  /* Success, Warning & Info */
   --success: oklch(0.55 0.15 145);
+  --success-foreground: oklch(0.30 0.10 145);
   --warning: oklch(0.70 0.15 75);
+  --warning-foreground: oklch(0.35 0.12 75);
+  --info: oklch(0.55 0.15 250);
+  --info-foreground: oklch(0.30 0.12 250);
 
   /* Border with blue undertone */
   --border: oklch(0.88 0.015 250);
   --input: oklch(0.90 0.01 250);
   --ring: oklch(0.55 0.15 250);
+
+  /* AI Accent - Purple for AI feature distinction */
+  --ai-accent: oklch(0.55 0.18 290);
+  --ai-accent-foreground: oklch(0.98 0.005 290);
+  --ai-accent-muted: oklch(0.94 0.03 290);
+  --ai-accent-muted-foreground: oklch(0.40 0.12 290);
 
   /* Charts */
   --chart-1: oklch(0.45 0.18 250);
@@ -141,14 +159,24 @@
   /* Destructive */
   --destructive: oklch(0.704 0.191 22.216);
 
-  /* Success & Warning */
+  /* Success, Warning & Info */
   --success: oklch(0.60 0.15 145);
+  --success-foreground: oklch(0.35 0.10 145);
   --warning: oklch(0.75 0.15 75);
+  --warning-foreground: oklch(0.40 0.12 75);
+  --info: oklch(0.65 0.15 250);
+  --info-foreground: oklch(0.35 0.12 250);
 
   /* Border */
   --border: oklch(0.28 0.03 250);
   --input: oklch(0.25 0.025 250);
   --ring: oklch(0.55 0.15 250);
+
+  /* AI Accent - Lighter purple for dark mode */
+  --ai-accent: oklch(0.70 0.16 290);
+  --ai-accent-foreground: oklch(0.12 0.02 290);
+  --ai-accent-muted: oklch(0.25 0.05 290);
+  --ai-accent-muted-foreground: oklch(0.75 0.10 290);
 
   /* Charts */
   --chart-1: oklch(0.55 0.18 250);

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { clientsService } from '@/lib/db/clients';
-import { withAttorneyAuth, errorResponse } from '@/lib/auth/api-helpers';
+import { withAttorneyAuth, errorResponse, safeParseBody } from '@/lib/auth/api-helpers';
 import { createLogger } from '@/lib/logger';
 
 const log = createLogger('api:clients');
@@ -44,7 +44,9 @@ const createClientSchema = z.object({
  */
 export const POST = withAttorneyAuth(async (request) => {
   try {
-    const body = await request.json();
+    const safeParsed = await safeParseBody(request);
+    if (!safeParsed.success) return safeParsed.response;
+    const body = safeParsed.data;
     const parsed = createClientSchema.safeParse(body);
 
     if (!parsed.success) {

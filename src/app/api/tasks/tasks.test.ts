@@ -121,6 +121,8 @@ vi.mock('@/lib/auth/api-helpers', () => {
   const withAttorneyAuth = (handler: any) => withAuth(handler, { roles: ['attorney'] });
   const withAdminAuth = (handler: any) => withAuth(handler, { roles: ['admin'] });
 
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { NextResponse } = require('next/server');
   return {
     authenticate: authenticateFn,
     withAuth,
@@ -136,6 +138,20 @@ vi.mock('@/lib/auth/api-helpers', () => {
         status,
         headers: { 'Content-Type': 'application/json' },
       }),
+    safeParseBody: async (request: any) => {
+      try {
+        const data = await request.json();
+        return { success: true, data };
+      } catch {
+        return {
+          success: false,
+          response: NextResponse.json(
+            { error: 'Invalid JSON in request body' },
+            { status: 400 }
+          ),
+        };
+      }
+    },
   };
 });
 

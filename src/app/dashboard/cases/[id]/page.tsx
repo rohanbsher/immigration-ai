@@ -39,6 +39,7 @@ import { TaskList } from '@/components/tasks';
 import { ActivityTimeline } from '@/components/cases/activity-timeline';
 import { EditCaseDialog } from './edit-case-dialog';
 import { statusOptions, formTypeOptions } from './constants';
+import { Breadcrumbs, generateCaseBreadcrumbs } from '@/components/ui/breadcrumbs';
 import type { CaseStatus, FormType } from '@/types';
 
 function CaseDetailContent({
@@ -130,6 +131,9 @@ function CaseDetailContent({
 
   return (
     <div className="space-y-6">
+      {/* Breadcrumbs */}
+      <Breadcrumbs items={generateCaseBreadcrumbs(id, caseData.title)} />
+
       {/* Header */}
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" onClick={() => router.back()} aria-label="Go back to previous page">

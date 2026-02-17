@@ -3,7 +3,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { CompletenessResult } from '@/lib/ai/document-completeness';
 import { fetchWithTimeout } from '@/lib/api/fetch-with-timeout';
-import { safeParseErrorJson } from '@/lib/api/safe-json';
+import { parseApiResponse } from '@/lib/api/parse-response';
 
 /**
  * Fetch document completeness analysis for a case.
@@ -15,13 +15,7 @@ async function fetchCompleteness(caseId: string): Promise<CompletenessResult> {
       'Content-Type': 'application/json',
     },
   });
-
-  if (!response.ok) {
-    const error = await safeParseErrorJson(response);
-    throw new Error(error.message || 'Failed to fetch completeness');
-  }
-
-  return response.json();
+  return parseApiResponse<CompletenessResult>(response);
 }
 
 /**
@@ -102,15 +96,15 @@ export function getCompletenessColor(completeness: number): {
   ring: string;
 } {
   if (completeness >= 100) {
-    return { bg: 'bg-green-100', text: 'text-green-700', ring: 'ring-green-500' };
+    return { bg: 'bg-success/10', text: 'text-success', ring: 'ring-success' };
   }
   if (completeness >= 70) {
-    return { bg: 'bg-yellow-100', text: 'text-yellow-700', ring: 'ring-yellow-500' };
+    return { bg: 'bg-warning/10', text: 'text-warning', ring: 'ring-warning' };
   }
   if (completeness >= 40) {
-    return { bg: 'bg-orange-100', text: 'text-orange-700', ring: 'ring-orange-500' };
+    return { bg: 'bg-warning/10', text: 'text-warning', ring: 'ring-warning' };
   }
-  return { bg: 'bg-red-100', text: 'text-red-700', ring: 'ring-red-500' };
+  return { bg: 'bg-destructive/10', text: 'text-destructive', ring: 'ring-destructive' };
 }
 
 /**
@@ -123,11 +117,11 @@ export function getFilingReadinessInfo(readiness: CompletenessResult['filingRead
 } {
   switch (readiness) {
     case 'ready':
-      return { label: 'Ready to File', color: 'text-green-700', bgColor: 'bg-green-100' };
+      return { label: 'Ready to File', color: 'text-success', bgColor: 'bg-success/10' };
     case 'needs_review':
-      return { label: 'Needs Review', color: 'text-yellow-700', bgColor: 'bg-yellow-100' };
+      return { label: 'Needs Review', color: 'text-warning', bgColor: 'bg-warning/10' };
     case 'incomplete':
     default:
-      return { label: 'Incomplete', color: 'text-red-700', bgColor: 'bg-red-100' };
+      return { label: 'Incomplete', color: 'text-destructive', bgColor: 'bg-destructive/10' };
   }
 }

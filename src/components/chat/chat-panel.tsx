@@ -156,27 +156,27 @@ export function ChatPanel({ className }: ChatPanelProps) {
       {/* Panel */}
       <div
         className={cn(
-          'fixed right-0 top-0 h-full w-full sm:w-[400px] bg-slate-50 shadow-2xl z-50',
+          'fixed right-0 top-0 h-full w-full sm:w-[400px] bg-background shadow-2xl z-50',
           'flex flex-col',
           'animate-in slide-in-from-right duration-300',
           className
         )}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 bg-white">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-card">
           {showHistory ? (
             <>
               <button
                 onClick={() => setShowHistory(false)}
-                className="flex items-center gap-1 text-sm text-slate-600 hover:text-slate-900"
+                className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
               >
                 <ChevronLeft size={18} />
                 Back
               </button>
-              <span className="font-medium text-slate-900">Conversations</span>
+              <span className="font-medium text-foreground">Conversations</span>
               <button
                 onClick={handleNewConversation}
-                className="text-purple-600 hover:text-purple-700"
+                className="text-ai-accent hover:text-ai-accent/80"
               >
                 <Plus size={20} />
               </button>
@@ -185,19 +185,19 @@ export function ChatPanel({ className }: ChatPanelProps) {
             <>
               <div className="flex items-center gap-2">
                 <AIBadge size="sm" />
-                <span className="font-medium text-slate-900">AI Assistant</span>
+                <span className="font-medium text-foreground">AI Assistant</span>
               </div>
               <div className="flex items-center gap-1">
                 <button
                   onClick={() => setShowHistory(true)}
-                  className="p-2 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg"
+                  className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg"
                   title="Conversation history"
                 >
                   <MessageSquare size={18} />
                 </button>
                 <button
                   onClick={closeChat}
-                  className="p-2 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg"
+                  className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg"
                 >
                   <X size={18} />
                 </button>
@@ -208,7 +208,7 @@ export function ChatPanel({ className }: ChatPanelProps) {
 
         {/* Context indicator */}
         {caseId && !showHistory && (
-          <div className="px-4 py-2 bg-purple-50 border-b border-purple-100 text-xs text-purple-700">
+          <div className="px-4 py-2 bg-ai-accent-muted/50 border-b border-ai-accent/20 text-xs text-ai-accent">
             Discussing: Case context active
           </div>
         )}
@@ -251,7 +251,7 @@ export function ChatPanel({ className }: ChatPanelProps) {
 
               {/* Error message */}
               {error && (
-                <div className="px-4 py-2 bg-red-50 border-t border-red-100 flex items-center gap-2 text-sm text-red-600">
+                <div className="px-4 py-2 bg-destructive/10 border-t border-destructive/20 flex items-center gap-2 text-sm text-destructive">
                   <AlertCircle size={16} />
                   {error}
                 </div>
@@ -260,7 +260,7 @@ export function ChatPanel({ className }: ChatPanelProps) {
               {/* Input */}
               <form
                 onSubmit={handleSubmit}
-                className="p-4 border-t border-slate-200 bg-white"
+                className="p-4 border-t border-border bg-card"
               >
                 <div className="flex gap-2">
                   <Input
@@ -306,18 +306,18 @@ export function ChatPanel({ className }: ChatPanelProps) {
 function EmptyChat({ caseId }: { caseId: string | null }) {
   return (
     <div className="h-full flex flex-col items-center justify-center p-6 text-center">
-      <div className="w-16 h-16 rounded-full bg-purple-100 flex items-center justify-center mb-4">
-        <MessageSquare size={28} className="text-purple-500" />
+      <div className="w-16 h-16 rounded-full bg-ai-accent-muted flex items-center justify-center mb-4">
+        <MessageSquare size={28} className="text-ai-accent" />
       </div>
-      <h3 className="text-lg font-medium text-slate-900 mb-2">
+      <h3 className="text-lg font-medium text-foreground mb-2">
         {caseId ? 'Case Assistant' : 'AI Assistant'}
       </h3>
-      <p className="text-sm text-slate-500 mb-6 max-w-[250px]">
+      <p className="text-sm text-muted-foreground mb-6 max-w-[250px]">
         {caseId
           ? 'Ask questions about this case, documents, deadlines, or next steps.'
           : 'Ask questions about your cases, documents, or immigration processes.'}
       </p>
-      <div className="space-y-2 text-sm text-slate-600">
+      <div className="space-y-2 text-sm text-muted-foreground">
         <p className="font-medium">Try asking:</p>
         <ul className="space-y-1 text-left">
           <li>&quot;What documents are missing?&quot;</li>
@@ -350,7 +350,7 @@ function ConversationHistory({
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full">
-        <div className="animate-spin w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full" />
+        <div className="animate-spin w-6 h-6 border-2 border-ai-accent border-t-transparent rounded-full" />
       </div>
     );
   }
@@ -358,8 +358,8 @@ function ConversationHistory({
   if (conversations.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-full p-6 text-center">
-        <MessageSquare size={32} className="text-slate-300 mb-4" />
-        <p className="text-sm text-slate-500 mb-4">No conversations yet</p>
+        <MessageSquare size={32} className="text-muted-foreground/50 mb-4" />
+        <p className="text-sm text-muted-foreground mb-4">No conversations yet</p>
         <Button onClick={onNew} size="sm">
           <Plus size={16} className="mr-1" />
           Start a conversation
@@ -369,22 +369,22 @@ function ConversationHistory({
   }
 
   return (
-    <div className="divide-y divide-slate-100">
+    <div className="divide-y divide-border/50">
       {conversations.map((conv) => (
         <div
           key={conv.id}
           className={cn(
-            'flex items-center gap-3 px-4 py-3 hover:bg-slate-100 cursor-pointer group',
-            currentId === conv.id && 'bg-purple-50'
+            'flex items-center gap-3 px-4 py-3 hover:bg-muted cursor-pointer group',
+            currentId === conv.id && 'bg-ai-accent-muted/50'
           )}
           onClick={() => onSelect(conv.id)}
         >
-          <MessageSquare size={18} className="text-slate-400 flex-shrink-0" />
+          <MessageSquare size={18} className="text-muted-foreground flex-shrink-0" />
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-slate-900 truncate">
+            <p className="text-sm font-medium text-foreground truncate">
               {conv.title}
             </p>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-muted-foreground">
               {formatRelativeTime(conv.updatedAt)}
             </p>
           </div>
@@ -393,7 +393,7 @@ function ConversationHistory({
               e.stopPropagation();
               onDelete(conv.id);
             }}
-            className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-red-500 transition-opacity"
+            className="opacity-0 group-hover:opacity-100 p-1 text-muted-foreground hover:text-destructive transition-opacity"
           >
             <Trash2 size={16} />
           </button>
@@ -406,6 +406,8 @@ function ConversationHistory({
 /**
  * Format relative time.
  */
+export default ChatPanel;
+
 function formatRelativeTime(timestamp: string): string {
   try {
     const date = new Date(timestamp);
@@ -424,7 +426,8 @@ function formatRelativeTime(timestamp: string): string {
     if (days < 7) return `${days}d ago`;
 
     return date.toLocaleDateString();
-  } catch {
+  } catch (error) {
+    console.warn('Failed to format relative date:', error);
     return '';
   }
 }

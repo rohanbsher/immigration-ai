@@ -107,7 +107,7 @@ export function FieldVerification({
         <div className="flex items-center justify-between">
           <div>
             <CardTitle className="text-lg">Verify AI Suggestions</CardTitle>
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-muted-foreground">
               Form: {formType} • Field {currentIndex + 1} of {fields.length}
             </p>
           </div>
@@ -118,9 +118,9 @@ export function FieldVerification({
 
         {/* Progress bar */}
         <div className="mt-4">
-          <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+          <div className="h-2 bg-muted rounded-full overflow-hidden">
             <div
-              className="h-full bg-blue-500 rounded-full transition-all duration-300"
+              className="h-full bg-primary rounded-full transition-all duration-300"
               style={{ width: `${progress}%` }}
             />
           </div>
@@ -129,7 +129,7 @@ export function FieldVerification({
 
       <CardContent className="space-y-6">
         {/* Current field */}
-        <div className="p-4 bg-slate-50 rounded-lg space-y-4">
+        <div className="p-4 bg-muted/50 rounded-lg space-y-4">
           <div className="flex items-center justify-between">
             <Label className="text-base font-semibold">
               {formatFieldName(currentField.field_name)}
@@ -139,7 +139,7 @@ export function FieldVerification({
 
           {/* Source document info */}
           {currentField.source_document && (
-            <div className="flex items-center gap-2 text-sm text-slate-500">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <FileText className="h-4 w-4" />
               <span>Source: {currentField.source_document}</span>
             </div>
@@ -147,7 +147,7 @@ export function FieldVerification({
 
           {/* Suggested value */}
           <div className="space-y-2">
-            <Label className="text-sm text-slate-500">AI Suggested Value</Label>
+            <Label className="text-sm text-muted-foreground">AI Suggested Value</Label>
             {isEditing ? (
               <Input
                 value={editedValue}
@@ -159,14 +159,14 @@ export function FieldVerification({
               <div className="flex items-center gap-2">
                 <p className="text-lg font-medium flex-1">
                   {currentField.suggested_value || (
-                    <span className="text-slate-400 italic">No value suggested</span>
+                    <span className="text-muted-foreground/60 italic">No value suggested</span>
                   )}
                 </p>
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={handleEdit}
-                  className="text-slate-500"
+                  className="text-muted-foreground"
                 >
                   <Edit2 className="h-4 w-4 mr-1" />
                   Edit
@@ -178,10 +178,10 @@ export function FieldVerification({
           {/* Current value comparison */}
           {currentField.current_value && currentField.current_value !== currentField.suggested_value && (
             <div className="space-y-2 pt-2 border-t">
-              <Label className="text-sm text-slate-500">Current Value</Label>
-              <p className="text-sm text-slate-700">{currentField.current_value}</p>
+              <Label className="text-sm text-muted-foreground">Current Value</Label>
+              <p className="text-sm text-foreground">{currentField.current_value}</p>
               {currentField.confidence < 0.8 && (
-                <div className="flex items-start gap-2 text-sm text-yellow-700 bg-yellow-50 p-2 rounded">
+                <div className="flex items-start gap-2 text-sm text-warning-foreground bg-warning/10 p-2 rounded">
                   <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />
                   <span>
                     The AI suggestion differs from the current value and has low confidence.
@@ -196,7 +196,7 @@ export function FieldVerification({
         {/* Already verified */}
         {verifiedCount > 0 && (
           <div className="border rounded-lg p-3">
-            <p className="text-sm font-medium text-slate-700 mb-2">
+            <p className="text-sm font-medium text-foreground mb-2">
               Verified Fields ({verifiedCount})
             </p>
             <div className="flex flex-wrap gap-2">
@@ -208,7 +208,7 @@ export function FieldVerification({
                     variant="secondary"
                     className="flex items-center gap-1"
                   >
-                    <CheckCircle className="h-3 w-3 text-green-600" />
+                    <CheckCircle className="h-3 w-3 text-success" />
                     {field ? formatFieldName(field.field_name) : fieldId}
                   </Badge>
                 );
@@ -282,8 +282,8 @@ export function QuickVerificationList({
           className={cn(
             'flex items-center gap-3 p-3 rounded-lg border',
             verified.has(field.field_id)
-              ? 'bg-green-50 border-green-200'
-              : 'bg-white border-slate-200'
+              ? 'bg-success/10 border-success/30'
+              : 'bg-card border-border'
           )}
         >
           <Checkbox
@@ -294,7 +294,7 @@ export function QuickVerificationList({
 
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-slate-700">
+              <span className="text-sm font-medium text-foreground">
                 {formatFieldName(field.field_name)}
               </span>
               <ConfidenceIndicator
@@ -303,15 +303,15 @@ export function QuickVerificationList({
                 showLabel={false}
               />
             </div>
-            <p className="text-sm text-slate-600 truncate">
+            <p className="text-sm text-muted-foreground truncate">
               {field.suggested_value || (
-                <span className="italic text-slate-400">No value</span>
+                <span className="italic text-muted-foreground/60">No value</span>
               )}
             </p>
           </div>
 
           {verified.has(field.field_id) && (
-            <CheckCircle className="h-5 w-5 text-green-600" />
+            <CheckCircle className="h-5 w-5 text-success" />
           )}
         </div>
       ))}

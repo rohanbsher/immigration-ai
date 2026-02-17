@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { standardRateLimiter } from '@/lib/rate-limit';
 import { createLogger } from '@/lib/logger';
 import { encryptSensitiveFields } from '@/lib/crypto';
+import { safeParseBody } from '@/lib/auth/api-helpers';
 
 const log = createLogger('api:profile');
 
@@ -68,7 +69,9 @@ export async function PATCH(request: NextRequest) {
       return rateLimitResult.response;
     }
 
-    const body = await request.json();
+    const parsed = await safeParseBody(request);
+    if (!parsed.success) return parsed.response;
+    const body = parsed.data;
     const validatedData = updateProfileSchema.parse(body);
 
     // Encrypt sensitive PII fields (e.g., alien_number) before storage

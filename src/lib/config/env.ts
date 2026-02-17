@@ -256,9 +256,14 @@ function validateProductionRequirements(env: z.infer<typeof serverEnvSchema>) {
     warnings.push('PDF_SERVICE_URL/PDF_SERVICE_SECRET not set - USCIS form filling will produce summary PDFs only');
   }
 
-  // Warning: Virus scanner not configured
+  // Critical: Virus scanner must be configured in production (skip during build since no uploads happen)
+  const isBuildPhase = process.env.NEXT_PHASE === 'phase-production-build';
   if (!env.VIRUS_SCANNER_PROVIDER || env.VIRUS_SCANNER_PROVIDER === 'mock') {
-    warnings.push('VIRUS_SCANNER_PROVIDER not configured - uploads use heuristic checks only');
+    if (isBuildPhase) {
+      warnings.push('VIRUS_SCANNER_PROVIDER not configured - must be set before serving traffic');
+    } else {
+      errors.push('VIRUS_SCANNER_PROVIDER must be configured in production (clamav or virustotal) - heuristic-only scanning is not acceptable');
+    }
   } else if (env.VIRUS_SCANNER_PROVIDER === 'clamav' && !env.CLAMAV_API_URL) {
     errors.push('CLAMAV_API_URL is required when using ClamAV virus scanner');
   } else if (env.VIRUS_SCANNER_PROVIDER === 'virustotal' && !env.VIRUSTOTAL_API_KEY) {

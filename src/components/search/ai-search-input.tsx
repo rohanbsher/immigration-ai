@@ -41,7 +41,8 @@ export function AISearchInput({
       if (!stored) return [];
       const parsed = JSON.parse(stored);
       return Array.isArray(parsed) ? parsed.slice(0, 5) : [];
-    } catch {
+    } catch (error) {
+      console.warn('Failed to parse recent searches from localStorage:', error);
       return [];
     }
   });
@@ -113,15 +114,15 @@ export function AISearchInput({
         className={cn(
           'flex items-center gap-2 px-3 py-2 rounded-lg border transition-colors',
           isAIMode
-            ? 'border-purple-300 bg-purple-50/50 focus-within:border-purple-400'
-            : 'border-slate-200 bg-white focus-within:border-slate-400'
+            ? 'border-ai-accent/40 bg-ai-accent-muted/50 focus-within:border-ai-accent/60'
+            : 'border-border bg-background focus-within:border-border/80'
         )}
       >
         {/* Icon */}
         {isAIMode ? (
-          <Sparkles size={18} className="text-purple-500 flex-shrink-0" />
+          <Sparkles size={18} className="text-ai-accent flex-shrink-0" />
         ) : (
-          <Search size={18} className="text-slate-400 flex-shrink-0" />
+          <Search size={18} className="text-muted-foreground flex-shrink-0" />
         )}
 
         {/* Input */}
@@ -140,7 +141,7 @@ export function AISearchInput({
         {query && (
           <button
             onClick={handleClear}
-            className="text-slate-400 hover:text-slate-600"
+            className="text-muted-foreground hover:text-foreground"
           >
             <X size={16} />
           </button>
@@ -153,8 +154,8 @@ export function AISearchInput({
             className={cn(
               'px-2 py-0.5 rounded text-xs font-medium transition-colors',
               isAIMode
-                ? 'bg-purple-100 text-purple-700'
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                ? 'bg-ai-accent-muted text-ai-accent'
+                : 'bg-muted text-muted-foreground hover:bg-muted/80'
             )}
           >
             {isAIMode ? 'AI' : 'Exact'}
@@ -190,7 +191,7 @@ export function AISearchInput({
 
       {/* Error message */}
       {error && (
-        <p className="mt-1 text-xs text-red-600">{error.message}</p>
+        <p className="mt-1 text-xs text-destructive">{error.message}</p>
       )}
     </div>
   );
@@ -218,16 +219,16 @@ function SuggestionsDropdown({
 
   return (
     <div
-      className="absolute top-full left-0 right-0 mt-1 bg-white rounded-lg border border-slate-200 shadow-lg z-50"
+      className="absolute top-full left-0 right-0 mt-1 bg-card rounded-lg border border-border shadow-lg z-50"
       onMouseLeave={onClose}
     >
       {/* Interpretation */}
       {interpretation && (
-        <div className="px-3 py-2 border-b border-slate-100 bg-purple-50/50">
-          <div className="flex items-center gap-2 text-xs text-purple-600">
+        <div className="px-3 py-2 border-b border-border/50 bg-ai-accent-muted/50">
+          <div className="flex items-center gap-2 text-xs text-ai-accent">
             <Sparkles size={12} />
             <span>Understood: {interpretation.understood}</span>
-            <span className="text-purple-400">
+            <span className="text-ai-accent/60">
               ({Math.round(interpretation.confidence * 100)}% confident)
             </span>
           </div>
@@ -237,14 +238,14 @@ function SuggestionsDropdown({
       {/* Recent searches */}
       {recentSearches.length > 0 && (
         <div className="p-2">
-          <p className="px-2 py-1 text-xs font-medium text-slate-500">Recent</p>
+          <p className="px-2 py-1 text-xs font-medium text-muted-foreground">Recent</p>
           {recentSearches.map((search, i) => (
             <button
               key={i}
               onClick={() => onSelect(search)}
-              className="w-full flex items-center gap-2 px-2 py-1.5 text-sm text-slate-700 hover:bg-slate-50 rounded"
+              className="w-full flex items-center gap-2 px-2 py-1.5 text-sm text-foreground hover:bg-muted/50 rounded"
             >
-              <Clock size={12} className="text-slate-400" />
+              <Clock size={12} className="text-muted-foreground" />
               {search}
             </button>
           ))}
@@ -253,8 +254,8 @@ function SuggestionsDropdown({
 
       {/* AI suggestions */}
       {aiSuggestions.length > 0 && (
-        <div className="p-2 border-t border-slate-100">
-          <p className="px-2 py-1 text-xs font-medium text-purple-600 flex items-center gap-1">
+        <div className="p-2 border-t border-border/50">
+          <p className="px-2 py-1 text-xs font-medium text-ai-accent flex items-center gap-1">
             <Sparkles size={10} />
             Suggestions
           </p>
@@ -262,9 +263,9 @@ function SuggestionsDropdown({
             <button
               key={i}
               onClick={() => onSelect(suggestion)}
-              className="w-full flex items-center gap-2 px-2 py-1.5 text-sm text-slate-700 hover:bg-purple-50 rounded"
+              className="w-full flex items-center gap-2 px-2 py-1.5 text-sm text-foreground hover:bg-ai-accent-muted/50 rounded"
             >
-              <ArrowRight size={12} className="text-purple-400" />
+              <ArrowRight size={12} className="text-ai-accent/60" />
               {suggestion}
             </button>
           ))}
@@ -289,14 +290,14 @@ export function AISearchBadge({
       onClick={onClick}
       className={cn(
         'flex items-center gap-2 px-3 py-1.5 rounded-full',
-        'bg-slate-100 hover:bg-purple-50 text-slate-600 hover:text-purple-700',
+        'bg-muted hover:bg-ai-accent-muted/50 text-muted-foreground hover:text-ai-accent',
         'transition-colors text-sm',
         className
       )}
     >
       <Search size={14} />
       <span>Search</span>
-      <span className="px-1.5 py-0.5 rounded text-xs bg-purple-100 text-purple-600">
+      <span className="px-1.5 py-0.5 rounded text-xs bg-ai-accent-muted text-ai-accent">
         AI
       </span>
     </button>

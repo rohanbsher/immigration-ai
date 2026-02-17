@@ -3,7 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { FirmMember, FirmInvitation, FirmRole } from '@/types/firms';
 import { fetchWithTimeout } from '@/lib/api/fetch-with-timeout';
-import { safeParseErrorJson } from '@/lib/api/safe-json';
+import { parseApiResponse, parseApiVoidResponse } from '@/lib/api/parse-response';
 
 interface UpdateMemberInput {
   userId: string;
@@ -19,13 +19,7 @@ interface InviteMemberInput {
 
 async function fetchMembers(firmId: string): Promise<FirmMember[]> {
   const response = await fetchWithTimeout(`/api/firms/${firmId}/members`);
-
-  if (!response.ok) {
-    throw new Error('Failed to fetch members');
-  }
-
-  const data = await response.json();
-  return data.data;
+  return parseApiResponse<FirmMember[]>(response);
 }
 
 async function updateMember({
@@ -40,14 +34,7 @@ async function updateMember({
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
   });
-
-  if (!response.ok) {
-    const error = await safeParseErrorJson(response);
-    throw new Error(error.error || 'Failed to update member');
-  }
-
-  const data = await response.json();
-  return data.data;
+  return parseApiResponse<FirmMember>(response);
 }
 
 async function removeMember({
@@ -62,22 +49,12 @@ async function removeMember({
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ userId }),
   });
-
-  if (!response.ok) {
-    const error = await safeParseErrorJson(response);
-    throw new Error(error.error || 'Failed to remove member');
-  }
+  await parseApiVoidResponse(response);
 }
 
 async function fetchInvitations(firmId: string): Promise<FirmInvitation[]> {
   const response = await fetchWithTimeout(`/api/firms/${firmId}/invitations`);
-
-  if (!response.ok) {
-    throw new Error('Failed to fetch invitations');
-  }
-
-  const data = await response.json();
-  return data.data;
+  return parseApiResponse<FirmInvitation[]>(response);
 }
 
 async function createInvitation({
@@ -92,14 +69,7 @@ async function createInvitation({
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
   });
-
-  if (!response.ok) {
-    const error = await safeParseErrorJson(response);
-    throw new Error(error.error || 'Failed to create invitation');
-  }
-
-  const data = await response.json();
-  return data.data;
+  return parseApiResponse<FirmInvitation>(response);
 }
 
 async function revokeInvitation({
@@ -114,11 +84,7 @@ async function revokeInvitation({
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ invitationId }),
   });
-
-  if (!response.ok) {
-    const error = await safeParseErrorJson(response);
-    throw new Error(error.error || 'Failed to revoke invitation');
-  }
+  await parseApiVoidResponse(response);
 }
 
 async function fetchInvitation(token: string): Promise<{
@@ -130,28 +96,14 @@ async function fetchInvitation(token: string): Promise<{
   inviter: { id: string; firstName: string | null; lastName: string | null; email: string };
 }> {
   const response = await fetchWithTimeout(`/api/firms/invitations/${token}`);
-
-  if (!response.ok) {
-    const error = await safeParseErrorJson(response);
-    throw new Error(error.error || 'Failed to fetch invitation');
-  }
-
-  const data = await response.json();
-  return data.data;
+  return parseApiResponse(response);
 }
 
 async function acceptInvitation(token: string): Promise<FirmMember> {
   const response = await fetchWithTimeout(`/api/firms/invitations/${token}`, {
     method: 'POST',
   });
-
-  if (!response.ok) {
-    const error = await safeParseErrorJson(response);
-    throw new Error(error.error || 'Failed to accept invitation');
-  }
-
-  const data = await response.json();
-  return data.data;
+  return parseApiResponse<FirmMember>(response);
 }
 
 export function useFirmMembers(firmId: string | undefined) {

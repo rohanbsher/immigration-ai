@@ -4,6 +4,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { buildChatContext, formatContextForPrompt } from './context-builder';
 import { CHAT_TOOLS, executeTool } from './tools';
 import { createLogger } from '@/lib/logger';
+import { serverEnv } from '@/lib/config';
 
 const log = createLogger('ai:chat');
 
@@ -12,7 +13,7 @@ let anthropicInstance: Anthropic | null = null;
 
 function getAnthropicClient(): Anthropic {
   if (!anthropicInstance) {
-    const apiKey = process.env.ANTHROPIC_API_KEY;
+    const apiKey = serverEnv.ANTHROPIC_API_KEY;
     if (!apiKey) {
       throw new Error('Anthropic API is not configured (ANTHROPIC_API_KEY not set)');
     }

@@ -3,7 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { CaseStatus, VisaType } from '@/types';
 import { fetchWithTimeout, TimeoutError } from '@/lib/api/fetch-with-timeout';
-import { safeParseErrorJson } from '@/lib/api/safe-json';
+import { parseApiResponse, parseApiVoidResponse } from '@/lib/api/parse-response';
 
 interface Case {
   id: string;
@@ -67,6 +67,12 @@ interface UpdateCaseData {
   notes?: string | null;
 }
 
+interface CaseStats {
+  total: number;
+  pendingDeadlines: number;
+  byStatus: Record<string, number>;
+}
+
 async function fetchCases(
   filters: CaseFilters = {},
   pagination: PaginationOptions = {}
@@ -96,18 +102,12 @@ async function fetchCases(
   if (pagination.sortOrder) params.set('sortOrder', pagination.sortOrder);
 
   const response = await fetchWithTimeout(`/api/cases?${params.toString()}`);
-  if (!response.ok) {
-    throw new Error('Failed to fetch cases');
-  }
-  return response.json();
+  return parseApiResponse<{ cases: Case[]; total: number }>(response);
 }
 
 async function fetchCase(id: string): Promise<Case> {
   const response = await fetchWithTimeout(`/api/cases/${id}`);
-  if (!response.ok) {
-    throw new Error('Failed to fetch case');
-  }
-  return response.json();
+  return parseApiResponse<Case>(response);
 }
 
 async function createCase(data: CreateCaseData): Promise<Case> {
@@ -116,12 +116,7 @@ async function createCase(data: CreateCaseData): Promise<Case> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
-  if (!response.ok) {
-    const error = await safeParseErrorJson(response);
-    throw new Error(error.error || 'Failed to create case');
-  }
-  const json = await response.json();
-  return json.data ?? json;
+  return parseApiResponse<Case>(response);
 }
 
 async function updateCase(id: string, data: UpdateCaseData): Promise<Case> {
@@ -130,22 +125,14 @@ async function updateCase(id: string, data: UpdateCaseData): Promise<Case> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
-  if (!response.ok) {
-    const error = await safeParseErrorJson(response);
-    throw new Error(error.error || 'Failed to update case');
-  }
-  const json = await response.json();
-  return json.data ?? json;
+  return parseApiResponse<Case>(response);
 }
 
 async function deleteCase(id: string): Promise<void> {
   const response = await fetchWithTimeout(`/api/cases/${id}`, {
     method: 'DELETE',
   });
-  if (!response.ok) {
-    const error = await safeParseErrorJson(response);
-    throw new Error(error.error || 'Failed to delete case');
-  }
+  await parseApiVoidResponse(response);
 }
 
 export function useCases(
@@ -155,6 +142,7 @@ export function useCases(
   return useQuery({
     queryKey: ['cases', filters, pagination],
     queryFn: () => fetchCases(filters, pagination),
+    staleTime: 30 * 1000, // 30 seconds — may update from other tabs
   });
 }
 
@@ -163,6 +151,7 @@ export function useCase(id: string | undefined) {
     queryKey: ['case', id],
     queryFn: () => fetchCase(id!),
     enabled: !!id,
+    staleTime: 30 * 1000, // 30 seconds — may update during active work
   });
 }
 
@@ -210,11 +199,9 @@ export function useCaseStats() {
       const response = await fetchWithTimeout('/api/cases/stats', {
         timeout: 'QUICK',
       });
-      if (!response.ok) {
-        throw new Error('Failed to fetch case stats');
-      }
-      return response.json();
+      return parseApiResponse<CaseStats>(response);
     },
+    staleTime: 2 * 60 * 1000, // 2 minutes — aggregated data, changes slowly
   });
 }
 

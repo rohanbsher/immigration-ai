@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { createLogger } from '@/lib/logger';
 import { standardRateLimiter } from '@/lib/rate-limit';
 import { sendCaseUpdateEmail } from '@/lib/email/notifications';
+import { safeParseBody } from '@/lib/auth/api-helpers';
 
 const log = createLogger('api:case-messages');
 
@@ -119,7 +120,9 @@ export async function POST(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const body = await request.json();
+    const parsed = await safeParseBody(request);
+    if (!parsed.success) return parsed.response;
+    const body = parsed.data;
     const validatedData = createMessageSchema.parse(body);
 
     const message = await caseMessagesService.createMessage({

@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { authRateLimiter } from '@/lib/rate-limit';
 import { sendWelcomeEmail } from '@/lib/email/notifications';
 import { createLogger } from '@/lib/logger';
+import { safeParseBody } from '@/lib/api/safe-parse-body';
 
 const log = createLogger('api:auth-register');
 
@@ -30,7 +31,9 @@ export async function POST(request: NextRequest) {
       return rateLimitResult.response;
     }
 
-    const body = await request.json();
+    const parsed = await safeParseBody(request);
+    if (!parsed.success) return parsed.response;
+    const body = parsed.data;
     const validatedData = registerSchema.parse(body);
 
     // Validate attorney-specific fields

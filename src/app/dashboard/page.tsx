@@ -25,13 +25,19 @@ import { CasesEmptyState } from '@/components/ui/empty-state';
 import { Skeleton, StatsCardSkeleton, GridSkeleton, CaseCardSkeleton, ListSkeleton } from '@/components/ui/skeletons';
 import type { CaseStatus } from '@/types';
 
+// Chart colors use CSS hex values because they are passed to the chart library,
+// not used as Tailwind classes. These map to the semantic meaning of each status.
 const STATUS_COLORS: Record<string, string> = {
-  pending: '#f59e0b',
-  in_progress: '#3b82f6',
-  under_review: '#8b5cf6',
-  approved: '#22c55e',
+  intake: '#94a3b8',
+  document_collection: '#f59e0b',
+  in_review: '#3b82f6',
+  forms_preparation: '#8b5cf6',
+  ready_for_filing: '#6366f1',
+  filed: '#22c55e',
+  pending_response: '#f97316',
+  approved: '#10b981',
   denied: '#ef4444',
-  completed: '#10b981',
+  closed: '#64748b',
 };
 
 export default function DashboardPage() {
@@ -50,13 +56,13 @@ export default function DashboardPage() {
       change: 'Total cases',
     },
     {
-      label: 'Pending Documents',
-      value: 0,
+      label: 'In Review',
+      value: stats?.byStatus?.in_review || 0,
       icon: FileText,
-      change: 'Need review',
+      change: 'Cases under review',
     },
     {
-      label: 'Recent Cases',
+      label: 'Clients',
       value: casesData?.total || 0,
       icon: Users,
       change: 'Total cases',
@@ -180,17 +186,17 @@ export default function DashboardPage() {
           const Icon = stat.icon;
           return (
             <MotionCard key={stat.label} delay={index * 0.1}>
-              <Card className="hover:shadow-lg hover:shadow-primary/10 transition-all duration-300">
+              <Card className="border border-border hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 group">
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-muted-foreground">{stat.label}</p>
+                      <p className="text-sm font-medium text-muted-foreground">{stat.label}</p>
                       <p className="text-3xl font-bold text-foreground mt-1">
                         <AnimatedCounter value={stat.value} duration={1.5} />
                       </p>
                       <p className="text-xs text-muted-foreground mt-1">{stat.change}</p>
                     </div>
-                    <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/15 transition-colors">
                       <Icon className="text-primary" size={24} />
                     </div>
                   </div>
@@ -326,7 +332,7 @@ function QuickAction({
   return (
     <Link
       href={href}
-      className="flex flex-col items-center justify-center p-4 rounded-lg border-2 border-dashed border-border hover:border-primary hover:bg-primary/5 transition-all duration-200 gap-2"
+      className="flex flex-col items-center justify-center p-4 rounded-lg border border-border hover:border-primary/30 hover:bg-primary/5 transition-all duration-200 gap-2"
     >
       <Icon className="text-muted-foreground" size={24} />
       <span className="text-sm font-medium text-foreground">{label}</span>

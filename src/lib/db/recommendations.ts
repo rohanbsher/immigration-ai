@@ -5,8 +5,8 @@
  * Falls back to direct API calls when cache misses.
  */
 
-import { Redis } from '@upstash/redis';
 import { createLogger } from '@/lib/logger';
+import { getRedisClient } from '@/lib/redis';
 
 const logger = createLogger('db:recommendations');
 
@@ -41,20 +41,8 @@ const CACHE_PREFIX = 'recommendations';
 // Cache TTL: 1 hour
 const CACHE_TTL_SECONDS = 60 * 60;
 
-// Check if Redis is configured
-const isRedisConfigured = !!(
-  process.env.UPSTASH_REDIS_REST_URL &&
-  process.env.UPSTASH_REDIS_REST_TOKEN
-);
-
-// Initialize Redis client if configured
-let redis: Redis | null = null;
-if (isRedisConfigured) {
-  redis = new Redis({
-    url: process.env.UPSTASH_REDIS_REST_URL!,
-    token: process.env.UPSTASH_REDIS_REST_TOKEN!,
-  });
-}
+// Use the shared Redis client singleton
+const redis = getRedisClient();
 
 /**
  * Get cache key for a case.

@@ -37,7 +37,7 @@ export function AILoading({
     return (
       <span
         className={cn(
-          'inline-flex items-center gap-1.5 text-purple-600',
+          'inline-flex items-center gap-1.5 text-ai-accent',
           sizeClasses[size],
           className
         )}
@@ -53,7 +53,7 @@ export function AILoading({
     return (
       <div
         className={cn(
-          'flex items-center gap-2 text-purple-600',
+          'flex items-center gap-2 text-ai-accent',
           sizeClasses[size],
           className
         )}
@@ -70,19 +70,19 @@ export function AILoading({
     <div
       className={cn(
         'flex flex-col items-center justify-center p-6',
-        'border border-dashed border-purple-300 rounded-lg',
-        'bg-purple-50/50 dark:bg-purple-950/20',
+        'border border-dashed border-ai-accent/40 rounded-lg',
+        'bg-ai-accent-muted/50 dark:bg-ai-accent-muted/20',
         className
       )}
     >
-      <div className="flex items-center gap-2 text-purple-600">
+      <div className="flex items-center gap-2 text-ai-accent">
         <Sparkles size={iconSizes[size]} className="animate-pulse" />
         <span className={cn('font-medium', sizeClasses[size])}>
           {message}
           <AnimatedDots />
         </span>
       </div>
-      <p className="mt-2 text-xs text-purple-500 dark:text-purple-400">
+      <p className="mt-2 text-xs text-ai-accent/70 dark:text-ai-accent/70">
         This may take a few seconds
       </p>
     </div>
@@ -118,19 +118,19 @@ export function AISkeleton({ lines = 3, className }: AISkeletonProps) {
     <div
       className={cn(
         'space-y-2 p-4',
-        'border border-dashed border-purple-200 rounded-lg',
-        'bg-purple-50/30 dark:bg-purple-950/10',
+        'border border-dashed border-ai-accent/30 rounded-lg',
+        'bg-ai-accent-muted/30 dark:bg-ai-accent-muted/10',
         className
       )}
     >
       <div className="flex items-center gap-2 mb-3">
-        <div className="w-4 h-4 rounded bg-purple-200 animate-pulse" />
-        <div className="w-24 h-4 rounded bg-purple-200 animate-pulse" />
+        <div className="w-4 h-4 rounded bg-ai-accent/30 animate-pulse" />
+        <div className="w-24 h-4 rounded bg-ai-accent/30 animate-pulse" />
       </div>
       {Array.from({ length: lines }).map((_, i) => (
         <div
           key={i}
-          className="h-4 rounded bg-purple-100 animate-pulse"
+          className="h-4 rounded bg-ai-accent/20 animate-pulse"
           style={{
             width: SKELETON_WIDTHS[i % SKELETON_WIDTHS.length],
             animationDelay: `${i * 0.1}s`,

@@ -103,11 +103,11 @@ export default function RegisterPage() {
 
   if (confirmationSent) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4">
+      <div className="min-h-screen flex items-center justify-center bg-background px-4">
         <div className="w-full max-w-md">
           <div className="flex justify-center mb-8">
             <Link href="/" className="flex items-center gap-2">
-              <div className="w-10 h-10 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold text-lg">
+              <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold text-lg">
                 IA
               </div>
               <span className="font-semibold text-xl">Immigration AI</span>
@@ -116,8 +116,8 @@ export default function RegisterPage() {
 
           <Card>
             <CardHeader className="text-center">
-              <div className="mx-auto w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mb-4">
-                <Check className="text-green-600" size={24} />
+              <div className="mx-auto w-12 h-12 rounded-full bg-success/10 flex items-center justify-center mb-4">
+                <Check className="text-success" size={24} />
               </div>
               <CardTitle>Check your email</CardTitle>
               <CardDescription>
@@ -125,7 +125,7 @@ export default function RegisterPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="text-center">
-              <p className="text-sm text-slate-600 mb-4">
+              <p className="text-sm text-muted-foreground mb-4">
                 Click the link in the email to activate your account.
               </p>
               <Link href="/login">
@@ -141,12 +141,12 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4 py-8">
+    <div className="min-h-screen flex items-center justify-center bg-background px-4 py-8">
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="flex justify-center mb-8">
           <Link href="/" className="flex items-center gap-2">
-            <div className="w-10 h-10 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold text-lg">
+            <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold text-lg">
               IA
             </div>
             <span className="font-semibold text-xl">Immigration AI</span>
@@ -211,20 +211,20 @@ export default function RegisterPage() {
                     onBlur={() => setEmailTouched(true)}
                     required
                     disabled={isLoading}
-                    className={emailTouched && isEmailValid === false ? 'border-red-500 focus-visible:ring-red-500' : emailTouched && isEmailValid ? 'border-green-500 focus-visible:ring-green-500' : ''}
+                    className={emailTouched && isEmailValid === false ? 'border-destructive focus-visible:ring-destructive' : emailTouched && isEmailValid ? 'border-success focus-visible:ring-success' : ''}
                   />
                   {emailTouched && formData.email && (
                     <div className="absolute right-3 top-1/2 -translate-y-1/2">
                       {isEmailValid ? (
-                        <CheckCircle2 size={16} className="text-green-500" />
+                        <CheckCircle2 size={16} className="text-success" />
                       ) : (
-                        <AlertCircle size={16} className="text-red-500" />
+                        <AlertCircle size={16} className="text-destructive" />
                       )}
                     </div>
                   )}
                 </div>
                 {emailTouched && isEmailValid === false && (
-                  <p className="text-xs text-red-500">Please enter a valid email address</p>
+                  <p className="text-xs text-destructive">Please enter a valid email address</p>
                 )}
               </div>
 
@@ -232,7 +232,7 @@ export default function RegisterPage() {
                 <>
                   <div className="space-y-2">
                     <Label htmlFor="barNumber">
-                      Bar Number <span className="text-red-500">*</span>
+                      Bar Number <span className="text-destructive">*</span>
                     </Label>
                     <Input
                       id="barNumber"
@@ -242,7 +242,7 @@ export default function RegisterPage() {
                       required
                       disabled={isLoading}
                     />
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-muted-foreground">
                       Your state bar association number (e.g., CA123456 for California)
                     </p>
                   </div>
@@ -282,7 +282,7 @@ export default function RegisterPage() {
                     {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                   </Button>
                 </div>
-                <div className="text-xs text-slate-500 space-y-1 mt-2">
+                <div className="text-xs text-muted-foreground space-y-1 mt-2">
                   <PasswordRequirement met={passwordChecks.minLength} text="At least 8 characters" />
                   <PasswordRequirement met={passwordChecks.hasUppercase} text="One uppercase letter" />
                   <PasswordRequirement met={passwordChecks.hasNumber} text="One number" />
@@ -304,7 +304,7 @@ export default function RegisterPage() {
 
             <div className="relative my-6">
               <Separator />
-              <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white px-2 text-sm text-slate-500">
+              <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-2 text-sm text-muted-foreground">
                 or continue with
               </span>
             </div>
@@ -360,14 +360,14 @@ export default function RegisterPage() {
               </Button>
             </div>
 
-            <p className="text-center text-sm text-slate-600 mt-6">
+            <p className="text-center text-sm text-muted-foreground mt-6">
               Already have an account?{' '}
-              <Link href="/login" className="text-blue-600 hover:underline">
+              <Link href="/login" className="text-primary hover:underline">
                 Sign in
               </Link>
             </p>
 
-            <p className="text-center text-xs text-slate-500 mt-4">
+            <p className="text-center text-xs text-muted-foreground mt-4">
               By creating an account, you agree to our{' '}
               <Link href="/terms" className="underline">
                 Terms of Service
@@ -388,11 +388,11 @@ function PasswordRequirement({ met, text }: { met: boolean; text: string }) {
   return (
     <div className="flex items-center gap-2">
       {met ? (
-        <Check size={12} className="text-green-500" />
+        <Check size={12} className="text-success" />
       ) : (
-        <AlertCircle size={12} className="text-slate-300" />
+        <AlertCircle size={12} className="text-muted-foreground/50" />
       )}
-      <span className={met ? 'text-green-600' : 'text-slate-400'}>{text}</span>
+      <span className={met ? 'text-success' : 'text-muted-foreground/70'}>{text}</span>
     </div>
   );
 }

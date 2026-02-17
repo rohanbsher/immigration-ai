@@ -69,18 +69,18 @@ export default function NotFound() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4 py-12">
+    <div className="min-h-screen flex items-center justify-center bg-background px-4 py-12">
       <div className="w-full max-w-2xl">
         <Card>
           <CardHeader className="text-center pb-2">
-            <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-blue-100 flex items-center justify-center">
-              <FileQuestion className="h-10 w-10 text-blue-600" />
+            <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-primary/10 flex items-center justify-center">
+              <FileQuestion className="h-10 w-10 text-primary" />
             </div>
-            <p className="text-7xl font-bold text-slate-200 mb-2">404</p>
-            <CardTitle className="text-2xl text-slate-900">
+            <p className="text-7xl font-bold text-muted mb-2">404</p>
+            <CardTitle className="text-2xl text-foreground">
               Page Not Found
             </CardTitle>
-            <CardDescription className="text-slate-600">
+            <CardDescription className="text-muted-foreground">
               The page you are looking for does not exist or has been moved.
             </CardDescription>
           </CardHeader>
@@ -88,7 +88,7 @@ export default function NotFound() {
           <CardContent className="space-y-6">
             {/* Search Bar */}
             <form onSubmit={handleSearch} className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 type="text"
                 placeholder="Search for cases, documents, or clients..."
@@ -107,7 +107,7 @@ export default function NotFound() {
 
             {/* Suggested Pages */}
             <div>
-              <h3 className="text-sm font-medium text-slate-700 mb-3">
+              <h3 className="text-sm font-medium text-foreground mb-3">
                 Popular Pages
               </h3>
               <div className="grid gap-2">
@@ -115,16 +115,16 @@ export default function NotFound() {
                   <Link
                     key={page.href}
                     href={page.href}
-                    className="flex items-center gap-3 p-3 rounded-lg border border-slate-200 hover:border-blue-300 hover:bg-blue-50/50 transition-colors group"
+                    className="flex items-center gap-3 p-3 rounded-lg border border-border hover:border-primary/30 hover:bg-primary/5 transition-colors group"
                   >
-                    <div className="w-10 h-10 rounded-lg bg-slate-100 group-hover:bg-blue-100 flex items-center justify-center transition-colors">
-                      <page.icon className="h-5 w-5 text-slate-600 group-hover:text-blue-600 transition-colors" />
+                    <div className="w-10 h-10 rounded-lg bg-muted group-hover:bg-primary/10 flex items-center justify-center transition-colors">
+                      <page.icon className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-slate-900">{page.title}</p>
-                      <p className="text-xs text-slate-500 truncate">{page.description}</p>
+                      <p className="text-sm font-medium text-foreground">{page.title}</p>
+                      <p className="text-xs text-muted-foreground truncate">{page.description}</p>
                     </div>
-                    <ArrowRight className="h-4 w-4 text-slate-400 group-hover:text-blue-600 transition-colors" />
+                    <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
                   </Link>
                 ))}
               </div>
@@ -147,9 +147,9 @@ export default function NotFound() {
           </CardFooter>
         </Card>
 
-        <p className="text-center text-xs text-slate-500 mt-6">
+        <p className="text-center text-xs text-muted-foreground mt-6">
           If you believe this is an error, please{' '}
-          <a href="mailto:support@immigrationai.com" className="text-blue-600 hover:underline">
+          <a href="mailto:support@immigrationai.com" className="text-primary hover:underline">
             contact support
           </a>
         </p>

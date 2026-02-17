@@ -34,8 +34,8 @@ export const ChatMessage = memo(function ChatMessage({
         className={cn(
           'flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center',
           isUser
-            ? 'bg-slate-700 text-white'
-            : 'bg-purple-100 text-purple-600'
+            ? 'bg-foreground text-background'
+            : 'bg-ai-accent-muted text-ai-accent'
         )}
       >
         {isUser ? <User size={16} /> : <Sparkles size={16} />}
@@ -53,8 +53,8 @@ export const ChatMessage = memo(function ChatMessage({
           className={cn(
             'rounded-2xl px-4 py-2',
             isUser
-              ? 'bg-slate-700 text-white rounded-tr-sm'
-              : 'bg-white border border-slate-200 rounded-tl-sm',
+              ? 'bg-foreground text-background rounded-tr-sm'
+              : 'bg-card border border-border rounded-tl-sm',
             isStreaming && !isUser && 'animate-pulse'
           )}
         >
@@ -62,14 +62,14 @@ export const ChatMessage = memo(function ChatMessage({
           <div className="text-sm whitespace-pre-wrap break-words">
             {content || (isStreaming ? '...' : '')}
             {isStreaming && !isUser && (
-              <span className="inline-block w-1.5 h-4 ml-0.5 bg-purple-500 animate-blink" />
+              <span className="inline-block w-1.5 h-4 ml-0.5 bg-ai-accent animate-blink" />
             )}
           </div>
         </div>
 
         {/* Timestamp */}
         {timestamp && !isStreaming && (
-          <span className="text-xs text-slate-400 mt-1 px-1">
+          <span className="text-xs text-muted-foreground mt-1 px-1">
             {formatTime(timestamp)}
           </span>
         )}
@@ -88,7 +88,8 @@ function formatTime(timestamp: string): string {
       hour: '2-digit',
       minute: '2-digit',
     });
-  } catch {
+  } catch (error) {
+    console.warn('Failed to format timestamp:', error);
     return '';
   }
 }
@@ -99,14 +100,14 @@ function formatTime(timestamp: string): string {
 export function TypingIndicator() {
   return (
     <div className="flex gap-3 p-3">
-      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center">
+      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-ai-accent-muted text-ai-accent flex items-center justify-center">
         <Sparkles size={16} />
       </div>
-      <div className="bg-white border border-slate-200 rounded-2xl rounded-tl-sm px-4 py-3">
+      <div className="bg-card border border-border rounded-2xl rounded-tl-sm px-4 py-3">
         <div className="flex gap-1">
-          <span className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-          <span className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-          <span className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+          <span className="w-2 h-2 bg-ai-accent rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+          <span className="w-2 h-2 bg-ai-accent rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+          <span className="w-2 h-2 bg-ai-accent rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
         </div>
       </div>
     </div>

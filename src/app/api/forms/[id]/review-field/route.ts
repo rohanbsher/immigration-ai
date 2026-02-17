@@ -5,6 +5,7 @@ import { auditService } from '@/lib/audit';
 import { z } from 'zod';
 import { standardRateLimiter } from '@/lib/rate-limit';
 import { createLogger } from '@/lib/logger';
+import { safeParseBody } from '@/lib/auth/api-helpers';
 
 const log = createLogger('api:forms-review-field');
 
@@ -59,7 +60,9 @@ export async function POST(
       );
     }
 
-    const body = await request.json();
+    const parsed = await safeParseBody(request);
+    if (!parsed.success) return parsed.response;
+    const body = parsed.data;
     const { fieldName, acceptedValue, notes } = reviewFieldSchema.parse(body);
 
     // Get the AI-filled value for this field

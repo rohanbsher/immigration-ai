@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { z } from 'zod';
 import { createLogger } from '@/lib/logger';
 import { standardRateLimiter, sensitiveRateLimiter } from '@/lib/rate-limit';
+import { safeParseBody } from '@/lib/auth/api-helpers';
 
 const log = createLogger('api:document-request');
 
@@ -113,7 +114,9 @@ export async function PATCH(
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
 
-    const body = await request.json();
+    const parsed = await safeParseBody(request);
+    if (!parsed.success) return parsed.response;
+    const body = parsed.data;
     const validatedData = updateRequestSchema.parse(body);
 
     // Clients can only update status to 'uploaded' and set fulfilled_by_document_id

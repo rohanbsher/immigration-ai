@@ -71,12 +71,12 @@ function LoginForm() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="flex justify-center mb-8">
           <Link href="/" className="flex items-center gap-2">
-            <div className="w-10 h-10 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold text-lg">
+            <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold text-lg">
               IA
             </div>
             <span className="font-semibold text-xl">Immigration AI</span>
@@ -90,14 +90,14 @@ function LoginForm() {
           </CardHeader>
           <CardContent>
             {expired && (
-              <div className="mb-4 p-3 rounded-lg bg-amber-50 border border-amber-200 flex items-center gap-2 text-sm text-amber-700">
+              <div className="mb-4 p-3 rounded-lg bg-warning/10 border border-warning/30 flex items-center gap-2 text-sm text-warning-foreground">
                 <Clock size={16} />
                 Your session has expired. Please sign in again to continue.
               </div>
             )}
 
             {error && (
-              <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 flex items-center gap-2 text-sm text-red-700">
+              <div className="mb-4 p-3 rounded-lg bg-destructive/10 border border-destructive/20 flex items-center gap-2 text-sm text-destructive">
                 <AlertCircle size={16} />
                 {error === 'auth_callback_error'
                   ? 'Authentication failed. Please try again.'
@@ -106,14 +106,14 @@ function LoginForm() {
             )}
 
             {loginTimedOut && (
-              <div className="mb-4 p-3 rounded-lg bg-amber-50 border border-amber-200 flex items-center gap-2 text-sm text-amber-700">
+              <div className="mb-4 p-3 rounded-lg bg-warning/10 border border-warning/30 flex items-center gap-2 text-sm text-warning-foreground">
                 <Clock size={16} />
                 Login is taking longer than expected. Please check your connection and try again.
               </div>
             )}
 
             {loginError && (
-              <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 flex items-center gap-2 text-sm text-red-700">
+              <div className="mb-4 p-3 rounded-lg bg-destructive/10 border border-destructive/20 flex items-center gap-2 text-sm text-destructive">
                 <AlertCircle size={16} />
                 {loginError}
               </div>
@@ -132,20 +132,20 @@ function LoginForm() {
                     onBlur={() => setEmailTouched(true)}
                     required
                     disabled={isLoading}
-                    className={emailTouched && isEmailValid === false ? 'border-red-500 focus-visible:ring-red-500' : emailTouched && isEmailValid ? 'border-green-500 focus-visible:ring-green-500' : ''}
+                    className={emailTouched && isEmailValid === false ? 'border-destructive focus-visible:ring-destructive' : emailTouched && isEmailValid ? 'border-success focus-visible:ring-success' : ''}
                   />
                   {emailTouched && email && (
                     <div className="absolute right-3 top-1/2 -translate-y-1/2">
                       {isEmailValid ? (
-                        <CheckCircle2 size={16} className="text-green-500" />
+                        <CheckCircle2 size={16} className="text-success" />
                       ) : (
-                        <AlertCircle size={16} className="text-red-500" />
+                        <AlertCircle size={16} className="text-destructive" />
                       )}
                     </div>
                   )}
                 </div>
                 {emailTouched && isEmailValid === false && (
-                  <p className="text-xs text-red-500">Please enter a valid email address</p>
+                  <p className="text-xs text-destructive">Please enter a valid email address</p>
                 )}
               </div>
 
@@ -154,7 +154,7 @@ function LoginForm() {
                   <Label htmlFor="password">Password</Label>
                   <Link
                     href="/forgot-password"
-                    className="text-sm text-blue-600 hover:underline"
+                    className="text-sm text-primary hover:underline"
                   >
                     Forgot password?
                   </Link>
@@ -191,7 +191,7 @@ function LoginForm() {
                 />
                 <Label
                   htmlFor="rememberMe"
-                  className="text-sm font-normal cursor-pointer text-slate-600"
+                  className="text-sm font-normal cursor-pointer text-muted-foreground"
                 >
                   Remember me for 30 days
                 </Label>
@@ -211,7 +211,7 @@ function LoginForm() {
 
             <div className="relative my-6">
               <Separator />
-              <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white px-2 text-sm text-slate-500">
+              <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-2 text-sm text-muted-foreground">
                 or continue with
               </span>
             </div>
@@ -267,9 +267,9 @@ function LoginForm() {
               </Button>
             </div>
 
-            <p className="text-center text-sm text-slate-600 mt-6">
+            <p className="text-center text-sm text-muted-foreground mt-6">
               Don&apos;t have an account?{' '}
-              <Link href="/register" className="text-blue-600 hover:underline">
+              <Link href="/register" className="text-primary hover:underline">
                 Sign up
               </Link>
             </p>
@@ -283,8 +283,8 @@ function LoginForm() {
 export default function LoginPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     }>
       <LoginForm />

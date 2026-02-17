@@ -13,6 +13,7 @@ import { canManageMembers } from '@/types/firms';
 import { createLogger } from '@/lib/logger';
 import { sendTeamInvitationEmail } from '@/lib/email/notifications';
 import { getFirmById } from '@/lib/db/firms';
+import { safeParseBody } from '@/lib/auth/api-helpers';
 
 const log = createLogger('api:firms-invitations');
 
@@ -90,7 +91,9 @@ export async function POST(request: NextRequest, { params }: Params) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const body = await request.json();
+    const parsed = await safeParseBody(request);
+    if (!parsed.success) return parsed.response;
+    const body = parsed.data;
     const validation = createInvitationSchema.safeParse(body);
 
     if (!validation.success) {
@@ -179,7 +182,9 @@ export async function DELETE(request: NextRequest, { params }: Params) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const body = await request.json();
+    const parsed = await safeParseBody(request);
+    if (!parsed.success) return parsed.response;
+    const body = parsed.data;
     const validation = revokeInvitationSchema.safeParse(body);
 
     if (!validation.success) {

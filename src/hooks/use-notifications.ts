@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchWithTimeout } from '@/lib/api/fetch-with-timeout';
+import { parseApiResponse, parseApiVoidResponse } from '@/lib/api/parse-response';
 
 type NotificationType = 'info' | 'warning' | 'success' | 'error';
 
@@ -21,11 +22,7 @@ async function fetchNotifications(unreadOnly: boolean = false): Promise<Notifica
   if (unreadOnly) params.set('unread', 'true');
 
   const response = await fetchWithTimeout(`/api/notifications?${params.toString()}`);
-  if (!response.ok) {
-    throw new Error('Failed to fetch notifications');
-  }
-  const result = await response.json();
-  const data = result.data ?? result;
+  const data = await parseApiResponse<Notification[]>(response);
   return Array.isArray(data) ? data : [];
 }
 
@@ -33,10 +30,7 @@ async function fetchUnreadCount(): Promise<number> {
   const response = await fetchWithTimeout('/api/notifications/count', {
     timeout: 'QUICK',
   });
-  if (!response.ok) {
-    throw new Error('Failed to fetch unread count');
-  }
-  const data = await response.json();
+  const data = await parseApiResponse<{ count: number }>(response);
   return data.count;
 }
 
@@ -46,35 +40,30 @@ async function markAsRead(id: string): Promise<void> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ read: true }),
   });
-  if (!response.ok) {
-    throw new Error('Failed to mark notification as read');
-  }
+  await parseApiVoidResponse(response);
 }
 
 async function markAllAsRead(): Promise<void> {
   const response = await fetchWithTimeout('/api/notifications/mark-all-read', {
     method: 'POST',
   });
-  if (!response.ok) {
-    throw new Error('Failed to mark all notifications as read');
-  }
+  await parseApiVoidResponse(response);
 }
 
 async function deleteNotification(id: string): Promise<void> {
   const response = await fetchWithTimeout(`/api/notifications/${id}`, {
     method: 'DELETE',
   });
-  if (!response.ok) {
-    throw new Error('Failed to delete notification');
-  }
+  await parseApiVoidResponse(response);
 }
 
 export function useNotifications(unreadOnly: boolean = false) {
   return useQuery({
     queryKey: ['notifications', unreadOnly],
     queryFn: () => fetchNotifications(unreadOnly),
-    refetchInterval: 30000, // Refresh every 30 seconds
-    refetchIntervalInBackground: false, // Pause when tab is inactive
+    staleTime: 30 * 1000, // 30 seconds — time-sensitive but not instant
+    refetchInterval: 30000,
+    refetchIntervalInBackground: false,
   });
 }
 
@@ -82,8 +71,9 @@ export function useUnreadCount() {
   return useQuery({
     queryKey: ['notificationsCount'],
     queryFn: fetchUnreadCount,
+    staleTime: 15 * 1000, // 15 seconds — badge should be fairly current
     refetchInterval: 30000,
-    refetchIntervalInBackground: false, // Pause when tab is inactive
+    refetchIntervalInBackground: false,
   });
 }
 

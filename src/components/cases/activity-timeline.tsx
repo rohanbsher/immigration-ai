@@ -22,17 +22,17 @@ const activityTypeConfig: Record<
   ActivityType,
   { icon: React.ElementType; color: string }
 > = {
-  case_created: { icon: FolderPlus, color: 'text-green-600 bg-green-100' },
-  case_updated: { icon: FileEdit, color: 'text-blue-600 bg-blue-100' },
-  status_changed: { icon: ArrowRightLeft, color: 'text-orange-600 bg-orange-100' },
-  document_uploaded: { icon: Upload, color: 'text-purple-600 bg-purple-100' },
-  document_analyzed: { icon: Brain, color: 'text-indigo-600 bg-indigo-100' },
-  document_verified: { icon: CheckCircle2, color: 'text-green-600 bg-green-100' },
-  form_created: { icon: FilePlus, color: 'text-blue-600 bg-blue-100' },
-  form_ai_filled: { icon: Bot, color: 'text-purple-600 bg-purple-100' },
-  form_reviewed: { icon: ClipboardCheck, color: 'text-teal-600 bg-teal-100' },
-  form_filed: { icon: Send, color: 'text-green-600 bg-green-100' },
-  note_added: { icon: FileEdit, color: 'text-slate-600 bg-slate-100' },
+  case_created: { icon: FolderPlus, color: 'text-success bg-success/10' },
+  case_updated: { icon: FileEdit, color: 'text-info bg-info/10' },
+  status_changed: { icon: ArrowRightLeft, color: 'text-warning bg-warning/10' },
+  document_uploaded: { icon: Upload, color: 'text-primary bg-primary/10' },
+  document_analyzed: { icon: Brain, color: 'text-ai-accent bg-ai-accent-muted' },
+  document_verified: { icon: CheckCircle2, color: 'text-success bg-success/10' },
+  form_created: { icon: FilePlus, color: 'text-info bg-info/10' },
+  form_ai_filled: { icon: Bot, color: 'text-ai-accent bg-ai-accent-muted' },
+  form_reviewed: { icon: ClipboardCheck, color: 'text-success bg-success/10' },
+  form_filed: { icon: Send, color: 'text-success bg-success/10' },
+  note_added: { icon: FileEdit, color: 'text-muted-foreground bg-muted' },
 };
 
 function formatRelativeTime(dateString: string): string {
@@ -53,7 +53,7 @@ function formatRelativeTime(dateString: string): string {
 function ActivityItem({ activity }: { activity: ActivityWithUser }) {
   const config = activityTypeConfig[activity.activity_type] || {
     icon: FileEdit,
-    color: 'text-slate-600 bg-slate-100',
+    color: 'text-muted-foreground bg-muted',
   };
   const Icon = config.icon;
   const userName = `${activity.user.first_name} ${activity.user.last_name}`.trim();
@@ -64,21 +64,21 @@ function ActivityItem({ activity }: { activity: ActivityWithUser }) {
         <div className={`rounded-full p-2 ${config.color}`}>
           <Icon size={14} />
         </div>
-        <div className="w-px flex-1 bg-slate-200 mt-2" />
+        <div className="w-px flex-1 bg-border mt-2" />
       </div>
       <div className="flex-1 pb-6">
         <div className="flex items-center gap-2 mb-1">
           <Avatar className="h-5 w-5">
             <AvatarImage src={activity.user.avatar_url || undefined} />
-            <AvatarFallback className="text-[10px] bg-slate-100">
+            <AvatarFallback className="text-[10px] bg-muted">
               {activity.user.first_name?.charAt(0)}
               {activity.user.last_name?.charAt(0)}
             </AvatarFallback>
           </Avatar>
-          <span className="text-sm font-medium text-slate-900">{userName}</span>
-          <span className="text-xs text-slate-400">{formatRelativeTime(activity.created_at)}</span>
+          <span className="text-sm font-medium text-foreground">{userName}</span>
+          <span className="text-xs text-muted-foreground">{formatRelativeTime(activity.created_at)}</span>
         </div>
-        <p className="text-sm text-slate-600">{activity.description}</p>
+        <p className="text-sm text-muted-foreground">{activity.description}</p>
       </div>
     </div>
   );
@@ -95,10 +95,10 @@ export function ActivityTimeline({ caseId }: { caseId: string }) {
       <CardContent>
         {isLoading ? (
           <div className="flex justify-center py-8">
-            <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+            <Loader2 className="h-6 w-6 animate-spin text-primary" />
           </div>
         ) : error ? (
-          <p className="text-slate-500 text-center py-8">Failed to load activities.</p>
+          <p className="text-muted-foreground text-center py-8">Failed to load activities.</p>
         ) : activities && activities.length > 0 ? (
           <div className="space-y-0">
             {activities.map((activity, index) => (
@@ -109,7 +109,7 @@ export function ActivityTimeline({ caseId }: { caseId: string }) {
                       <div
                         className={`rounded-full p-2 ${
                           (activityTypeConfig[activity.activity_type] || {
-                            color: 'text-slate-600 bg-slate-100',
+                            color: 'text-muted-foreground bg-muted',
                           }).color
                         }`}
                       >
@@ -125,19 +125,19 @@ export function ActivityTimeline({ caseId }: { caseId: string }) {
                       <div className="flex items-center gap-2 mb-1">
                         <Avatar className="h-5 w-5">
                           <AvatarImage src={activity.user.avatar_url || undefined} />
-                          <AvatarFallback className="text-[10px] bg-slate-100">
+                          <AvatarFallback className="text-[10px] bg-muted">
                             {activity.user.first_name?.charAt(0)}
                             {activity.user.last_name?.charAt(0)}
                           </AvatarFallback>
                         </Avatar>
-                        <span className="text-sm font-medium text-slate-900">
+                        <span className="text-sm font-medium text-foreground">
                           {`${activity.user.first_name} ${activity.user.last_name}`.trim()}
                         </span>
-                        <span className="text-xs text-slate-400">
+                        <span className="text-xs text-muted-foreground">
                           {formatRelativeTime(activity.created_at)}
                         </span>
                       </div>
-                      <p className="text-sm text-slate-600">{activity.description}</p>
+                      <p className="text-sm text-muted-foreground">{activity.description}</p>
                     </div>
                   </div>
                 ) : (
@@ -147,7 +147,7 @@ export function ActivityTimeline({ caseId }: { caseId: string }) {
             ))}
           </div>
         ) : (
-          <p className="text-slate-500 text-center py-8">No activity recorded yet.</p>
+          <p className="text-muted-foreground text-center py-8">No activity recorded yet.</p>
         )}
       </CardContent>
     </Card>

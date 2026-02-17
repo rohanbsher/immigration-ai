@@ -604,12 +604,13 @@ describe('Database Services', () => {
           { status: 'in_review' },
         ];
 
-        const profileQueryBuilder = createMockQueryBuilder([mockProfile]);
+        // Authorization check queries cases first (with attorney_id filter), then profiles
         const casesQueryBuilder = createMockQueryBuilder(mockCases);
+        const profileQueryBuilder = createMockQueryBuilder([mockProfile]);
 
         mockSupabase.from
-          .mockReturnValueOnce(profileQueryBuilder)
-          .mockReturnValueOnce(casesQueryBuilder);
+          .mockReturnValueOnce(casesQueryBuilder)
+          .mockReturnValueOnce(profileQueryBuilder);
 
         const result = await clientsService.getClientById('client-123');
 
@@ -618,13 +619,10 @@ describe('Database Services', () => {
         expect(result?.active_cases_count).toBe(2);
       });
 
-      it('should return null when client not found', async () => {
-        const queryBuilder = createMockQueryBuilder([]);
-        queryBuilder.single = vi.fn().mockResolvedValue({
-          data: null,
-          error: { message: 'Not found' },
-        });
-        mockSupabase.from.mockReturnValue(queryBuilder);
+      it('should return null when client has no cases linked to attorney', async () => {
+        // No cases link this client to the requesting attorney
+        const casesQueryBuilder = createMockQueryBuilder([]);
+        mockSupabase.from.mockReturnValueOnce(casesQueryBuilder);
 
         const result = await clientsService.getClientById('non-existent');
 

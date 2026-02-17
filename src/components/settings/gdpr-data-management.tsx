@@ -85,7 +85,8 @@ export function GdprDataManagement() {
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        // Delay revokeObjectURL to ensure browser has fetched the blob (Safari)
+        setTimeout(() => URL.revokeObjectURL(url), 500);
       },
       onError: (error) => {
         toast.error(error.message);

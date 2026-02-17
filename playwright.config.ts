@@ -115,7 +115,7 @@ export default defineConfig({
         ...devices['Desktop Chrome'],
         storageState: 'tests/e2e/.auth/attorney.json',
       },
-      testMatch: /visual\/.*\.spec\.ts/,
+      testMatch: /visual\/authenticated\.spec\.ts/,
       dependencies: ['auth-setup'],
     },
 
@@ -135,7 +135,7 @@ export default defineConfig({
           }],
         },
       },
-      testMatch: /visual\/.*\.spec\.ts/,
+      testMatch: /visual\/unauthenticated\.spec\.ts/,
       dependencies: ['auth-setup'],
     },
   ],

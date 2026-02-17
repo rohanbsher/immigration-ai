@@ -41,10 +41,12 @@ export function ChatButton({ className }: ChatButtonProps) {
         <MessageSquare
           size={24}
           className="transition-transform group-hover:scale-110"
+          aria-hidden="true"
         />
         <Sparkles
           size={12}
           className="absolute -top-1 -right-1 text-warning"
+          aria-hidden="true"
         />
       </div>
 
@@ -90,7 +92,7 @@ export function CaseChatButton({
         className
       )}
     >
-      <Sparkles size={14} />
+      <Sparkles size={14} aria-hidden="true" />
       Ask AI
     </button>
   );

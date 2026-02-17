@@ -65,10 +65,10 @@ describe('useConsent', () => {
     expect(result.current.analyticsConsented).toBeNull();
   });
 
-  test('consentLoaded is true after mount', () => {
-    // useSyncExternalStore returns the client snapshot (true) in jsdom.
-    // Server snapshot (false) is only used during SSR.
+  test('consentLoaded is true after mount', async () => {
+    // consentLoaded starts false (SSR) and becomes true after useEffect runs
     const { result } = renderHook(() => useConsent());
+    // After render + useEffect, consentLoaded should be true
     expect(result.current.consentLoaded).toBe(true);
   });
 });

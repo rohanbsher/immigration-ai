@@ -150,12 +150,12 @@ Start dev server and check logs for Redis connection:
 npm run dev
 ```
 
-In another terminal, hit a rate-limited endpoint:
+In another terminal, hit a rate-limited endpoint rapidly to trigger a 429:
 ```bash
-curl -X POST http://localhost:3000/api/auth/login -H "Content-Type: application/json" -d '{"email":"test@test.com","password":"wrong"}' -v 2>&1 | grep -i "x-ratelimit"
+for i in $(seq 1 15); do curl -s -o /dev/null -w "%{http_code}\n" -X POST http://localhost:3000/api/auth/login -H "Content-Type: application/json" -d '{"email":"test@test.com","password":"wrong"}'; done
 ```
 
-Expected: `x-ratelimit-limit` and `x-ratelimit-remaining` headers present.
+Expected: First several requests return `401` (wrong creds), then `429` (rate limited). The `429` response includes `X-RateLimit-*` headers. If all requests return `401`, Redis may not be connected — check dev server logs for Redis connection errors.
 
 **Step 3: Run tests**
 
@@ -171,7 +171,7 @@ Expected: All pass (rate limit tests mock Redis).
 git commit -m "chore: configure Upstash Redis for distributed rate limiting"
 ```
 
-Note: `.env.local` is gitignored. This commit is only for any code changes needed.
+Note: `.env.local` is gitignored. If no code changes were needed (Redis is already auto-detected), skip this commit.
 
 ---
 
@@ -198,7 +198,7 @@ SENTRY_PROJECT=immigration-ai
 npm run build
 ```
 
-Expected: Build succeeds, Sentry sourcemap upload step appears in output.
+Expected: Build succeeds with no Sentry-related errors. Note: `silent: true` in `next.config.ts` suppresses sourcemap upload output. Verify Sentry is active by checking the Sentry dashboard for a test event (Step 3).
 
 **Step 3: Verify error capture**
 
@@ -231,7 +231,8 @@ Expected: All pass.
 
 ```
 RESEND_API_KEY=re_your_api_key
-RESEND_FROM_EMAIL=noreply@yourdomain.com
+EMAIL_FROM=Immigration AI <noreply@yourdomain.com>
+EMAIL_REPLY_TO=support@yourdomain.com
 ```
 
 **Step 2: Verify email client connects**
@@ -288,7 +289,7 @@ In Stripe dashboard, create:
 
 **Step 3: Write failing test for MRR calculation**
 
-Create or update test file for admin stats. The test should verify MRR is calculated from active subscriptions, not hardcoded to 0.
+Create a new test file `src/app/api/admin/stats/route.test.ts`. The test should verify MRR is calculated from active subscriptions, not hardcoded to 0.
 
 **Step 4: Fix hardcoded MRR**
 
@@ -310,15 +311,16 @@ if (stripe) {
       status: 'active',
       limit: 100,
     });
+    // NOTE: unit_amount is in cents. Keep mrr in cents to match
+    // the dashboard display which divides by 100: `(stats?.mrr || 0) / 100`
     mrr = activeSubscriptions.data.reduce((sum, sub) => {
       const item = sub.items.data[0];
       if (!item?.price?.unit_amount) return sum;
       // Normalize to monthly: yearly prices / 12
       const interval = item.price.recurring?.interval;
-      const amount = item.price.unit_amount / 100;
-      return sum + (interval === 'year' ? amount / 12 : amount);
+      const amount = item.price.unit_amount; // keep in cents
+      return sum + (interval === 'year' ? Math.round(amount / 12) : amount);
     }, 0);
-    mrr = Math.round(mrr * 100) / 100;
   } catch (error) {
     log.logError('Failed to calculate MRR from Stripe', error);
   }
@@ -391,7 +393,7 @@ describe('GET /api/tasks/[id]/comments', () => {
     const mockComments = [
       { id: '1', task_id: 'task-1', content: 'Test comment', user: { id: 'u1', first_name: 'Test', last_name: 'User' } }
     ];
-    vi.mocked(tasksService.getComments).mockResolvedValue(mockComments as any);
+    vi.spyOn(tasksService, 'getComments').mockResolvedValue(mockComments as any);
 
     const request = new Request('http://localhost/api/tasks/task-1/comments');
     const response = await GET(request as any, { params: Promise.resolve({ id: 'task-1' }) } as any);
@@ -405,7 +407,7 @@ describe('GET /api/tasks/[id]/comments', () => {
 describe('POST /api/tasks/[id]/comments', () => {
   it('creates a comment', async () => {
     const mockComment = { id: '2', task_id: 'task-1', content: 'New comment' };
-    vi.mocked(tasksService.addComment).mockResolvedValue(mockComment as any);
+    vi.spyOn(tasksService, 'addComment').mockResolvedValue(mockComment as any);
 
     const request = new Request('http://localhost/api/tasks/task-1/comments', {
       method: 'POST',
@@ -585,35 +587,30 @@ Add to `src/app/api/profile/ai-consent/route.ts`:
  * GET /api/profile/ai-consent
  * Check AI consent status for the authenticated user.
  */
-export async function GET(_request: NextRequest) {
+export const GET = withAuth(async (_request, _context, auth) => {
   try {
     const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
 
     const { data: profile, error } = await supabase
       .from('profiles')
       .select('ai_consent_granted_at')
-      .eq('id', user.id)
+      .eq('id', auth.user.id)
       .single();
 
     if (error) {
       log.logError('Failed to check AI consent', error);
-      return NextResponse.json({ error: 'Failed to check consent' }, { status: 500 });
+      return errorResponse('Failed to check consent', 500);
     }
 
-    return NextResponse.json({
+    return successResponse({
       consented: !!profile?.ai_consent_granted_at,
       consentedAt: profile?.ai_consent_granted_at || null,
     });
   } catch (error) {
     log.logError('Error checking AI consent', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return errorResponse('Internal server error', 500);
   }
-}
+});
 ```
 
 **Step 4: Run test to verify it passes**

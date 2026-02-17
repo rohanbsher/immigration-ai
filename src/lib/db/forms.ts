@@ -64,12 +64,17 @@ class FormsService extends BaseService {
   /** Encrypt sensitive fields in form_data and ai_filled_data before storage */
   private encryptFormPayload(data: Record<string, unknown>): Record<string, unknown> {
     const result = { ...data };
+    let encrypted = false;
     if (result.form_data && typeof result.form_data === 'object') {
       result.form_data = encryptSensitiveFields(result.form_data as Record<string, unknown>);
-      result.form_data_encrypted = true;
+      encrypted = true;
     }
     if (result.ai_filled_data && typeof result.ai_filled_data === 'object') {
       result.ai_filled_data = encryptSensitiveFields(result.ai_filled_data as Record<string, unknown>);
+      encrypted = true;
+    }
+    if (encrypted) {
+      result.form_data_encrypted = true;
     }
     return result;
   }

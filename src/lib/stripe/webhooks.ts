@@ -232,7 +232,9 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription, even
     .from('subscriptions')
     .update({
       status: 'canceled',
-      canceled_at: new Date().toISOString(),
+      canceled_at: subscription.canceled_at
+        ? new Date(subscription.canceled_at * 1000).toISOString()
+        : new Date().toISOString(),
     })
     .eq('stripe_subscription_id', subscription.id);
 

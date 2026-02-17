@@ -168,6 +168,25 @@ class ClientsService extends BaseService {
     return this.withErrorHandling(async () => {
       const supabase = await this.getSupabaseClient();
 
+      // Authorization: verify the requesting user has a relationship to this client
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('Unauthorized');
+      }
+
+      // Check that the client has cases belonging to the current attorney
+      const { data: cases } = await supabase
+        .from('cases')
+        .select('status')
+        .eq('client_id', id)
+        .eq('attorney_id', user.id)
+        .is('deleted_at', null);
+
+      // If no cases link this client to the attorney, deny access
+      if (!cases || cases.length === 0) {
+        return null;
+      }
+
       const { data: client, error } = await supabase
         .from('profiles')
         .select('*')
@@ -178,18 +197,11 @@ class ClientsService extends BaseService {
         return null;
       }
 
-      // Get case counts
-      const { data: cases } = await supabase
-        .from('cases')
-        .select('status')
-        .eq('client_id', id)
-        .is('deleted_at', null);
-
-      const activeCases = (cases || []).filter((c) => isCaseActive(c.status)).length;
+      const activeCases = cases.filter((c) => isCaseActive(c.status)).length;
 
       return {
         ...client,
-        cases_count: cases?.length || 0,
+        cases_count: cases.length,
         active_cases_count: activeCases,
       };
     }, 'getClient', { clientId: id });
@@ -218,6 +230,25 @@ class ClientsService extends BaseService {
     return this.withErrorHandling(async () => {
       const supabase = await this.getSupabaseClient();
 
+      // Authorization: verify the requesting user has a relationship to this client
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('Unauthorized');
+      }
+
+      // Check that the client has cases belonging to the current attorney
+      const { data: linkedCases } = await supabase
+        .from('cases')
+        .select('id')
+        .eq('client_id', id)
+        .eq('attorney_id', user.id)
+        .is('deleted_at', null)
+        .limit(1);
+
+      if (!linkedCases || linkedCases.length === 0) {
+        throw new Error('Unauthorized: no relationship to this client');
+      }
+
       const { data: updated, error } = await supabase
         .from('profiles')
         .update(data)
@@ -237,18 +268,9 @@ class ClientsService extends BaseService {
     return this.withErrorHandling(async () => {
       const admin = getAdminClient();
 
-      // Check for duplicate email
-      const { data: existing } = await admin
-        .from('profiles')
-        .select('id')
-        .eq('email', data.email)
-        .maybeSingle();
-
-      if (existing) {
-        throw new Error('A user with this email already exists');
-      }
-
-      // Create the auth user — the handle_new_user() DB trigger auto-creates the profile
+      // Create the auth user — the handle_new_user() DB trigger auto-creates the profile.
+      // Supabase auth enforces email uniqueness atomically, so we rely on that
+      // instead of a separate SELECT check (which has a TOCTOU race condition).
       const { data: authData, error: authError } = await admin.auth.admin.createUser({
         email: data.email,
         email_confirm: true,
@@ -260,6 +282,11 @@ class ClientsService extends BaseService {
       });
 
       if (authError) {
+        // Supabase returns a specific error for duplicate emails
+        if (authError.message?.includes('already been registered') ||
+            authError.message?.includes('already exists')) {
+          throw new Error('A user with this email already exists');
+        }
         throw authError;
       }
 

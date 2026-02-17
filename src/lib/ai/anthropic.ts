@@ -237,6 +237,12 @@ export async function analyzeDataConsistency(
     recommendation: string;
   }>;
 }> {
+  // Filter PII before sending to external AI API
+  const safeDocuments = documents.map((doc) => ({
+    ...doc,
+    extractedFields: filterPiiFromExtractedData(doc.extractedFields),
+  }));
+
   const message = await withRetry(
     () => getAnthropicClient().messages.create({
       model: 'claude-sonnet-4-20250514',
@@ -247,7 +253,7 @@ export async function analyzeDataConsistency(
           role: 'user',
           content: `Analyze these documents for data consistency:
 
-${JSON.stringify(documents, null, 2)}
+${JSON.stringify(safeDocuments, null, 2)}
 
 Compare common fields across documents (name, date of birth, addresses, etc.) and identify any discrepancies.
 

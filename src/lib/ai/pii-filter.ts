@@ -38,16 +38,22 @@ export function filterPiiFromExtractedData(
  *
  * Keys matching sensitive field patterns have their values replaced
  * with `[REDACTED:key]`. Non-sensitive entries pass through unchanged.
+ * Nested objects are recursed into; non-string primitives pass through.
  */
 export function filterPiiFromRecord(
-  record: Record<string, string>
-): Record<string, string> {
-  const filtered: Record<string, string> = {};
+  record: Record<string, unknown>
+): Record<string, unknown> {
+  const filtered: Record<string, unknown> = {};
 
   for (const [key, value] of Object.entries(record)) {
-    filtered[key] = isSensitiveField(key)
-      ? redactedPlaceholder(key)
-      : value;
+    if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+      // Recurse into nested objects
+      filtered[key] = filterPiiFromRecord(value as Record<string, unknown>);
+    } else if (typeof value === 'string' && isSensitiveField(key)) {
+      filtered[key] = redactedPlaceholder(key);
+    } else {
+      filtered[key] = value;
+    }
   }
 
   return filtered;

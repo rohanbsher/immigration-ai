@@ -140,7 +140,7 @@ src/lib/sentry/ utilities work. Run build + tests. Output
 **What:** Enable email notifications for key events.
 
 **Steps:**
-1. Set `RESEND_API_KEY` in env
+1. Set `RESEND_API_KEY`, `EMAIL_FROM`, and `EMAIL_REPLY_TO` in env
 2. Verify email templates in `src/lib/email/` render correctly
 3. Test: register a user, verify welcome email arrives
 4. Test: trigger deadline reminder cron, verify email sends

@@ -81,6 +81,13 @@ export function useFormAutoSave({
     enabledRef.current = enabled;
   }, [enabled]);
 
+  // Reset state when formId changes (useState initializer only runs on mount)
+  useEffect(() => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    const existing = readDraft(formId);
+    setLastSavedAt(existing?.savedAt ?? null);
+  }, [formId]);
+
   // Clean up timer on unmount
   useEffect(() => {
     return () => {

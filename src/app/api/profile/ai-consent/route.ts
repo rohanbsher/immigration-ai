@@ -6,6 +6,43 @@ import { createLogger } from '@/lib/logger';
 const log = createLogger('api:ai-consent');
 
 /**
+ * GET /api/profile/ai-consent
+ * Check AI consent status for the authenticated user.
+ */
+export async function GET(_request: NextRequest) {
+  try {
+    const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .select('ai_consent_granted_at')
+      .eq('id', user.id)
+      .single();
+
+    if (error) {
+      log.logError('Failed to check AI consent', error);
+      return NextResponse.json({ error: 'Failed to check consent' }, { status: 500 });
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        consented: !!profile?.ai_consent_granted_at,
+        consentedAt: profile?.ai_consent_granted_at || null,
+      },
+    });
+  } catch (error) {
+    log.logError('Error checking AI consent', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
+/**
  * POST /api/profile/ai-consent
  * Grant AI consent — sets ai_consent_granted_at on the caller's profile.
  */

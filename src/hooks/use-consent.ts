@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useSyncExternalStore } from 'react';
 
 const CONSENT_KEY = 'immigration-ai-consent';
 
@@ -40,9 +40,7 @@ function writeConsent(analytics: boolean): void {
 
 export function useConsent(): UseConsentReturn {
   const [analyticsConsented, setAnalyticsConsented] = useState<boolean | null>(readConsent);
-  const [consentLoaded, setConsentLoaded] = useState(false);
-
-  useEffect(() => { setConsentLoaded(true); }, []);
+  const consentLoaded = useSyncExternalStore(() => () => {}, () => true, () => false);
 
   const acceptAll = useCallback(() => {
     writeConsent(true);

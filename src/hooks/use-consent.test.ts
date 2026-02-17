@@ -66,9 +66,8 @@ describe('useConsent', () => {
   });
 
   test('consentLoaded is true after mount', () => {
-    // Note: jsdom runs useEffect synchronously so we can't observe the
-    // initial false state here. The hydration fix (useState(false) + useEffect)
-    // is verified by the build — not by this unit test.
+    // useSyncExternalStore returns the client snapshot (true) in jsdom.
+    // Server snapshot (false) is only used during SSR.
     const { result } = renderHook(() => useConsent());
     expect(result.current.consentLoaded).toBe(true);
   });

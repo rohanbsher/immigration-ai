@@ -11,7 +11,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Eye, EyeOff, Loader2, AlertCircle, CheckCircle2, Clock } from 'lucide-react';
-import { toast } from 'sonner';
 
 /** Login timeout in milliseconds (15 seconds) */
 const LOGIN_TIMEOUT_MS = 15_000;
@@ -24,6 +23,7 @@ function LoginForm() {
   const [oauthLoading, setOauthLoading] = useState<'google' | 'azure' | null>(null);
   const [emailTouched, setEmailTouched] = useState(false);
   const [loginTimedOut, setLoginTimedOut] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { signIn, signInWithOAuth, isLoading } = useAuth();
   const searchParams = useSearchParams();
@@ -40,6 +40,7 @@ function LoginForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginTimedOut(false);
+    setLoginError(null);
     setIsSubmitting(true);
 
     const timeoutId = setTimeout(() => {
@@ -50,20 +51,20 @@ function LoginForm() {
     try {
       await signIn({ email, password, returnUrl: returnUrl || undefined });
       clearTimeout(timeoutId);
-      toast.success('Welcome back!');
     } catch (err) {
       clearTimeout(timeoutId);
       setIsSubmitting(false);
-      toast.error(err instanceof Error ? err.message : 'Login failed');
+      setLoginError(err instanceof Error ? err.message : 'Login failed');
     }
   };
 
   const handleOAuthLogin = async (provider: 'google' | 'azure') => {
     setOauthLoading(provider);
+    setLoginError(null);
     try {
       await signInWithOAuth(provider);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'OAuth login failed');
+      setLoginError(err instanceof Error ? err.message : 'OAuth login failed');
     } finally {
       setOauthLoading(null);
     }
@@ -108,6 +109,13 @@ function LoginForm() {
               <div className="mb-4 p-3 rounded-lg bg-amber-50 border border-amber-200 flex items-center gap-2 text-sm text-amber-700">
                 <Clock size={16} />
                 Login is taking longer than expected. Please check your connection and try again.
+              </div>
+            )}
+
+            {loginError && (
+              <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 flex items-center gap-2 text-sm text-red-700">
+                <AlertCircle size={16} />
+                {loginError}
               </div>
             )}
 

@@ -36,7 +36,7 @@
     },
     {
       "path": "/api/cron/cleanup",
-      "schedule": "*/15 * * * *"
+      "schedule": "0 0 * * *"
     }
   ],
   "headers": [

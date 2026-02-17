@@ -57,6 +57,10 @@ vi.mock('@/lib/logger', () => ({
   }),
 }));
 
+vi.mock('@/lib/stripe/client', () => ({
+  getStripeClient: vi.fn(),
+}));
+
 // Import route handlers after mocking
 import { GET as usersListHandler } from './users/route';
 import { GET as userDetailHandler } from './users/[id]/route';
@@ -68,6 +72,7 @@ import { serverAuth } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { getAdminClient } from '@/lib/supabase/admin';
 import { rateLimit } from '@/lib/rate-limit';
+import { getStripeClient } from '@/lib/stripe/client';
 
 // Helper to create mock NextRequest
 function createRequest(
@@ -124,6 +129,9 @@ describe('Admin API Routes', () => {
       from: mockFrom,
       auth: { getUser: vi.fn() },
     } as never);
+
+    // Default: Stripe not configured (returns null)
+    vi.mocked(getStripeClient).mockReturnValue(null);
 
     // Default admin client mock
     mockAdminClient = {
@@ -792,6 +800,239 @@ describe('Admin API Routes', () => {
       expect(json.data).toHaveProperty('activeSubscriptions');
       expect(json.data).toHaveProperty('mrr');
       expect(json.data).toHaveProperty('mrrGrowth');
+    });
+
+    it('returns mrr: 0 when Stripe is not configured', async () => {
+      // Stripe returns null (not configured)
+      vi.mocked(getStripeClient).mockReturnValue(null);
+
+      mockFrom.mockImplementation((table: string) => {
+        const baseSelect = vi.fn();
+        if (table === 'profiles') {
+          baseSelect.mockReturnValue({
+            gte: vi.fn().mockReturnValue({
+              lt: vi.fn().mockResolvedValue({ count: 0, error: null }),
+              then: (resolve: (val: { count: number; error: null }) => void) => resolve({ count: 0, error: null }),
+            }),
+            then: (resolve: (val: { count: number; error: null }) => void) => resolve({ count: 1, error: null }),
+          });
+          return { select: baseSelect };
+        }
+        if (table === 'cases') {
+          baseSelect.mockReturnValue({
+            is: vi.fn().mockReturnValue({
+              not: vi.fn().mockResolvedValue({ count: 0, error: null }),
+              then: (resolve: (val: { count: number; error: null }) => void) => resolve({ count: 0, error: null }),
+            }),
+          });
+          return { select: baseSelect };
+        }
+        if (table === 'documents') {
+          baseSelect.mockReturnValue({
+            is: vi.fn().mockResolvedValue({ count: 0, error: null }),
+          });
+          return { select: baseSelect };
+        }
+        if (table === 'subscriptions') {
+          baseSelect.mockReturnValue({
+            in: vi.fn().mockResolvedValue({ count: 0, error: null }),
+            then: (resolve: (val: { count: number; error: null }) => void) => resolve({ count: 0, error: null }),
+          });
+          return { select: baseSelect };
+        }
+        return { select: baseSelect };
+      });
+
+      const req = createRequest('GET', '/api/admin/stats');
+      const res = await statsHandler(req);
+      const json = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(json.data.mrr).toBe(0);
+      expect(json.data.mrrGrowth).toBe(0);
+    });
+
+    it('calculates MRR from active Stripe subscriptions (monthly)', async () => {
+      const mockStripe = {
+        subscriptions: {
+          list: vi.fn().mockResolvedValue({
+            data: [
+              {
+                items: {
+                  data: [{ price: { unit_amount: 4900, recurring: { interval: 'month' } } }],
+                },
+              },
+              {
+                items: {
+                  data: [{ price: { unit_amount: 14900, recurring: { interval: 'month' } } }],
+                },
+              },
+            ],
+          }),
+        },
+      };
+      vi.mocked(getStripeClient).mockReturnValue(mockStripe as never);
+
+      mockFrom.mockImplementation((table: string) => {
+        const baseSelect = vi.fn();
+        if (table === 'profiles') {
+          baseSelect.mockReturnValue({
+            gte: vi.fn().mockReturnValue({
+              lt: vi.fn().mockResolvedValue({ count: 0, error: null }),
+              then: (resolve: (val: { count: number; error: null }) => void) => resolve({ count: 0, error: null }),
+            }),
+            then: (resolve: (val: { count: number; error: null }) => void) => resolve({ count: 2, error: null }),
+          });
+          return { select: baseSelect };
+        }
+        if (table === 'cases') {
+          baseSelect.mockReturnValue({
+            is: vi.fn().mockReturnValue({
+              not: vi.fn().mockResolvedValue({ count: 0, error: null }),
+              then: (resolve: (val: { count: number; error: null }) => void) => resolve({ count: 0, error: null }),
+            }),
+          });
+          return { select: baseSelect };
+        }
+        if (table === 'documents') {
+          baseSelect.mockReturnValue({
+            is: vi.fn().mockResolvedValue({ count: 0, error: null }),
+          });
+          return { select: baseSelect };
+        }
+        if (table === 'subscriptions') {
+          baseSelect.mockReturnValue({
+            in: vi.fn().mockResolvedValue({ count: 2, error: null }),
+            then: (resolve: (val: { count: number; error: null }) => void) => resolve({ count: 2, error: null }),
+          });
+          return { select: baseSelect };
+        }
+        return { select: baseSelect };
+      });
+
+      const req = createRequest('GET', '/api/admin/stats');
+      const res = await statsHandler(req);
+      const json = await res.json();
+
+      expect(res.status).toBe(200);
+      // 4900 + 14900 = 19800 cents
+      expect(json.data.mrr).toBe(19800);
+    });
+
+    it('normalizes yearly subscriptions to monthly MRR', async () => {
+      const mockStripe = {
+        subscriptions: {
+          list: vi.fn().mockResolvedValue({
+            data: [
+              {
+                items: {
+                  data: [{ price: { unit_amount: 47000, recurring: { interval: 'year' } } }],
+                },
+              },
+            ],
+          }),
+        },
+      };
+      vi.mocked(getStripeClient).mockReturnValue(mockStripe as never);
+
+      mockFrom.mockImplementation((table: string) => {
+        const baseSelect = vi.fn();
+        if (table === 'profiles') {
+          baseSelect.mockReturnValue({
+            gte: vi.fn().mockReturnValue({
+              lt: vi.fn().mockResolvedValue({ count: 0, error: null }),
+              then: (resolve: (val: { count: number; error: null }) => void) => resolve({ count: 0, error: null }),
+            }),
+            then: (resolve: (val: { count: number; error: null }) => void) => resolve({ count: 1, error: null }),
+          });
+          return { select: baseSelect };
+        }
+        if (table === 'cases') {
+          baseSelect.mockReturnValue({
+            is: vi.fn().mockReturnValue({
+              not: vi.fn().mockResolvedValue({ count: 0, error: null }),
+              then: (resolve: (val: { count: number; error: null }) => void) => resolve({ count: 0, error: null }),
+            }),
+          });
+          return { select: baseSelect };
+        }
+        if (table === 'documents') {
+          baseSelect.mockReturnValue({
+            is: vi.fn().mockResolvedValue({ count: 0, error: null }),
+          });
+          return { select: baseSelect };
+        }
+        if (table === 'subscriptions') {
+          baseSelect.mockReturnValue({
+            in: vi.fn().mockResolvedValue({ count: 1, error: null }),
+            then: (resolve: (val: { count: number; error: null }) => void) => resolve({ count: 1, error: null }),
+          });
+          return { select: baseSelect };
+        }
+        return { select: baseSelect };
+      });
+
+      const req = createRequest('GET', '/api/admin/stats');
+      const res = await statsHandler(req);
+      const json = await res.json();
+
+      expect(res.status).toBe(200);
+      // 47000 / 12 = 3917 (rounded)
+      expect(json.data.mrr).toBe(Math.round(47000 / 12));
+    });
+
+    it('returns mrr: 0 when Stripe call fails (graceful degradation)', async () => {
+      const mockStripe = {
+        subscriptions: {
+          list: vi.fn().mockRejectedValue(new Error('Stripe API error')),
+        },
+      };
+      vi.mocked(getStripeClient).mockReturnValue(mockStripe as never);
+
+      mockFrom.mockImplementation((table: string) => {
+        const baseSelect = vi.fn();
+        if (table === 'profiles') {
+          baseSelect.mockReturnValue({
+            gte: vi.fn().mockReturnValue({
+              lt: vi.fn().mockResolvedValue({ count: 0, error: null }),
+              then: (resolve: (val: { count: number; error: null }) => void) => resolve({ count: 0, error: null }),
+            }),
+            then: (resolve: (val: { count: number; error: null }) => void) => resolve({ count: 1, error: null }),
+          });
+          return { select: baseSelect };
+        }
+        if (table === 'cases') {
+          baseSelect.mockReturnValue({
+            is: vi.fn().mockReturnValue({
+              not: vi.fn().mockResolvedValue({ count: 0, error: null }),
+              then: (resolve: (val: { count: number; error: null }) => void) => resolve({ count: 0, error: null }),
+            }),
+          });
+          return { select: baseSelect };
+        }
+        if (table === 'documents') {
+          baseSelect.mockReturnValue({
+            is: vi.fn().mockResolvedValue({ count: 0, error: null }),
+          });
+          return { select: baseSelect };
+        }
+        if (table === 'subscriptions') {
+          baseSelect.mockReturnValue({
+            in: vi.fn().mockResolvedValue({ count: 0, error: null }),
+            then: (resolve: (val: { count: number; error: null }) => void) => resolve({ count: 0, error: null }),
+          });
+          return { select: baseSelect };
+        }
+        return { select: baseSelect };
+      });
+
+      const req = createRequest('GET', '/api/admin/stats');
+      const res = await statsHandler(req);
+      const json = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(json.data.mrr).toBe(0);
+      expect(json.data.mrrGrowth).toBe(0);
     });
 
     it('returns 500 on error', async () => {

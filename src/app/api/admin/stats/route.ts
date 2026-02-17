@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { serverAuth } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit';
+import { getStripeClient } from '@/lib/stripe/client';
 import { createLogger } from '@/lib/logger';
 
 const log = createLogger('api:admin-stats');
@@ -70,6 +71,30 @@ export async function GET(request: NextRequest) {
       ? Math.round(((newUsersThisMonth - newUsersLastMonth) / newUsersLastMonth) * 100)
       : newUsersThisMonth > 0 ? 100 : 0;
 
+    // Calculate MRR from active Stripe subscriptions
+    let mrr = 0;
+    let mrrGrowth = 0;
+    const stripe = getStripeClient();
+    if (stripe) {
+      try {
+        const activeSubscriptions = await stripe.subscriptions.list({
+          status: 'active',
+          limit: 100,
+        });
+        // unit_amount is in cents — keep mrr in cents to match
+        // the dashboard display which divides by 100: `(stats?.mrr || 0) / 100`
+        mrr = activeSubscriptions.data.reduce((sum, sub) => {
+          const item = sub.items.data[0];
+          if (!item?.price?.unit_amount) return sum;
+          const interval = item.price.recurring?.interval;
+          const amount = item.price.unit_amount;
+          return sum + (interval === 'year' ? Math.round(amount / 12) : amount);
+        }, 0);
+      } catch (error) {
+        log.logError('Failed to calculate MRR from Stripe', error);
+      }
+    }
+
     const stats = {
       totalUsers,
       newUsersThisMonth,
@@ -79,8 +104,8 @@ export async function GET(request: NextRequest) {
       totalDocuments: totalDocumentsResult.count || 0,
       totalSubscriptions: totalSubscriptionsResult.count || 0,
       activeSubscriptions: activeSubscriptionsResult.count || 0,
-      mrr: 0,
-      mrrGrowth: 0,
+      mrr,
+      mrrGrowth,
     };
 
     return NextResponse.json({

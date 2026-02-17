@@ -18,6 +18,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Eye, EyeOff, Loader2, Check, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { UserRole } from '@/types';
+import { getPasswordChecks } from '@/lib/validation/password';
 
 export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
@@ -35,12 +36,7 @@ export default function RegisterPage() {
   const [emailTouched, setEmailTouched] = useState(false);
   const { signUp, signInWithOAuth, isLoading } = useAuth();
 
-  const passwordChecks = useMemo(() => ({
-    minLength: formData.password.length >= 8,
-    hasUppercase: /[A-Z]/.test(formData.password),
-    hasNumber: /[0-9]/.test(formData.password),
-    hasSpecial: /[!@#$%^&*(),.?":{}|<>]/.test(formData.password),
-  }), [formData.password]);
+  const passwordChecks = useMemo(() => getPasswordChecks(formData.password), [formData.password]);
 
   const isPasswordValid = Object.values(passwordChecks).every(Boolean);
 
@@ -285,6 +281,7 @@ export default function RegisterPage() {
                 <div className="text-xs text-muted-foreground space-y-1 mt-2">
                   <PasswordRequirement met={passwordChecks.minLength} text="At least 8 characters" />
                   <PasswordRequirement met={passwordChecks.hasUppercase} text="One uppercase letter" />
+                  <PasswordRequirement met={passwordChecks.hasLowercase} text="One lowercase letter" />
                   <PasswordRequirement met={passwordChecks.hasNumber} text="One number" />
                   <PasswordRequirement met={passwordChecks.hasSpecial} text="One special character" />
                 </div>

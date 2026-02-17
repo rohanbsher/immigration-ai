@@ -25,6 +25,7 @@ import { toast } from 'sonner';
 import { TwoFactorSetup } from '@/components/settings/two-factor-setup';
 import { GdprDataManagement } from '@/components/settings/gdpr-data-management';
 import { NotificationPreferences } from '@/components/settings/notification-preferences';
+import { validatePassword } from '@/lib/validation/password';
 
 export default function SettingsPage() {
   const { profile, isLoading, refetch } = useUser();
@@ -93,8 +94,9 @@ export default function SettingsPage() {
       return;
     }
 
-    if (passwordData.new_password.length < 8) {
-      toast.error('Password must be at least 8 characters');
+    const passwordError = validatePassword(passwordData.new_password);
+    if (passwordError) {
+      toast.error(passwordError);
       return;
     }
 

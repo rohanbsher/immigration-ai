@@ -12,6 +12,7 @@ const ALLOWED_REDIRECT_PATHS = [
   '/forms',
   '/settings',
   '/profile',
+  '/reset-password',
 ];
 
 /**

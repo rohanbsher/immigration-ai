@@ -2,13 +2,15 @@
  * Rate limiting utility for API endpoints.
  *
  * Uses Upstash Redis in production for distributed rate limiting.
- * Falls back to in-memory storage in development.
+ * Falls back to in-memory storage when Redis is unavailable.
  *
- * FAIL-OPEN SEMANTICS: When Redis is down or unconfigured, rate limiting
- * degrades gracefully by ALLOWING requests through. This ensures attorneys
- * are never locked out due to infrastructure failures. Warnings are logged
- * so ops can detect and remediate the degraded state.
+ * FAIL-CLOSED SEMANTICS: When Redis is down or unconfigured, rate limiting
+ * falls back to in-memory storage to ensure brute-force protection is always
+ * active. In-memory limits are per-instance only — under high concurrency
+ * Vercel may spin up multiple instances, each with separate stores. This
+ * provides basic protection but is NOT a substitute for Redis in production.
  *
+ * On Redis errors: Falls back to in-memory rate limiting.
  * In development: Falls back to in-memory storage automatically.
  */
 
@@ -44,15 +46,11 @@ const isUpstashConfigured = features.redisRateLimiting;
 
 // CRITICAL: Validate Redis configuration at startup for production
 const isProduction = features.isProduction;
-// Keep process.env for override flag (not in schema - intentionally not validated)
-const ALLOW_IN_MEMORY_FALLBACK = process.env.ALLOW_IN_MEMORY_RATE_LIMIT === 'true';
-
-if (isProduction && !isUpstashConfigured && !ALLOW_IN_MEMORY_FALLBACK) {
+if (isProduction && !isUpstashConfigured) {
   log.warn(
     'Rate limiting is DEGRADED: Upstash Redis not configured. ' +
-    'Requests will be allowed through without rate limits (fail-open). ' +
-    'To fix: Set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN environment variables. ' +
-    'To use in-memory fallback: Set ALLOW_IN_MEMORY_RATE_LIMIT=true (single-instance only)'
+    'Using in-memory fallback (single-instance only). ' +
+    'To fix: Set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN environment variables.'
   );
 }
 
@@ -251,12 +249,11 @@ export const RATE_LIMITS = {
  * Create a rate limiter with the specified configuration.
  * Uses Upstash Redis when configured.
  *
- * In production without Redis:
- * - If ALLOW_IN_MEMORY_RATE_LIMIT is set, falls back to in-memory (single-instance only)
- * - Otherwise, fails open (allows all requests) with a warning log
+ * When Redis is unavailable (not configured or erroring):
+ * Falls back to in-memory storage (single-instance only).
+ * This ensures rate limiting is ALWAYS active (fail-closed).
  *
- * On Redis errors: Fails open to avoid locking out users.
- * In development: Falls back to in-memory storage.
+ * In development: Falls back to in-memory storage automatically.
  */
 export function createRateLimiter(config: RateLimitConfig) {
   const useRedis = isUpstashConfigured && redis !== null;
@@ -274,37 +271,18 @@ export function createRateLimiter(config: RateLimitConfig) {
         try {
           return await checkRateLimitUpstash(key, config);
         } catch (error) {
-          log.warn('Redis rate limit check failed, failing open', { error, key });
-          return {
-            success: true,
-            remaining: config.maxRequests,
-            resetAt: new Date(Date.now() + config.windowMs),
-          };
+          // Redis error: fall back to in-memory instead of failing open
+          log.warn('Redis rate limit check failed, falling back to in-memory', { error, key });
+          return checkRateLimitInMemory(key, config);
         }
       }
 
-      // In production without Redis and without explicit bypass, fail open
-      if (isProduction && !ALLOW_IN_MEMORY_FALLBACK) {
-        if (!hasWarnedAboutMissingRedis) {
-          log.warn(
-            'Rate limiting degraded - Redis not configured. ' +
-            'Requests will be allowed through without rate limits.'
-          );
-          hasWarnedAboutMissingRedis = true;
-        }
-
-        return {
-          success: true,
-          remaining: config.maxRequests,
-          resetAt: new Date(Date.now() + config.windowMs),
-        };
-      }
-
-      // Development or explicitly allowed in-memory fallback
+      // No Redis configured: always use in-memory fallback (fail-closed)
       if (!hasWarnedAboutMissingRedis && isProduction) {
         log.warn(
-          'Using in-memory fallback in production. ' +
-          'This only works for single-instance deployments!'
+          'Using in-memory rate limiting fallback in production. ' +
+          'This only works for single-instance deployments. ' +
+          'Configure Upstash Redis for distributed rate limiting.'
         );
         hasWarnedAboutMissingRedis = true;
       }
@@ -442,8 +420,8 @@ export function isRedisRateLimitingEnabled(): boolean {
  * Simple rate limit function for API routes.
  * Takes a rate limit config and identifier string, returns success/failure.
  *
- * Fails open on Redis errors or missing Redis configuration to avoid
- * locking out users due to infrastructure issues.
+ * Falls back to in-memory rate limiting on Redis errors or missing
+ * Redis configuration (fail-closed).
  */
 export async function rateLimit(
   config: RateLimitConfig,
@@ -459,18 +437,12 @@ export async function rateLimit(
         retryAfter: result.retryAfterMs ? Math.ceil(result.retryAfterMs / 1000) : undefined,
       };
     } catch (error) {
-      log.warn('Redis rate limit check failed, failing open', { error, identifier });
-      return { success: true };
+      // Redis error: fall back to in-memory instead of failing open
+      log.warn('Redis rate limit check failed, falling back to in-memory', { error, identifier });
     }
   }
 
-  // In production without Redis and without explicit bypass, fail open
-  if (isProduction && !ALLOW_IN_MEMORY_FALLBACK) {
-    return {
-      success: true,
-    };
-  }
-
+  // No Redis or Redis error: always use in-memory fallback (fail-closed)
   const result = checkRateLimitInMemory(identifier, config);
   return {
     success: result.success,

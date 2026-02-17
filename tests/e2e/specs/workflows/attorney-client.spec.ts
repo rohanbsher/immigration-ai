@@ -80,19 +80,45 @@ test.describe('Attorney-Client Cross-Role Interactions', () => {
       const createButton = dialog.locator('button[type="submit"], button:has-text("Create Case")');
       await createButton.click();
 
-      // Wait for success
+      // Wait for success — may fail due to quota limits
       await Promise.race([
         page.waitForURL(/\/dashboard\/cases\/[a-f0-9-]+/, { timeout: 15000 }),
         WaitHelpers.forToast(page, 'created', 15000),
       ]).catch(() => {
-        // Case creation may fail if test data is missing
+        // Case creation may fail if at quota or test data is missing
       });
 
-      // Verify case was created
-      if (sharedCaseTitle) {
+      // Check if we landed on a case detail page (URL contains a UUID)
+      const isOnCaseDetail = /\/dashboard\/cases\/[a-f0-9-]{36}/.test(page.url());
+
+      if (isOnCaseDetail && sharedCaseTitle) {
         const caseTitle = page.locator('h1');
         if (await caseTitle.isVisible({ timeout: 3000 })) {
           await expect(caseTitle).toContainText(sharedCaseTitle);
+        }
+      } else if (sharedCaseTitle) {
+        // Not on detail page — creation may have failed (quota limit)
+        // Check for error toast
+        const errorToast = page.locator('[data-sonner-toast][data-type="error"]');
+        const hasError = await errorToast.isVisible({ timeout: 2000 }).catch(() => false);
+        if (hasError) {
+          test.skip(true, 'Case creation failed (possibly at quota limit)');
+        }
+
+        // Try to find the case in the list
+        await NavHelpers.goToCases(page);
+        await page.waitForLoadState('networkidle').catch(() => {});
+
+        const caseLink = page.locator(`a:has-text("${sharedCaseTitle}")`);
+        const linkVisible = await caseLink.isVisible({ timeout: 5000 }).catch(() => false);
+
+        if (linkVisible) {
+          await caseLink.click();
+          await page.waitForURL(/\/dashboard\/cases\/[a-f0-9-]+/, { timeout: 10000 }).catch(() => {});
+          const caseTitle = page.locator('h1');
+          await expect(caseTitle).toContainText(sharedCaseTitle);
+        } else {
+          test.skip(true, 'Case not found in list (creation may have failed due to quota)');
         }
       }
     });

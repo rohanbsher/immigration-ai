@@ -81,7 +81,7 @@ export default function ClientsPage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Clients</h1>
+          <h1 className="font-display text-2xl tracking-tight text-foreground">Clients</h1>
           <p className="text-muted-foreground">Manage your client relationships</p>
         </div>
         <Link href="/dashboard/cases">

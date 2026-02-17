@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
 
     // Calculate MRR from active Stripe subscriptions
     let mrr = 0;
-    let mrrGrowth = 0;
+    const mrrGrowth = 0;
     const stripe = getStripeClient();
     if (stripe) {
       try {

@@ -220,7 +220,7 @@ export default function NewCasePage() {
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Create New Case</h1>
+          <h1 className="font-display text-2xl tracking-tight text-foreground">Create New Case</h1>
           <p className="text-muted-foreground">Set up a new immigration case</p>
         </div>
       </div>

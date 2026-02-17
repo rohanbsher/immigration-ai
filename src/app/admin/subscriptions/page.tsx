@@ -30,7 +30,7 @@ export default function AdminSubscriptionsPage() {
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <h1 className="text-3xl font-bold">Subscriptions</h1>
+        <h1 className="font-display text-3xl tracking-tight">Subscriptions</h1>
         <div className="grid gap-4 md:grid-cols-3">
           {[...Array(3)].map((_, i) => (
             <Card key={i}>
@@ -73,7 +73,7 @@ export default function AdminSubscriptionsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Subscriptions</h1>
+        <h1 className="font-display text-3xl tracking-tight">Subscriptions</h1>
         <p className="text-muted-foreground">
           Monitor subscription metrics and revenue
         </p>

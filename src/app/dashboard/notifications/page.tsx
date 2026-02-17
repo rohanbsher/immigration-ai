@@ -68,7 +68,7 @@ export default function NotificationsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Notifications</h1>
+          <h1 className="font-display text-2xl tracking-tight text-foreground">Notifications</h1>
           <p className="text-muted-foreground mt-1">
             Stay updated on your cases, documents, and deadlines
           </p>

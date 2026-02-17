@@ -124,7 +124,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
           </AvatarFallback>
         </Avatar>
         <div className="flex-1">
-          <h1 className="text-2xl font-bold text-foreground">
+          <h1 className="font-display text-2xl tracking-tight text-foreground">
             {client.first_name} {client.last_name}
           </h1>
           <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">

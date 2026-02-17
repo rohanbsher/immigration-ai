@@ -110,7 +110,7 @@ function FirmDashboard({ firmId, userRole }: { firmId: string; userRole: FirmRol
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Firm Settings</h1>
+          <h1 className="font-display text-2xl tracking-tight text-foreground">Firm Settings</h1>
           <p className="text-muted-foreground">Manage your firm and team members</p>
         </div>
         {canManageMembers && (
@@ -164,7 +164,7 @@ export default function FirmPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Firm Management</h1>
+          <h1 className="font-display text-2xl tracking-tight text-foreground">Firm Management</h1>
           <p className="text-muted-foreground">Create or join a firm to collaborate with your team</p>
         </div>
         <CreateFirmCard />

@@ -7,7 +7,7 @@ export default function ClientDocumentsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">My Documents</h1>
+        <h1 className="font-display text-2xl tracking-tight text-foreground">My Documents</h1>
         <p className="text-muted-foreground">
           View and manage your immigration documents
         </p>

@@ -18,6 +18,7 @@ import {
   Building2,
   ListTodo,
   BarChart3,
+  Sparkles,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -234,11 +235,11 @@ export function Sidebar({ user }: SidebarProps) {
         {/* Logo */}
         <div className="flex items-center justify-between h-16 px-4 border-b border-sidebar-border">
           {!collapsed && (
-            <Link href="/dashboard" className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-sidebar-primary flex items-center justify-center font-bold text-sidebar-primary-foreground">
-                IA
+            <Link href="/dashboard" className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-sidebar-primary flex items-center justify-center">
+                <Sparkles className="text-sidebar-primary-foreground" size={15} />
               </div>
-              <span className="font-semibold">Immigration AI</span>
+              <span className="font-display text-[15px] tracking-tight">Immigration AI</span>
             </Link>
           )}
           <Button

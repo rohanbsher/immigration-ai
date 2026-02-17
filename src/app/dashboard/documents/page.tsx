@@ -127,7 +127,7 @@ export default function DocumentsPage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Documents</h1>
+          <h1 className="font-display text-2xl tracking-tight text-foreground">Documents</h1>
           <p className="text-muted-foreground">View and manage all case documents</p>
         </div>
       </div>

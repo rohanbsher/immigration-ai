@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Eye, EyeOff, Loader2, Check, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Eye, EyeOff, Loader2, Check, AlertCircle, CheckCircle2, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import type { UserRole } from '@/types';
 import { getPasswordChecks } from '@/lib/validation/password';
@@ -102,11 +102,11 @@ export default function RegisterPage() {
       <div className="min-h-screen flex items-center justify-center bg-background px-4">
         <div className="w-full max-w-md">
           <div className="flex justify-center mb-8">
-            <Link href="/" className="flex items-center gap-2">
-              <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold text-lg">
-                IA
+            <Link href="/" className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center">
+                <Sparkles className="text-primary-foreground" size={16} />
               </div>
-              <span className="font-semibold text-xl">Immigration AI</span>
+              <span className="font-display text-lg tracking-tight">Immigration AI</span>
             </Link>
           </div>
 
@@ -115,7 +115,7 @@ export default function RegisterPage() {
               <div className="mx-auto w-12 h-12 rounded-full bg-success/10 flex items-center justify-center mb-4">
                 <Check className="text-success" size={24} />
               </div>
-              <CardTitle>Check your email</CardTitle>
+              <CardTitle className="font-display text-2xl tracking-tight">Check your email</CardTitle>
               <CardDescription>
                 We&apos;ve sent a confirmation link to <strong>{formData.email}</strong>
               </CardDescription>
@@ -151,7 +151,7 @@ export default function RegisterPage() {
 
         <Card>
           <CardHeader className="text-center">
-            <CardTitle>Create your account</CardTitle>
+            <CardTitle className="font-display text-2xl tracking-tight">Create your account</CardTitle>
             <CardDescription>
               Start managing immigration cases efficiently
             </CardDescription>

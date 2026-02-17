@@ -255,7 +255,7 @@ export default function CasesPage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Cases</h1>
+          <h1 className="font-display text-2xl tracking-tight text-foreground">Cases</h1>
           <p className="text-muted-foreground">Manage your immigration cases</p>
         </div>
         <div className="flex items-center gap-2">

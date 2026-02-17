@@ -166,7 +166,7 @@ export default function DashboardPage() {
       <MotionSlideUp>
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Welcome back, {userName}</h1>
+            <h1 className="font-display text-2xl tracking-tight text-foreground">Welcome back, {userName}</h1>
             <p className="text-muted-foreground">
               Here&apos;s what&apos;s happening with your cases today.
             </p>

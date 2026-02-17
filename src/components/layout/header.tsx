@@ -67,7 +67,7 @@ export function Header({ title, onMenuClick, user }: HeaderProps) {
 
         {/* Page title */}
         {title && (
-          <h1 className="text-xl font-semibold text-foreground">{title}</h1>
+          <h1 className="font-display text-xl tracking-tight text-foreground">{title}</h1>
         )}
       </div>
 

@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Eye, EyeOff, Loader2, AlertCircle, CheckCircle2, Clock } from 'lucide-react';
+import { Eye, EyeOff, Loader2, AlertCircle, CheckCircle2, Clock, Sparkles } from 'lucide-react';
 
 /** Login timeout in milliseconds (15 seconds) */
 const LOGIN_TIMEOUT_MS = 15_000;
@@ -75,17 +75,17 @@ function LoginForm() {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="flex justify-center mb-8">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold text-lg">
-              IA
+          <Link href="/" className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center">
+              <Sparkles className="text-primary-foreground" size={16} />
             </div>
-            <span className="font-semibold text-xl">Immigration AI</span>
+            <span className="font-display text-lg tracking-tight">Immigration AI</span>
           </Link>
         </div>
 
         <Card>
           <CardHeader className="text-center">
-            <CardTitle>Welcome back</CardTitle>
+            <CardTitle className="font-display text-2xl tracking-tight">Welcome back</CardTitle>
             <CardDescription>Sign in to your account to continue</CardDescription>
           </CardHeader>
           <CardContent>

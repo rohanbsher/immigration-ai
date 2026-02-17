@@ -207,7 +207,7 @@ export default function AnalyticsPage() {
       {/* Page Header */}
       <MotionSlideUp>
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Analytics</h1>
+          <h1 className="font-display text-2xl tracking-tight text-foreground">Analytics</h1>
           <p className="text-muted-foreground">
             Insights and metrics across your cases.
           </p>

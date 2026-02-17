@@ -167,7 +167,7 @@ export default function FormDetailPage({ params }: { params: Promise<{ id: strin
         </Button>
         <div className="flex-1">
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-foreground">
+            <h1 className="font-display text-2xl tracking-tight text-foreground">
               Form {formDefinition.formType}
             </h1>
             <Badge className={statusBadge.color}>{statusBadge.label}</Badge>

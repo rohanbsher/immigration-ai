@@ -57,7 +57,7 @@ export default function AdminSystemPage() {
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <h1 className="text-3xl font-bold">System</h1>
+        <h1 className="font-display text-3xl tracking-tight">System</h1>
         <div className="grid gap-4 md:grid-cols-3">
           {[...Array(3)].map((_, i) => (
             <Card key={i}>
@@ -77,7 +77,7 @@ export default function AdminSystemPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">System</h1>
+        <h1 className="font-display text-3xl tracking-tight">System</h1>
         <p className="text-muted-foreground">
           System health and diagnostics (auto-refreshes every 30s)
         </p>

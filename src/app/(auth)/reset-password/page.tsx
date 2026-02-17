@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Loader2, ArrowLeft, CheckCircle2, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import { Loader2, ArrowLeft, CheckCircle2, AlertCircle, Eye, EyeOff, Sparkles } from 'lucide-react';
 import { validatePassword } from '@/lib/validation/password';
 
 export default function ResetPasswordPage() {
@@ -97,11 +97,11 @@ export default function ResetPasswordPage() {
       <div className="min-h-screen flex items-center justify-center bg-background px-4">
         <div className="w-full max-w-md">
           <div className="flex justify-center mb-8">
-            <Link href="/" className="flex items-center gap-2">
-              <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold text-lg">
-                IA
+            <Link href="/" className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center">
+                <Sparkles className="text-primary-foreground" size={16} />
               </div>
-              <span className="font-semibold text-xl">Immigration AI</span>
+              <span className="font-display text-lg tracking-tight">Immigration AI</span>
             </Link>
           </div>
 
@@ -110,7 +110,7 @@ export default function ResetPasswordPage() {
               <div className="mx-auto w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mb-4">
                 <CheckCircle2 className="text-green-600" size={24} />
               </div>
-              <CardTitle>Password updated</CardTitle>
+              <CardTitle className="font-display text-2xl tracking-tight">Password updated</CardTitle>
               <CardDescription>
                 Your password has been successfully reset. Redirecting to dashboard...
               </CardDescription>
@@ -132,11 +132,11 @@ export default function ResetPasswordPage() {
       <div className="min-h-screen flex items-center justify-center bg-background px-4">
         <div className="w-full max-w-md">
           <div className="flex justify-center mb-8">
-            <Link href="/" className="flex items-center gap-2">
-              <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold text-lg">
-                IA
+            <Link href="/" className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center">
+                <Sparkles className="text-primary-foreground" size={16} />
               </div>
-              <span className="font-semibold text-xl">Immigration AI</span>
+              <span className="font-display text-lg tracking-tight">Immigration AI</span>
             </Link>
           </div>
 
@@ -145,7 +145,7 @@ export default function ResetPasswordPage() {
               <div className="mx-auto w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center mb-4">
                 <AlertCircle className="text-destructive" size={24} />
               </div>
-              <CardTitle>Invalid or expired link</CardTitle>
+              <CardTitle className="font-display text-2xl tracking-tight">Invalid or expired link</CardTitle>
               <CardDescription>
                 This password reset link is invalid or has expired. Please request a new one.
               </CardDescription>
@@ -194,7 +194,7 @@ export default function ResetPasswordPage() {
 
         <Card>
           <CardHeader className="text-center">
-            <CardTitle>Set new password</CardTitle>
+            <CardTitle className="font-display text-2xl tracking-tight">Set new password</CardTitle>
             <CardDescription>
               Enter your new password below
             </CardDescription>

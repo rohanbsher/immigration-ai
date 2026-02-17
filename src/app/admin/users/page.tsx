@@ -112,7 +112,7 @@ export default function AdminUsersPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Users</h1>
+        <h1 className="font-display text-3xl tracking-tight">Users</h1>
         <p className="text-muted-foreground">Manage user accounts</p>
       </div>
 

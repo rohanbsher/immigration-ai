@@ -101,7 +101,7 @@ export default function BillingPage() {
     <div className="space-y-8">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Billing & Subscription</h1>
+        <h1 className="font-display text-2xl tracking-tight text-foreground">Billing & Subscription</h1>
         <p className="text-muted-foreground">Manage your plan and billing information</p>
       </div>
 

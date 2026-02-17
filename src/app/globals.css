@@ -205,6 +205,11 @@
   }
 }
 
+/* Shift chat button up when cookie consent banner is visible */
+body:has([data-consent-banner]) [data-chat-float] {
+  bottom: 5rem;
+}
+
 /* Shimmer loading animation */
 @keyframes shimmer {
   0% { background-position: -200% 0; }

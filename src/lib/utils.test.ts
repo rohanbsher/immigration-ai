@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { cn } from './utils';
+import { cn, formatDate } from './utils';
 
 describe('cn utility', () => {
   it('should merge class names', () => {
@@ -59,5 +59,32 @@ describe('cn utility', () => {
   it('should handle responsive prefixes', () => {
     const result = cn('md:px-2', 'md:px-4');
     expect(result).toBe('md:px-4');
+  });
+});
+
+describe('formatDate', () => {
+  it('returns null for null input', () => {
+    expect(formatDate(null)).toBeNull();
+  });
+
+  it('returns null for undefined input', () => {
+    expect(formatDate(undefined)).toBeNull();
+  });
+
+  it('returns null for empty string', () => {
+    expect(formatDate('')).toBeNull();
+  });
+
+  it('returns null for invalid date string', () => {
+    expect(formatDate('not-a-date')).toBeNull();
+  });
+
+  it('returns formatted en-US string for valid ISO date', () => {
+    expect(formatDate('2025-06-15T10:30:00Z')).toBe('6/15/2025');
+  });
+
+  it('returns formatted en-US string for valid date-only string (UTC-safe)', () => {
+    // Date-only strings are parsed as UTC midnight; must not shift to previous day
+    expect(formatDate('2025-01-01')).toBe('1/1/2025');
   });
 });

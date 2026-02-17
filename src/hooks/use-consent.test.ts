@@ -65,7 +65,10 @@ describe('useConsent', () => {
     expect(result.current.analyticsConsented).toBeNull();
   });
 
-  test('consentLoaded is true immediately on client render', () => {
+  test('consentLoaded is true after mount', () => {
+    // Note: jsdom runs useEffect synchronously so we can't observe the
+    // initial false state here. The hydration fix (useState(false) + useEffect)
+    // is verified by the build — not by this unit test.
     const { result } = renderHook(() => useConsent());
     expect(result.current.consentLoaded).toBe(true);
   });

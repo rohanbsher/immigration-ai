@@ -28,6 +28,7 @@ import {
   useCancelDeletion,
 } from '@/hooks/use-gdpr';
 import { toast } from 'sonner';
+import { formatDate } from '@/lib/utils';
 
 function ExportStatusBadge({ status }: { status: string }) {
   switch (status) {
@@ -56,13 +57,6 @@ function ExportStatusBadge({ status }: { status: string }) {
     default:
       return <Badge variant="secondary">{status}</Badge>;
   }
-}
-
-function formatDate(value: string | null | undefined): string | null {
-  if (!value) return null;
-  const date = new Date(value);
-  if (isNaN(date.getTime())) return null;
-  return date.toLocaleDateString();
 }
 
 export function GdprDataManagement() {

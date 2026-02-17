@@ -16,7 +16,8 @@ export function CookieConsentBanner() {
     <div
       role="dialog"
       aria-label="Cookie consent"
-      className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background p-4 shadow-lg"
+      data-consent-banner
+      className="fixed bottom-0 left-0 right-0 z-40 border-t bg-background p-4 shadow-lg"
     >
       <div className="mx-auto flex max-w-4xl flex-col items-center gap-4 sm:flex-row sm:justify-between">
         <p className="text-sm text-muted-foreground">

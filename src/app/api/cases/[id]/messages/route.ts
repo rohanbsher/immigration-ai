@@ -14,26 +14,13 @@ const createMessageSchema = z.object({
 });
 
 /**
- * Verify user has access to this case (is attorney, client, or admin)
+ * Verify user has access to this case (is attorney or client only).
+ * Attorney-client privilege: no other role may access case messages.
  */
 async function verifyCaseAccess(userId: string, caseId: string): Promise<boolean> {
   const caseData = await casesService.getCase(caseId);
   if (!caseData) return false;
-
-  // Check if user is attorney or client for this case
-  if (caseData.attorney_id === userId || caseData.client_id === userId) {
-    return true;
-  }
-
-  // Check if user is admin
-  const supabase = await createClient();
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', userId)
-    .single();
-
-  return profile?.role === 'admin';
+  return caseData.attorney_id === userId || caseData.client_id === userId;
 }
 
 /**

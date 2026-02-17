@@ -24,6 +24,10 @@ DECLARE
 BEGIN
   cutoff_date := NOW() - (p_retention_years || ' years')::INTERVAL;
 
+  -- Set session variable to authorize deletion through the append-only trigger.
+  -- The third arg 'true' makes this transaction-local (auto-reset on commit/rollback).
+  PERFORM set_config('app.allow_audit_delete', 'true', true);
+
   LOOP
     DELETE FROM audit_log
     WHERE id IN (

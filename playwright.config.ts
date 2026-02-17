@@ -107,6 +107,37 @@ export default defineConfig({
       dependencies: ['auth-setup'],
       timeout: 60000,
     },
+
+    // Visual regression — attorney-authenticated pages
+    {
+      name: 'visual-auth',
+      use: {
+        ...devices['Desktop Chrome'],
+        storageState: 'tests/e2e/.auth/attorney.json',
+      },
+      testMatch: /visual\/.*\.spec\.ts/,
+      dependencies: ['auth-setup'],
+    },
+
+    // Visual regression — unauthenticated pages (login)
+    {
+      name: 'visual-unauth',
+      use: {
+        ...devices['Desktop Chrome'],
+        storageState: {
+          cookies: [],
+          origins: [{
+            origin: process.env.E2E_BASE_URL || 'http://localhost:3000',
+            localStorage: [{
+              name: 'immigration-ai-consent',
+              value: JSON.stringify({ analytics: false, timestamp: '2026-01-01T00:00:00Z', version: '1.0' }),
+            }],
+          }],
+        },
+      },
+      testMatch: /visual\/.*\.spec\.ts/,
+      dependencies: ['auth-setup'],
+    },
   ],
 
   webServer: process.env.CI ? undefined : {
@@ -120,6 +151,12 @@ export default defineConfig({
   timeout: process.env.CI ? 45000 : 30000,
   expect: {
     timeout: 10000,
+    toHaveScreenshot: {
+      // Allow small anti-aliasing differences across platforms
+      maxDiffPixelRatio: 0.05,
+      // Store snapshots in a predictable location per project
+      pathTemplate: '{testDir}/__screenshots__/{projectName}/{arg}{ext}',
+    },
   },
 
   // Output directory for test results

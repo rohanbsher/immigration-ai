@@ -1,6 +1,7 @@
 import { stripe, STRIPE_CONFIG } from './client';
 import { getOrCreateStripeCustomer } from './customers';
 import { createClient } from '@/lib/supabase/server';
+import { getAdminClient } from '@/lib/supabase/admin';
 import { createLogger } from '@/lib/logger';
 import type Stripe from 'stripe';
 import { withRetry, STRIPE_RETRY_OPTIONS } from '@/lib/utils/retry';
@@ -164,7 +165,10 @@ export async function syncSubscriptionFromStripe(
   stripeSubscription: Stripe.Subscription,
   eventId?: string
 ): Promise<SyncResult> {
-  const supabase = await createClient();
+  // Uses admin client because this is called from webhook handlers
+  // where there is no user session (no auth cookie).
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const supabase: any = getAdminClient();
 
   const customerId = typeof stripeSubscription.customer === 'string'
     ? stripeSubscription.customer

@@ -18,6 +18,7 @@ const updateCaseSchema = z.object({
   priority_date: z.string().nullable().optional(),
   deadline: z.string().nullable().optional(),
   notes: z.string().nullable().optional(),
+  expected_updated_at: z.string().optional(),
 });
 
 /**
@@ -118,12 +119,30 @@ export async function PATCH(
     const body = parsed.data;
     const validatedData = updateCaseSchema.parse(body);
 
-    // Track if status changed for email notification
+    // Optimistic locking: reject stale updates when expected_updated_at is provided
     const caseData = accessResult.case;
-    const previousStatus = caseData?.status;
-    const statusChanged = validatedData.status && validatedData.status !== previousStatus;
+    if (validatedData.expected_updated_at && caseData) {
+      const currentUpdatedAt = caseData.updated_at;
+      if (currentUpdatedAt && validatedData.expected_updated_at !== currentUpdatedAt) {
+        return NextResponse.json(
+          {
+            error: 'This case has been modified by another user. Please refresh and try again.',
+            code: 'CONFLICT',
+            current_updated_at: currentUpdatedAt,
+          },
+          { status: 409 }
+        );
+      }
+    }
 
-    const updatedCase = await casesService.updateCase(id, validatedData as Parameters<typeof casesService.updateCase>[1]);
+    // Strip expected_updated_at before passing to the service (not a real column)
+    const { expected_updated_at: _unused, ...updatePayload } = validatedData;
+
+    // Track if status changed for email notification
+    const previousStatus = caseData?.status;
+    const statusChanged = updatePayload.status && updatePayload.status !== previousStatus;
+
+    const updatedCase = await casesService.updateCase(id, updatePayload as Parameters<typeof casesService.updateCase>[1]);
 
     // Send email notification on status change (fire and forget)
     if (statusChanged && validatedData.status) {

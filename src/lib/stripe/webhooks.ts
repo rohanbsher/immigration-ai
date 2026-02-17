@@ -1,11 +1,22 @@
 import { stripe, STRIPE_CONFIG } from './client';
 import { syncSubscriptionFromStripe } from './subscriptions';
-import { createClient } from '@/lib/supabase/server';
+import { getAdminClient } from '@/lib/supabase/admin';
 import { sendBillingUpdateEmail } from '@/lib/email/notifications';
 import { createLogger } from '@/lib/logger';
 import type Stripe from 'stripe';
 
 const log = createLogger('stripe:webhooks');
+
+/**
+ * Returns admin Supabase client for webhook operations.
+ * Webhooks have no user session (no auth cookie), so the regular
+ * createClient() would create an unauthenticated client blocked by RLS.
+ * The admin client uses the service_role key to bypass RLS.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function getWebhookDb(): any {
+  return getAdminClient();
+}
 
 /**
  * Idempotent email sending for webhook events.
@@ -22,7 +33,7 @@ async function sendIdempotentBillingEmail(
   eventType: Parameters<typeof sendBillingUpdateEmail>[1],
   details: Parameters<typeof sendBillingUpdateEmail>[2]
 ): Promise<void> {
-  const supabase = await createClient();
+  const supabase = getWebhookDb();
   const idempotencyKey = `stripe:${eventId}:${eventType}`;
 
   // Attempt to claim this event by inserting a sentinel row.
@@ -90,7 +101,8 @@ interface ExtendedStripeSubscription extends Stripe.Subscription {
  * Returns null if not found or not provided.
  */
 async function lookupDbSubscriptionId(
-  supabase: Awaited<ReturnType<typeof createClient>>,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
   stripeSubscriptionId: string | null | undefined
 ): Promise<string | null> {
   if (!stripeSubscriptionId) return null;
@@ -170,7 +182,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session, eventId
   await syncSubscriptionFromStripe(subscription, eventId);
 
   // Send welcome email for new subscription
-  const supabase = await createClient();
+  const supabase = getWebhookDb();
   const customerId = typeof session.customer === 'string'
     ? session.customer
     : session.customer?.id;
@@ -214,7 +226,7 @@ async function handleSubscriptionChange(subscription: Stripe.Subscription, event
 }
 
 async function handleSubscriptionDeleted(subscription: Stripe.Subscription, eventId: string): Promise<void> {
-  const supabase = await createClient();
+  const supabase = getWebhookDb();
 
   const { error } = await supabase
     .from('subscriptions')
@@ -262,7 +274,7 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription, even
 }
 
 async function handleInvoicePaid(invoice: Stripe.Invoice, eventId: string): Promise<void> {
-  const supabase = await createClient();
+  const supabase = getWebhookDb();
 
   const customerId = typeof invoice.customer === 'string'
     ? invoice.customer
@@ -360,7 +372,7 @@ async function handleInvoicePaid(invoice: Stripe.Invoice, eventId: string): Prom
 }
 
 async function handleInvoicePaymentFailed(invoice: Stripe.Invoice, eventId: string): Promise<void> {
-  const supabase = await createClient();
+  const supabase = getWebhookDb();
 
   const customerId = typeof invoice.customer === 'string'
     ? invoice.customer
@@ -447,7 +459,7 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice, eventId: stri
 }
 
 async function handleCustomerUpdated(customer: Stripe.Customer): Promise<void> {
-  const supabase = await createClient();
+  const supabase = getWebhookDb();
 
   await supabase
     .from('customers')

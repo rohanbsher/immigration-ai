@@ -154,7 +154,7 @@ export async function executeTool(
             )
           `)
           .eq('id', caseId)
-          .eq('user_id', userId)
+          .or(`attorney_id.eq.${userId},client_id.eq.${userId}`)
           .single();
 
         if (error) throw new Error('Case not found or access denied');
@@ -192,7 +192,7 @@ export async function executeTool(
           .from('cases')
           .select('id')
           .eq('id', caseId)
-          .eq('user_id', userId)
+          .or(`attorney_id.eq.${userId},client_id.eq.${userId}`)
           .single();
 
         if (caseError || !caseData) {
@@ -227,7 +227,7 @@ export async function executeTool(
           .from('cases')
           .select('id')
           .eq('id', caseId)
-          .eq('user_id', userId)
+          .or(`attorney_id.eq.${userId},client_id.eq.${userId}`)
           .single();
 
         if (caseError || !caseData) {
@@ -253,7 +253,7 @@ export async function executeTool(
           .from('cases')
           .select('id')
           .eq('id', caseId)
-          .eq('user_id', userId)
+          .or(`attorney_id.eq.${userId},client_id.eq.${userId}`)
           .single();
 
         if (caseError || !caseData) {
@@ -282,7 +282,7 @@ export async function executeTool(
           .from('cases')
           .select('id')
           .eq('id', caseId)
-          .eq('user_id', userId)
+          .or(`attorney_id.eq.${userId},client_id.eq.${userId}`)
           .single();
 
         if (caseError || !caseData) {
@@ -346,7 +346,7 @@ export async function executeTool(
               last_name
             )
           `)
-          .eq('user_id', userId);
+          .or(`attorney_id.eq.${userId},client_id.eq.${userId}`);
 
         if (visaType) {
           queryBuilder = queryBuilder.eq('visa_type', visaType);

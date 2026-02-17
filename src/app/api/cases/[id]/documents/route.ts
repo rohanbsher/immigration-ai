@@ -207,17 +207,26 @@ export async function POST(
     // Signed URLs are generated at read time in GET endpoints.
     const storagePath = fileName;
 
-    // Create document record
-    const document = await documentsService.createDocument({
-      case_id: caseId,
-      document_type: documentType as Parameters<typeof documentsService.createDocument>[0]['document_type'],
-      file_name: file.name,
-      file_url: storagePath,
-      file_size: file.size,
-      mime_type: file.type,
-      expiration_date: expirationDate || undefined,
-      notes: notes || undefined,
-    });
+    // Create document record — clean up the storage file if DB insert fails
+    let document;
+    try {
+      document = await documentsService.createDocument({
+        case_id: caseId,
+        document_type: documentType as Parameters<typeof documentsService.createDocument>[0]['document_type'],
+        file_name: file.name,
+        file_url: storagePath,
+        file_size: file.size,
+        mime_type: file.type,
+        expiration_date: expirationDate || undefined,
+        notes: notes || undefined,
+      });
+    } catch (dbError) {
+      log.warn('DB insert failed after storage upload, cleaning up', { fileName });
+      await supabase.storage.from('documents').remove([fileName]).catch((cleanupErr) => {
+        log.logError('Failed to clean up orphaned storage file', cleanupErr);
+      });
+      throw dbError;
+    }
 
     // Send email notification (fire and forget)
     sendDocumentUploadedEmail(

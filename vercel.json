@@ -27,6 +27,9 @@
     },
     "src/app/api/cron/cleanup/route.ts": {
       "maxDuration": 60
+    },
+    "src/app/api/cron/audit-archive/route.ts": {
+      "maxDuration": 60
     }
   },
   "crons": [
@@ -37,6 +40,10 @@
     {
       "path": "/api/cron/cleanup",
       "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/audit-archive",
+      "schedule": "0 3 * * 0"
     }
   ],
   "headers": [

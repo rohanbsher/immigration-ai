@@ -4,6 +4,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { FormAutofillResult, ExtractedField } from './types';
 import { FORM_AUTOFILL_SYSTEM_PROMPT, getAutofillPrompt } from './prompts';
 import { parseClaudeJSON, extractTextContent } from './utils';
+import { filterPiiFromExtractedData, filterPiiFromRecord } from './pii-filter';
 import { serverEnv, features } from '@/lib/config';
 import { withRetry, AI_RETRY_OPTIONS, RetryExhaustedError } from '@/lib/utils/retry';
 
@@ -44,16 +45,22 @@ export async function generateFormAutofill(
 
   const autofillPrompt = getAutofillPrompt(input.formType);
 
+  // Filter PII before sending to external AI API
+  const safeExtractedData = filterPiiFromExtractedData(input.extractedData);
+  const safeExistingFormData = input.existingFormData
+    ? filterPiiFromRecord(input.existingFormData)
+    : undefined;
+
   // Build the data context for Claude
   const dataContext = `
 ## Extracted Document Data
-${JSON.stringify(input.extractedData, null, 2)}
+${JSON.stringify(safeExtractedData, null, 2)}
 
 ## Case Context
 ${input.caseContext ? JSON.stringify(input.caseContext, null, 2) : 'No additional context provided'}
 
 ## Existing Form Data
-${input.existingFormData ? JSON.stringify(input.existingFormData, null, 2) : 'No existing data'}
+${safeExistingFormData ? JSON.stringify(safeExistingFormData, null, 2) : 'No existing data'}
 `;
 
   try {
@@ -115,6 +122,9 @@ export async function validateFormData(
   warnings: string[];
   suggestions: string[];
 }> {
+  // Filter PII before sending to external AI API
+  const safeFormData = filterPiiFromRecord(formData);
+
   const message = await withRetry(
     () => getAnthropicClient().messages.create({
       model: 'claude-sonnet-4-20250514',
@@ -126,7 +136,7 @@ export async function validateFormData(
           content: `Review this ${formType} form data for potential issues:
 
 Form Data:
-${JSON.stringify(formData, null, 2)}
+${JSON.stringify(safeFormData, null, 2)}
 
 Case Context:
 ${caseContext ? JSON.stringify(caseContext, null, 2) : 'None provided'}

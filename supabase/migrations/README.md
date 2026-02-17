@@ -13,6 +13,34 @@ Files follow the pattern `NNN_description.sql` where `NNN` is a zero-padded sequ
 
 **WARNING:** Never modify an existing migration that has been applied in production. Always create a new migration file to alter schema.
 
+## Migration Template
+
+Every new migration MUST include `SET lock_timeout = '4s';` at the top to prevent long-running schema locks from blocking production queries. Include rollback SQL in a comment block:
+
+```sql
+-- ROLLBACK:
+-- DROP INDEX IF EXISTS idx_example;
+-- ALTER TABLE example DROP COLUMN IF EXISTS new_col;
+
+SET lock_timeout = '4s';
+
+-- Your migration here
+```
+
+## Manual Setup Required After Migrations
+
+### Storage Bucket RLS (Migration 006)
+
+Migration `006_storage_rls.sql` creates helper functions for Storage RLS but the actual bucket policies must be configured **manually** in the Supabase Dashboard:
+
+1. Go to **Storage > documents bucket > Policies**
+2. Add SELECT policy: `storage_user_has_case_access(auth.uid(), storage_extract_case_id(name))`
+3. Add INSERT policy: `storage_user_has_case_access(auth.uid(), storage_extract_case_id(name))`
+4. Add UPDATE policy: `storage_user_has_case_access(auth.uid(), storage_extract_case_id(name))`
+5. Add DELETE policy: `storage_user_can_delete_document(auth.uid(), storage_extract_case_id(name))`
+
+**This must be done for each environment (staging + production).** Without these policies, Storage access is controlled only at the API route level.
+
 ## RLS Policies
 
 This project uses Row-Level Security extensively. Nearly every table has RLS enabled with policies that enforce tenant isolation, role-based access, and data ownership. Several migrations exist solely to fix RLS recursion issues caused by cross-table policy checks. When adding new tables, always add RLS policies in the same migration.
@@ -50,3 +78,6 @@ This project uses Row-Level Security extensively. Nearly every table has RLS ena
 | `034_backfill_cases_firm_id.sql` | Backfill NULL firm_id on cases for multi-tenant data safety |
 | `035_document_quota_rpc.sql` | RPC function for optimized document quota checking |
 | `036_email_log_unique_constraint.sql` | Idempotency key on email_log to prevent duplicate billing emails |
+| `051_audit_log_append_only.sql` | Enforce append-only audit_log (RLS + trigger) for USCIS compliance |
+| `052_encrypt_form_sensitive_fields.sql` | Add `form_data_encrypted` flag for app-layer AES-256-GCM encryption |
+| `053_audit_log_archive.sql` | Archive table and function for audit log cold storage before retention cleanup |

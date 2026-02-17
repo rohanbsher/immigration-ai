@@ -1081,12 +1081,14 @@ describe('Database Services', () => {
           form_data: { field1: 'value1' },
         });
 
-        expect(queryBuilder.insert).toHaveBeenCalledWith({
-          case_id: 'case-123',
-          form_type: 'I-130',
-          form_data: { field1: 'value1' },
-          status: 'draft',
-        });
+        expect(queryBuilder.insert).toHaveBeenCalledWith(
+          expect.objectContaining({
+            case_id: 'case-123',
+            form_type: 'I-130',
+            status: 'draft',
+            form_data_encrypted: true,
+          })
+        );
         expect(result).toBeDefined();
       });
 

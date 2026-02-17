@@ -1,4 +1,5 @@
 import { BaseService } from './base-service';
+import { encryptSensitiveFields, decryptSensitiveFields } from '@/lib/crypto';
 import type { FormType, FormStatus } from '@/types';
 
 export interface Form {
@@ -49,6 +50,30 @@ class FormsService extends BaseService {
     super('forms');
   }
 
+  /** Decrypt sensitive fields in form_data and ai_filled_data */
+  private decryptFormData<T extends Form>(form: T): T {
+    return {
+      ...form,
+      form_data: decryptSensitiveFields(form.form_data as Record<string, unknown>),
+      ai_filled_data: form.ai_filled_data
+        ? decryptSensitiveFields(form.ai_filled_data as Record<string, unknown>)
+        : null,
+    };
+  }
+
+  /** Encrypt sensitive fields in form_data and ai_filled_data before storage */
+  private encryptFormPayload(data: Record<string, unknown>): Record<string, unknown> {
+    const result = { ...data };
+    if (result.form_data && typeof result.form_data === 'object') {
+      result.form_data = encryptSensitiveFields(result.form_data as Record<string, unknown>);
+      result.form_data_encrypted = true;
+    }
+    if (result.ai_filled_data && typeof result.ai_filled_data === 'object') {
+      result.ai_filled_data = encryptSensitiveFields(result.ai_filled_data as Record<string, unknown>);
+    }
+    return result;
+  }
+
   async getFormsByCase(caseId: string): Promise<FormWithReviewer[]> {
     return this.withErrorHandling(async () => {
       const supabase = await this.getSupabaseClient();
@@ -62,7 +87,7 @@ class FormsService extends BaseService {
 
       if (error) throw error;
 
-      return data as FormWithReviewer[];
+      return (data as FormWithReviewer[]).map((f) => this.decryptFormData(f));
     }, 'getFormsByCase', { caseId });
   }
 
@@ -81,7 +106,7 @@ class FormsService extends BaseService {
         return null;
       }
 
-      return data as FormWithReviewer;
+      return this.decryptFormData(data as FormWithReviewer);
     }, 'getForm', { formId: id });
   }
 
@@ -89,19 +114,21 @@ class FormsService extends BaseService {
     return this.withErrorHandling(async () => {
       const supabase = await this.getSupabaseClient();
 
+      const payload = this.encryptFormPayload({
+        ...data,
+        form_data: data.form_data || {},
+        status: 'draft',
+      });
+
       const { data: newForm, error } = await supabase
         .from('forms')
-        .insert({
-          ...data,
-          form_data: data.form_data || {},
-          status: 'draft',
-        })
+        .insert(payload)
         .select()
         .single();
 
       if (error) throw error;
 
-      return newForm;
+      return this.decryptFormData(newForm as Form);
     }, 'createForm', { caseId: data.case_id, formType: data.form_type });
   }
 
@@ -109,16 +136,18 @@ class FormsService extends BaseService {
     return this.withErrorHandling(async () => {
       const supabase = await this.getSupabaseClient();
 
+      const payload = this.encryptFormPayload(data as Record<string, unknown>);
+
       const { data: updatedForm, error } = await supabase
         .from('forms')
-        .update(data)
+        .update(payload)
         .eq('id', id)
         .select()
         .single();
 
       if (error) throw error;
 
-      return updatedForm;
+      return this.decryptFormData(updatedForm as Form);
     }, 'updateForm', { formId: id });
   }
 
@@ -146,7 +175,7 @@ class FormsService extends BaseService {
 
       if (error) throw error;
 
-      return updatedForm;
+      return this.decryptFormData(updatedForm as Form);
     }, 'reviewForm', { formId: id });
   }
 
@@ -166,7 +195,7 @@ class FormsService extends BaseService {
 
       if (error) throw error;
 
-      return updatedForm;
+      return this.decryptFormData(updatedForm as Form);
     }, 'markAsFiled', { formId: id });
   }
 
@@ -196,7 +225,7 @@ class FormsService extends BaseService {
 
       if (error) throw error;
 
-      return restoredForm;
+      return this.decryptFormData(restoredForm as Form);
     }, 'restoreForm', { formId: id });
   }
 }

@@ -364,44 +364,22 @@ class ClientsService extends BaseService {
     const firmCaseRows = (firmCases || []) as { client_id: string }[];
     const firmClientIds = [...new Set(firmCaseRows.map((c) => c.client_id))];
 
-    // Search profiles matching the query with role = 'client'
-    // Include clients linked to this firm's cases AND clients with no cases yet
-    const { data, error } = await admin
-      .from('profiles')
-      .select('*')
-      .eq('role', 'client')
-      .or(`first_name.ilike.%${sanitizedQuery}%,last_name.ilike.%${sanitizedQuery}%,email.ilike.%${sanitizedQuery}%`)
-      .limit(50);
+    // Search within firm's clients only (prevents cross-firm data leak)
+    if (firmClientIds.length > 0) {
+      const { data: firmMatches, error: firmError } = await admin
+        .from('profiles')
+        .select('*')
+        .eq('role', 'client')
+        .in('id', firmClientIds)
+        .or(`first_name.ilike.%${sanitizedQuery}%,last_name.ilike.%${sanitizedQuery}%,email.ilike.%${sanitizedQuery}%`)
+        .limit(10);
 
-    if (error) {
-      throw error;
+      if (firmError) throw firmError;
+      return (firmMatches || []) as Client[];
     }
 
-    const matchedClients = (data || []) as Client[];
-
-    if (matchedClients.length === 0) {
-      return [];
-    }
-
-    // Filter: keep clients who belong to this firm OR have no cases at all
-    const firmClientIdSet = new Set(firmClientIds);
-
-    // Get all client IDs that have ANY case (to identify truly new clients)
-    const matchedIds = matchedClients.map((p) => p.id);
-    const { data: anyCases } = await admin
-      .from('cases')
-      .select('client_id')
-      .in('client_id', matchedIds)
-      .is('deleted_at', null);
-
-    const anyCaseRows = (anyCases || []) as { client_id: string }[];
-    const clientsWithAnyCaseId = new Set(anyCaseRows.map((c) => c.client_id));
-
-    const filtered = matchedClients.filter((client) =>
-      firmClientIdSet.has(client.id) || !clientsWithAnyCaseId.has(client.id)
-    );
-
-    return filtered.slice(0, 10);
+    // No firm clients found — return empty (don't leak other firms' clients)
+    return [];
   }
 
   /**

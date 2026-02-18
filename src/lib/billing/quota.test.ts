@@ -74,8 +74,8 @@ describe('checkQuota', () => {
 
       expect(result.allowed).toBe(true);
       expect(result.current).toBe(3);
-      expect(result.limit).toBe(5);
-      expect(result.remaining).toBe(2);
+      expect(result.limit).toBe(100);
+      expect(result.remaining).toBe(97);
       expect(result.isUnlimited).toBe(false);
     });
 
@@ -86,7 +86,7 @@ describe('checkQuota', () => {
         select: vi.fn().mockReturnValue({
           eq: vi.fn().mockReturnValue({
             is: vi.fn().mockResolvedValue({
-              count: 5,
+              count: 100,
               error: null,
             }),
           }),
@@ -96,8 +96,8 @@ describe('checkQuota', () => {
       const result = await checkQuota('user-123', 'cases');
 
       expect(result.allowed).toBe(false);
-      expect(result.current).toBe(5);
-      expect(result.limit).toBe(5);
+      expect(result.current).toBe(100);
+      expect(result.limit).toBe(100);
       expect(result.remaining).toBe(0);
       expect(result.message).toContain('limit');
     });
@@ -109,7 +109,7 @@ describe('checkQuota', () => {
         select: vi.fn().mockReturnValue({
           eq: vi.fn().mockReturnValue({
             is: vi.fn().mockResolvedValue({
-              count: 6,
+              count: 101,
               error: null,
             }),
           }),
@@ -133,9 +133,9 @@ describe('checkQuota', () => {
       const result = await checkQuota('user-123', 'documents');
 
       expect(result.current).toBe(7);
-      expect(result.limit).toBe(10);
+      expect(result.limit).toBe(50);
       expect(result.allowed).toBe(true);
-      expect(result.remaining).toBe(3);
+      expect(result.remaining).toBe(43);
     });
 
     it('returns 0 when RPC returns 0', async () => {
@@ -200,9 +200,9 @@ describe('checkQuota', () => {
       const result = await checkQuota('user-123', 'documents');
 
       expect(result.current).toBe(7);
-      expect(result.limit).toBe(10);
+      expect(result.limit).toBe(50);
       expect(result.allowed).toBe(true);
-      expect(result.remaining).toBe(3);
+      expect(result.remaining).toBe(43);
     });
 
     it('returns 0 in fallback when user has no cases', async () => {
@@ -339,7 +339,7 @@ describe('checkQuota', () => {
         select: vi.fn().mockReturnValue({
           eq: vi.fn().mockReturnValue({
             is: vi.fn().mockResolvedValue({
-              count: 4,
+              count: 99,
               error: null,
             }),
           }),
@@ -349,8 +349,8 @@ describe('checkQuota', () => {
       const result = await checkQuota('user-123', 'cases', 2);
 
       expect(result.allowed).toBe(false);
-      expect(result.current).toBe(4);
-      expect(result.limit).toBe(5);
+      expect(result.current).toBe(99);
+      expect(result.limit).toBe(100);
     });
 
     it('allows when required amount fits within remaining', async () => {
@@ -360,7 +360,7 @@ describe('checkQuota', () => {
         select: vi.fn().mockReturnValue({
           eq: vi.fn().mockReturnValue({
             is: vi.fn().mockResolvedValue({
-              count: 3,
+              count: 98,
               error: null,
             }),
           }),
@@ -383,7 +383,7 @@ describe('enforceQuota', () => {
         select: vi.fn().mockReturnValue({
           eq: vi.fn().mockReturnValue({
             is: vi.fn().mockResolvedValue({
-              count: 5,
+              count: 100,
               error: null,
             }),
           }),
@@ -400,12 +400,25 @@ describe('enforceQuota', () => {
     await expect(enforceQuota('user-123', 'cases')).rejects.toThrow(QuotaExceededError);
     await expect(enforceQuota('user-123', 'cases')).rejects.toMatchObject({
       metric: 'cases',
-      limit: 5,
-      current: 5,
+      limit: 100,
+      current: 100,
     });
   });
 
   it('does not throw when under quota', async () => {
+    const mockSupabase = {
+      from: vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            is: vi.fn().mockResolvedValue({
+              count: 5,
+              error: null,
+            }),
+          }),
+        }),
+      }),
+    };
+    vi.mocked(createClient).mockResolvedValue(mockSupabase as never);
     vi.mocked(getUserPlanLimits).mockResolvedValue(createMockPlanLimits('pro'));
 
     await expect(enforceQuota('user-123', 'cases')).resolves.not.toThrow();
@@ -464,7 +477,7 @@ describe('enforceQuotaForCase', () => {
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
               is: vi.fn().mockResolvedValue({
-                count: 10,
+                count: 50,
                 error: null,
               }),
             }),
@@ -479,8 +492,8 @@ describe('enforceQuotaForCase', () => {
     await expect(enforceQuotaForCase('case-1', 'documents')).rejects.toThrow(QuotaExceededError);
     await expect(enforceQuotaForCase('case-1', 'documents')).rejects.toMatchObject({
       metric: 'documents',
-      limit: 10,
-      current: 10,
+      limit: 50,
+      current: 50,
     });
   });
 

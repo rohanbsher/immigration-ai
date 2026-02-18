@@ -6,6 +6,7 @@ import { createLogger } from '@/lib/logger';
 import { requireAiConsent } from '@/lib/auth/api-helpers';
 import { features } from '@/lib/config';
 import { enqueueSuccessScore } from '@/lib/jobs/queues';
+import { enforceQuota, trackUsage, QuotaExceededError } from '@/lib/billing/quota';
 
 const log = createLogger('api:success-score');
 
@@ -94,15 +95,39 @@ export async function GET(
         }
       }
 
-      const job = await enqueueSuccessScore({
-        caseId,
-        userId: user.id,
-      });
+      // Enforce quota before enqueueing
+      try {
+        await enforceQuota(user.id, 'ai_requests');
+      } catch (error) {
+        if (error instanceof QuotaExceededError) {
+          return NextResponse.json(
+            { error: 'AI request limit reached. Please upgrade your plan.', code: 'QUOTA_EXCEEDED' },
+            { status: 402 }
+          );
+        }
+        throw error;
+      }
 
-      return NextResponse.json(
-        { jobId: job.id, status: 'queued', message: 'Success score calculation has been queued.' },
-        { status: 202 }
-      );
+      try {
+        const job = await enqueueSuccessScore({
+          caseId,
+          userId: user.id,
+        });
+
+        trackUsage(user.id, 'ai_requests').catch((err) => {
+          log.warn('Usage tracking failed', { error: err instanceof Error ? err.message : String(err) });
+        });
+
+        return NextResponse.json(
+          { jobId: job.id, status: 'queued', message: 'Success score calculation has been queued.' },
+          { status: 202 }
+        );
+      } catch (enqueueErr) {
+        log.warn('Failed to enqueue success-score job, falling back to sync', {
+          error: enqueueErr instanceof Error ? enqueueErr.message : String(enqueueErr),
+        });
+        // Fall through to synchronous path below
+      }
     }
 
     // Calculate success score

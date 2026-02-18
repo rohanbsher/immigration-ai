@@ -39,7 +39,7 @@ export async function processEmail(
   try {
     const resend = getResend();
     const { data, error } = await resend.emails.send({
-      from: 'Immigration AI <noreply@immigrationai.app>',
+      from: workerConfig.EMAIL_FROM || 'Immigration AI <noreply@immigrationai.app>',
       to,
       subject,
       html,

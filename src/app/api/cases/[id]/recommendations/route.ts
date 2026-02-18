@@ -305,20 +305,27 @@ export async function GET(
         }
       }
 
-      const job = await enqueueRecommendations({
-        caseId,
-        userId: user.id,
-        visaType: caseInfo?.visa_type || 'unknown',
-      });
+      try {
+        const job = await enqueueRecommendations({
+          caseId,
+          userId: user.id,
+          visaType: caseInfo?.visa_type || 'unknown',
+        });
 
-      trackUsage(user.id, 'ai_requests').catch((err) => {
-        log.warn('Usage tracking failed', { error: err instanceof Error ? err.message : String(err) });
-      });
+        trackUsage(user.id, 'ai_requests').catch((err) => {
+          log.warn('Usage tracking failed', { error: err instanceof Error ? err.message : String(err) });
+        });
 
-      return NextResponse.json(
-        { jobId: job.id, status: 'queued', message: 'Recommendations are being generated.' },
-        { status: 202 }
-      );
+        return NextResponse.json(
+          { jobId: job.id, status: 'queued', message: 'Recommendations are being generated.' },
+          { status: 202 }
+        );
+      } catch (enqueueErr) {
+        log.warn('Failed to enqueue recommendations job, falling back to sync', {
+          error: enqueueErr instanceof Error ? enqueueErr.message : String(enqueueErr),
+        });
+        // Fall through to synchronous path below
+      }
     }
 
     // Generate new recommendations with fallback

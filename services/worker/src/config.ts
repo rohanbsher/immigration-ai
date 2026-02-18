@@ -13,6 +13,7 @@ const workerConfigSchema = z.object({
 
   // Optional service keys
   RESEND_API_KEY: z.string().optional(),
+  EMAIL_FROM: z.string().optional(),
   PDF_SERVICE_URL: z.string().url().optional(),
   PDF_SERVICE_SECRET: z.string().optional(),
 

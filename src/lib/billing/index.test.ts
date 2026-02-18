@@ -21,11 +21,11 @@ describe('Billing - Limits Module', () => {
       expect(PLAN_FEATURES.free.name).toBe('Free');
       expect(PLAN_FEATURES.free.price.monthly).toBe(0);
       expect(PLAN_FEATURES.free.price.yearly).toBe(0);
-      expect(PLAN_FEATURES.free.limits.maxCases).toBe(3);
-      expect(PLAN_FEATURES.free.limits.maxDocumentsPerCase).toBe(10);
-      expect(PLAN_FEATURES.free.limits.maxAiRequestsPerMonth).toBe(25);
-      expect(PLAN_FEATURES.free.limits.maxStorageGb).toBe(1);
-      expect(PLAN_FEATURES.free.limits.maxTeamMembers).toBe(1);
+      expect(PLAN_FEATURES.free.limits.maxCases).toBe(100);
+      expect(PLAN_FEATURES.free.limits.maxDocumentsPerCase).toBe(50);
+      expect(PLAN_FEATURES.free.limits.maxAiRequestsPerMonth).toBe(1000);
+      expect(PLAN_FEATURES.free.limits.maxStorageGb).toBe(25);
+      expect(PLAN_FEATURES.free.limits.maxTeamMembers).toBe(5);
     });
 
     it('should have pro plan with correct limits', () => {
@@ -51,14 +51,14 @@ describe('Billing - Limits Module', () => {
     });
 
     it('should have correct features for each plan', () => {
-      // Free plan features
+      // Free plan features (early access — most features enabled)
       expect(PLAN_FEATURES.free.features.documentAnalysis).toBe(true);
-      expect(PLAN_FEATURES.free.features.formAutofill).toBe(false);
+      expect(PLAN_FEATURES.free.features.formAutofill).toBe(true);
       expect(PLAN_FEATURES.free.features.prioritySupport).toBe(false);
       expect(PLAN_FEATURES.free.features.apiAccess).toBe(false);
-      expect(PLAN_FEATURES.free.features.teamCollaboration).toBe(false);
+      expect(PLAN_FEATURES.free.features.teamCollaboration).toBe(true);
       expect(PLAN_FEATURES.free.features.customBranding).toBe(false);
-      expect(PLAN_FEATURES.free.features.advancedReporting).toBe(false);
+      expect(PLAN_FEATURES.free.features.advancedReporting).toBe(true);
 
       // Pro plan features
       expect(PLAN_FEATURES.pro.features.documentAnalysis).toBe(true);
@@ -80,7 +80,7 @@ describe('Billing - Limits Module', () => {
     });
 
     it('should have descriptions for each plan', () => {
-      expect(PLAN_FEATURES.free.description).toBe('Get started with basic features');
+      expect(PLAN_FEATURES.free.description).toBe('Early access — all features included');
       expect(PLAN_FEATURES.pro.description).toBe('Perfect for solo practitioners');
       expect(PLAN_FEATURES.enterprise.description).toBe('For growing firms');
     });
@@ -251,27 +251,18 @@ describe('Billing - Quota Module', () => {
 });
 
 describe('Billing - Plan Comparison', () => {
-  it('should have progressively increasing limits from free to enterprise', () => {
-    const free = PLAN_FEATURES.free.limits;
+  it('should have progressively increasing limits from pro to enterprise', () => {
     const pro = PLAN_FEATURES.pro.limits;
     const enterprise = PLAN_FEATURES.enterprise.limits;
 
+    // Note: Free plan has temporarily bumped limits for early access beta.
+    // Progressive ordering is only guaranteed from Pro → Enterprise.
+
     // Cases
-    expect(free.maxCases).toBeLessThan(pro.maxCases);
     expect(pro.maxCases).toBeLessThan(enterprise.maxCases === -1 ? Infinity : enterprise.maxCases);
 
-    // Documents per case
-    expect(free.maxDocumentsPerCase).toBeLessThan(pro.maxDocumentsPerCase);
-
-    // AI requests
-    expect(free.maxAiRequestsPerMonth).toBeLessThan(pro.maxAiRequestsPerMonth);
-
     // Storage
-    expect(free.maxStorageGb).toBeLessThan(pro.maxStorageGb);
     expect(pro.maxStorageGb).toBeLessThan(enterprise.maxStorageGb);
-
-    // Team members
-    expect(free.maxTeamMembers).toBeLessThan(pro.maxTeamMembers);
   });
 
   it('should have progressively increasing prices from free to enterprise', () => {

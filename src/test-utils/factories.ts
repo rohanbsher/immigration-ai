@@ -457,14 +457,14 @@ export interface MockPlanLimits {
 const PLAN_DEFAULTS: Record<MockPlanType, MockPlanLimits> = {
   free: {
     planType: 'free',
-    maxCases: 5,
-    maxDocumentsPerCase: 10,
-    maxAiRequestsPerMonth: 25,
-    maxStorageGb: 1,
-    maxTeamMembers: 1,
+    maxCases: 100,
+    maxDocumentsPerCase: 50,
+    maxAiRequestsPerMonth: 1000,
+    maxStorageGb: 25,
+    maxTeamMembers: 5,
     features: {
       documentAnalysis: true,
-      formAutofill: false,
+      formAutofill: true,
       prioritySupport: false,
       apiAccess: false,
     },

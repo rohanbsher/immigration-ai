@@ -2425,9 +2425,9 @@ describe('Database Services', () => {
         const result = await subscriptionsService.getUserPlanLimits('user-123');
 
         expect(result.planType).toBe('free');
-        expect(result.maxCases).toBe(3);
+        expect(result.maxCases).toBe(100);
         expect(result.features.documentAnalysis).toBe(true);
-        expect(result.features.formAutofill).toBe(false);
+        expect(result.features.formAutofill).toBe(true);
       });
     });
 

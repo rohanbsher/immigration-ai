@@ -3,26 +3,26 @@ import type { PlanType } from '@/lib/db/subscriptions';
 export const PLAN_FEATURES = {
   free: {
     name: 'Free',
-    description: 'Get started with basic features',
+    description: 'Early access — all features included',
     price: {
       monthly: 0,
       yearly: 0,
     },
     limits: {
-      maxCases: 3,
-      maxDocumentsPerCase: 10,
-      maxAiRequestsPerMonth: 25,
-      maxStorageGb: 1,
-      maxTeamMembers: 1,
+      maxCases: 100,
+      maxDocumentsPerCase: 50,
+      maxAiRequestsPerMonth: 1000,
+      maxStorageGb: 25,
+      maxTeamMembers: 5,
     },
     features: {
       documentAnalysis: true,
-      formAutofill: false,
+      formAutofill: true,
       prioritySupport: false,
       apiAccess: false,
-      teamCollaboration: false,
+      teamCollaboration: true,
       customBranding: false,
-      advancedReporting: false,
+      advancedReporting: true,
     },
   },
   pro: {

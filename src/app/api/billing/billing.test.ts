@@ -587,7 +587,7 @@ describe('Billing API Routes', () => {
       vi.mocked(getSubscriptionByUserId).mockResolvedValue(null as any);
       vi.mocked(getUserPlanLimits).mockResolvedValue({
         planType: 'free',
-        maxCases: 3,
+        maxCases: 100,
       } as any);
       vi.mocked(getAllPlanLimits).mockResolvedValue([] as any);
 

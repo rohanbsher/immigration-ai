@@ -548,11 +548,11 @@ describe('Billing API Routes', () => {
       };
       const mockLimits = {
         planType: 'pro',
-        maxCases: 50,
-        maxDocumentsPerCase: 50,
-        maxAiRequestsPerMonth: 500,
-        maxStorageGb: 25,
-        maxTeamMembers: 5,
+        maxCases: 250,
+        maxDocumentsPerCase: 100,
+        maxAiRequestsPerMonth: 2500,
+        maxStorageGb: 50,
+        maxTeamMembers: 10,
         features: {
           documentAnalysis: true,
           formAutofill: true,

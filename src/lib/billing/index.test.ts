@@ -32,11 +32,11 @@ describe('Billing - Limits Module', () => {
       expect(PLAN_FEATURES.pro.name).toBe('Pro');
       expect(PLAN_FEATURES.pro.price.monthly).toBe(99);
       expect(PLAN_FEATURES.pro.price.yearly).toBe(79);
-      expect(PLAN_FEATURES.pro.limits.maxCases).toBe(50);
-      expect(PLAN_FEATURES.pro.limits.maxDocumentsPerCase).toBe(50);
-      expect(PLAN_FEATURES.pro.limits.maxAiRequestsPerMonth).toBe(500);
-      expect(PLAN_FEATURES.pro.limits.maxStorageGb).toBe(25);
-      expect(PLAN_FEATURES.pro.limits.maxTeamMembers).toBe(5);
+      expect(PLAN_FEATURES.pro.limits.maxCases).toBe(250);
+      expect(PLAN_FEATURES.pro.limits.maxDocumentsPerCase).toBe(100);
+      expect(PLAN_FEATURES.pro.limits.maxAiRequestsPerMonth).toBe(2500);
+      expect(PLAN_FEATURES.pro.limits.maxStorageGb).toBe(50);
+      expect(PLAN_FEATURES.pro.limits.maxTeamMembers).toBe(10);
     });
 
     it('should have enterprise plan with unlimited options', () => {

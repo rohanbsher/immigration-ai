@@ -237,11 +237,11 @@ Limits are defined in THREE places that MUST stay synchronized:
 
 | Plan | maxCases | maxDocumentsPerCase | maxAiRequests | maxStorage | maxTeamMembers |
 |------|----------|---------------------|---------------|------------|----------------|
-| Free | 3 | 10 | 25 | 1 GB | 1 |
-| Pro | 50 | 50 | 500 | 25 GB | 5 |
+| Free | 100 | 50 | 1,000 | 25 GB | 5 |
+| Pro | 250 | 100 | 2,500 | 50 GB | 10 |
 | Enterprise | ∞ | ∞ | ∞ | 500 GB | ∞ |
 
-**Note:** Documents quota is enforced per-case (not aggregate). The UsageMeter UI shows Cases, AI Requests, and Team Members only.
+**Note:** Free plan limits are temporarily elevated for early access / beta (see migration 056). Revert when billing goes live. Documents quota is enforced per-case (not aggregate). The UsageMeter UI shows Cases, AI Requests, and Team Members only.
 
 ---
 

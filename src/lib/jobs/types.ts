@@ -120,6 +120,7 @@ export const AI_JOB_DEFAULTS = {
   },
   removeOnComplete: { age: 24 * 3600, count: 1000 },
   removeOnFail: { age: 7 * 24 * 3600, count: 5000 },
+  timeout: 120_000, // 2 minutes — prevents worker starvation on hung AI calls
 };
 
 export const EMAIL_JOB_DEFAULTS = {

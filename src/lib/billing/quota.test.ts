@@ -280,7 +280,7 @@ describe('checkQuota', () => {
         select: vi.fn().mockReturnValue({
           eq: vi.fn().mockReturnValue({
             is: vi.fn().mockResolvedValue({
-              count: 25,
+              count: 125,
               error: null,
             }),
           }),
@@ -290,8 +290,8 @@ describe('checkQuota', () => {
       const result = await checkQuota('user-123', 'cases');
 
       expect(result.allowed).toBe(true);
-      expect(result.limit).toBe(50);
-      expect(result.remaining).toBe(25);
+      expect(result.limit).toBe(250);
+      expect(result.remaining).toBe(125);
     });
 
     it('applies correct limits for enterprise plan', async () => {

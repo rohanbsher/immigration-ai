@@ -91,7 +91,10 @@ export function getCronQueue() {
  */
 export async function enqueueDocumentAnalysis(data: DocumentAnalysisJob) {
   const queue = getDocumentAnalysisQueue();
-  return queue.add('analyze', data, AI_JOB_DEFAULTS);
+  return queue.add('analyze', data, {
+    ...AI_JOB_DEFAULTS,
+    jobId: `doc-analysis:${data.documentId}`,
+  });
 }
 
 /**
@@ -99,7 +102,10 @@ export async function enqueueDocumentAnalysis(data: DocumentAnalysisJob) {
  */
 export async function enqueueFormAutofill(data: FormAutofillJob) {
   const queue = getFormAutofillQueue();
-  return queue.add('autofill', data, AI_JOB_DEFAULTS);
+  return queue.add('autofill', data, {
+    ...AI_JOB_DEFAULTS,
+    jobId: `form-autofill:${data.formId}`,
+  });
 }
 
 /**
@@ -115,7 +121,10 @@ export async function enqueueEmail(data: EmailJob) {
  */
 export async function enqueueRecommendations(data: RecommendationsJob) {
   const queue = getRecommendationsQueue();
-  return queue.add('recommend', data, AI_JOB_DEFAULTS);
+  return queue.add('recommend', data, {
+    ...AI_JOB_DEFAULTS,
+    jobId: `recommendations:${data.caseId}`,
+  });
 }
 
 /**
@@ -123,7 +132,10 @@ export async function enqueueRecommendations(data: RecommendationsJob) {
  */
 export async function enqueueCompleteness(data: CompletenessJob) {
   const queue = getCompletenessQueue();
-  return queue.add('analyze', data, AI_JOB_DEFAULTS);
+  return queue.add('analyze', data, {
+    ...AI_JOB_DEFAULTS,
+    jobId: `completeness:${data.caseId}`,
+  });
 }
 
 /**
@@ -131,7 +143,10 @@ export async function enqueueCompleteness(data: CompletenessJob) {
  */
 export async function enqueueSuccessScore(data: SuccessScoreJob) {
   const queue = getSuccessScoreQueue();
-  return queue.add('score', data, AI_JOB_DEFAULTS);
+  return queue.add('score', data, {
+    ...AI_JOB_DEFAULTS,
+    jobId: `success-score:${data.caseId}`,
+  });
 }
 
 /**

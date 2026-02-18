@@ -39,10 +39,17 @@ vi.mock('@/lib/supabase/admin', () => ({
 // Mock auth helpers
 // ---------------------------------------------------------------------------
 
+// Track options passed to withAuth so tests can assert { rateLimit: false }
+// vi.hoisted runs before vi.mock hoisting, making this available in the factory
+const { withAuthCalls } = vi.hoisted(() => ({
+  withAuthCalls: [] as Array<{ handler: any; options: any }>,
+}));
+
 vi.mock('@/lib/auth/api-helpers', () => {
   const authenticateFn = vi.fn();
 
-  const withAuth = (handler: any) => {
+  const withAuth = (handler: any, options?: any) => {
+    withAuthCalls.push({ handler, options });
     return async (request: any, context: any) => {
       const auth = await authenticateFn(request);
       if (!auth.success) {
@@ -103,7 +110,7 @@ vi.mock('@/lib/logger', () => ({
 
 import { GET, POST, DELETE } from './route';
 import { authenticate } from '@/lib/auth/api-helpers';
-import { rateLimit } from '@/lib/rate-limit';
+import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -131,6 +138,27 @@ function mockUnauth() {
     error: 'Unauthorized',
   } as any);
 }
+
+// ---------------------------------------------------------------------------
+// Tests — withAuth wiring
+// ---------------------------------------------------------------------------
+
+describe('AI Consent API - withAuth options', () => {
+  it('GET uses default withAuth options (standard rate limiting)', () => {
+    // withAuthCalls[0] = GET registration
+    expect(withAuthCalls[0].options).toBeUndefined();
+  });
+
+  it('POST disables withAuth rate limiting (uses manual SENSITIVE)', () => {
+    // withAuthCalls[1] = POST registration
+    expect(withAuthCalls[1].options).toEqual({ rateLimit: false });
+  });
+
+  it('DELETE disables withAuth rate limiting (uses manual SENSITIVE)', () => {
+    // withAuthCalls[2] = DELETE registration
+    expect(withAuthCalls[2].options).toEqual({ rateLimit: false });
+  });
+});
 
 // ---------------------------------------------------------------------------
 // Tests — GET
@@ -239,6 +267,9 @@ describe('AI Consent API - POST', () => {
     expect(json.success).toBe(true);
     expect(json.data.message).toBe('AI consent granted');
 
+    // Verify SENSITIVE rate limiting keyed by user ID (not IP)
+    expect(rateLimit).toHaveBeenCalledWith(RATE_LIMITS.SENSITIVE, MOCK_USER_ID);
+
     expect(mockFrom).toHaveBeenCalledWith('profiles');
     expect(mockUpdate).toHaveBeenCalledWith(
       expect.objectContaining({ ai_consent_granted_at: expect.any(String) })
@@ -246,7 +277,7 @@ describe('AI Consent API - POST', () => {
     expect(mockEqUpdate).toHaveBeenCalledWith('id', MOCK_USER_ID);
   });
 
-  it('returns 429 when rate limited', async () => {
+  it('returns 429 with Retry-After header when rate limited', async () => {
     vi.mocked(rateLimit).mockResolvedValueOnce({ success: false, retryAfter: 30 });
 
     const req = createRequest('POST', '/api/profile/ai-consent');
@@ -255,6 +286,7 @@ describe('AI Consent API - POST', () => {
 
     expect(res.status).toBe(429);
     expect(json.error).toBe('Too many requests');
+    expect(res.headers.get('Retry-After')).toBe('30');
   });
 
   it('returns 500 when database update fails', async () => {
@@ -304,12 +336,15 @@ describe('AI Consent API - DELETE', () => {
     expect(json.success).toBe(true);
     expect(json.data.message).toBe('AI consent revoked');
 
+    // Verify SENSITIVE rate limiting keyed by user ID (not IP)
+    expect(rateLimit).toHaveBeenCalledWith(RATE_LIMITS.SENSITIVE, MOCK_USER_ID);
+
     expect(mockFrom).toHaveBeenCalledWith('profiles');
     expect(mockUpdate).toHaveBeenCalledWith({ ai_consent_granted_at: null });
     expect(mockEqUpdate).toHaveBeenCalledWith('id', MOCK_USER_ID);
   });
 
-  it('returns 429 when rate limited', async () => {
+  it('returns 429 with Retry-After header when rate limited', async () => {
     vi.mocked(rateLimit).mockResolvedValueOnce({ success: false, retryAfter: 30 });
 
     const req = createRequest('DELETE', '/api/profile/ai-consent');
@@ -318,6 +353,7 @@ describe('AI Consent API - DELETE', () => {
 
     expect(res.status).toBe(429);
     expect(json.error).toBe('Too many requests');
+    expect(res.headers.get('Retry-After')).toBe('30');
   });
 
   it('returns 500 when database update fails', async () => {

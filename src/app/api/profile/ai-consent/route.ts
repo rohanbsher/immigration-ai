@@ -1,3 +1,4 @@
+import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 import { createLogger } from '@/lib/logger';
@@ -37,7 +38,10 @@ export const POST = withAuth(async (_request, _context, auth) => {
   // Rate limit by user ID (not IP) to avoid shared-IP collisions
   const rateLimitResult = await rateLimit(RATE_LIMITS.SENSITIVE, auth.user.id);
   if (!rateLimitResult.success) {
-    return errorResponse('Too many requests', 429);
+    return NextResponse.json(
+      { success: false, error: 'Too many requests' },
+      { status: 429, headers: { 'Retry-After': rateLimitResult.retryAfter?.toString() || '60' } }
+    );
   }
 
   const supabase = await createClient();
@@ -63,7 +67,10 @@ export const DELETE = withAuth(async (_request, _context, auth) => {
   // Rate limit by user ID (not IP) to avoid shared-IP collisions
   const rateLimitResult = await rateLimit(RATE_LIMITS.SENSITIVE, auth.user.id);
   if (!rateLimitResult.success) {
-    return errorResponse('Too many requests', 429);
+    return NextResponse.json(
+      { success: false, error: 'Too many requests' },
+      { status: 429, headers: { 'Retry-After': rateLimitResult.retryAfter?.toString() || '60' } }
+    );
   }
 
   const supabase = await createClient();

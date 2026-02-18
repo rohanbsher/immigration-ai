@@ -73,10 +73,14 @@ export async function GET(request: NextRequest) {
 
     // Calculate MRR from active Stripe subscriptions
     let mrr = 0;
-    const mrrGrowth = 0;
+    // MVP: MRR growth calculation not yet implemented — null tells the
+    // frontend to display "N/A" instead of a misleading "0%".
+    const mrrGrowth = null;
     const stripe = getStripeClient();
     if (stripe) {
       try {
+        // MVP: Stripe list caps at 100 per page. For >100 active subscriptions,
+        // switch to stripe.subscriptions.list().autoPagingEach() or cursor-based pagination.
         const activeSubscriptions = await stripe.subscriptions.list({
           status: 'active',
           limit: 100,

@@ -13,6 +13,8 @@ import { enforceQuota, trackUsage, QuotaExceededError } from '@/lib/billing/quot
 import type { FormStatus } from '@/types';
 import { logAIRequest } from '@/lib/audit/ai-audit';
 import { requireAiConsent } from '@/lib/auth/api-helpers';
+import { features } from '@/lib/config';
+import { enqueueFormAutofill } from '@/lib/jobs/queues';
 
 const log = createLogger('api:forms-autofill');
 
@@ -110,6 +112,25 @@ export async function POST(
     // 'ai_filled'. This is acceptable because the stuck form's AI data is
     // likely stale anyway, and 'draft' is the safest fallback.
     previousStatus = (lockRow.current_status as FormStatus) || form.status;
+
+    // Async path: enqueue job when worker is enabled
+    if (features.workerEnabled) {
+      const job = await enqueueFormAutofill({
+        formId: id,
+        userId: user.id,
+        caseId: form.case_id,
+        formType: form.form_type,
+      });
+
+      trackUsage(user.id, 'ai_requests').catch((err) => {
+        log.warn('Usage tracking failed', { error: err instanceof Error ? err.message : String(err) });
+      });
+
+      return NextResponse.json(
+        { jobId: job.id, status: 'queued', message: 'Form autofill has been queued for processing.' },
+        { status: 202 }
+      );
+    }
 
     // Get all analyzed documents for the case
     const documents = await documentsService.getDocumentsByCase(form.case_id);

@@ -25,18 +25,10 @@ import { createLogger, Logger, type LogContext } from '@/lib/logger';
  * }
  * ```
  */
-/**
- * Sanitize search input to prevent PostgREST filter injection.
- * Escapes SQL LIKE wildcards and removes PostgREST special characters.
- */
-export function sanitizeSearchInput(input: string): string {
-  const truncated = input.slice(0, 100);
-  const sanitized = truncated
-    .replace(/[%_]/g, '\\$&')
-    .replace(/[,.'"\(\)|]/g, '')
-    .trim();
-  return sanitized;
-}
+// Re-export sanitizeSearchInput for backward compatibility.
+// The implementation lives in search-utils.ts (no server-side deps)
+// so it can be imported by worker-compatible modules.
+export { sanitizeSearchInput } from './search-utils';
 
 export abstract class BaseService {
   protected logger: Logger;

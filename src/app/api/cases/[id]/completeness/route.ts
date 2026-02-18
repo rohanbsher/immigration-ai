@@ -4,6 +4,8 @@ import { analyzeDocumentCompleteness } from '@/lib/ai/document-completeness';
 import { createRateLimiter, RATE_LIMITS } from '@/lib/rate-limit';
 import { createLogger } from '@/lib/logger';
 import { requireAiConsent } from '@/lib/auth/api-helpers';
+import { features } from '@/lib/config';
+import { enqueueCompleteness } from '@/lib/jobs/queues';
 
 const log = createLogger('api:document-completeness');
 
@@ -70,6 +72,34 @@ export async function GET(
       return NextResponse.json(
         { error: 'Forbidden', message: 'You do not have access to this case' },
         { status: 403 }
+      );
+    }
+
+    // Async path: enqueue job when worker is enabled
+    if (features.workerEnabled) {
+      // Check DB cache for fresh completeness result
+      const { data: caseWithCache } = await supabase
+        .from('cases')
+        .select('ai_completeness')
+        .eq('id', caseId)
+        .single();
+
+      if (caseWithCache?.ai_completeness) {
+        const cached = caseWithCache.ai_completeness as Record<string, unknown>;
+        const analyzedAt = cached.analyzedAt as string | undefined;
+        if (analyzedAt && Date.now() - new Date(analyzedAt).getTime() < 60 * 60 * 1000) {
+          return NextResponse.json({ ...cached, source: 'db-cache' });
+        }
+      }
+
+      const job = await enqueueCompleteness({
+        caseId,
+        userId: user.id,
+      });
+
+      return NextResponse.json(
+        { jobId: job.id, status: 'queued', message: 'Completeness analysis has been queued.' },
+        { status: 202 }
       );
     }
 

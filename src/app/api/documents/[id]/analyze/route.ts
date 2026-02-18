@@ -10,6 +10,8 @@ import { isValidTransition, getValidNextStates } from '@/lib/documents/state-mac
 import { SIGNED_URL_EXPIRATION } from '@/lib/storage';
 import { logAIRequest } from '@/lib/audit/ai-audit';
 import { requireAiConsent } from '@/lib/auth/api-helpers';
+import { features } from '@/lib/config';
+import { enqueueDocumentAnalysis } from '@/lib/jobs/queues';
 
 const log = createLogger('api:documents-analyze');
 
@@ -135,6 +137,26 @@ export async function POST(
       );
     }
     statusWasSet = true;
+
+    // Async path: enqueue job when worker is enabled
+    if (features.workerEnabled) {
+      const job = await enqueueDocumentAnalysis({
+        documentId: id,
+        userId: user.id,
+        caseId: document.case_id,
+        documentType: document.document_type,
+        storagePath: document.file_url,
+      });
+
+      trackUsage(user.id, 'ai_requests').catch((err) => {
+        log.warn('Usage tracking failed', { error: err instanceof Error ? err.message : String(err) });
+      });
+
+      return NextResponse.json(
+        { jobId: job.id, status: 'queued', message: 'Document analysis has been queued for processing.' },
+        { status: 202 }
+      );
+    }
 
     let analysisResult: DocumentAnalysisResult;
 

@@ -6,10 +6,22 @@
  * toward "filing ready" status.
  */
 
-import { createClient } from '@/lib/supabase/server';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import type { DocumentType, DocumentStatus } from '@/types';
 import { formatDocumentType } from '@/lib/ai/utils';
 import { createLogger } from '@/lib/logger';
+
+/**
+ * Resolve a Supabase client: use the provided one, or lazily import
+ * the cookie-based server client (Next.js only).
+ * This allows the module to be compiled by the worker without pulling
+ * in next/headers at the top level.
+ */
+async function resolveClient(client?: SupabaseClient): Promise<SupabaseClient> {
+  if (client) return client;
+  const { createClient } = await import('@/lib/supabase/server');
+  return createClient();
+}
 
 const log = createLogger('document-completeness');
 
@@ -187,9 +199,10 @@ function calculateFilingReadiness(
  * @returns Completeness analysis result
  */
 export async function analyzeDocumentCompleteness(
-  caseId: string
+  caseId: string,
+  supabaseClient?: SupabaseClient
 ): Promise<CompletenessResult> {
-  const supabase = await createClient();
+  const supabase = await resolveClient(supabaseClient);
 
   // Fetch case details to get visa type
   const { data: caseData, error: caseError } = await supabase
@@ -322,7 +335,8 @@ export async function analyzeDocumentCompleteness(
  * @returns Map of case ID to completeness percentage
  */
 export async function getCompletenessForCases(
-  caseIds: string[]
+  caseIds: string[],
+  supabaseClient?: SupabaseClient
 ): Promise<Map<string, number>> {
   const results = new Map<string, number>();
 
@@ -333,7 +347,7 @@ export async function getCompletenessForCases(
     const batchResults = await Promise.all(
       batch.map(async (caseId) => {
         try {
-          const result = await analyzeDocumentCompleteness(caseId);
+          const result = await analyzeDocumentCompleteness(caseId, supabaseClient);
           return { caseId, completeness: result.overallCompleteness };
         } catch {
           return { caseId, completeness: 0 };

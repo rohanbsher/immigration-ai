@@ -239,7 +239,9 @@ body:has([data-consent-banner]) [data-chat-float] {
     scroll-behavior: auto !important;
   }
 
-  .animate-shimmer {
+  .animate-shimmer,
+  .animate-fade-in-up,
+  .animate-fade-in {
     animation: none;
   }
 }

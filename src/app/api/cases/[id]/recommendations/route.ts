@@ -17,6 +17,8 @@ import { withAIFallback } from '@/lib/ai/utils';
 import { createLogger } from '@/lib/logger';
 import { enforceQuota, trackUsage, QuotaExceededError } from '@/lib/billing/quota';
 import { requireAiConsent, safeParseBody } from '@/lib/auth/api-helpers';
+import { features } from '@/lib/config';
+import { enqueueRecommendations } from '@/lib/jobs/queues';
 
 const log = createLogger('api:case-recommendations');
 
@@ -278,6 +280,45 @@ export async function GET(
           source: 'cache',
         } as CachedRecommendations);
       }
+    }
+
+    // Async path: enqueue job when worker is enabled
+    if (features.workerEnabled) {
+      // Fetch case info including cached AI recommendations
+      const { data: caseInfo } = await supabase
+        .from('cases')
+        .select('visa_type, ai_recommendations')
+        .eq('id', caseId)
+        .single();
+
+      // Return cached DB result if fresh (< 1 hour) and not force-refreshing
+      if (!forceRefresh && caseInfo?.ai_recommendations) {
+        const cached = caseInfo.ai_recommendations as CachedRecommendations;
+        if (cached.expiresAt && new Date(cached.expiresAt) > new Date()) {
+          const activeRecs = filterActiveRecommendations(cached.recommendations || []);
+          const sortedRecs = sortRecommendationsByPriority(activeRecs);
+          return NextResponse.json({
+            ...cached,
+            recommendations: sortedRecs,
+            source: 'cache',
+          } as CachedRecommendations);
+        }
+      }
+
+      const job = await enqueueRecommendations({
+        caseId,
+        userId: user.id,
+        visaType: caseInfo?.visa_type || 'unknown',
+      });
+
+      trackUsage(user.id, 'ai_requests').catch((err) => {
+        log.warn('Usage tracking failed', { error: err instanceof Error ? err.message : String(err) });
+      });
+
+      return NextResponse.json(
+        { jobId: job.id, status: 'queued', message: 'Recommendations are being generated.' },
+        { status: 202 }
+      );
     }
 
     // Generate new recommendations with fallback

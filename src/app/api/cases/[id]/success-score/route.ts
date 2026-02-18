@@ -4,6 +4,8 @@ import { calculateSuccessScore } from '@/lib/scoring/success-probability';
 import { createRateLimiter, RATE_LIMITS } from '@/lib/rate-limit';
 import { createLogger } from '@/lib/logger';
 import { requireAiConsent } from '@/lib/auth/api-helpers';
+import { features } from '@/lib/config';
+import { enqueueSuccessScore } from '@/lib/jobs/queues';
 
 const log = createLogger('api:success-score');
 
@@ -70,6 +72,36 @@ export async function GET(
       return NextResponse.json(
         { error: 'Forbidden', message: 'You do not have access to this case' },
         { status: 403 }
+      );
+    }
+
+    // Async path: enqueue job when worker is enabled
+    if (features.workerEnabled) {
+      // Check DB cache for fresh success score
+      const { data: caseWithCache } = await supabase
+        .from('cases')
+        .select('ai_success_score')
+        .eq('id', caseId)
+        .single();
+
+      if (caseWithCache?.ai_success_score) {
+        const cached = caseWithCache.ai_success_score as Record<string, unknown>;
+        const calculatedAt = cached.calculatedAt as string | undefined;
+        if (calculatedAt && Date.now() - new Date(calculatedAt).getTime() < 60 * 60 * 1000) {
+          const response = NextResponse.json({ ...cached, source: 'db-cache' });
+          response.headers.set('Cache-Control', 'private, max-age=3600');
+          return response;
+        }
+      }
+
+      const job = await enqueueSuccessScore({
+        caseId,
+        userId: user.id,
+      });
+
+      return NextResponse.json(
+        { jobId: job.id, status: 'queued', message: 'Success score calculation has been queued.' },
+        { status: 202 }
       );
     }
 

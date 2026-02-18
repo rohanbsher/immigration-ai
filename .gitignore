@@ -73,3 +73,7 @@ __pycache__/
 
 # One-off test scripts
 scripts/test-case-insert.ts
+
+# Worker service build artifacts
+services/worker/dist/
+services/worker/node_modules/

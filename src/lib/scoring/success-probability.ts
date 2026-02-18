@@ -5,10 +5,20 @@
  * form confidence, and completeness. Uses a rule-based algorithm (no AI calls).
  */
 
-import { createClient } from '@/lib/supabase/server';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { analyzeDocumentCompleteness } from '@/lib/ai/document-completeness';
 import { calculateWeightedScore } from '@/lib/ai/utils';
 import { createLogger } from '@/lib/logger';
+
+/**
+ * Resolve a Supabase client: use the provided one, or lazily import
+ * the cookie-based server client (Next.js only).
+ */
+async function resolveClient(client?: SupabaseClient): Promise<SupabaseClient> {
+  if (client) return client;
+  const { createClient } = await import('@/lib/supabase/server');
+  return createClient();
+}
 
 const log = createLogger('success-probability');
 
@@ -92,9 +102,10 @@ function getFactorStatus(score: number): ScoringFactor['status'] {
  * Calculate document quality score.
  */
 async function calculateDocumentQualityScore(
-  caseId: string
+  caseId: string,
+  supabaseClient?: SupabaseClient
 ): Promise<{ score: number; rawValue: number; details: string[] }> {
-  const supabase = await createClient();
+  const supabase = await resolveClient(supabaseClient);
 
   const { data: documents } = await supabase
     .from('documents')
@@ -133,9 +144,10 @@ async function calculateDocumentQualityScore(
  * Calculate form field confidence score.
  */
 async function calculateFormConfidenceScore(
-  caseId: string
+  caseId: string,
+  supabaseClient?: SupabaseClient
 ): Promise<{ score: number; rawValue: number; details: string[] }> {
-  const supabase = await createClient();
+  const supabase = await resolveClient(supabaseClient);
 
   const { data: forms } = await supabase
     .from('forms')
@@ -184,9 +196,10 @@ async function calculateFormConfidenceScore(
  * Calculate field validation score (how many fields pass validation).
  */
 async function calculateFieldValidationScore(
-  caseId: string
+  caseId: string,
+  supabaseClient?: SupabaseClient
 ): Promise<{ score: number; details: string[] }> {
-  const supabase = await createClient();
+  const supabase = await resolveClient(supabaseClient);
 
   const { data: forms } = await supabase
     .from('forms')
@@ -240,9 +253,10 @@ async function calculateFieldValidationScore(
  * Calculate timeline score based on deadline proximity.
  */
 async function calculateTimelineScore(
-  caseId: string
+  caseId: string,
+  supabaseClient?: SupabaseClient
 ): Promise<{ score: number; rawValue: string; details: string[] }> {
-  const supabase = await createClient();
+  const supabase = await resolveClient(supabaseClient);
 
   const { data: caseData } = await supabase
     .from('cases')
@@ -292,9 +306,10 @@ async function calculateTimelineScore(
  * Calculate case readiness score based on status.
  */
 async function calculateCaseReadinessScore(
-  caseId: string
+  caseId: string,
+  supabaseClient?: SupabaseClient
 ): Promise<{ score: number; rawValue: string; details: string[] }> {
-  const supabase = await createClient();
+  const supabase = await resolveClient(supabaseClient);
 
   const { data: caseData } = await supabase
     .from('cases')
@@ -403,12 +418,15 @@ function generateImprovements(factors: ScoringFactor[]): string[] {
  * @param caseId - The case ID to analyze
  * @returns Success score result
  */
-export async function calculateSuccessScore(caseId: string): Promise<SuccessScore> {
+export async function calculateSuccessScore(
+  caseId: string,
+  supabaseClient?: SupabaseClient
+): Promise<SuccessScore> {
   const factors: ScoringFactor[] = [];
 
   // 1. Document Completeness (30%)
   try {
-    const completeness = await analyzeDocumentCompleteness(caseId);
+    const completeness = await analyzeDocumentCompleteness(caseId, supabaseClient);
     factors.push({
       name: SCORING_CONFIG.documentCompleteness.name,
       description: SCORING_CONFIG.documentCompleteness.description,
@@ -432,7 +450,7 @@ export async function calculateSuccessScore(caseId: string): Promise<SuccessScor
   }
 
   // 2. Document Quality (15%)
-  const docQuality = await calculateDocumentQualityScore(caseId);
+  const docQuality = await calculateDocumentQualityScore(caseId, supabaseClient);
   factors.push({
     name: SCORING_CONFIG.documentQuality.name,
     description: SCORING_CONFIG.documentQuality.description,
@@ -444,7 +462,7 @@ export async function calculateSuccessScore(caseId: string): Promise<SuccessScor
   });
 
   // 3. Form Field Confidence (20%)
-  const formConfidence = await calculateFormConfidenceScore(caseId);
+  const formConfidence = await calculateFormConfidenceScore(caseId, supabaseClient);
   factors.push({
     name: SCORING_CONFIG.formFieldConfidence.name,
     description: SCORING_CONFIG.formFieldConfidence.description,
@@ -456,7 +474,7 @@ export async function calculateSuccessScore(caseId: string): Promise<SuccessScor
   });
 
   // 4. Field Validation (15%)
-  const fieldValidation = await calculateFieldValidationScore(caseId);
+  const fieldValidation = await calculateFieldValidationScore(caseId, supabaseClient);
   factors.push({
     name: SCORING_CONFIG.fieldValidation.name,
     description: SCORING_CONFIG.fieldValidation.description,
@@ -467,7 +485,7 @@ export async function calculateSuccessScore(caseId: string): Promise<SuccessScor
   });
 
   // 5. Timeline (10%)
-  const timeline = await calculateTimelineScore(caseId);
+  const timeline = await calculateTimelineScore(caseId, supabaseClient);
   factors.push({
     name: SCORING_CONFIG.timeline.name,
     description: SCORING_CONFIG.timeline.description,
@@ -479,7 +497,7 @@ export async function calculateSuccessScore(caseId: string): Promise<SuccessScor
   });
 
   // 6. Case Readiness (10%)
-  const caseReadiness = await calculateCaseReadinessScore(caseId);
+  const caseReadiness = await calculateCaseReadinessScore(caseId, supabaseClient);
   factors.push({
     name: SCORING_CONFIG.historical.name,
     description: SCORING_CONFIG.historical.description,

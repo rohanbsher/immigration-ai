@@ -1,0 +1,157 @@
+import 'dotenv/config';
+import * as Sentry from '@sentry/node';
+
+import { workerConfig } from './config';
+import { startHealthServer } from './health';
+import { requireJobConnection } from '@/lib/jobs/connection';
+import { QUEUE_NAMES } from '@/lib/jobs/types';
+import { Queue, Worker } from 'bullmq';
+
+// Processors
+import { processDocumentAnalysis } from './processors/document-analysis';
+import { processFormAutofill } from './processors/form-autofill';
+import { processRecommendations } from './processors/recommendations';
+import { processCompleteness } from './processors/completeness';
+import { processSuccessScore } from './processors/success-score';
+import { processEmail } from './processors/email';
+
+// =============================================================================
+// Startup banner
+// =============================================================================
+
+function printBanner(): void {
+  console.log('');
+  console.log('='.repeat(60));
+  console.log('  Immigration AI - Worker Service v0.1.0');
+  console.log('='.repeat(60));
+  console.log(`  Environment:  ${workerConfig.NODE_ENV}`);
+  console.log(`  Port:         ${workerConfig.PORT}`);
+  console.log(`  Concurrency:  ${workerConfig.WORKER_CONCURRENCY}`);
+  console.log(`  AI (OpenAI):  ${workerConfig.OPENAI_API_KEY ? 'configured' : 'not set'}`);
+  console.log(`  AI (Claude):  ${workerConfig.ANTHROPIC_API_KEY ? 'configured' : 'not set'}`);
+  console.log(`  Email:        ${workerConfig.RESEND_API_KEY ? 'configured' : 'not set'}`);
+  console.log(`  Sentry:       ${workerConfig.SENTRY_DSN ? 'configured' : 'not set'}`);
+  console.log('='.repeat(60));
+  console.log('');
+}
+
+// =============================================================================
+// Graceful shutdown
+// =============================================================================
+
+let isShuttingDown = false;
+const cleanupCallbacks: Array<() => Promise<void>> = [];
+
+function registerCleanup(fn: () => Promise<void>): void {
+  cleanupCallbacks.push(fn);
+}
+
+async function gracefulShutdown(signal: string): Promise<void> {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
+
+  console.log(`\nReceived ${signal}. Starting graceful shutdown...`);
+
+  for (const fn of cleanupCallbacks) {
+    try {
+      await fn();
+    } catch (error) {
+      console.error('Cleanup error:', error);
+    }
+  }
+
+  console.log('Shutdown complete.');
+  process.exit(0);
+}
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+// =============================================================================
+// Main
+// =============================================================================
+
+async function main(): Promise<void> {
+  // Initialize Sentry if configured
+  if (workerConfig.SENTRY_DSN) {
+    Sentry.init({
+      dsn: workerConfig.SENTRY_DSN,
+      environment: workerConfig.NODE_ENV,
+      tracesSampleRate: workerConfig.NODE_ENV === 'production' ? 0.1 : 1.0,
+    });
+    console.log('Sentry initialized.');
+  }
+
+  printBanner();
+
+  // Validate Redis connection
+  const connection = requireJobConnection();
+  console.log('Redis connection configured.');
+
+  // Create Queue instances for health reporting and Bull Board.
+  // These are read-only queue handles (no workers attached yet).
+  const queueNames = Object.values(QUEUE_NAMES);
+  const queues = queueNames.map(
+    (name) => new Queue(name, { connection })
+  );
+
+  // Register queue cleanup on shutdown
+  registerCleanup(async () => {
+    console.log('Closing queue connections...');
+    await Promise.all(queues.map((q) => q.close()));
+    console.log('Queue connections closed.');
+  });
+
+  // Start health/admin server
+  startHealthServer(queues);
+
+  // Register BullMQ workers for each AI queue
+  const concurrency = workerConfig.WORKER_CONCURRENCY;
+  const workers: Worker[] = [];
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const workerDefs: Array<{ name: string; processor: (job: any) => Promise<any> }> = [
+    { name: QUEUE_NAMES.DOCUMENT_ANALYSIS, processor: processDocumentAnalysis },
+    { name: QUEUE_NAMES.FORM_AUTOFILL, processor: processFormAutofill },
+    { name: QUEUE_NAMES.RECOMMENDATIONS, processor: processRecommendations },
+    { name: QUEUE_NAMES.COMPLETENESS, processor: processCompleteness },
+    { name: QUEUE_NAMES.SUCCESS_SCORE, processor: processSuccessScore },
+    { name: QUEUE_NAMES.EMAIL, processor: processEmail },
+  ];
+
+  for (const def of workerDefs) {
+    const worker = new Worker(def.name, def.processor, {
+      connection,
+      concurrency,
+    });
+
+    worker.on('completed', (job) => {
+      console.log(`[${def.name}] Job ${job.id} completed`);
+    });
+
+    worker.on('failed', (job, err) => {
+      console.error(`[${def.name}] Job ${job?.id} failed:`, err.message);
+      Sentry.captureException(err, {
+        tags: { queue: def.name, jobId: job?.id },
+        extra: { jobData: job?.data },
+      });
+    });
+
+    workers.push(worker);
+    console.log(`  Worker registered: ${def.name} (concurrency: ${concurrency})`);
+  }
+
+  // Register worker cleanup on shutdown
+  registerCleanup(async () => {
+    console.log('Closing workers...');
+    await Promise.all(workers.map((w) => w.close()));
+    console.log('Workers closed.');
+  });
+
+  console.log(`\nWorker service started. ${workers.length} workers active.`);
+}
+
+main().catch((error) => {
+  console.error('Fatal error during startup:', error);
+  process.exit(1);
+});

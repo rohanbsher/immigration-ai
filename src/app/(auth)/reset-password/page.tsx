@@ -184,11 +184,11 @@ export default function ResetPasswordPage() {
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <div className="w-full max-w-md">
         <div className="flex justify-center mb-8">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold text-lg">
-              IA
+          <Link href="/" className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center">
+              <Sparkles className="text-primary-foreground" size={16} />
             </div>
-            <span className="font-semibold text-xl">Immigration AI</span>
+            <span className="font-display text-lg tracking-tight">Immigration AI</span>
           </Link>
         </div>
 

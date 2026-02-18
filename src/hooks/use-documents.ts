@@ -9,6 +9,7 @@ import {
   TimeoutError,
 } from '@/lib/api/fetch-with-timeout';
 import { parseApiResponse, parseApiVoidResponse } from '@/lib/api/parse-response';
+import { fetchJobAware } from '@/lib/api/job-aware-fetch';
 
 interface Document {
   id: string;
@@ -96,11 +97,11 @@ async function verifyDocument(id: string): Promise<Document> {
 }
 
 async function analyzeDocument(id: string): Promise<Document> {
-  // Document analysis uses AI, so use longer timeout
-  const response = await fetchAI(`/api/documents/${id}/analyze`, {
+  // Document analysis may return 202 (async job) when worker is enabled
+  return fetchJobAware<Document>(`/api/documents/${id}/analyze`, {
     method: 'POST',
+    timeout: 'AI',
   });
-  return parseApiResponse<Document>(response);
 }
 
 async function deleteDocument(id: string): Promise<void> {

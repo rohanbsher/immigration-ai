@@ -7,7 +7,9 @@ import {
   extractTextFromImage,
 } from './openai';
 import { DocumentAnalysisResult, ExtractedField, AnalysisOptions } from './types';
-import { storage, SIGNED_URL_EXPIRATION } from '@/lib/storage';
+
+/** Signed URL expiration for AI processing (seconds). */
+const AI_PROCESSING_URL_EXPIRY = 600; // 10 minutes
 
 export interface DocumentAnalysisInput {
   documentId: string;
@@ -48,11 +50,13 @@ export async function analyzeDocument(
     let imageUrl = input.fileUrl;
 
     if (!imageUrl && input.filePath && input.bucket) {
-      // Get a signed URL from Supabase storage with short expiration for security
+      // Lazily import storage to avoid pulling in @/lib/supabase/server at top level.
+      // This allows the module to be compiled by the worker (which provides fileUrl directly).
+      const { storage } = await import('@/lib/storage');
       imageUrl = await storage.getSignedUrl(
         input.bucket,
         input.filePath,
-        SIGNED_URL_EXPIRATION.AI_PROCESSING // 10 minutes - sufficient for AI processing
+        AI_PROCESSING_URL_EXPIRY // 10 minutes - sufficient for AI processing
       );
     }
 

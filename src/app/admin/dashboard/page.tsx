@@ -15,7 +15,7 @@ interface AdminStats {
   totalSubscriptions: number;
   activeSubscriptions: number;
   mrr: number;
-  mrrGrowth: number;
+  mrrGrowth: number | null;
 }
 
 async function fetchAdminStats(): Promise<AdminStats> {
@@ -84,7 +84,7 @@ export default function AdminDashboardPage() {
       value: `$${((stats?.mrr || 0) / 100).toLocaleString()}`,
       description: 'Monthly Recurring Revenue',
       icon: CreditCard,
-      trend: stats?.mrrGrowth || 0,
+      trend: stats?.mrrGrowth ?? undefined,
     },
   ];
 

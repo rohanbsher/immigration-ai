@@ -2,20 +2,19 @@
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { SuccessScore } from '@/lib/scoring/success-probability';
-import { fetchWithTimeout } from '@/lib/api/fetch-with-timeout';
-import { parseApiResponse } from '@/lib/api/parse-response';
+import { fetchJobAware } from '@/lib/api/job-aware-fetch';
 
 /**
  * Fetch success probability score for a case.
  */
 async function fetchSuccessScore(caseId: string): Promise<SuccessScore> {
-  const response = await fetchWithTimeout(`/api/cases/${caseId}/success-score`, {
+  // May return 202 (async job) when worker is enabled
+  return fetchJobAware<SuccessScore>(`/api/cases/${caseId}/success-score`, {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
     },
   });
-  return parseApiResponse<SuccessScore>(response);
 }
 
 /**

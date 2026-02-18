@@ -94,6 +94,12 @@ const serverEnvSchema = z.object({
   UPSTASH_REDIS_REST_URL: z.string().url().optional(),
   UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
 
+  // BullMQ Worker Queue (standard Redis connection, not REST API)
+  REDIS_URL: z.string().optional(),
+
+  // Worker Service
+  WORKER_ENABLED: z.enum(['true', 'false']).optional(),
+
   // Cron Jobs
   CRON_SECRET: z.string().min(16, 'CRON_SECRET must be at least 16 characters').optional(),
 
@@ -176,6 +182,8 @@ function validateServerEnv() {
     EMAIL_REPLY_TO: process.env.EMAIL_REPLY_TO,
     UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL,
     UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN,
+    REDIS_URL: process.env.REDIS_URL,
+    WORKER_ENABLED: process.env.WORKER_ENABLED,
     CRON_SECRET: process.env.CRON_SECRET,
     VIRUS_SCANNER_PROVIDER: process.env.VIRUS_SCANNER_PROVIDER,
     CLAMAV_API_URL: process.env.CLAMAV_API_URL,
@@ -295,30 +303,44 @@ function validateProductionRequirements(env: z.infer<typeof serverEnvSchema>) {
 // =============================================================================
 
 /**
- * Public environment variables - safe to use in client components
+ * Public environment variables - safe to use in client components.
+ * Validation is deferred to first property access so the module can be
+ * imported by the background worker without requiring all NEXT_PUBLIC_* vars.
  */
-export const env = validatePublicEnv();
+let _publicEnvCache: PublicEnv | null = null;
+export const env: PublicEnv = new Proxy({} as PublicEnv, {
+  get(_, prop) {
+    if (!_publicEnvCache) {
+      _publicEnvCache = validatePublicEnv();
+    }
+    return _publicEnvCache[prop as keyof PublicEnv];
+  },
+});
 
 /**
- * Server-only environment variables - throws if accessed on client
+ * Server-only environment variables - throws if accessed on client.
+ * Validation is deferred to first property access so the module can be
+ * imported by the background worker without side effects.
  */
-export const serverEnv = (() => {
-  const validated = validateServerEnv();
-
-  // Return a proxy that throws on client access
-  if (!validated) {
-    return new Proxy({} as NonNullable<ReturnType<typeof validateServerEnv>>, {
-      get(_, prop) {
-        throw new Error(
-          `Attempted to access server environment variable "${String(prop)}" on the client. ` +
-            'Server environment variables are only available in Server Components and API routes.'
-        );
-      },
-    });
+let _serverEnvCache: NonNullable<ReturnType<typeof validateServerEnv>> | null = null;
+export const serverEnv: NonNullable<ReturnType<typeof validateServerEnv>> = new Proxy(
+  {} as NonNullable<ReturnType<typeof validateServerEnv>>,
+  {
+    get(_, prop) {
+      if (!_serverEnvCache) {
+        const validated = validateServerEnv();
+        if (!validated) {
+          throw new Error(
+            `Attempted to access server environment variable "${String(prop)}" on the client. ` +
+              'Server environment variables are only available in Server Components and API routes.'
+          );
+        }
+        _serverEnvCache = validated;
+      }
+      return _serverEnvCache[prop as keyof NonNullable<ReturnType<typeof validateServerEnv>>];
+    },
   }
-
-  return validated;
-})();
+);
 
 // Type exports for use elsewhere
 export type PublicEnv = z.infer<typeof publicEnvSchema>;
@@ -369,6 +391,9 @@ export const features = {
   pdfService:
     !!process.env.PDF_SERVICE_URL &&
     !!process.env.PDF_SERVICE_SECRET,
+
+  /** Whether the background worker service is enabled for async job processing */
+  workerEnabled: process.env.WORKER_ENABLED === 'true',
 
   /** Whether running in development mode */
   isDevelopment: process.env.NODE_ENV === 'development',

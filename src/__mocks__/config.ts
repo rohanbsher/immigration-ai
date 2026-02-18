@@ -40,6 +40,8 @@ export const serverEnv = {
   get CLAMAV_API_URL() { return process.env.CLAMAV_API_URL; },
   get VIRUSTOTAL_API_KEY() { return process.env.VIRUSTOTAL_API_KEY; },
   get VERCEL_URL() { return process.env.VERCEL_URL; },
+  get REDIS_URL() { return process.env.REDIS_URL; },
+  get WORKER_ENABLED() { return process.env.WORKER_ENABLED; },
 };
 
 // Feature flags (computed dynamically from process.env for testing)
@@ -60,6 +62,7 @@ export const features = {
   get virusScanning() {
     return !!process.env.VIRUS_SCANNER_PROVIDER && process.env.VIRUS_SCANNER_PROVIDER !== 'mock';
   },
+  get workerEnabled() { return process.env.WORKER_ENABLED === 'true'; },
   get isDevelopment() { return process.env.NODE_ENV === 'development'; },
   get isProduction() { return process.env.NODE_ENV === 'production'; },
 };

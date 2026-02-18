@@ -40,7 +40,9 @@ describe('Config/Env Module', () => {
       delete process.env.NEXT_PUBLIC_SUPABASE_URL;
       vi.resetModules();
 
-      await expect(import('./env')).rejects.toThrow(
+      const { env } = await import('./env');
+      // Validation is lazy — triggers on first property access
+      expect(() => env.NEXT_PUBLIC_SUPABASE_URL).toThrow(
         'Invalid public environment configuration'
       );
     });
@@ -49,7 +51,8 @@ describe('Config/Env Module', () => {
       delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
       vi.resetModules();
 
-      await expect(import('./env')).rejects.toThrow(
+      const { env } = await import('./env');
+      expect(() => env.NEXT_PUBLIC_SUPABASE_ANON_KEY).toThrow(
         'Invalid public environment configuration'
       );
     });
@@ -58,7 +61,8 @@ describe('Config/Env Module', () => {
       process.env.NEXT_PUBLIC_SUPABASE_URL = 'not-a-valid-url';
       vi.resetModules();
 
-      await expect(import('./env')).rejects.toThrow(
+      const { env } = await import('./env');
+      expect(() => env.NEXT_PUBLIC_SUPABASE_URL).toThrow(
         'Invalid public environment configuration'
       );
     });
@@ -87,7 +91,8 @@ describe('Config/Env Module', () => {
       process.env.NEXT_PUBLIC_POSTHOG_HOST = 'not-a-url';
       vi.resetModules();
 
-      await expect(import('./env')).rejects.toThrow();
+      const { env } = await import('./env');
+      expect(() => env.NEXT_PUBLIC_POSTHOG_HOST).toThrow();
     });
 
     it('should accept valid PostHog configuration', async () => {

@@ -11,10 +11,21 @@ const createCommentSchema = z.object({
 
 /**
  * GET /api/tasks/[id]/comments - Get comments for a task
+ *
+ * Authorization: verifies the user can see the parent task (via RLS on tasks
+ * table) before returning comments. This is defense-in-depth alongside RLS
+ * policies on task_comments.
  */
 export const GET = withAuth(async (_request, context, _auth) => {
   try {
     const { id } = await context.params!;
+
+    // Verify the user has visibility into this task (RLS on tasks table)
+    const task = await tasksService.getTask(id);
+    if (!task) {
+      return errorResponse('Task not found', 404);
+    }
+
     const comments = await tasksService.getComments(id);
     return successResponse(comments);
   } catch (error) {

@@ -1,0 +1,41 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "commonjs",
+    "lib": ["ES2022", "DOM"],
+    "outDir": "./dist",
+    "rootDir": "../..",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "declaration": true,
+    "paths": {
+      "@/lib/*": ["../../src/lib/*"],
+      "@/types": ["../../src/types"]
+    },
+    "baseUrl": "."
+  },
+  "include": [
+    "src/**/*.ts",
+    "../../src/lib/jobs/**/*.ts",
+    "../../src/lib/ai/*.ts",
+    "../../src/lib/scoring/**/*.ts",
+    "../../src/lib/config/**/*.ts",
+    "../../src/lib/logger/**/*.ts",
+    "../../src/lib/utils/retry.ts",
+    "../../src/lib/crypto/**/*.ts",
+    "../../src/lib/forms/definitions/**/*.ts",
+    "../../src/lib/db/search-utils.ts",
+    "../../src/lib/supabase/admin.ts",
+    "../../src/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "../../src/**/*.test.ts",
+    "../../src/**/*.test.tsx"
+  ]
+}

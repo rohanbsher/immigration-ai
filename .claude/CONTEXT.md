@@ -1,14 +1,14 @@
 # Immigration AI - Current Project State
 
-> Last updated: 2026-02-16 by Context Sync
+> Last updated: 2026-02-18 by Context Sync
 
 ## Project Overview
 
 AI-powered immigration case management platform for attorneys. Built with Next.js 16, TypeScript, Supabase, and AI integrations (OpenAI + Anthropic).
 
-## Current Status: Production-Ready (Code Complete)
+## Current Status: Deployed to Production
 
-**Overall Score: 88/100** — Key blockers (form definitions, document types) now resolved.
+**Overall Score: 93/100** — Production infrastructure configured and deployed.
 
 | Category | Score | Notes |
 |----------|-------|-------|
@@ -17,9 +17,9 @@ AI-powered immigration case management platform for attorneys. Built with Next.j
 | Code Quality | A | BaseService pattern, unified error handling, structured logging |
 | Architecture | A | Well-organized, proper separation, unified RBAC |
 | Security | A- | 0 critical, 0 high, 3 medium findings |
-| Reliability | 82/100 | Strong error handling, Redis required for multi-instance |
+| Reliability | 88/100 | Strong error handling, Upstash Redis in production |
 | Testing | 86%+ | 2,182+ unit tests, 86 E2E tests passing in CI |
-| Infrastructure | 70/100 | Vercel-ready, external services need config |
+| Infrastructure | 90/100 | Deployed to Vercel, all core services configured |
 
 ## What's Working (Verified 2026-02-05)
 
@@ -40,14 +40,25 @@ AI-powered immigration case management platform for attorneys. Built with Next.j
 
 ### Infrastructure
 - 50+ API endpoints across 18 groups
-- 37 SQL migration files with comprehensive RLS
-- Rate limiting on 24+ routes (Upstash Redis)
+- 46 SQL migration files with comprehensive RLS (all applied to production)
+- Rate limiting on 24+ routes (Upstash Redis — production: sharing-buffalo-59262.upstash.io)
 - Structured logging (createLogger) across entire codebase
-- Sentry error tracking (server + client)
+- Sentry error tracking (server + client) — org: immigration-ai-ni, project: javascript-nextjs
 - Security headers (CSP, HSTS, X-Frame-Options)
 - SSE streaming with keepalive (Vercel 25s timeout mitigation)
 - AES-256-GCM encryption for PII at rest
 - CSRF protection and SSRF prevention
+
+### Production Services (Configured 2026-02-18)
+- **Hosting:** Vercel — https://immigration-ai-topaz.vercel.app
+- **Database:** Supabase Free (project ref: sforzkbeahfkeilynbwk) — 46 migrations applied
+- **Rate Limiting:** Upstash Redis (sharing-buffalo-59262.upstash.io)
+- **Email:** Resend (configured, DNS verification pending custom domain)
+- **Error Tracking:** Sentry (org: immigration-ai-ni)
+- **Billing:** Stripe test mode (4 price IDs: Pro Monthly/Yearly, Enterprise Monthly/Yearly)
+- **AI:** OpenAI + Anthropic keys (reused from dev, billing enabled)
+- **Virus Scanning:** VirusTotal (reused from dev)
+- **Environment:** 29 production env vars configured via Vercel REST API
 
 ## Verification Results (2026-02-05)
 
@@ -91,13 +102,14 @@ AI-powered immigration case management platform for attorneys. Built with Next.j
 | 6 | Console migration — Lib/Components (20+ files) | COMPLETE |
 | 7 | ESLint cleanup (exports, Image, unused imports) | COMPLETE |
 
-### Test & Build Status (2026-02-16)
+### Test & Build Status (2026-02-18)
 ```
 Tests:  2,182+ passed | 3 skipped | 0 failures (unit)
         86 passed | 67 skipped | 0 failures (E2E in CI)
 Build:  Passes (69 routes, no TypeScript errors)
 Lint:   0 errors | 0 warnings
 Console: 0 statements in production code
+Production: Deployed, homepage 200, health OK, auth guards working
 ```
 
 ### Test Coverage Gaps (as of 2026-02-16)
@@ -141,6 +153,7 @@ Grades from critical /grill review:
 | Email | Resend | 6.8.0 |
 | Rate Limiting | Upstash Redis | 2.0.8 |
 | Error Tracking | Sentry | 10.37.0 |
+| Job Queue | BullMQ (Redis) | 5.69.3 |
 | Testing | Vitest + Playwright | 4.0.18 / 1.58.0 |
 | UI | Tailwind CSS v4 + shadcn/ui | Latest |
 
@@ -158,17 +171,18 @@ Grades from critical /grill review:
 | Rate limiting | `src/lib/rate-limit/index.ts` |
 | Encryption | `src/lib/crypto/index.ts` |
 | Test factories | `src/test-utils/factories.ts` |
+| BullMQ connection | `src/lib/jobs/connection.ts` |
+| Job types & queues | `src/lib/jobs/types.ts`, `src/lib/jobs/queues.ts` |
+| Worker entry point | `services/worker/src/index.ts` |
+| Backend integration plan | `docs/BACKEND_INTEGRATION_PLAN.md` |
 
 ## Commands
 
 ```bash
 npm run dev          # Start dev server (localhost:3000)
-npm run build        # Production build
+npm run build        # Production build (no longer needs ALLOW_IN_MEMORY_RATE_LIMIT)
 npm run test:run     # Run all tests (2,182+ passing)
 npm run lint         # Run ESLint
-
-# Build requires this env var if Redis not configured:
-ALLOW_IN_MEMORY_RATE_LIMIT=true npm run build
 ```
 
 ## Production Launch Progress (2026-02-05)
@@ -178,15 +192,20 @@ ALLOW_IN_MEMORY_RATE_LIMIT=true npm run build
 - **1.2 Activity Timeline** — Replaced placeholder with real timeline component + API route
 - **1.3 Middleware Deprecation** — Renamed middleware.ts to proxy.ts (Next.js 16 convention)
 
-### Phase 2: External Services (User Action Required)
-- [ ] Run migrations 033 + 034 in Supabase SQL Editor
-- [ ] Configure Upstash Redis for production rate limiting
-- [ ] Deploy ClamAV or configure VirusTotal for file scanning
-- [ ] Set real AI API keys (OpenAI + Anthropic) with usage limits
-- [ ] Configure Sentry DSN for error tracking
-- [ ] Configure Resend for email notifications (requires DNS verification)
-- [ ] Configure Stripe (optional, for monetization)
-- [ ] Set custom domain in Vercel + update NEXT_PUBLIC_APP_URL
+### Phase 2: External Services (COMPLETE — 2026-02-18)
+- [x] Supabase production instance created (ref: sforzkbeahfkeilynbwk) + all 46 migrations pushed
+- [x] Configure Upstash Redis for production rate limiting
+- [x] Configure VirusTotal for file scanning (reused dev key)
+- [x] Set AI API keys (OpenAI + Anthropic) with billing enabled
+- [x] Configure Sentry DSN for error tracking
+- [x] Configure Resend for email (DNS verification pending custom domain)
+- [x] Configure Stripe in test mode (4 price IDs + webhook)
+- [x] All 29 Vercel production env vars configured
+- [x] Production build succeeded and deployed
+- [ ] Custom domain (buy domain, update APP_URL + SITE_URL)
+- [ ] Resend DNS verification (after custom domain)
+- [ ] PDF service deployment (PDF_SERVICE_URL unset, summary PDFs used as fallback)
+- [ ] Stripe live mode activation (currently test keys)
 
 ## Plan-and-Fix Backlog (COMPLETE — 2026-02-05)
 
@@ -232,38 +251,67 @@ ALLOW_IN_MEMORY_RATE_LIMIT=true npm run build
 13. SEO basics — sitemap.ts, robots.ts, Open Graph metadata in layout.tsx
 14. Code splitting — recharts lazy-loaded via next/dynamic on analytics page
 
-### Production Launch Readiness (2026-02-07, updated 2026-02-16)
+### Production Launch Readiness (2026-02-18)
 
-**Code is 100% production-ready. Key blockers resolved. Only infrastructure setup remains.**
+**Production infrastructure configured and deployed. App live at https://immigration-ai-topaz.vercel.app**
 
-#### Blockers Resolved (2026-02-16):
-- **Blocker 2 (Form Definitions):** RESOLVED — all 11/11 USCIS form types complete
-- **Blocker 4 (Document Types):** RESOLVED — 16/18 document types have extraction prompts
-- **Blocker 1 (PDF Filling):** PARTIALLY RESOLVED — XFA filler engine exists, needs Railway deployment
-- **Cron Handler:** Fixed POST to GET (2026-02-16)
+#### Phase 1 Blockers: ALL RESOLVED
+1. ~~Supabase production instance + migrations~~ — DONE (46 migrations applied)
+2. ~~AI API keys (OpenAI + Anthropic) with billing enabled~~ — DONE
+3. ~~ENCRYPTION_KEY~~ — DONE (generated and set in Vercel)
+4. ~~CRON_SECRET~~ — DONE (generated and set in Vercel)
+5. ~~Virus scanner (VirusTotal)~~ — DONE
+6. NEXT_PUBLIC_APP_URL — using Vercel URL, custom domain pending
 
-#### Phase 1 Blockers (app won't function):
-1. Supabase production instance + 37 migrations
-2. AI API keys (OpenAI + Anthropic) with billing enabled
-3. ENCRYPTION_KEY (64 hex chars: `openssl rand -hex 32`)
-4. CRON_SECRET (32 hex chars: `openssl rand -hex 16`)
-5. Virus scanner (ClamAV or VirusTotal) — uploads rejected without
-6. NEXT_PUBLIC_APP_URL set to real domain
+#### Phase 2 Recommended: ALL CONFIGURED
+7. ~~Upstash Redis~~ — DONE (sharing-buffalo-59262.upstash.io)
+8. ~~Resend~~ — DONE (DNS verification pending custom domain)
+9. ~~Sentry~~ — DONE (immigration-ai-ni org)
 
-#### Phase 2 Strongly Recommended:
-7. Upstash Redis (rate limiting — in-memory is single-instance only)
-8. Resend (transactional email — welcome, notifications, invitations)
-9. Sentry (error tracking + session replay)
+#### Phase 3 Optional: PARTIALLY DONE
+10. ~~Stripe~~ — DONE (test mode, 4 price IDs + webhook)
+11. PostHog — not configured
 
-#### Phase 3 Optional:
-10. Stripe (billing/subscriptions — only if monetizing)
-11. PostHog (product analytics)
-
-See `.env.production.template` for copy-paste variable list.
+#### Remaining Items
+- Custom domain purchase + APP_URL/SITE_URL update
+- Resend DNS verification (after custom domain)
+- PDF service deployment (PDF_SERVICE_URL unset)
+- Stripe live mode activation
 
 ### Remaining Non-Blocking
 - GDPR data export lacks documents/AI conversations
 - ESLint: 0 errors, 0 warnings (all cleaned up)
+
+## Backend Worker Service (IN PROGRESS — Phase 1 Complete)
+
+**Branch:** `feat/worker-service`
+**Plan:** `docs/BACKEND_INTEGRATION_PLAN.md`
+
+The application needs a background worker to handle long-running AI operations that exceed Vercel's 60s timeout. Architecture decision: **Hybrid** — keep 65+ CRUD routes in Next.js, move 11 long-running operations to a BullMQ worker on Railway.
+
+### Phase 1: Foundation (COMPLETE — 2026-02-18)
+Created the complete BullMQ infrastructure:
+
+| Component | Location | Status |
+|-----------|----------|--------|
+| BullMQ connection | `src/lib/jobs/connection.ts` | Done |
+| Job types & queue names | `src/lib/jobs/types.ts` | Done |
+| Queue instances + enqueue helpers | `src/lib/jobs/queues.ts` | Done |
+| Frontend polling utility | `src/lib/jobs/polling.ts` | Done |
+| Job status API | `src/app/api/jobs/[id]/status/route.ts` | Done |
+| Worker scaffold | `services/worker/src/` (config, health, index) | Done |
+| Deployment config | `services/worker/Dockerfile` + `railway.toml` | Done |
+| Database migration | `supabase/migrations/054_job_status.sql` | Done |
+
+**Key env vars added:** `REDIS_URL` (standard Redis for BullMQ), `WORKER_ENABLED` (feature flag)
+
+### Phase 2: Migrate AI Operations (NEXT)
+Migrate 6 AI endpoints to async job queue: document-analysis, form-autofill, recommendations, completeness, success-score, natural-search.
+
+### Phase 3: Email, Cron, Utilities (PLANNED)
+### Phase 4: Reliability & Monitoring (PLANNED)
+
+---
 
 ## Remaining Work
 
@@ -291,9 +339,7 @@ See `.env.production.template` for copy-paste variable list.
 - Some security-critical routes still need deeper testing
 - E2E coverage: 67 tests skipped (environment-dependent)
 
-### WS-INFRA: Infrastructure Setup
-See `.env.production.template` for the full variable list.
+### WS-INFRA: Infrastructure Setup (COMPLETE — 2026-02-18)
+All core production services configured and deployed. See "Production Services" section above for details.
 
-**Phase 1 (Blockers):** Supabase prod + 37 migrations, AI keys, ENCRYPTION_KEY, CRON_SECRET, virus scanner, APP_URL
-**Phase 2 (Recommended):** Upstash Redis, Resend, Sentry
-**Phase 3 (Optional):** Stripe, PostHog
+**Remaining:** Custom domain, Resend DNS verification, PDF service deployment, Stripe live mode.

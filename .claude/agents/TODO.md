@@ -1,6 +1,6 @@
 # Immigration AI - Agent Task List
 
-> Last updated: 2026-02-16 (Form definitions, doc types, PDF engine updates)
+> Last updated: 2026-02-18 (Backend Worker Service Phase 1 complete)
 
 ## Completed Execution Plans
 
@@ -37,14 +37,16 @@ All three implementation plans have been verified as 100% complete.
 
 ---
 
-## Current State (2026-02-16)
+## Current State (2026-02-18)
 
 ```
 Tests:  2,182+ passed | 3 skipped | 0 failures (unit)
         86 passed | 67 skipped | 0 failures (E2E in CI)
 Build:  Passes (69 routes, no TypeScript errors)
 Coverage: 86%+ statements
-Migrations: 37 SQL files (001-044, some gaps)
+Migrations: 54 SQL files (46 applied to production, #047-054 pending)
+Production: Deployed to https://immigration-ai-topaz.vercel.app
+Branch: feat/worker-service (Phase 1 complete, ready for Phase 2)
 ```
 
 > **Full launch tracker: `.claude/LAUNCH_TRACKER.md`**
@@ -84,27 +86,86 @@ Migrations: 37 SQL files (001-044, some gaps)
 - [ ] Extract education from transcripts / diplomas
 - [ ] Update `src/lib/ai/form-autofill.ts` field mappings for all forms
 
-### WS-INFRA: Infrastructure Setup (USER ACTION)
-**Status:** Not started
+### WS-BACKEND: Backend Worker Service (CRITICAL — IN PROGRESS)
+**Status:** Phase 1 COMPLETE, Phases 2-4 pending
+**Assigned Agent:** lead
+**Priority:** CRITICAL — AI processing hits Vercel 60s timeout ceiling
+**Plan:** `docs/BACKEND_INTEGRATION_PLAN.md` (864 lines)
+**Branch:** `feat/worker-service`
+**Architecture:** Hybrid — CRUD stays in Next.js, AI/email/cron moves to BullMQ worker on Railway
+
+#### Phase 1: Foundation (COMPLETE — 2026-02-18)
+- [x] P1-1: Install BullMQ + create feature branch
+- [x] P1-2: Add `REDIS_URL` + `WORKER_ENABLED` env config + feature flag
+- [x] P1-3: Create BullMQ connection, types, queue definitions (`src/lib/jobs/`)
+- [x] P1-4: Create worker service scaffold (`services/worker/` — config, health, index)
+- [x] P1-5: Create Dockerfile + railway.toml for Railway deployment
+- [x] P1-6: Create job status API route (`/api/jobs/[id]/status`)
+- [x] P1-7: Create `job_status` database migration (#054)
+- [x] P1-8: Create frontend job polling utility (`src/lib/jobs/polling.ts`)
+- [x] P1-9: Verify build passes (Next.js + worker both compile clean)
+
+#### Phase 2: Migrate AI Operations (NOT STARTED)
+**Goal:** All 6 AI endpoints use job queue instead of synchronous processing
+- [ ] P2-1: Migrate document analysis (`POST /api/documents/[id]/analyze`)
+- [ ] P2-2: Migrate form autofill (`POST /api/forms/[id]/autofill`)
+- [ ] P2-3: Migrate recommendations (`GET /api/cases/[id]/recommendations`)
+- [ ] P2-4: Migrate completeness check (`GET /api/cases/[id]/completeness`)
+- [ ] P2-5: Migrate success score (`GET /api/cases/[id]/success-score`)
+- [ ] P2-6: Migrate natural search (`GET /api/cases/search`)
+- [ ] P2-7: Update frontend hooks for async job pattern (polling + progress)
+- [ ] P2-8: Expand worker tsconfig to include `src/lib/ai/`, `src/lib/db/`, etc.
+
+#### Phase 3: Email, Cron, and Utilities (NOT STARTED)
+**Goal:** Email queued, Vercel cron replaced, virus scan async
+- [ ] P3-1: Replace synchronous `sendEmail()` with queue enqueue
+- [ ] P3-2: Create email-sender worker
+- [ ] P3-3: Replace Vercel cron with BullMQ repeatable jobs (deadline-alerts, cleanup, audit-archive)
+- [ ] P3-4: Remove `crons` section from `vercel.json` and `/api/cron/*` routes
+- [ ] P3-5: Make virus scanning async during upload
+
+#### Phase 4: Reliability & Monitoring (NOT STARTED)
+**Goal:** Circuit breaker, monitoring dashboard, load testing
+- [ ] P4-1: Implement circuit breaker for AI providers (OpenAI + Anthropic)
+- [ ] P4-2: Configure retry strategies per queue type
+- [ ] P4-3: Add Bull Board dashboard (password-protected)
+- [ ] P4-4: Add Sentry integration for worker errors
+- [ ] P4-5: Load test: 20 concurrent AI jobs
+- [ ] P4-6: Remove feature flag + old sync code paths (after 1-2 weeks stable)
+
+#### Deployment Steps (after Phase 2)
+- [ ] Deploy worker to Railway (new service, root dir = monorepo root)
+- [ ] Set Railway env vars (REDIS_URL, Supabase, AI keys, etc.)
+- [ ] Get `REDIS_URL` from Upstash dashboard (standard Redis endpoint, not REST)
+- [ ] Set `WORKER_ENABLED=true` on staging, test all flows
+- [ ] Apply migration #054 (job_status table) to production Supabase
+- [ ] Set `WORKER_ENABLED=true` on production Vercel
+
+### WS-INFRA: Infrastructure Setup (COMPLETE — 2026-02-18)
+**Status:** Complete (core services)
 **Assigned Agent:** User / lead
-**Priority:** CRITICAL — zero production services configured
-**Details:** See LAUNCH_TRACKER.md → Blocker 5
+**Priority:** DONE
 **Notes:**
-- Cron handler POST→GET bug fixed (2026-02-16)
-- PDF_SERVICE_URL and PDF_SERVICE_SECRET added to env templates
-- Still needs all production services configured
-**Tasks:**
-- [ ] Supabase production instance + push 37 migrations
-- [ ] Generate ENCRYPTION_KEY (`openssl rand -hex 32`) and CRON_SECRET (`openssl rand -hex 16`)
-- [ ] Configure virus scanner (ClamAV or VirusTotal)
-- [ ] Set AI API keys (OpenAI + Anthropic) with billing
-- [ ] Set NEXT_PUBLIC_APP_URL to production domain
-- [ ] Configure Upstash Redis for rate limiting
-- [ ] Configure Resend for email + DNS verification
-- [ ] Configure Sentry for error tracking
-- [ ] Configure Stripe (if monetizing)
-- [ ] Deploy to Vercel
-- [ ] Set PDF_SERVICE_URL and PDF_SERVICE_SECRET for Railway PDF service
+- All core production services configured and deployed
+- 29 Vercel production env vars set via REST API
+- ALLOW_IN_MEMORY_RATE_LIMIT removed (real Redis in production)
+- PDF_SERVICE_URL removed from Vercel (empty string caused Zod validation failure)
+**Completed Tasks:**
+- [x] Supabase production instance (ref: sforzkbeahfkeilynbwk) + push all 46 migrations
+- [x] Generate ENCRYPTION_KEY and CRON_SECRET
+- [x] Configure VirusTotal for virus scanning
+- [x] Set AI API keys (OpenAI + Anthropic) with billing
+- [x] Configure Upstash Redis for rate limiting (sharing-buffalo-59262.upstash.io)
+- [x] Configure Resend for email
+- [x] Configure Sentry for error tracking (org: immigration-ai-ni)
+- [x] Configure Stripe in test mode (4 price IDs + webhook)
+- [x] Deploy to Vercel (https://immigration-ai-topaz.vercel.app)
+- [x] Set all 29 Vercel production environment variables
+**Remaining Tasks:**
+- [ ] Buy custom domain → update NEXT_PUBLIC_APP_URL + SITE_URL
+- [ ] Resend DNS verification (after custom domain)
+- [ ] Deploy PDF service → set PDF_SERVICE_URL and PDF_SERVICE_SECRET
+- [ ] Activate Stripe live mode (currently test keys)
 
 ---
 
@@ -209,7 +270,4 @@ npm run dev          # Start dev server
 npm run build        # Production build
 npm run test:run     # Run tests (2,182+ passing)
 npm run lint         # Check lint issues
-
-# Build requires this env var if Redis not configured:
-ALLOW_IN_MEMORY_RATE_LIMIT=true npm run build
 ```

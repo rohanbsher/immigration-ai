@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { CachedRecommendations, Recommendation } from '@/lib/db/recommendations';
 import { fetchWithTimeout } from '@/lib/api/fetch-with-timeout';
 import { parseApiResponse } from '@/lib/api/parse-response';
+import { fetchJobAware } from '@/lib/api/job-aware-fetch';
 
 /**
  * Fetch recommendations for a case.
@@ -16,13 +17,13 @@ async function fetchRecommendations(
     ? `/api/cases/${caseId}/recommendations?refresh=true`
     : `/api/cases/${caseId}/recommendations`;
 
-  const response = await fetchWithTimeout(url, {
+  // May return 202 (async job) when worker is enabled
+  return fetchJobAware<CachedRecommendations>(url, {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
     },
   });
-  return parseApiResponse<CachedRecommendations>(response);
 }
 
 /**

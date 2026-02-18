@@ -2,20 +2,19 @@
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { CompletenessResult } from '@/lib/ai/document-completeness';
-import { fetchWithTimeout } from '@/lib/api/fetch-with-timeout';
-import { parseApiResponse } from '@/lib/api/parse-response';
+import { fetchJobAware } from '@/lib/api/job-aware-fetch';
 
 /**
  * Fetch document completeness analysis for a case.
  */
 async function fetchCompleteness(caseId: string): Promise<CompletenessResult> {
-  const response = await fetchWithTimeout(`/api/cases/${caseId}/completeness`, {
+  // May return 202 (async job) when worker is enabled
+  return fetchJobAware<CompletenessResult>(`/api/cases/${caseId}/completeness`, {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
     },
   });
-  return parseApiResponse<CompletenessResult>(response);
 }
 
 /**

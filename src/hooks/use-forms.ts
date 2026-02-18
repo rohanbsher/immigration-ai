@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { FormType, FormStatus } from '@/types';
 import { fetchWithTimeout, fetchAI, TimeoutError } from '@/lib/api/fetch-with-timeout';
 import { parseApiResponse, parseApiVoidResponse } from '@/lib/api/parse-response';
+import { fetchJobAware } from '@/lib/api/job-aware-fetch';
 
 interface Form {
   id: string;
@@ -67,11 +68,11 @@ async function updateForm(id: string, data: UpdateFormData): Promise<Form> {
 }
 
 async function autofillForm(id: string): Promise<Form> {
-  // AI autofill uses longer timeout (2 minutes)
-  const response = await fetchAI(`/api/forms/${id}/autofill`, {
+  // Form autofill may return 202 (async job) when worker is enabled
+  return fetchJobAware<Form>(`/api/forms/${id}/autofill`, {
     method: 'POST',
+    timeout: 'AI',
   });
-  return parseApiResponse<Form>(response);
 }
 
 async function reviewForm(id: string, notes: string): Promise<Form> {

@@ -6,12 +6,22 @@
  */
 
 import Anthropic from '@anthropic-ai/sdk';
-import { createClient } from '@/lib/supabase/server';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { parseClaudeJSON } from './utils';
 import { createLogger } from '@/lib/logger';
 import { serverEnv, features } from '@/lib/config';
-import { sanitizeSearchInput } from '@/lib/db/base-service';
+import { sanitizeSearchInput } from '@/lib/db/search-utils';
 import { withRetry, AI_RETRY_OPTIONS } from '@/lib/utils/retry';
+
+/**
+ * Resolve a Supabase client: use the provided one, or lazily import
+ * the cookie-based server client (Next.js only).
+ */
+async function resolveClient(client?: SupabaseClient): Promise<SupabaseClient> {
+  if (client) return client;
+  const { createClient } = await import('@/lib/supabase/server');
+  return createClient();
+}
 
 const log = createLogger('natural-search');
 
@@ -199,9 +209,10 @@ Respond with JSON only.`,
  */
 export async function executeSearch(
   filters: SearchFilters,
-  userId: string
+  userId: string,
+  supabaseClient?: SupabaseClient
 ): Promise<SearchResult[]> {
-  const supabase = await createClient();
+  const supabase = await resolveClient(supabaseClient);
 
   // Build base query
   let query = supabase
@@ -311,7 +322,7 @@ export async function executeSearch(
 async function filterByDocuments(
   results: SearchResult[],
   filters: SearchFilters,
-  supabase: Awaited<ReturnType<typeof createClient>>
+  supabase: SupabaseClient
 ): Promise<SearchResult[]> {
   const caseIds = results.map((r) => r.case.id);
 
@@ -435,13 +446,14 @@ export function generateSuggestions(
  */
 export async function naturalLanguageSearch(
   query: string,
-  userId: string
+  userId: string,
+  supabaseClient?: SupabaseClient
 ): Promise<SearchResponse> {
   // Parse the query
   const interpretation = await parseSearchQuery(query);
 
   // Execute search
-  const results = await executeSearch(interpretation.filters, userId);
+  const results = await executeSearch(interpretation.filters, userId, supabaseClient);
 
   // Generate suggestions
   const suggestions = generateSuggestions(query, interpretation, results.length);

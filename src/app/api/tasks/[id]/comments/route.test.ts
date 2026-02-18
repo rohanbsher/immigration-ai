@@ -8,6 +8,14 @@ import { NextRequest } from 'next/server';
 const mockUserId = 'user-123';
 const mockTaskId = 'task-abc';
 
+const mockTask = {
+  id: mockTaskId,
+  title: 'Test task',
+  status: 'pending',
+  created_by: mockUserId,
+  assigned_to: null,
+};
+
 const mockComment = {
   id: 'comment-1',
   task_id: mockTaskId,
@@ -38,6 +46,7 @@ vi.mock('@/lib/supabase/admin', () => ({
 
 vi.mock('@/lib/db', () => ({
   tasksService: {
+    getTask: vi.fn(),
     getComments: vi.fn(),
     addComment: vi.fn(),
   },
@@ -160,6 +169,8 @@ describe('Task Comments API', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockAuth();
+    // Default: task exists and is visible to the user
+    vi.mocked(tasksService.getTask).mockResolvedValue(mockTask as any);
   });
 
   afterEach(() => {
@@ -213,6 +224,18 @@ describe('Task Comments API', () => {
 
       expect(res.status).toBe(500);
       expect(json.error).toBe('Failed to get comments');
+    });
+
+    it('returns 404 when task does not exist or user cannot access it', async () => {
+      vi.mocked(tasksService.getTask).mockResolvedValue(null);
+
+      const req = createRequest('GET', `/api/tasks/${mockTaskId}/comments`);
+      const res = await GET(req, createContext(mockTaskId));
+      const json = await res.json();
+
+      expect(res.status).toBe(404);
+      expect(json.error).toBe('Task not found');
+      expect(tasksService.getComments).not.toHaveBeenCalled();
     });
   });
 

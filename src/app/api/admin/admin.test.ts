@@ -849,7 +849,7 @@ describe('Admin API Routes', () => {
 
       expect(res.status).toBe(200);
       expect(json.data.mrr).toBe(0);
-      expect(json.data.mrrGrowth).toBe(0);
+      expect(json.data.mrrGrowth).toBeNull();
     });
 
     it('calculates MRR from active Stripe subscriptions (monthly)', async () => {
@@ -1032,7 +1032,7 @@ describe('Admin API Routes', () => {
 
       expect(res.status).toBe(200);
       expect(json.data.mrr).toBe(0);
-      expect(json.data.mrrGrowth).toBe(0);
+      expect(json.data.mrrGrowth).toBeNull();
     });
 
     it('returns 500 on error', async () => {

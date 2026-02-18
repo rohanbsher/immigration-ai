@@ -2,6 +2,8 @@ import { resend, EMAIL_CONFIG } from './client';
 import { createClient } from '@/lib/supabase/server';
 import type { ReactElement } from 'react';
 import { createLogger } from '@/lib/logger';
+import { features } from '@/lib/config';
+import { enqueueEmail } from '@/lib/jobs/queues';
 
 const log = createLogger('email');
 
@@ -61,6 +63,45 @@ export async function sendEmail(
 
   if (logError) {
     log.logError('Failed to create email log', logError);
+  }
+
+  // Async path: enqueue email job when worker is enabled
+  if (features.workerEnabled) {
+    try {
+      // Pre-render React template to HTML if needed
+      let htmlBody = options.html;
+      if (!htmlBody && options.react) {
+        const { renderToStaticMarkup } = await import('react-dom/server');
+        htmlBody = renderToStaticMarkup(options.react);
+      }
+
+      if (!htmlBody && options.text) {
+        htmlBody = `<pre>${options.text}</pre>`;
+      }
+
+      if (!htmlBody) {
+        log.warn('Email enqueue skipped: no HTML or React template provided');
+        return { success: false, error: 'No email body to send' };
+      }
+
+      await enqueueEmail({
+        to: options.to,
+        subject: options.subject,
+        templateName: templateName || 'unknown',
+        templateData: templateData || {},
+        emailLogId: emailLog?.id,
+        userId: userId,
+        html: htmlBody,
+      });
+
+      return {
+        success: true,
+        messageId: `queued-${emailLog?.id || 'unknown'}`,
+      };
+    } catch (err) {
+      log.logError('Failed to enqueue email job', err);
+      // Fall through to synchronous send
+    }
   }
 
   if (!resend) {

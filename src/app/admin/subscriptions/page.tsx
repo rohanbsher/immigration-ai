@@ -9,7 +9,7 @@ interface AdminStats {
   totalSubscriptions: number;
   activeSubscriptions: number;
   mrr: number;
-  mrrGrowth: number;
+  mrrGrowth: number | null;
 }
 
 async function fetchSubscriptionStats(): Promise<AdminStats> {

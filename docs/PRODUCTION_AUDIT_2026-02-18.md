@@ -11,15 +11,15 @@
 
 This application is a substantial, well-architected immigration case management platform with **77 API routes, 56 database migrations, and comprehensive AI integration**. The codebase demonstrates strong security awareness with RLS policies, PII encryption, rate limiting, CSRF protection, and audit logging.
 
-However, the audit uncovered **1 show-stopping critical defect, 7 high-severity issues, and 12 medium-severity concerns** that must be addressed before production launch. The critical defect alone means **route protection, CSRF validation, idle timeout, and admin access controls are not functioning**.
+However, the audit uncovered **1 show-stopping critical defect, 9 high-severity issues, and 16 medium-severity concerns** that must be addressed before production launch. The critical defect alone means **route protection, CSRF validation, idle timeout, and admin access controls are not functioning**.
 
 ### Severity Distribution
 
 | Severity | Count | Description |
 |----------|-------|-------------|
 | **CRITICAL** | 1 | Application will not function correctly in production |
-| **HIGH** | 7 | Security vulnerabilities or data integrity risks |
-| **MEDIUM** | 12 | Reliability, operational, or defense-in-depth gaps |
+| **HIGH** | 9 | Security vulnerabilities or data integrity risks |
+| **MEDIUM** | 16 | Reliability, operational, or defense-in-depth gaps |
 | **LOW** | 8 | Code quality, best practices, minor hardening |
 
 ---
@@ -270,6 +270,34 @@ These non-null assertions (`!`) will cause cryptic runtime errors if the environ
 **Impact:** Worker may have different security configurations than the main app
 
 The worker service initializes its own Supabase client independently. If there are configuration differences (wrong keys, missing RLS awareness), the worker could inadvertently bypass security policies.
+
+---
+
+## ADDITIONAL API ROUTE FINDINGS (From Deep Route Analysis)
+
+### A-1: Chat Streaming Saves Partial AI Responses on Error (HIGH)
+**File:** `src/app/api/chat/route.ts:195-208`
+When chat streaming fails mid-response, the partial response (which may contain PII from previous messages) is persisted to the database. Use a safe error placeholder instead of saving `fullResponse || '[Error]'`.
+
+### A-2: Jobs Status Endpoint May Lack Authorization (HIGH)
+**File:** `src/app/api/jobs/[id]/status/route.ts`
+If job status is queryable by job ID alone without ownership verification, any authenticated user could inspect any background job's status/metadata. Verify user ownership before returning status.
+
+### A-3: Chat Message Accumulation Unbounded (MEDIUM)
+**File:** `src/app/api/chat/route.ts:83`
+Individual messages are capped at 4000 characters, but there's no limit on total messages per conversation. A malicious user could create millions of small messages, exhausting storage.
+
+### A-4: Case Search Natural Language Injection Risk (MEDIUM)
+**File:** `src/app/api/cases/search/route.ts:71`
+Search queries are trimmed to 500 chars but passed directly to `naturalLanguageSearch()`. If that function constructs database queries from AI-parsed natural language, indirect SQL injection may be possible. Verify parameterized queries throughout.
+
+### A-5: Firm Member Changes Not Audit Logged (MEDIUM)
+**File:** `src/app/api/firms/[id]/members/route.ts:110,170`
+Member additions, role changes, and removals are not logged. For legal compliance, all access control changes should be in the audit trail.
+
+### A-6: Document Re-Analysis Has No File Integrity Check (MEDIUM)
+**File:** `src/app/api/documents/[id]/analyze/route.ts:195-204`
+File is validated at upload time but not re-validated before AI analysis. If storage is compromised between upload and analysis, AI could process malicious content. Consider storing and verifying file hashes.
 
 ---
 

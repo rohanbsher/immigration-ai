@@ -84,13 +84,14 @@ export function ChatPanel({ className }: ChatPanelProps) {
   // Actually dispatch the message (called after consent is confirmed)
   const dispatchMessage = useCallback(
     (text: string) => {
+      if (isSending || isSubmittingRef.current) return;
       isSubmittingRef.current = true;
       sendMessage(text);
       setInputValue('');
       const id = setTimeout(() => { isSubmittingRef.current = false; }, 500);
       submitTimeoutRef.current = id;
     },
-    [sendMessage]
+    [sendMessage, isSending]
   );
 
   // Handle consent granted -- send any pending message

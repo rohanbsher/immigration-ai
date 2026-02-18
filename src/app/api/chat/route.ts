@@ -78,8 +78,8 @@ export async function POST(request: NextRequest): Promise<Response> {
 
     // Parse and validate request body
     const chatSchema = z.object({
-      conversationId: z.string().uuid().optional(),
-      caseId: z.string().uuid().optional(),
+      conversationId: z.string().uuid().nullable().optional().transform(v => v ?? undefined),
+      caseId: z.string().uuid().nullable().optional().transform(v => v ?? undefined),
       message: z.string().min(1, 'Message cannot be empty').max(4000),
     });
 

@@ -76,7 +76,7 @@ export interface CronJobPayload {
 // Job Status (for polling)
 // =============================================================================
 
-export type JobStatus = 'waiting' | 'active' | 'completed' | 'failed' | 'delayed';
+export type JobStatus = 'queued' | 'waiting' | 'active' | 'completed' | 'failed' | 'delayed';
 
 export interface JobStatusResponse {
   id: string;

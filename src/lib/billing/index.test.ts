@@ -251,12 +251,28 @@ describe('Billing - Quota Module', () => {
 });
 
 describe('Billing - Plan Comparison', () => {
-  it('should have progressively increasing limits from pro to enterprise', () => {
+  // Skipped: Free plan has temporarily bumped limits for early access beta.
+  // Re-enable this test when Free plan limits are lowered below Pro.
+  it.skip('should have progressively increasing limits from free to enterprise', () => {
+    const free = PLAN_FEATURES.free.limits;
     const pro = PLAN_FEATURES.pro.limits;
     const enterprise = PLAN_FEATURES.enterprise.limits;
 
-    // Note: Free plan has temporarily bumped limits for early access beta.
-    // Progressive ordering is only guaranteed from Pro → Enterprise.
+    // Cases: free < pro < enterprise
+    expect(free.maxCases).toBeLessThan(pro.maxCases);
+    expect(pro.maxCases).toBeLessThan(enterprise.maxCases === -1 ? Infinity : enterprise.maxCases);
+
+    // Storage: free < pro < enterprise
+    expect(free.maxStorageGb).toBeLessThan(pro.maxStorageGb);
+    expect(pro.maxStorageGb).toBeLessThan(enterprise.maxStorageGb);
+
+    // Team members: free < pro < enterprise
+    expect(free.maxTeamMembers).toBeLessThan(pro.maxTeamMembers);
+  });
+
+  it('should have progressively increasing limits from pro to enterprise', () => {
+    const pro = PLAN_FEATURES.pro.limits;
+    const enterprise = PLAN_FEATURES.enterprise.limits;
 
     // Cases
     expect(pro.maxCases).toBeLessThan(enterprise.maxCases === -1 ? Infinity : enterprise.maxCases);

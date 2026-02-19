@@ -115,21 +115,28 @@ export async function POST(
 
     // Async path: enqueue job when worker is enabled
     if (features.workerEnabled) {
-      const job = await enqueueFormAutofill({
-        formId: id,
-        userId: user.id,
-        caseId: form.case_id,
-        formType: form.form_type,
-      });
+      try {
+        const job = await enqueueFormAutofill({
+          formId: id,
+          userId: user.id,
+          caseId: form.case_id,
+          formType: form.form_type,
+        });
 
-      trackUsage(user.id, 'ai_requests').catch((err) => {
-        log.warn('Usage tracking failed', { error: err instanceof Error ? err.message : String(err) });
-      });
+        trackUsage(user.id, 'ai_requests').catch((err) => {
+          log.warn('Usage tracking failed', { error: err instanceof Error ? err.message : String(err) });
+        });
 
-      return NextResponse.json(
-        { jobId: job.id, status: 'queued', message: 'Form autofill has been queued for processing.' },
-        { status: 202 }
-      );
+        return NextResponse.json(
+          { jobId: job.id, status: 'queued', message: 'Form autofill has been queued for processing.' },
+          { status: 202 }
+        );
+      } catch (enqueueErr) {
+        log.warn('Failed to enqueue form autofill job, falling back to sync', {
+          error: enqueueErr instanceof Error ? enqueueErr.message : String(enqueueErr),
+        });
+        // Fall through to synchronous path below
+      }
     }
 
     // Get all analyzed documents for the case

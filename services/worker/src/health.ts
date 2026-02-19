@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import express, { type Request, type Response, type NextFunction } from 'express';
 import { createBullBoard } from '@bull-board/api';
 import { BullMQAdapter } from '@bull-board/api/bullMQAdapter';
@@ -29,7 +30,7 @@ export function startHealthServer(queues: Queue[]): void {
     serverAdapter,
   });
 
-  // Basic auth middleware for production
+  // Auth middleware for Bull Board dashboard
   if (workerConfig.BULL_BOARD_PASSWORD) {
     app.use('/admin/queues', (req: Request, res: Response, next: NextFunction) => {
       const authHeader = req.headers.authorization;
@@ -42,12 +43,20 @@ export function startHealthServer(queues: Queue[]): void {
       const credentials = Buffer.from(authHeader.slice(6), 'base64').toString();
       const [, password] = credentials.split(':');
 
-      if (password !== workerConfig.BULL_BOARD_PASSWORD) {
+      // Timing-safe comparison to prevent timing attacks
+      const expected = Buffer.from(workerConfig.BULL_BOARD_PASSWORD!);
+      const actual = Buffer.from(password || '');
+      if (expected.length !== actual.length || !crypto.timingSafeEqual(expected, actual)) {
         res.status(403).send('Forbidden');
         return;
       }
 
       next();
+    });
+  } else if (process.env.NODE_ENV === 'production') {
+    // In production, deny access entirely when no password is configured
+    app.use('/admin/queues', (_req: Request, res: Response) => {
+      res.status(403).send('Bull Board is disabled. Set BULL_BOARD_PASSWORD to enable.');
     });
   }
 

@@ -128,6 +128,11 @@ export async function GET(
       }
     }
 
+    // Track usage for sync path (async path tracks on enqueue success above)
+    trackUsage(user.id, 'ai_requests').catch((err) => {
+      log.warn('Usage tracking failed (sync path)', { error: err instanceof Error ? err.message : String(err) });
+    });
+
     // Perform completeness analysis
     let result;
     try {

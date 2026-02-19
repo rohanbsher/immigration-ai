@@ -29,8 +29,8 @@ export const GET = withAuth(
 
     const { id: jobId } = await context.params!;
 
-    // Try to resolve the queue from the deterministic jobId prefix (e.g. "recommendations:abc123")
-    const prefix = jobId.split(':')[0];
+    // Try to resolve the queue from the deterministic jobId prefix (e.g. "recommendations--abc123")
+    const prefix = jobId.split('--')[0];
     const targetQueueName = JOB_ID_PREFIX_TO_QUEUE[prefix];
 
     let foundJob = null;

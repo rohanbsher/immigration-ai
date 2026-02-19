@@ -88,7 +88,14 @@ export async function fetchWithTimeout(
     return response;
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
-      throw new TimeoutError(timeout);
+      // Distinguish timeout abort from caller-initiated abort.
+      // Only throw TimeoutError when OUR controller fired, not when
+      // the caller's signal (e.g., user navigating away) aborted.
+      if (controller.signal.aborted) {
+        throw new TimeoutError(timeout);
+      }
+      // Caller's signal aborted — re-throw as a regular AbortError
+      throw error;
     }
     throw error;
   } finally {

@@ -234,7 +234,7 @@ export async function analyzeDocumentWithClaude(
       toolDescription:
         'Extract structured data from an immigration document image.',
       schema: DocumentAnalysisResultSchema,
-      system: [{ type: 'text' as const, text: DOCUMENT_ANALYSIS_SYSTEM_PROMPT }],
+      system: [{ type: 'text' as const, text: DOCUMENT_ANALYSIS_SYSTEM_PROMPT, cache_control: { type: 'ephemeral' as const } }],
       userMessage: [
         { type: 'text' as const, text: extractionPrompt },
         contentBlock,
@@ -269,7 +269,7 @@ export async function extractTextWithClaude(
       toolName: 'text_extraction',
       toolDescription: 'Extract all text from a document image via OCR.',
       schema: DocumentAnalysisResultSchema,
-      system: [{ type: 'text' as const, text: 'You are a precise OCR engine. Extract every piece of text visible in the document, preserving formatting and line breaks.' }],
+      system: [{ type: 'text' as const, text: 'You are a precise OCR engine. Extract every piece of text visible in the document, preserving formatting and line breaks.', cache_control: { type: 'ephemeral' as const } }],
       userMessage: [
         {
           type: 'text' as const,

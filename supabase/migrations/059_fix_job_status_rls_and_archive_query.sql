@@ -14,11 +14,13 @@ SET lock_timeout = '4s';
 -- the operation fails loudly instead of silently returning nothing.
 
 -- Users can insert job_status rows for themselves (e.g., client-initiated jobs)
+DROP POLICY IF EXISTS "Users can insert their own jobs" ON job_status;
 CREATE POLICY "Users can insert their own jobs"
   ON job_status FOR INSERT
   WITH CHECK (auth.uid() = user_id);
 
 -- Users can update their own jobs (e.g., cancellation)
+DROP POLICY IF EXISTS "Users can update their own jobs" ON job_status;
 CREATE POLICY "Users can update their own jobs"
   ON job_status FOR UPDATE
   USING (auth.uid() = user_id)
@@ -76,6 +78,9 @@ BEGIN
     FROM audit_log
     WHERE id = ANY(batch_ids)
     ON CONFLICT (id) DO NOTHING;
+
+    -- Delete archived rows from the source table
+    DELETE FROM audit_log WHERE id = ANY(batch_ids);
 
     total_archived := total_archived + batch_count;
 

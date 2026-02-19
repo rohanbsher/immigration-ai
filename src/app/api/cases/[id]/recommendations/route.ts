@@ -252,21 +252,6 @@ export async function GET(
     // Check URL params for refresh flag
     const forceRefresh = request.nextUrl.searchParams.get('refresh') === 'true';
 
-    // Quota enforcement (only needed if we'll generate fresh recommendations)
-    if (forceRefresh || !(await getCachedRecommendations(caseId))) {
-      try {
-        await enforceQuota(user.id, 'ai_requests');
-      } catch (error) {
-        if (error instanceof QuotaExceededError) {
-          return NextResponse.json(
-            { error: 'AI request limit reached. Please upgrade your plan.', code: 'QUOTA_EXCEEDED' },
-            { status: 402 }
-          );
-        }
-        throw error;
-      }
-    }
-
     // Try to get cached recommendations
     if (!forceRefresh) {
       const cached = await getCachedRecommendations(caseId);
@@ -332,6 +317,19 @@ export async function GET(
         });
         // Fall through to synchronous path below
       }
+    }
+
+    // Enforce quota before synchronous generation
+    try {
+      await enforceQuota(user.id, 'ai_requests');
+    } catch (error) {
+      if (error instanceof QuotaExceededError) {
+        return NextResponse.json(
+          { error: 'AI request limit reached. Please upgrade your plan.', code: 'QUOTA_EXCEEDED' },
+          { status: 402 }
+        );
+      }
+      throw error;
     }
 
     // Generate new recommendations with fallback

@@ -39,6 +39,7 @@ $$ LANGUAGE plpgsql IMMUTABLE;
 -- ============================================================================
 
 -- SELECT (Download/View) - users with case access can view documents
+DROP POLICY IF EXISTS "Users can view documents in their cases" ON storage.objects;
 CREATE POLICY "Users can view documents in their cases"
   ON storage.objects FOR SELECT
   USING (
@@ -47,6 +48,7 @@ CREATE POLICY "Users can view documents in their cases"
   );
 
 -- INSERT (Upload) - users with case access can upload documents
+DROP POLICY IF EXISTS "Users can upload documents to their cases" ON storage.objects;
 CREATE POLICY "Users can upload documents to their cases"
   ON storage.objects FOR INSERT
   WITH CHECK (
@@ -55,6 +57,7 @@ CREATE POLICY "Users can upload documents to their cases"
   );
 
 -- UPDATE (Replace) - users with case access can update documents
+DROP POLICY IF EXISTS "Users can update documents in their cases" ON storage.objects;
 CREATE POLICY "Users can update documents in their cases"
   ON storage.objects FOR UPDATE
   USING (
@@ -67,6 +70,7 @@ CREATE POLICY "Users can update documents in their cases"
   );
 
 -- DELETE - only attorneys/admins can delete (stricter check)
+DROP POLICY IF EXISTS "Attorneys can delete documents in their cases" ON storage.objects;
 CREATE POLICY "Attorneys can delete documents in their cases"
   ON storage.objects FOR DELETE
   USING (

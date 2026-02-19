@@ -2,6 +2,7 @@ import { tasksService } from '@/lib/db';
 import { z } from 'zod';
 import { createLogger } from '@/lib/logger';
 import { withAuth, errorResponse, successResponse, safeParseBody } from '@/lib/auth/api-helpers';
+import { createClient } from '@/lib/supabase/server';
 
 const log = createLogger('api:task-comments');
 
@@ -26,10 +27,22 @@ export const GET = withAuth(async (_request, context, auth) => {
       return errorResponse('Task not found', 404);
     }
 
-    // Defense-in-depth: verify the authenticated user can access this task
-    const canView =
+    // Defense-in-depth: verify the authenticated user can access this task.
+    // Allow: task creator, assignee, same-firm member, or admin.
+    let canView =
       task.created_by === auth.user.id ||
       task.assigned_to === auth.user.id;
+
+    if (!canView && task.firm_id) {
+      const supabase = await createClient();
+      const { data: membership } = await supabase
+        .from('firm_members')
+        .select('id')
+        .eq('firm_id', task.firm_id)
+        .eq('user_id', auth.user.id)
+        .maybeSingle();
+      if (membership) canView = true;
+    }
 
     if (!canView && auth.profile.role !== 'admin') {
       return errorResponse('Forbidden', 403);

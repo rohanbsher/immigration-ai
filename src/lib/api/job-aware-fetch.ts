@@ -11,7 +11,7 @@
  * to the normal response parser.
  */
 
-import { fetchWithTimeout } from './fetch-with-timeout';
+import { fetchWithTimeout, type FetchWithTimeoutOptions } from './fetch-with-timeout';
 import type { JobStatusResponse } from '@/lib/jobs/types';
 import { parseApiResponse } from './parse-response';
 import { safeParseErrorJson } from './safe-json';
@@ -87,10 +87,10 @@ async function pollUntilComplete(
  */
 export async function fetchJobAware<T = unknown>(
   url: string,
-  init?: RequestInit & { timeout?: number | string },
+  init?: FetchWithTimeoutOptions,
   onProgress?: (progress: number) => void
 ): Promise<T> {
-  const response = await fetchWithTimeout(url, init as any);
+  const response = await fetchWithTimeout(url, init);
 
   if (!response.ok && response.status !== 202) {
     const body = await safeParseErrorJson(response);

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useSyncExternalStore } from 'react';
 
 const CONSENT_KEY = 'immigration-ai-consent';
 
@@ -38,14 +38,14 @@ function writeConsent(analytics: boolean): void {
   localStorage.setItem(CONSENT_KEY, JSON.stringify(state));
 }
 
+const emptySubscribe = () => () => {};
+const getTrue = () => true;
+const getFalse = () => false;
+
 export function useConsent(): UseConsentReturn {
   const [analyticsConsented, setAnalyticsConsented] = useState<boolean | null>(readConsent);
-  // Start false on server (SSR), set to true after mount to avoid hydration mismatch
-  const [consentLoaded, setConsentLoaded] = useState(false);
-
-  useEffect(() => {
-    setConsentLoaded(true);
-  }, []);
+  // true on client, false on server — avoids hydration mismatch without useEffect+setState
+  const consentLoaded = useSyncExternalStore(emptySubscribe, getTrue, getFalse);
 
   const acceptAll = useCallback(() => {
     writeConsent(true);

@@ -81,10 +81,12 @@ export function useFormAutoSave({
     enabledRef.current = enabled;
   }, [enabled]);
 
-  // Reset state when formId changes (useState initializer only runs on mount)
+  // Reset state when formId changes (useState initializer only runs on mount).
+  // Reading localStorage is an external store sync — suppress the set-state-in-effect rule.
   useEffect(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
     const existing = readDraft(formId);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reading external store (localStorage) on key change
     setLastSavedAt(existing?.savedAt ?? null);
   }, [formId]);
 

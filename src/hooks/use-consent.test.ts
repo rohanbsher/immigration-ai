@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach } from 'vitest';
-import { renderHook, act, waitFor } from '@testing-library/react';
+import { renderHook, act } from '@testing-library/react';
 import { useConsent } from './use-consent';
 
 const CONSENT_KEY = 'immigration-ai-consent';
@@ -65,11 +65,8 @@ describe('useConsent', () => {
     expect(result.current.analyticsConsented).toBeNull();
   });
 
-  test('consentLoaded starts false and becomes true after effect runs', async () => {
+  test('consentLoaded is true on client (useSyncExternalStore)', () => {
     const { result } = renderHook(() => useConsent());
-    // After the effect flushes, consentLoaded transitions to true
-    await waitFor(() => {
-      expect(result.current.consentLoaded).toBe(true);
-    });
+    expect(result.current.consentLoaded).toBe(true);
   });
 });

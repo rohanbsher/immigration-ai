@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Worker service has its own linting/build
+    "services/**",
   ]),
   // Allow 'any' in test files (common pattern for mocking)
   {

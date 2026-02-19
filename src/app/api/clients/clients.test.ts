@@ -230,7 +230,7 @@ import { GET as getClient, PATCH as updateClient } from './[id]/route';
 import { GET as getClientCases } from './[id]/cases/route';
 import { clientsService } from '@/lib/db/clients';
 import { profilesService } from '@/lib/db/profiles';
-import { requireAttorney, authenticate } from '@/lib/auth/api-helpers';
+import { authenticate } from '@/lib/auth/api-helpers';
 import { sensitiveRateLimiter } from '@/lib/rate-limit';
 
 // Helper to create mock NextRequest

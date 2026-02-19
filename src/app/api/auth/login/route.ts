@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Explicitly get the session to ensure cookies are set
-    const { data: sessionData } = await supabase.auth.getSession();
+    await supabase.auth.getSession();
 
     // Fetch user profile
     const { data: profile } = await supabase

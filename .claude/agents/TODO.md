@@ -37,16 +37,17 @@ All three implementation plans have been verified as 100% complete.
 
 ---
 
-## Current State (2026-02-18)
+## Current State (2026-02-19)
 
 ```
 Tests:  2,289+ passed | 4 skipped | 0 failures (unit)
         86 passed | 67 skipped | 0 failures (E2E in CI)
 Build:  Passes (69 routes, no TypeScript errors)
 Coverage: 86%+ statements
-Migrations: 55 SQL files (46 applied to production, #047-055 pending)
+Migrations: 58 SQL files (all applied to production)
 Production: Deployed to https://immigration-ai-topaz.vercel.app
-Branch: main (feat/worker-service merged, all 4 phases complete)
+Worker: Deployed to https://immigration-ai-production.up.railway.app (E2E verified)
+Branch: main (all deployment steps complete)
 ```
 
 > **Full launch tracker: `.claude/LAUNCH_TRACKER.md`**
@@ -134,13 +135,13 @@ Branch: main (feat/worker-service merged, all 4 phases complete)
 - [x] Round 2 (6 fixes): Config validation, worker shutdown, health endpoint
 - [x] Round 3 (8 fixes): Stale jobId dedup (`addWithDedup`), quota enforcement, SSRF validation, audit logging, single-queue lookup optimization, sanitizeResult whitelist, migration squash
 
-#### Deployment Steps (PENDING — deploy when ready)
-- [ ] Deploy worker to Railway (new service, root dir = monorepo root)
-- [ ] Set Railway env vars (REDIS_URL, Supabase, AI keys, etc.)
-- [ ] Get `REDIS_URL` from Upstash dashboard (standard Redis endpoint, not REST)
-- [ ] Apply migrations #054-055 to production Supabase
-- [ ] Set `WORKER_ENABLED=true` on staging, test all flows
-- [ ] Set `WORKER_ENABLED=true` on production Vercel
+#### Deployment Steps (COMPLETE — 2026-02-19)
+- [x] Deploy worker to Railway (new service, root dir = monorepo root)
+- [x] Set Railway env vars (REDIS_URL, Supabase, AI keys, etc.)
+- [x] Get `REDIS_URL` from Upstash dashboard (standard Redis endpoint, not REST)
+- [x] Apply migrations #054-055 to production Supabase
+- [x] Set `WORKER_ENABLED=true` on staging, test all flows
+- [x] Set `WORKER_ENABLED=true` on production Vercel
 
 ### WS-INFRA: Infrastructure Setup (COMPLETE — 2026-02-18)
 **Status:** Complete (core services)
@@ -198,7 +199,7 @@ Branch: main (feat/worker-service merged, all 4 phases complete)
 ### WS-REMAINING: Non-Blocking Improvements
 **Tasks:**
 - [ ] Include documents/AI conversations in GDPR data export
-- [ ] Fix ESLint warnings
+- [x] Fix ESLint warnings (src/ files cleaned up, e2e test warnings remain)
 - [ ] Rate-limit consistency: migrate ~38 post-auth endpoints from IP to user.id
 
 ---

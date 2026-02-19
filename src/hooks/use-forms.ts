@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { FormType, FormStatus } from '@/types';
-import { fetchWithTimeout, fetchAI, TimeoutError } from '@/lib/api/fetch-with-timeout';
+import { fetchWithTimeout, TimeoutError } from '@/lib/api/fetch-with-timeout';
 import { parseApiResponse, parseApiVoidResponse } from '@/lib/api/parse-response';
 import { fetchJobAware } from '@/lib/api/job-aware-fetch';
 

@@ -387,7 +387,6 @@ export async function compareDocuments(
  */
 export async function validateDocumentForVisa(
   analysisResult: DocumentAnalysisResult,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _visaType: string
 ): Promise<{
   isAcceptable: boolean;

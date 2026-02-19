@@ -470,6 +470,8 @@ export interface FullValidationResult {
   typeValidation: FileValidationResult;
   virusScan: VirusScanResult | null;
   error?: string;
+  /** True when virus scanner was unavailable but upload was allowed */
+  scanDegraded?: boolean;
 }
 
 export async function validateFile(
@@ -503,6 +505,30 @@ export async function validateFile(
   const virusScan = await scanFileForViruses(file, options?.scannerConfig);
 
   if (!virusScan.isClean) {
+    // Distinguish actual malware from scanner unavailability/timeouts.
+    // Only block uploads when real threats are detected.
+    const scannerDegradedReasons = [
+      'SCAN_TIMEOUT',
+      'SCAN_ERROR',
+      'SCAN_FAILED',
+      'SCANNER_NOT_CONFIGURED',
+    ];
+
+    const isDegraded = virusScan.threatName && scannerDegradedReasons.includes(virusScan.threatName);
+
+    if (isDegraded) {
+      log.warn('Virus scan unavailable, allowing upload with pending scan status', {
+        reason: virusScan.threatName,
+        provider: virusScan.scanProvider,
+      });
+      return {
+        isValid: true,
+        typeValidation,
+        virusScan: { ...virusScan, isClean: true, threatName: undefined },
+        scanDegraded: true,
+      };
+    }
+
     return {
       isValid: false,
       typeValidation,

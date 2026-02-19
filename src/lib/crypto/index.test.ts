@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
   encrypt,
   decrypt,
@@ -10,7 +10,6 @@ import {
   decryptSensitiveFields,
   maskSensitiveValue,
   SENSITIVE_FIELDS,
-  type EncryptedData,
 } from './index';
 
 describe('crypto utilities', () => {

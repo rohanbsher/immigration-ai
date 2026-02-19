@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { logger, createLogger, createRequestLogger } from './index';
-import type { LogLevel } from './index';
 
 describe('Logger Module', () => {
   const originalEnv = { ...process.env };

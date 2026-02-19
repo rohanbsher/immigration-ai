@@ -5,7 +5,6 @@ import {
   getPasswordChecks,
   validatePassword,
   isPasswordValid,
-  type PasswordChecks,
 } from './password';
 
 // A password that satisfies every rule

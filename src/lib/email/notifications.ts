@@ -1,4 +1,4 @@
-import { sendEmail, shouldSendEmail, EMAIL_CONFIG } from './index';
+import { sendEmail, shouldSendEmail } from './index';
 import { WelcomeEmail } from './templates/welcome';
 import { CaseUpdateEmail } from './templates/case-update';
 import { DocumentUploadedEmail } from './templates/document-uploaded';

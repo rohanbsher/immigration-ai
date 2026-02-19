@@ -110,9 +110,9 @@ function setAnthropicJsonResponse(data: unknown) {
   });
 }
 
-function setAnthropicTextResponse(text: string) {
+function setAnthropicToolUseResponse(toolName: string, data: unknown) {
   anthropicMockState.messagesCreate.mockResolvedValueOnce({
-    content: [{ type: 'text', text }],
+    content: [{ type: 'tool_use', id: 'toolu_mock', name: toolName, input: data }],
   });
 }
 
@@ -1015,7 +1015,7 @@ describe('AI Module', () => {
           warnings: [],
         };
 
-        setAnthropicJsonResponse(mockResponse);
+        setAnthropicToolUseResponse('form_autofill', mockResponse);
 
         const { generateFormAutofill } = await import('./anthropic');
         const result = await generateFormAutofill({
@@ -1030,16 +1030,14 @@ describe('AI Module', () => {
         expect(result.processing_time_ms).toBeDefined();
       });
 
-      it('should handle JSON response wrapped in markdown code blocks', async () => {
+      it('should handle tool_use response with structured data', async () => {
         const mockResponse = {
           form_type: 'I-130',
           fields: [],
           overall_confidence: 0.9,
         };
 
-        anthropicMockState.messagesCreate.mockResolvedValueOnce({
-          content: [{ type: 'text', text: '```json\n' + JSON.stringify(mockResponse) + '\n```' }],
-        });
+        setAnthropicToolUseResponse('form_autofill', mockResponse);
 
         const { generateFormAutofill } = await import('./anthropic');
         const result = await generateFormAutofill({
@@ -1050,7 +1048,7 @@ describe('AI Module', () => {
         expect(result.form_type).toBe('I-130');
       });
 
-      it('should throw error when no text content in response', async () => {
+      it('should throw error when no tool_use block in response', async () => {
         anthropicMockState.messagesCreate.mockResolvedValueOnce({
           content: [],
         });
@@ -1062,12 +1060,12 @@ describe('AI Module', () => {
             formType: 'I-130',
             extractedData: [],
           })
-        ).rejects.toThrow('No response content from Claude');
+        ).rejects.toThrow('Expected tool_use block for "form_autofill"');
       });
 
-      it('should throw error when JSON cannot be parsed', async () => {
+      it('should throw error when response has text but no tool_use block', async () => {
         anthropicMockState.messagesCreate.mockResolvedValueOnce({
-          content: [{ type: 'text', text: 'This is not JSON at all' }],
+          content: [{ type: 'text', text: 'This is not a tool_use block' }],
         });
 
         const { generateFormAutofill } = await import('./anthropic');
@@ -1077,7 +1075,7 @@ describe('AI Module', () => {
             formType: 'I-130',
             extractedData: [],
           })
-        ).rejects.toThrow('Could not parse JSON response from Claude');
+        ).rejects.toThrow('Expected tool_use block for "form_autofill"');
       });
 
       it('should handle 401 unauthorized error', async () => {
@@ -1119,7 +1117,7 @@ describe('AI Module', () => {
           overall_confidence: 0.9,
         };
 
-        setAnthropicJsonResponse(mockResponse);
+        setAnthropicToolUseResponse('form_autofill', mockResponse);
 
         const { generateFormAutofill } = await import('./anthropic');
         await generateFormAutofill({
@@ -1156,7 +1154,7 @@ describe('AI Module', () => {
           suggestions: ['Double-check address format'],
         };
 
-        setAnthropicJsonResponse(mockResponse);
+        setAnthropicToolUseResponse('form_validation', mockResponse);
 
         const { validateFormData } = await import('./anthropic');
         const result = await validateFormData(
@@ -1180,16 +1178,16 @@ describe('AI Module', () => {
         expect(result.warnings).toContain('Unable to validate form data');
       });
 
-      it('should return default response when JSON parse fails', async () => {
+      it('should return default response when response has no tool_use block', async () => {
         anthropicMockState.messagesCreate.mockResolvedValueOnce({
-          content: [{ type: 'text', text: 'invalid json' }],
+          content: [{ type: 'text', text: 'not a tool_use block' }],
         });
 
         const { validateFormData } = await import('./anthropic');
         const result = await validateFormData('I-130', {});
 
         expect(result.isValid).toBe(true);
-        expect(result.warnings).toContain('Unable to parse validation response');
+        expect(result.warnings).toContain('Unable to validate form data');
       });
     });
 
@@ -1243,7 +1241,7 @@ describe('AI Module', () => {
           ],
         };
 
-        setAnthropicJsonResponse(mockResponse);
+        setAnthropicToolUseResponse('data_consistency', mockResponse);
 
         const { analyzeDataConsistency } = await import('./anthropic');
         const result = await analyzeDataConsistency([
@@ -1307,7 +1305,7 @@ describe('AI Module', () => {
           ],
         };
 
-        setAnthropicJsonResponse(mockResponse);
+        setAnthropicToolUseResponse('next_steps', mockResponse);
 
         const { suggestNextSteps } = await import('./anthropic');
         const result = await suggestNextSteps({
@@ -1587,13 +1585,13 @@ describe('AI Module', () => {
       });
 
       it('should autofill form with document analyses', async () => {
-        // Mock analyzeDataConsistency
-        setAnthropicJsonResponse({
+        // Mock analyzeDataConsistency (tool_use response)
+        setAnthropicToolUseResponse('data_consistency', {
           consistencyScore: 0.95,
           discrepancies: [],
         });
-        // Mock generateFormAutofill
-        setAnthropicJsonResponse({
+        // Mock generateFormAutofill (tool_use response)
+        setAnthropicToolUseResponse('form_autofill', {
           form_type: 'I-130',
           fields: [
             { field_id: 'pt2_legal_name', field_name: 'full_name', suggested_value: 'John Doe', confidence: 0.95 },
@@ -1645,8 +1643,8 @@ describe('AI Module', () => {
       });
 
       it('should add discrepancy warnings', async () => {
-        // Mock analyzeDataConsistency with discrepancies
-        setAnthropicJsonResponse({
+        // Mock analyzeDataConsistency with discrepancies (tool_use response)
+        setAnthropicToolUseResponse('data_consistency', {
           consistencyScore: 0.7,
           discrepancies: [
             {
@@ -1659,8 +1657,8 @@ describe('AI Module', () => {
             },
           ],
         });
-        // Mock generateFormAutofill
-        setAnthropicJsonResponse({
+        // Mock generateFormAutofill (tool_use response)
+        setAnthropicToolUseResponse('form_autofill', {
           form_type: 'I-130',
           fields: [
             { field_id: 'pt2_legal_name', field_name: 'full_name', suggested_value: 'John Doe', confidence: 0.8 },
@@ -1705,7 +1703,7 @@ describe('AI Module', () => {
       });
 
       it('should validate autofill data', async () => {
-        setAnthropicJsonResponse({
+        setAnthropicToolUseResponse('form_validation', {
           isValid: true,
           errors: [],
           warnings: [],

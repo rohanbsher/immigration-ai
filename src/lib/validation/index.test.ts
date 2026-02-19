@@ -8,9 +8,6 @@ import {
   isValidFormTransition,
   VALID_FORM_TRANSITIONS,
   FORM_STATUSES,
-  type ValidationError,
-  type ValidationResult,
-  type FormStatusType,
 } from './index';
 
 describe('validation utilities', () => {
@@ -326,7 +323,7 @@ describe('validation utilities', () => {
 
     it('should only contain valid statuses as transition targets', () => {
       const validStatuses = new Set<string>(FORM_STATUSES);
-      for (const [from, targets] of Object.entries(VALID_FORM_TRANSITIONS)) {
+      for (const [, targets] of Object.entries(VALID_FORM_TRANSITIONS)) {
         for (const target of targets) {
           expect(validStatuses.has(target)).toBe(true);
         }

@@ -19,7 +19,7 @@ import { NextRequest } from 'next/server';
 const mockUserId = 'user-123';
 const mockTaskId = 'task-abc';
 
-const mockAttorneyProfile = {
+const _mockAttorneyProfile = {
   id: mockUserId,
   email: 'attorney@example.com',
   role: 'attorney',
@@ -568,7 +568,7 @@ describe('Tasks API Routes', () => {
 
       const request = createRequest('PATCH', `/api/tasks/${mockTaskId}`, { status: 'completed' });
       const response = await updateTask(request, makeParams());
-      const data = await response.json();
+      await response.json();
 
       expect(response.status).toBe(200);
       expect(tasksService.updateTask).toHaveBeenCalledWith(

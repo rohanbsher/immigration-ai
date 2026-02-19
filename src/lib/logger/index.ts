@@ -186,7 +186,6 @@ function log(
 
   if (context?.error) {
     error = context.error;
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { error: _, ...rest } = context;
     cleanContext = Object.keys(rest).length > 0 ? rest : undefined;
   }

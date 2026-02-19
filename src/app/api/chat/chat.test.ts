@@ -131,7 +131,6 @@ import {
   getConversation,
   getConversationMessages,
   addMessage,
-  updateMessage,
   deleteConversation,
   updateConversationTitle,
 } from '@/lib/db/conversations';
@@ -517,7 +516,7 @@ describe('Chat API Routes', () => {
 
       const req = createRequest('GET', `/api/chat?caseId=${MOCK_CASE_ID}`);
       const res = await chatGET(req);
-      const data = await res.json();
+      await res.json();
 
       expect(res.status).toBe(200);
       expect(mockFrom.eq).toHaveBeenCalledWith('user_id', MOCK_USER_ID);

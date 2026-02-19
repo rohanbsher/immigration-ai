@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { createSSEStream, SSE_HEADERS, DEFAULT_KEEPALIVE_INTERVAL_MS } from './sse';
 
 describe('SSE Utilities', () => {

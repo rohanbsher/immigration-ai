@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { NextRequest, NextResponse } from 'next/server';
-import { mockUser, mockAuth, resetMocks } from '@/__mocks__/supabase';
+import { mockUser, resetMocks } from '@/__mocks__/supabase';
 
 // Mock CSRF module
 vi.mock('@/lib/csrf', () => ({
@@ -20,7 +20,7 @@ const mockSupabaseClient = {
 };
 
 vi.mock('@supabase/ssr', () => ({
-  createServerClient: vi.fn((url, key, options) => {
+  createServerClient: vi.fn((_url, _key, _options) => {
     // Capture cookie operations for testing
     return mockSupabaseClient;
   }),

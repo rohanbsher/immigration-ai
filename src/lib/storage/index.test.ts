@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, Mock } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { storage, serverStorage, SIGNED_URL_EXPIRATION } from './index';
 
 const mockUpload = vi.fn();

@@ -13,7 +13,6 @@
 
 import { fetchWithTimeout, type FetchWithTimeoutOptions } from './fetch-with-timeout';
 import type { JobStatusResponse } from '@/lib/jobs/types';
-import { parseApiResponse } from './parse-response';
 import { safeParseErrorJson } from './safe-json';
 
 const POLL_INTERVAL_MS = 2_000;

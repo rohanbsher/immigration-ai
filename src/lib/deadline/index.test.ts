@@ -139,12 +139,10 @@ describe('calculateCaseDeadlines', () => {
     // Chain for forms query (thenable, no .single())
     const formsChain = createMockChain({ data: [], error: null });
 
-    let callCount = 0;
     mockSupabase.from.mockImplementation((table: string) => {
       if (table === 'cases') return casesChain;
       if (table === 'documents') return docsChain;
       if (table === 'forms') return formsChain;
-      callCount++;
       return createMockChain({ data: null, error: null });
     });
 

@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom/vitest';
-import { beforeAll, afterEach, afterAll, vi } from 'vitest';
+import { afterEach, vi } from 'vitest';
 import { cleanup } from '@testing-library/react';
 
 // Polyfill Blob.prototype.arrayBuffer for jsdom

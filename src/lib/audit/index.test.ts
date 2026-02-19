@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { auditService } from './index';
-import type { AuditTableName, AuditOperation } from './index';
 
 const mockSupabaseInsert = vi.fn();
 const mockSupabaseSelect = vi.fn();

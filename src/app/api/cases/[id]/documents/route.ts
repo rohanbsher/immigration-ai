@@ -179,6 +179,15 @@ export async function POST(
       );
     }
 
+    // Log degraded scan status
+    if (validationResult.scanDegraded) {
+      log.warn('File uploaded with degraded virus scan', {
+        fileName: file.name,
+        userId: user.id,
+        caseId,
+      });
+    }
+
     // Log any warnings from validation
     if (validationResult.typeValidation.warnings.length > 0) {
       log.warn('File validation warnings', {

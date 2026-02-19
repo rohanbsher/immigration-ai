@@ -277,7 +277,6 @@ describe('Authentication Module', () => {
     describe('errorResponse', () => {
       it('should create error response with status', () => {
         const response = errorResponse('Not found', 404);
-        const body = response.json();
 
         expect(response.status).toBe(404);
       });

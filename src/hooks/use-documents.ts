@@ -5,7 +5,6 @@ import type { DocumentType, DocumentStatus } from '@/types';
 import {
   fetchWithTimeout,
   uploadWithTimeout,
-  fetchAI,
   TimeoutError,
 } from '@/lib/api/fetch-with-timeout';
 import { parseApiResponse, parseApiVoidResponse } from '@/lib/api/parse-response';

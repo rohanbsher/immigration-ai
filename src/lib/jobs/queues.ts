@@ -5,7 +5,7 @@
  * Lazy-initialized to avoid connection attempts when worker is disabled.
  */
 
-import { Queue } from 'bullmq';
+import { Queue, Job } from 'bullmq';
 import { requireJobConnection } from './connection';
 import {
   QUEUE_NAMES,
@@ -26,7 +26,7 @@ import {
 // Lazy-initialized queue instances
 const queues = new Map<string, Queue>();
 
-function getOrCreateQueue<T>(name: string): Queue<T> {
+export function getOrCreateQueue<T>(name: string): Queue<T> {
   if (!queues.has(name)) {
     const connection = requireJobConnection();
     queues.set(name, new Queue<T>(name, { connection }));
@@ -87,11 +87,31 @@ export function getCronQueue() {
 // =============================================================================
 
 /**
+ * Add a job with a deterministic ID, removing any stale completed/failed job first.
+ * This preserves deduplication for active/waiting jobs while allowing re-enqueue after completion.
+ */
+async function addWithDedup(
+  queue: Queue,
+  name: string,
+  data: unknown,
+  opts: Record<string, unknown> & { jobId: string }
+): Promise<Job> {
+  const existingJob = await queue.getJob(opts.jobId);
+  if (existingJob) {
+    const state = await existingJob.getState();
+    if (state === 'completed' || state === 'failed') {
+      await existingJob.remove();
+    }
+  }
+  return queue.add(name, data, opts);
+}
+
+/**
  * Enqueue a document analysis job.
  */
 export async function enqueueDocumentAnalysis(data: DocumentAnalysisJob) {
   const queue = getDocumentAnalysisQueue();
-  return queue.add('analyze', data, {
+  return addWithDedup(queue, 'analyze', data, {
     ...AI_JOB_DEFAULTS,
     jobId: `doc-analysis:${data.documentId}`,
   });
@@ -102,7 +122,7 @@ export async function enqueueDocumentAnalysis(data: DocumentAnalysisJob) {
  */
 export async function enqueueFormAutofill(data: FormAutofillJob) {
   const queue = getFormAutofillQueue();
-  return queue.add('autofill', data, {
+  return addWithDedup(queue, 'autofill', data, {
     ...AI_JOB_DEFAULTS,
     jobId: `form-autofill:${data.formId}`,
   });
@@ -121,7 +141,7 @@ export async function enqueueEmail(data: EmailJob) {
  */
 export async function enqueueRecommendations(data: RecommendationsJob) {
   const queue = getRecommendationsQueue();
-  return queue.add('recommend', data, {
+  return addWithDedup(queue, 'recommend', data, {
     ...AI_JOB_DEFAULTS,
     jobId: `recommendations:${data.caseId}`,
   });
@@ -132,7 +152,7 @@ export async function enqueueRecommendations(data: RecommendationsJob) {
  */
 export async function enqueueCompleteness(data: CompletenessJob) {
   const queue = getCompletenessQueue();
-  return queue.add('analyze', data, {
+  return addWithDedup(queue, 'analyze', data, {
     ...AI_JOB_DEFAULTS,
     jobId: `completeness:${data.caseId}`,
   });
@@ -143,7 +163,7 @@ export async function enqueueCompleteness(data: CompletenessJob) {
  */
 export async function enqueueSuccessScore(data: SuccessScoreJob) {
   const queue = getSuccessScoreQueue();
-  return queue.add('score', data, {
+  return addWithDedup(queue, 'score', data, {
     ...AI_JOB_DEFAULTS,
     jobId: `success-score:${data.caseId}`,
   });

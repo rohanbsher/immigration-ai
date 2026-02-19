@@ -227,10 +227,10 @@ export async function GET(
       return limitResult.response;
     }
 
-    // Verify user has access to this case
+    // Verify user has access to this case (also fetch visa_type + ai_recommendations for async path)
     const { data: caseData, error: caseError } = await supabase
       .from('cases')
-      .select('id, attorney_id, client_id')
+      .select('id, attorney_id, client_id, visa_type, ai_recommendations')
       .eq('id', caseId)
       .is('deleted_at', null)
       .single();
@@ -284,16 +284,9 @@ export async function GET(
 
     // Async path: enqueue job when worker is enabled
     if (features.workerEnabled) {
-      // Fetch case info including cached AI recommendations
-      const { data: caseInfo } = await supabase
-        .from('cases')
-        .select('visa_type, ai_recommendations')
-        .eq('id', caseId)
-        .single();
-
       // Return cached DB result if fresh (< 1 hour) and not force-refreshing
-      if (!forceRefresh && caseInfo?.ai_recommendations) {
-        const cached = caseInfo.ai_recommendations as CachedRecommendations;
+      if (!forceRefresh && caseData.ai_recommendations) {
+        const cached = caseData.ai_recommendations as CachedRecommendations;
         if (cached.expiresAt && new Date(cached.expiresAt) > new Date()) {
           const activeRecs = filterActiveRecommendations(cached.recommendations || []);
           const sortedRecs = sortRecommendationsByPriority(activeRecs);
@@ -305,11 +298,24 @@ export async function GET(
         }
       }
 
+      // Enforce quota before enqueueing
+      try {
+        await enforceQuota(user.id, 'ai_requests');
+      } catch (error) {
+        if (error instanceof QuotaExceededError) {
+          return NextResponse.json(
+            { error: 'AI request limit reached. Please upgrade your plan.', code: 'QUOTA_EXCEEDED' },
+            { status: 402 }
+          );
+        }
+        throw error;
+      }
+
       try {
         const job = await enqueueRecommendations({
           caseId,
           userId: user.id,
-          visaType: caseInfo?.visa_type || 'unknown',
+          visaType: caseData.visa_type || 'unknown',
         });
 
         trackUsage(user.id, 'ai_requests').catch((err) => {

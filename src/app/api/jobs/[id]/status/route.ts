@@ -1,7 +1,16 @@
 import { withAuth, successResponse, errorResponse } from '@/lib/auth/api-helpers';
-import { getAllQueues } from '@/lib/jobs/queues';
-import { type JobStatusResponse, type JobStatus } from '@/lib/jobs/types';
+import { getAllQueues, getOrCreateQueue } from '@/lib/jobs/queues';
+import { type JobStatusResponse, type JobStatus, QUEUE_NAMES } from '@/lib/jobs/types';
 import { features } from '@/lib/config';
+
+const JOB_ID_PREFIX_TO_QUEUE: Record<string, string> = {
+  'recommendations': QUEUE_NAMES.RECOMMENDATIONS,
+  'completeness': QUEUE_NAMES.COMPLETENESS,
+  'success-score': QUEUE_NAMES.SUCCESS_SCORE,
+  'doc-analysis': QUEUE_NAMES.DOCUMENT_ANALYSIS,
+  'form-autofill': QUEUE_NAMES.FORM_AUTOFILL,
+  'email': QUEUE_NAMES.EMAIL,
+};
 
 /**
  * GET /api/jobs/[id]/status
@@ -20,42 +29,66 @@ export const GET = withAuth(
 
     const { id: jobId } = await context.params!;
 
-    // Use singleton queues — no new connections created
-    let queues;
-    try {
-      queues = getAllQueues();
-    } catch {
-      return errorResponse('Job queue is not configured', 503);
-    }
+    // Try to resolve the queue from the deterministic jobId prefix (e.g. "recommendations:abc123")
+    const prefix = jobId.split(':')[0];
+    const targetQueueName = JOB_ID_PREFIX_TO_QUEUE[prefix];
 
-    if (queues.length === 0) {
-      return errorResponse('Job queue is not configured', 503);
-    }
-
-    // Search all queues for the job
     let foundJob = null;
     let foundQueueName = '';
 
-    for (const queue of queues) {
+    if (targetQueueName) {
+      // Fast path: look up a single queue by prefix
       try {
+        const queue = getOrCreateQueue(targetQueueName);
         const job = await queue.getJob(jobId);
         if (job) {
-          // Verify the job belongs to this user
-          const jobUserId = job.data?.userId;
+          const jobUserId = (job.data as Record<string, unknown>)?.userId;
           if (jobUserId && jobUserId !== auth.user.id) {
             return errorResponse('Job not found', 404);
           }
-          // If job has no userId, deny access (defensive)
           if (!jobUserId) {
             return errorResponse('Job not found', 404);
           }
-
           foundJob = job;
           foundQueueName = queue.name;
-          break;
         }
       } catch {
-        // Skip queues that fail (e.g., connection issues)
+        // Fall through to all-queues search
+      }
+    }
+
+    // Fallback: search all queues (for jobs without deterministic IDs like email)
+    if (!foundJob) {
+      let queues;
+      try {
+        queues = getAllQueues();
+      } catch {
+        return errorResponse('Job queue is not configured', 503);
+      }
+
+      if (queues.length === 0) {
+        return errorResponse('Job queue is not configured', 503);
+      }
+
+      for (const queue of queues) {
+        try {
+          const job = await queue.getJob(jobId);
+          if (job) {
+            const jobUserId = (job.data as Record<string, unknown>)?.userId;
+            if (jobUserId && jobUserId !== auth.user.id) {
+              return errorResponse('Job not found', 404);
+            }
+            if (!jobUserId) {
+              return errorResponse('Job not found', 404);
+            }
+
+            foundJob = job;
+            foundQueueName = queue.name;
+            break;
+          }
+        } catch {
+          // Skip queues that fail (e.g., connection issues)
+        }
       }
     }
 
@@ -98,15 +131,17 @@ function sanitizeResult(returnvalue: unknown): unknown {
   const SAFE_FIELDS = [
     // Common result fields
     'overallScore', 'confidence', 'factors', 'riskFactors', 'improvements', 'calculatedAt',
+    'status', 'processingTimeMs', 'warnings',
     // Completeness fields
     'overallCompleteness', 'filingReadiness', 'missingRequired', 'missingOptional',
     'uploadedDocs', 'recommendations', 'totalRequired', 'uploadedRequired', 'analyzedAt',
     // Recommendations fields
-    'caseId', 'generatedAt', 'expiresAt', 'source',
+    'caseId', 'generatedAt', 'expiresAt', 'source', 'count',
     // Document analysis fields
-    'documentType', 'extractedData',
+    'documentType', 'extractedData', 'document', 'analysis',
     // Form autofill fields
-    'fields', 'formType',
+    'fields', 'formType', 'formId', 'fieldsFilled', 'overallConfidence',
+    'fieldsRequiringReview', 'missingDocuments',
     // Degraded flag
     'degraded',
   ];

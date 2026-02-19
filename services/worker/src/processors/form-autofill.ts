@@ -14,6 +14,7 @@ import {
   type ExtractedField,
 } from '@/lib/ai';
 import { anthropicBreaker } from '@/lib/ai/circuit-breaker';
+import { logAIRequest } from '@/lib/audit/ai-audit';
 import { getWorkerSupabase } from '../supabase';
 
 export async function processFormAutofill(
@@ -174,6 +175,16 @@ export async function processFormAutofill(
   if (updateError) {
     throw new Error(`Failed to update form ${formId}: ${updateError.message}`);
   }
+
+  logAIRequest({
+    operation: 'form_autofill',
+    provider: 'anthropic',
+    userId: job.data.userId,
+    caseId: job.data.caseId,
+    formId: job.data.formId,
+    dataFieldsSent: ['form_type', 'visa_type', 'document_extracted_fields'],
+    model: 'claude-3',
+  });
 
   await job.updateProgress(100);
 

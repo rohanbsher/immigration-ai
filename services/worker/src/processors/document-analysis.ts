@@ -10,6 +10,8 @@ import type { DocumentAnalysisJob } from '@/lib/jobs/types';
 import { analyzeDocument } from '@/lib/ai/document-analysis';
 import type { DocumentAnalysisResult } from '@/lib/ai/types';
 import { openaiBreaker } from '@/lib/ai/circuit-breaker';
+import { validateStorageUrl } from '@/lib/security';
+import { logAIRequest } from '@/lib/audit/ai-audit';
 import { getWorkerSupabase } from '../supabase';
 
 const MIN_CONFIDENCE_THRESHOLD = 0.5;
@@ -32,6 +34,11 @@ export async function processDocumentAnalysis(
     throw new Error(`Failed to generate signed URL for document ${documentId}: ${signedUrlError?.message}`);
   }
 
+  const signedUrl = signedUrlData.signedUrl;
+  if (!validateStorageUrl(signedUrl)) {
+    throw new Error(`Invalid signed URL - possible SSRF attempt for document ${documentId}`);
+  }
+
   await job.updateProgress(20);
 
   // 2. Run AI analysis (wrapped in circuit breaker)
@@ -40,7 +47,7 @@ export async function processDocumentAnalysis(
     analysisResult = await openaiBreaker.execute(() =>
       analyzeDocument({
         documentId,
-        fileUrl: signedUrlData.signedUrl,
+        fileUrl: signedUrl,
         documentType,
         options: {
           extract_raw_text: true,
@@ -109,6 +116,16 @@ export async function processDocumentAnalysis(
   if (updateError) {
     throw new Error(`Failed to update document ${documentId}: ${updateError.message}`);
   }
+
+  logAIRequest({
+    operation: 'document_analysis',
+    provider: 'openai',
+    userId: job.data.userId,
+    caseId: job.data.caseId,
+    documentId: job.data.documentId,
+    dataFieldsSent: ['document_image', 'document_type'],
+    model: 'gpt-4-vision',
+  });
 
   await job.updateProgress(100);
 

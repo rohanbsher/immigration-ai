@@ -233,7 +233,7 @@ Limits are defined in THREE places that MUST stay synchronized:
 
 1. `src/lib/billing/limits.ts` - Frontend display
 2. `supabase/migrations/003_billing.sql` - plan_limits table seed
-3. Database triggers (migrations 027, 032) - Enforcement
+3. Database triggers (migrations 027, 032) and plan bumps (056, 057) - Enforcement
 
 | Plan | maxCases | maxDocumentsPerCase | maxAiRequests | maxStorage | maxTeamMembers |
 |------|----------|---------------------|---------------|------------|----------------|
@@ -241,7 +241,9 @@ Limits are defined in THREE places that MUST stay synchronized:
 | Pro | 250 | 100 | 2,500 | 50 GB | 10 |
 | Enterprise | ∞ | ∞ | ∞ | 500 GB | ∞ |
 
-**Note:** Free plan limits are temporarily elevated for early access / beta (see migration 056). Revert when billing goes live. Documents quota is enforced per-case (not aggregate). The UsageMeter UI shows Cases, AI Requests, and Team Members only.
+**Note:** Free plan limits are temporarily elevated for early access beta. They will be lowered when paid plans launch.
+
+**Note:** Documents quota is enforced per-case (not aggregate). The UsageMeter UI shows Cases, AI Requests, and Team Members only.
 
 ---
 

@@ -8,7 +8,7 @@ CREATE TABLE job_status (
   entity_type TEXT,                            -- 'document', 'form', 'case'
   entity_id UUID,                              -- Reference to the entity being processed
   status TEXT NOT NULL DEFAULT 'queued'
-    CHECK (status IN ('queued', 'active', 'completed', 'failed', 'delayed')),
+    CHECK (status IN ('queued', 'waiting', 'active', 'completed', 'failed', 'delayed')),
   progress INTEGER DEFAULT 0
     CHECK (progress >= 0 AND progress <= 100),
   result JSONB,
@@ -31,7 +31,7 @@ CREATE POLICY "Users can view their own jobs"
 -- Index for frontend polling: find active jobs for a user
 CREATE INDEX idx_job_status_user_active
   ON job_status (user_id, status)
-  WHERE status IN ('queued', 'active');
+  WHERE status IN ('queued', 'waiting', 'active');
 
 -- Index for cleanup: find old completed/failed jobs
 CREATE INDEX idx_job_status_completed_at

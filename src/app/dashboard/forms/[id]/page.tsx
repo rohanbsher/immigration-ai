@@ -52,6 +52,18 @@ export default function FormDetailPage({ params }: { params: Promise<{ id: strin
     }
   }, [form?.form_data, isInitialized]);
 
+  // Compute autofill gaps — must be above early returns to satisfy Rules of Hooks
+  const autofillGaps = useMemo(() => {
+    if (!form || form.status === 'draft') return [];
+
+    const filledFieldIds = Object.entries(formValues)
+      .filter(([, v]) => v !== undefined && v !== '' && v !== null)
+      .map(([k]) => k);
+
+    const uploadedDocTypes: string[] = [];
+    return getAutofillGaps(form.form_type, filledFieldIds, uploadedDocTypes);
+  }, [form, formValues]);
+
   const handleFieldChange = (fieldId: string, value: unknown) => {
     setFormValues((prev) => ({ ...prev, [fieldId]: value }));
     setHasChanges(true);
@@ -156,31 +168,6 @@ export default function FormDetailPage({ params }: { params: Promise<{ id: strin
   const completionPercent = totalRequiredFields > 0
     ? Math.round((filledRequiredFields / totalRequiredFields) * 100)
     : 0;
-
-  // Compute autofill gaps: which documents could fill empty fields
-  // Only show after AI autofill has run (status is ai_filled or later)
-  const autofillGaps = useMemo(() => {
-    if (form.status === 'draft') return [];
-
-    const filledFieldIds = Object.entries(formValues)
-      .filter(([, v]) => v !== undefined && v !== '' && v !== null)
-      .map(([k]) => k);
-
-    // Extract uploaded doc types from ai_filled_data metadata if available
-    const metadata = (form.ai_filled_data as Record<string, unknown> | null)?._metadata as
-      | { missing_documents?: string[] }
-      | undefined;
-    // Documents NOT in the missing list were uploaded; we don't have a full
-    // uploaded list here, so pass an empty array and let the gap function
-    // filter purely by unfilled fields.
-    const uploadedDocTypes: string[] = [];
-
-    // If metadata lists specific missing documents, we could use them,
-    // but getAutofillGaps already filters by unfilled fields which is more accurate.
-    void metadata;
-
-    return getAutofillGaps(form.form_type, filledFieldIds, uploadedDocTypes);
-  }, [form.status, form.form_type, form.ai_filled_data, formValues]);
 
   return (
     <div className="space-y-6">

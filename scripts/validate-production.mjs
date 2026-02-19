@@ -28,8 +28,8 @@ const ATTORNEY_EMAIL = process.env.E2E_ATTORNEY_EMAIL;
 const ATTORNEY_PASSWORD = process.env.E2E_ATTORNEY_PASSWORD;
 const CLIENT_EMAIL = process.env.E2E_CLIENT_EMAIL;
 const CLIENT_PASSWORD = process.env.E2E_CLIENT_PASSWORD;
-const ADMIN_EMAIL = process.env.E2E_ADMIN_EMAIL;
-const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD;
+const _ADMIN_EMAIL = process.env.E2E_ADMIN_EMAIL;
+const _ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD;
 const CRON_SECRET = process.env.CRON_SECRET;
 
 // ANSI colors

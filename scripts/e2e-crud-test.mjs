@@ -81,7 +81,7 @@ async function run() {
     } else {
       console.log('   Response:', caseRes.body.slice(0, 400));
     }
-  } catch (e) {
+  } catch (_e) {
     console.log('   Raw response:', caseRes.body.slice(0, 400));
   }
 
@@ -105,7 +105,7 @@ async function run() {
       console.log('   First case:', cases.data[0]?.title);
     }
     console.log('   Full response:', JSON.stringify(cases).slice(0, 400));
-  } catch (e) {
+  } catch (_e) {
     console.log('   Raw:', listRes.body.slice(0, 300));
   }
 
@@ -120,7 +120,7 @@ async function run() {
   try {
     const stats = JSON.parse(statsRes.body);
     console.log('   Stats:', JSON.stringify(stats.data || stats).slice(0, 200));
-  } catch (e) {
+  } catch (_e) {
     console.log('   Raw:', statsRes.body.slice(0, 200));
   }
 
@@ -135,7 +135,7 @@ async function run() {
   try {
     const firms = JSON.parse(firmsListRes.body);
     console.log('   Firms count:', firms.data?.length || 0);
-  } catch (e) {
+  } catch (_e) {
     console.log('   Raw:', firmsListRes.body.slice(0, 200));
   }
 

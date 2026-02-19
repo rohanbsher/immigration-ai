@@ -7,6 +7,10 @@ COPY services/worker/package.json services/worker/package-lock.json* services/wo
 WORKDIR /app/services/worker
 RUN npm install --legacy-peer-deps
 
+# Symlink node_modules to repo root so shared src/lib code can resolve imports
+# (TypeScript walks up from /app/src/lib/ looking for node_modules)
+RUN ln -s /app/services/worker/node_modules /app/node_modules
+
 # Copy shared library code (used via @/lib/* path alias)
 WORKDIR /app
 COPY src/lib/ src/lib/

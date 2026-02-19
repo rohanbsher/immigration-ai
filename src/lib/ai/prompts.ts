@@ -11,7 +11,7 @@ Guidelines:
 6. Be conservative - if you're unsure, indicate lower confidence
 7. Return null for fields that cannot be determined
 
-Always respond in valid JSON format.`;
+Use the provided tool to return structured output.`;
 
 export const PASSPORT_EXTRACTION_PROMPT = `Analyze this passport image and extract the following information:
 
@@ -35,7 +35,7 @@ For each field, provide:
 - confidence: A score from 0 to 1
 - requires_verification: true if the value is unclear or uncertain
 
-Respond with a JSON object in this format:
+Return the extracted data via the tool with this structure:
 {
   "document_type": "passport",
   "extracted_fields": [
@@ -78,7 +78,7 @@ For each field, provide:
 - confidence: A score from 0 to 1
 - requires_verification: true if the value is unclear or uncertain
 
-Respond with a JSON object in this format:
+Return the extracted data via the tool with this structure:
 {
   "document_type": "birth_certificate",
   "extracted_fields": [...],
@@ -106,7 +106,7 @@ For each field, provide:
 - confidence: A score from 0 to 1
 - requires_verification: true if the value is unclear or uncertain
 
-Respond with a JSON object in this format:
+Return the extracted data via the tool with this structure:
 {
   "document_type": "marriage_certificate",
   "extracted_fields": [...],
@@ -130,7 +130,7 @@ For each field, provide:
 - confidence: A score from 0 to 1
 - requires_verification: true if the value is unclear or uncertain
 
-Respond with a JSON object in this format:
+Return the extracted data via the tool with this structure:
 {
   "document_type": "employment_letter",
   "extracted_fields": [...],
@@ -153,7 +153,7 @@ For each field, provide:
 - confidence: A score from 0 to 1
 - requires_verification: true if the value is unclear or uncertain
 
-Respond with a JSON object in this format:
+Return the extracted data via the tool with this structure:
 {
   "document_type": "bank_statement",
   "extracted_fields": [...],
@@ -185,7 +185,7 @@ For each field, provide:
 - confidence: A score from 0 to 1
 - requires_verification: true if the value is unclear or uncertain
 
-Respond with a JSON object in this format:
+Return the extracted data via the tool with this structure:
 {
   "document_type": "tax_return",
   "extracted_fields": [...],
@@ -213,7 +213,7 @@ For each field, provide:
 - confidence: A score from 0 to 1
 - requires_verification: true if the value is unclear or uncertain
 
-Respond with a JSON object in this format:
+Return the extracted data via the tool with this structure:
 {
   "document_type": "medical_exam",
   "extracted_fields": [...],
@@ -238,7 +238,7 @@ For each field, provide:
 - confidence: A score from 0 to 1
 - requires_verification: true if the value is unclear or uncertain
 
-Respond with a JSON object in this format:
+Return the extracted data via the tool with this structure:
 {
   "document_type": "police_clearance",
   "extracted_fields": [...],
@@ -262,7 +262,7 @@ For each field, provide:
 - confidence: A score from 0 to 1
 - requires_verification: true if the value is unclear or uncertain
 
-Respond with a JSON object in this format:
+Return the extracted data via the tool with this structure:
 {
   "document_type": "divorce_certificate",
   "extracted_fields": [...],
@@ -291,7 +291,7 @@ For each field, provide:
 - confidence: A score from 0 to 1
 - requires_verification: true if the value is unclear or uncertain
 
-Respond with a JSON object in this format:
+Return the extracted data via the tool with this structure:
 {
   "document_type": "utility_bill",
   "extracted_fields": [...],
@@ -312,7 +312,7 @@ For each field found, provide:
 - confidence: A score from 0 to 1
 - requires_verification: true if the value is unclear or uncertain
 
-Respond with a JSON object in this format:
+Return the extracted data via the tool with this structure:
 {
   "document_type": "identified_type",
   "extracted_fields": [...],
@@ -345,7 +345,7 @@ Common form types:
 - N-400: Application for Naturalization
 - G-1145: E-Notification of Application/Petition Acceptance
 
-Always respond in valid JSON format.`;
+Use the provided tool to return structured output.`;
 
 export const I130_AUTOFILL_PROMPT = `Based on the provided extracted document data, fill out the I-130 (Petition for Alien Relative) form fields.
 
@@ -529,7 +529,7 @@ For each field, provide:
 - confidence: A score from 0 to 1
 - requires_verification: true if the value is unclear or uncertain
 
-Respond with a JSON object in this format:
+Return the extracted data via the tool with this structure:
 {
   "document_type": "i94",
   "extracted_fields": [...],
@@ -567,7 +567,7 @@ For each field, provide:
 - confidence: A score from 0 to 1
 - requires_verification: true if the value is unclear or uncertain
 
-Respond with a JSON object in this format:
+Return the extracted data via the tool with this structure:
 {
   "document_type": "w2",
   "extracted_fields": [...],
@@ -598,7 +598,7 @@ For each field, provide:
 - confidence: A score from 0 to 1
 - requires_verification: true if the value is unclear or uncertain
 
-Respond with a JSON object in this format:
+Return the extracted data via the tool with this structure:
 {
   "document_type": "pay_stub",
   "extracted_fields": [...],
@@ -627,7 +627,7 @@ For each field, provide:
 - confidence: A score from 0 to 1
 - requires_verification: true if the value is unclear or uncertain
 
-Respond with a JSON object in this format:
+Return the extracted data via the tool with this structure:
 {
   "document_type": "diploma",
   "extracted_fields": [...],
@@ -660,7 +660,7 @@ For each field, provide:
 - confidence: A score from 0 to 1
 - requires_verification: true if the value is unclear or uncertain
 
-Respond with a JSON object in this format:
+Return the extracted data via the tool with this structure:
 {
   "document_type": "transcript",
   "extracted_fields": [...],
@@ -687,7 +687,7 @@ For each field, provide:
 - confidence: A score from 0 to 1
 - requires_verification: true if the value is unclear or uncertain
 
-Respond with a JSON object in this format:
+Return the extracted data via the tool with this structure:
 {
   "document_type": "recommendation_letter",
   "extracted_fields": [...],
@@ -717,7 +717,7 @@ For each field, provide:
 - confidence: A score from 0 to 1
 - requires_verification: true if the assessment is uncertain
 
-Respond with a JSON object in this format:
+Return the extracted data via the tool with this structure:
 {
   "document_type": "photo",
   "extracted_fields": [...],

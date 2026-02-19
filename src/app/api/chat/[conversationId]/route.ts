@@ -139,16 +139,20 @@ export async function PATCH(
       throw err;
     }
 
-    await updateConversationTitle(conversationId, user.id, validated.title);
-
-    const conversation = await getConversation(conversationId, user.id);
-
-    if (!conversation) {
+    // Verify conversation exists and belongs to user BEFORE writing
+    const existing = await getConversation(conversationId, user.id);
+    if (!existing) {
       return NextResponse.json(
         { error: 'Not Found', message: 'Conversation not found' },
         { status: 404 }
       );
     }
+
+    await updateConversationTitle(conversationId, user.id, validated.title);
+
+    // Re-fetch to get the updated title and timestamps
+    const updated = await getConversation(conversationId, user.id);
+    const conversation = updated ?? existing;
 
     return NextResponse.json({
       conversation: {

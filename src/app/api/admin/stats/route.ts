@@ -9,19 +9,21 @@ const log = createLogger('api:admin-stats');
 
 export async function GET(request: NextRequest) {
   try {
-    const ip = request.headers.get('x-forwarded-for') || 'unknown';
-    const rateLimitResult = await rateLimit(RATE_LIMITS.STANDARD, ip);
+    // Authenticate FIRST, then rate-limit on user ID.
+    // Rate-limiting on IP before auth allows attackers to DoS the limiter
+    // with spoofed X-Forwarded-For headers.
+    const profile = await serverAuth.getProfile();
+    if (!profile || profile.role !== 'admin') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const rateLimitResult = await rateLimit(RATE_LIMITS.STANDARD, profile.id);
 
     if (!rateLimitResult.success) {
       return NextResponse.json(
         { error: 'Too many requests' },
         { status: 429, headers: { 'Retry-After': rateLimitResult.retryAfter?.toString() || '60' } }
       );
-    }
-
-    const profile = await serverAuth.getProfile();
-    if (!profile || profile.role !== 'admin') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const supabase = await createClient();

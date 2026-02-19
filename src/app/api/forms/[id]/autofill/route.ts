@@ -124,9 +124,8 @@ export async function POST(
           formType: form.form_type,
         });
 
-        trackUsage(user.id, 'ai_requests').catch((err) => {
-          log.warn('Usage tracking failed', { error: err instanceof Error ? err.message : String(err) });
-        });
+        // NOTE: Do NOT call trackUsage here — the worker processor calls it
+        // after successful AI processing. Tracking here would double-charge.
 
         return NextResponse.json(
           { jobId: job.id, status: 'queued', message: 'Form autofill has been queued for processing.' },

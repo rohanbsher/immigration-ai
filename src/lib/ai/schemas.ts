@@ -129,6 +129,15 @@ export const DocumentAnalysisResultSchema = z.object({
 });
 
 // ---------------------------------------------------------------------------
+// Text Extraction (for Phase 3 -- Claude Vision OCR)
+// ---------------------------------------------------------------------------
+
+export const TextExtractionResultSchema = z.object({
+  raw_text: z.string(),
+  extracted_fields: z.array(ExtractedFieldSchema).optional(),
+});
+
+// ---------------------------------------------------------------------------
 // Document Type Detection (for Phase 3 -- Claude Vision)
 // ---------------------------------------------------------------------------
 

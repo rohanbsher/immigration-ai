@@ -133,9 +133,9 @@ Identify:
     });
   } catch {
     return {
-      isValid: true,
-      errors: [],
-      warnings: ['Unable to validate form data'],
+      isValid: false,
+      errors: ['AI validation unavailable — manual review required'],
+      warnings: [],
       suggestions: [],
     };
   }
@@ -225,8 +225,8 @@ Compare common fields across documents (name, date of birth, addresses, etc.) an
     });
   } catch {
     return {
-      consistencyScore: 1,
-      discrepancies: [],
+      consistencyScore: 0,
+      discrepancies: [{ field: '_system', values: [], recommendation: 'AI consistency check unavailable — manual review required' }],
     };
   }
 }

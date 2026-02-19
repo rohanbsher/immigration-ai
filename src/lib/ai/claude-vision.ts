@@ -17,6 +17,7 @@ import {
 } from './prompts';
 import {
   DocumentAnalysisResultSchema,
+  TextExtractionResultSchema,
   DocumentTypeDetectionSchema,
   DocumentValidationSchema,
 } from './schemas';
@@ -95,7 +96,7 @@ export async function fetchImageAsBase64(
       if (done) break;
       totalBytes += value.byteLength;
       if (totalBytes > maxBytes) {
-        reader.cancel();
+        await reader.cancel();
         throw new Error(
           `Document exceeds ${maxBytes / (1024 * 1024)}MB size limit for Claude vision (got >${Math.round(totalBytes / (1024 * 1024))}MB)`
         );
@@ -268,7 +269,7 @@ export async function extractTextWithClaude(
     const result = await callClaudeStructured({
       toolName: 'text_extraction',
       toolDescription: 'Extract all text from a document image via OCR.',
-      schema: DocumentAnalysisResultSchema,
+      schema: TextExtractionResultSchema,
       system: [{ type: 'text' as const, text: 'You are a precise OCR engine. Extract every piece of text visible in the document, preserving formatting and line breaks.', cache_control: { type: 'ephemeral' as const } }],
       userMessage: [
         {

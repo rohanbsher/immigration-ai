@@ -29,7 +29,10 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const error = searchParams.get('error');
   const expired = searchParams.get('expired') === 'true';
-  const returnUrl = searchParams.get('returnUrl');
+  // Validate returnUrl to prevent open redirect attacks.
+  // Only allow relative paths starting with '/'.
+  const rawReturnUrl = searchParams.get('returnUrl');
+  const returnUrl = rawReturnUrl && rawReturnUrl.startsWith('/') && !rawReturnUrl.startsWith('//') ? rawReturnUrl : null;
 
   const isEmailValid = useMemo(() => {
     if (!email) return null;

@@ -62,8 +62,10 @@ export async function callClaudeStructured<T extends ZodType>(
     maxTokens = 4096,
   } = options;
 
-  // Convert Zod schema to JSON Schema using zod v4's native method
-  const jsonSchema = schema.toJSONSchema();
+  // Convert Zod schema to JSON Schema using zod v4's native method.
+  // Strip top-level keys that Anthropic API rejects ($schema, $defs).
+  const rawSchema = schema.toJSONSchema();
+  const { $schema: _$schema, $defs: _$defs, ...jsonSchema } = rawSchema as Record<string, unknown>;
 
   // Build tool definition
   const tool: Anthropic.Messages.Tool = {
@@ -106,7 +108,8 @@ export async function callClaudeStructured<T extends ZodType>(
     log.error('Structured output failed Zod validation', {
       toolName,
       error: zodError instanceof Error ? zodError.message : String(zodError),
-      rawInput: JSON.stringify(toolUseBlock.input).slice(0, 500),
+      // Don't log rawInput — it may contain user PII from form data
+      inputKeys: Object.keys(toolUseBlock.input as Record<string, unknown>),
     });
     throw zodError;
   }

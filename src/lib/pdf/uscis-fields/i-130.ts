@@ -383,6 +383,11 @@ export const I130_ACRO_FIELDS: AcroFormFieldMap[] = [
 
   // -- Prior spouse 1 (Line 20-21) ----------------------------------------
   {
+    formFieldName: 'form1.Pt2Line20a_FamilyName',
+    dataPath: 'petitioner.priorSpouse1.lastName',
+    type: 'text',
+  },
+  {
     formFieldName: 'form1.Pt2Line20b_GivenName',
     dataPath: 'petitioner.priorSpouse1.firstName',
     type: 'text',
@@ -629,6 +634,11 @@ export const I130_ACRO_FIELDS: AcroFormFieldMap[] = [
 
   // -- Other names used (alias 1) ----------------------------------------
   {
+    formFieldName: 'form1.Pt4Line5a_FamilyName',
+    dataPath: 'beneficiary.otherNames.lastName',
+    type: 'text',
+  },
+  {
     formFieldName: 'form1.Pt4Line5b_GivenName',
     dataPath: 'beneficiary.otherNames.firstName',
     type: 'text',
@@ -675,14 +685,14 @@ export const I130_ACRO_FIELDS: AcroFormFieldMap[] = [
 
   // -- Sex checkboxes (Part 4 Line 10) ------------------------------------
   {
-    formFieldName: 'form1.Pt4Line10_Yes',
+    formFieldName: 'form1.Pt4Line10_Male',
     dataPath: 'beneficiary.sex',
     type: 'checkbox',
     checkValue: 'male',
     format: checkWhen('male'),
   },
   {
-    formFieldName: 'form1.Pt4Line10_No',
+    formFieldName: 'form1.Pt4Line10_Female',
     dataPath: 'beneficiary.sex',
     type: 'checkbox',
     checkValue: 'female',

@@ -238,13 +238,13 @@ describe('AI Module', () => {
       it('DOCUMENT_ANALYSIS_SYSTEM_PROMPT should include key instructions', () => {
         expect(DOCUMENT_ANALYSIS_SYSTEM_PROMPT).toContain('immigration');
         expect(DOCUMENT_ANALYSIS_SYSTEM_PROMPT).toContain('confidence');
-        expect(DOCUMENT_ANALYSIS_SYSTEM_PROMPT).toContain('JSON');
+        expect(DOCUMENT_ANALYSIS_SYSTEM_PROMPT).toContain('tool');
       });
 
       it('FORM_AUTOFILL_SYSTEM_PROMPT should include key instructions', () => {
         expect(FORM_AUTOFILL_SYSTEM_PROMPT).toContain('immigration');
         expect(FORM_AUTOFILL_SYSTEM_PROMPT).toContain('USCIS');
-        expect(FORM_AUTOFILL_SYSTEM_PROMPT).toContain('JSON');
+        expect(FORM_AUTOFILL_SYSTEM_PROMPT).toContain('tool');
       });
     });
   });
@@ -1166,7 +1166,7 @@ describe('AI Module', () => {
         expect(result.errors).toContain('Date of birth format is incorrect');
       });
 
-      it('should return default valid response when no content', async () => {
+      it('should return safe defaults when no content (isValid: false)', async () => {
         anthropicMockState.messagesCreate.mockResolvedValueOnce({
           content: [],
         });
@@ -1174,11 +1174,12 @@ describe('AI Module', () => {
         const { validateFormData } = await import('./anthropic');
         const result = await validateFormData('I-130', {});
 
-        expect(result.isValid).toBe(true);
-        expect(result.warnings).toContain('Unable to validate form data');
+        // Safety-critical: when AI fails, default to invalid to force manual review
+        expect(result.isValid).toBe(false);
+        expect(result.errors).toContain('AI validation unavailable — manual review required');
       });
 
-      it('should return default response when response has no tool_use block', async () => {
+      it('should return safe defaults when response has no tool_use block', async () => {
         anthropicMockState.messagesCreate.mockResolvedValueOnce({
           content: [{ type: 'text', text: 'not a tool_use block' }],
         });
@@ -1186,8 +1187,9 @@ describe('AI Module', () => {
         const { validateFormData } = await import('./anthropic');
         const result = await validateFormData('I-130', {});
 
-        expect(result.isValid).toBe(true);
-        expect(result.warnings).toContain('Unable to validate form data');
+        // Safety-critical: when AI fails, default to invalid to force manual review
+        expect(result.isValid).toBe(false);
+        expect(result.errors).toContain('AI validation unavailable — manual review required');
       });
     });
 
@@ -1259,7 +1261,7 @@ describe('AI Module', () => {
         expect(result.discrepancies).toHaveLength(1);
       });
 
-      it('should return perfect consistency when no content', async () => {
+      it('should return zero consistency when no content (forces manual review)', async () => {
         anthropicMockState.messagesCreate.mockResolvedValueOnce({
           content: [],
         });
@@ -1267,11 +1269,13 @@ describe('AI Module', () => {
         const { analyzeDataConsistency } = await import('./anthropic');
         const result = await analyzeDataConsistency([]);
 
-        expect(result.consistencyScore).toBe(1);
-        expect(result.discrepancies).toEqual([]);
+        // Safety: unknown consistency → 0, not 1
+        expect(result.consistencyScore).toBe(0);
+        expect(result.discrepancies.length).toBeGreaterThan(0);
+        expect(result.discrepancies[0].recommendation).toContain('manual review');
       });
 
-      it('should return perfect consistency when JSON parse fails', async () => {
+      it('should return zero consistency when JSON parse fails (forces manual review)', async () => {
         anthropicMockState.messagesCreate.mockResolvedValueOnce({
           content: [{ type: 'text', text: 'invalid' }],
         });
@@ -1279,8 +1283,9 @@ describe('AI Module', () => {
         const { analyzeDataConsistency } = await import('./anthropic');
         const result = await analyzeDataConsistency([]);
 
-        expect(result.consistencyScore).toBe(1);
-        expect(result.discrepancies).toEqual([]);
+        // Safety: unknown consistency → 0, not 1
+        expect(result.consistencyScore).toBe(0);
+        expect(result.discrepancies.length).toBeGreaterThan(0);
       });
     });
 

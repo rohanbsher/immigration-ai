@@ -60,6 +60,10 @@ export default function FormDetailPage({ params }: { params: Promise<{ id: strin
       .filter(([, v]) => v !== undefined && v !== '' && v !== null)
       .map(([k]) => k);
 
+    // We don't have direct access to case documents here, so pass an empty
+    // list. The gaps function will treat all documents as missing, which
+    // is the safe default — it may over-prompt but won't under-prompt.
+    // TODO: Fetch case document types via API to provide accurate gap analysis.
     const uploadedDocTypes: string[] = [];
     return getAutofillGaps(form.form_type, filledFieldIds, uploadedDocTypes);
   }, [form, formValues]);
@@ -202,7 +206,7 @@ export default function FormDetailPage({ params }: { params: Promise<{ id: strin
             )}
             {isAutofilling ? 'Autofilling...' : 'AI Autofill'}
           </Button>
-          <Button onClick={handleSave} disabled={!hasChanges || isSaving} className="gap-2">
+          <Button onClick={handleSave} disabled={!hasChanges || isSaving || isAutofilling} className="gap-2">
             {isSaving ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (

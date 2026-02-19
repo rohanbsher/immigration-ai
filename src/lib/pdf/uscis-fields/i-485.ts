@@ -28,7 +28,17 @@ export const I485_ACRO_FIELDS: AcroFormFieldMap[] = [
   },
   {
     formFieldName: 'form1.Pt1Line2_FamilyName',
-    dataPath: 'applicant.otherNames',
+    dataPath: 'applicant.otherNames.lastName',
+    type: 'text',
+  },
+  {
+    formFieldName: 'form1.Pt1Line2_GivenName',
+    dataPath: 'applicant.otherNames.firstName',
+    type: 'text',
+  },
+  {
+    formFieldName: 'form1.Pt1Line2_MiddleName',
+    dataPath: 'applicant.otherNames.middleName',
     type: 'text',
   },
   {

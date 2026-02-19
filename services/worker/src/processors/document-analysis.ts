@@ -2,20 +2,52 @@
  * Document Analysis Worker Processor
  *
  * Processes document analysis jobs: generates a signed URL from storage,
- * runs GPT-4 Vision OCR, and updates the document record with results.
+ * runs vision OCR (via the configured provider), and updates the document
+ * record with results.
+ *
+ * The circuit breaker is selected based on the active provider so that
+ * failures are attributed to the correct service.
  */
 
 import { Job } from 'bullmq';
 import type { DocumentAnalysisJob } from '@/lib/jobs/types';
 import { analyzeDocument } from '@/lib/ai/document-analysis';
 import type { DocumentAnalysisResult } from '@/lib/ai/types';
-import { openaiBreaker } from '@/lib/ai/circuit-breaker';
+import { openaiBreaker, anthropicBreaker } from '@/lib/ai/circuit-breaker';
+import { features } from '@/lib/config';
 import { validateStorageUrl } from '@/lib/security';
 import { logAIRequest } from '@/lib/audit/ai-audit';
 import { getWorkerSupabase } from '../supabase';
+import { trackUsage } from '../track-usage';
 
 const MIN_CONFIDENCE_THRESHOLD = 0.5;
 const SIGNED_URL_EXPIRY = 600; // 10 minutes
+
+/**
+ * Select the appropriate circuit breaker based on the configured provider.
+ * In 'auto' mode the fallback logic lives inside `analyzeDocument`, so
+ * we skip the worker-level breaker to avoid double-wrapping.
+ */
+function getCircuitBreaker() {
+  const provider = features.documentAnalysisProvider;
+  if (provider === 'claude') return anthropicBreaker;
+  if (provider === 'openai') return openaiBreaker;
+  // 'auto' -- the document-analysis module handles its own fallback/breaker
+  return null;
+}
+
+function getAuditProvider(): 'openai' | 'anthropic' {
+  const provider = features.documentAnalysisProvider;
+  if (provider === 'claude') return 'anthropic';
+  if (provider === 'openai') return 'openai';
+  return 'anthropic'; // auto defaults to Claude-first
+}
+
+function getAuditModel(): string {
+  const provider = features.documentAnalysisProvider;
+  if (provider === 'openai') return 'gpt-4o';
+  return 'claude-sonnet-4'; // Claude or auto (Claude-first)
+}
 
 export async function processDocumentAnalysis(
   job: Job<DocumentAnalysisJob>
@@ -41,10 +73,11 @@ export async function processDocumentAnalysis(
 
   await job.updateProgress(20);
 
-  // 2. Run AI analysis (wrapped in circuit breaker)
+  // 2. Run AI analysis (optionally wrapped in provider-specific circuit breaker)
   let analysisResult: DocumentAnalysisResult;
+  const breaker = getCircuitBreaker();
   try {
-    analysisResult = await openaiBreaker.execute(() =>
+    const runAnalysis = () =>
       analyzeDocument({
         documentId,
         fileUrl: signedUrl,
@@ -53,8 +86,11 @@ export async function processDocumentAnalysis(
           extract_raw_text: true,
           high_accuracy_mode: true,
         },
-      })
-    );
+      });
+
+    analysisResult = breaker
+      ? await breaker.execute(runAnalysis)
+      : await runAnalysis();
   } catch (aiError) {
     // Reset document status on AI failure
     await supabase
@@ -119,13 +155,15 @@ export async function processDocumentAnalysis(
 
   logAIRequest({
     operation: 'document_analysis',
-    provider: 'openai',
+    provider: getAuditProvider(),
     userId: job.data.userId,
     caseId: job.data.caseId,
     documentId: job.data.documentId,
     dataFieldsSent: ['document_image', 'document_type'],
-    model: 'gpt-4-vision',
+    model: getAuditModel(),
   });
+
+  trackUsage(job.data.userId, 'ai_requests').catch(() => {});
 
   await job.updateProgress(100);
 

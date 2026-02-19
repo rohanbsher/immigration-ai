@@ -3,6 +3,15 @@
 // Types
 export * from './types';
 
+// Shared client and model constant
+export { getAnthropicClient, CLAUDE_MODEL } from './client';
+
+// Structured output helper
+export { callClaudeStructured } from './structured-output';
+
+// Zod schemas for AI responses
+export * from './schemas';
+
 // OpenAI Vision services (document OCR)
 export {
   analyzeDocumentWithVision,
@@ -11,6 +20,14 @@ export {
   extractTextFromImage,
   openaiClient,
 } from './openai';
+
+// Claude Vision services (document OCR alternative)
+export {
+  analyzeDocumentWithClaude,
+  extractTextWithClaude,
+  detectDocumentTypeWithClaude,
+  validateDocumentImageWithClaude,
+} from './claude-vision';
 
 // Anthropic Claude services (text reasoning)
 export {
@@ -45,6 +62,14 @@ export {
   type FormAutofillInput,
   type AutofillProgress,
 } from './form-autofill';
+
+// Citations (Phase 4)
+export {
+  parseCitationsFromResponse,
+  mapCitationsToFields,
+  hasCitations,
+  countCitations,
+} from './citations';
 
 // Prompts (for customization if needed)
 export {

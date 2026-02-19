@@ -1,26 +1,12 @@
 'use server';
 
 import Anthropic from '@anthropic-ai/sdk';
-import { buildChatContext, formatContextForPrompt } from './context-builder';
+import { buildChatContext, getChatSystemPrefix, formatDynamicContext } from './context-builder';
 import { CHAT_TOOLS, executeTool } from './tools';
 import { createLogger } from '@/lib/logger';
-import { serverEnv } from '@/lib/config';
+import { getAnthropicClient, CLAUDE_MODEL } from '../client';
 
 const log = createLogger('ai:chat');
-
-// Lazy-initialize Anthropic client to avoid crash when API key is unset
-let anthropicInstance: Anthropic | null = null;
-
-function getAnthropicClient(): Anthropic {
-  if (!anthropicInstance) {
-    const apiKey = serverEnv.ANTHROPIC_API_KEY;
-    if (!apiKey) {
-      throw new Error('Anthropic API is not configured (ANTHROPIC_API_KEY not set)');
-    }
-    anthropicInstance = new Anthropic({ apiKey });
-  }
-  return anthropicInstance;
-}
 
 /**
  * Chat message interface.
@@ -42,7 +28,23 @@ export async function* streamChatResponse(
 ): AsyncGenerator<string, void, unknown> {
   // Build context for the system prompt
   const context = await buildChatContext(userId, caseId);
-  const systemPrompt = await formatContextForPrompt(context);
+  const [chatSystemPrefix, dynamicContext] = await Promise.all([
+    getChatSystemPrefix(),
+    formatDynamicContext(context),
+  ]);
+
+  // Build system blocks: static prefix (cached) + dynamic context (not cached)
+  const systemBlocks: Anthropic.Messages.TextBlockParam[] = [
+    {
+      type: 'text' as const,
+      text: chatSystemPrefix,
+      cache_control: { type: 'ephemeral' as const },
+    },
+    {
+      type: 'text' as const,
+      text: dynamicContext,
+    },
+  ];
 
   // Convert messages to Anthropic format
   const anthropicMessages: Anthropic.MessageParam[] = messages.map(msg => ({
@@ -52,9 +54,9 @@ export async function* streamChatResponse(
 
   // Create streaming message with tools
   const stream = await getAnthropicClient().messages.stream({
-    model: 'claude-sonnet-4-20250514',
+    model: CLAUDE_MODEL,
     max_tokens: 2048,
-    system: systemPrompt,
+    system: systemBlocks,
     messages: anthropicMessages,
     tools: CHAT_TOOLS,
   });
@@ -112,9 +114,9 @@ export async function* streamChatResponse(
 
         // Stream the follow-up response
         const followUpStream = await getAnthropicClient().messages.stream({
-          model: 'claude-sonnet-4-20250514',
+          model: CLAUDE_MODEL,
           max_tokens: 2048,
-          system: systemPrompt,
+          system: systemBlocks,
           messages: toolResultMessages,
         });
 
@@ -158,7 +160,7 @@ export async function getChatResponse(
 export async function generateConversationTitle(firstMessage: string): Promise<string> {
   try {
     const response = await getAnthropicClient().messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: CLAUDE_MODEL,
       max_tokens: 50,
       messages: [
         {

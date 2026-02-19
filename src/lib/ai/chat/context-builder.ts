@@ -48,6 +48,26 @@ export interface ChatContext {
 }
 
 /**
+ * Return the static system prompt prefix -- cached via prompt caching (Phase 2).
+ * Wrapped in an async function because this file uses 'use server'.
+ */
+export async function getChatSystemPrefix(): Promise<string> {
+  return `You are an AI assistant for immigration attorneys using the Immigration AI platform.
+
+Your role:
+- Help attorneys manage immigration cases
+- Answer questions about case status, documents, and requirements
+- Provide guidance on next steps and deadlines
+- Be professional, concise, and helpful
+
+Guidelines:
+- Never provide legal advice; instead, provide factual information
+- Always refer to official USCIS guidelines when relevant
+- Be clear about what you can and cannot help with
+- If you don't know something, say so`;
+}
+
+/**
  * Build context for a specific case.
  */
 export async function buildCaseContext(caseId: string, userId: string): Promise<CaseContext | null> {
@@ -188,32 +208,18 @@ export async function buildChatContext(
 }
 
 /**
- * Format context as system prompt.
- * Note: This is a synchronous utility function, not a server action.
+ * Format only the dynamic (per-request) portion of the context.
+ * This is NOT cached since it changes per request.
  */
-export async function formatContextForPrompt(context: ChatContext): Promise<string> {
-  let prompt = `You are an AI assistant for immigration attorneys using the Immigration AI platform.
-Today's date: ${new Date().toLocaleDateString()}
+export async function formatDynamicContext(context: ChatContext): Promise<string> {
+  let prompt = `Today's date: ${new Date().toLocaleDateString()}
 User: ${context.user.name} (${context.user.role})
-
-Your role:
-- Help attorneys manage immigration cases
-- Answer questions about case status, documents, and requirements
-- Provide guidance on next steps and deadlines
-- Be professional, concise, and helpful
-
-Guidelines:
-- Never provide legal advice; instead, provide factual information
-- Always refer to official USCIS guidelines when relevant
-- Be clear about what you can and cannot help with
-- If you don't know something, say so
 
 `;
 
   if (context.case) {
     const c = context.case;
-    prompt += `
-CURRENT CASE CONTEXT:
+    prompt += `CURRENT CASE CONTEXT:
 ---------------------
 Case: ${c.title}
 Case ID: ${c.caseId}
@@ -257,10 +263,19 @@ ${c.recentForms.map(f => `- ${f.name}: ${f.status}`).join('\n')}
 `;
     }
   } else {
-    prompt += `
-No specific case context. The user may ask general questions about immigration law or the platform.
+    prompt += `No specific case context. The user may ask general questions about immigration law or the platform.
 `;
   }
 
   return prompt;
+}
+
+/**
+ * Format context as system prompt (backward-compatible).
+ * Combines static prefix + dynamic context into a single string.
+ */
+export async function formatContextForPrompt(context: ChatContext): Promise<string> {
+  const prefix = await getChatSystemPrefix();
+  const dynamic = await formatDynamicContext(context);
+  return prefix + '\n\n' + dynamic;
 }

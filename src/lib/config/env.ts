@@ -400,4 +400,14 @@ export const features = {
 
   /** Whether running in production mode */
   isProduction: process.env.NODE_ENV === 'production',
+
+  /**
+   * Which provider to use for document analysis vision.
+   * 'claude' | 'openai' | 'auto' (default: 'auto').
+   * In 'auto' mode Claude is tried first with OpenAI as fallback.
+   */
+  documentAnalysisProvider: (process.env.DOCUMENT_ANALYSIS_PROVIDER || 'auto') as
+    | 'claude'
+    | 'openai'
+    | 'auto',
 } as const;

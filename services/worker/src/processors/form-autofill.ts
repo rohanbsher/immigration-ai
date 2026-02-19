@@ -12,10 +12,12 @@ import {
   type FormAutofillResult,
   type DocumentAnalysisResult,
   type ExtractedField,
+  type FormFieldWithCitations,
 } from '@/lib/ai';
 import { anthropicBreaker } from '@/lib/ai/circuit-breaker';
 import { logAIRequest } from '@/lib/audit/ai-audit';
 import { getWorkerSupabase } from '../supabase';
+import { trackUsage } from '../track-usage';
 
 export async function processFormAutofill(
   job: Job<FormAutofillJob>
@@ -150,6 +152,16 @@ export async function processFormAutofill(
     .filter((f) => f.requires_review)
     .map((f) => f.field_id);
 
+  // Extract citation data if available (Phase 4)
+  const citationsByField: Record<string, unknown[]> = {};
+  for (const field of autofillResult.fields) {
+    const fieldWithCitations = field as FormFieldWithCitations;
+    if (fieldWithCitations.citations && fieldWithCitations.citations.length > 0) {
+      citationsByField[field.field_id] = fieldWithCitations.citations;
+    }
+  }
+  const hasCitations = Object.keys(citationsByField).length > 0;
+
   // 6. Update form with AI results
   const { error: updateError } = await supabase
     .from('forms')
@@ -159,12 +171,13 @@ export async function processFormAutofill(
         ...aiFilledData,
         _metadata: {
           generated_at: new Date().toISOString(),
-          model: 'claude-3',
+          model: 'claude-sonnet-4',
           fields_requiring_review: fieldsRequiringReview,
           missing_documents: autofillResult.missing_documents,
           warnings: autofillResult.warnings,
           overall_confidence: autofillResult.overall_confidence,
           processing_time_ms: autofillResult.processing_time_ms,
+          ...(hasCitations ? { citations: citationsByField } : {}),
         },
       },
       ai_confidence_scores: confidenceScores,
@@ -183,8 +196,10 @@ export async function processFormAutofill(
     caseId: job.data.caseId,
     formId: job.data.formId,
     dataFieldsSent: ['form_type', 'visa_type', 'document_extracted_fields'],
-    model: 'claude-3',
+    model: 'claude-sonnet-4',
   });
+
+  trackUsage(job.data.userId, 'ai_requests').catch(() => {});
 
   await job.updateProgress(100);
 

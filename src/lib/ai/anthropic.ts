@@ -3,26 +3,17 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { FormAutofillResult, ExtractedField } from './types';
 import { FORM_AUTOFILL_SYSTEM_PROMPT, getAutofillPrompt } from './prompts';
-import { parseClaudeJSON, extractTextContent } from './utils';
+import { extractTextContent } from './utils';
 import { filterPiiFromExtractedData, filterPiiFromRecord } from './pii-filter';
-import { serverEnv, features } from '@/lib/config';
-import { withRetry, AI_RETRY_OPTIONS, RetryExhaustedError } from '@/lib/utils/retry';
-
-// Lazy-initialize Anthropic client to avoid errors during build
-let anthropicInstance: Anthropic | null = null;
-
-function getAnthropicClient(): Anthropic {
-  if (!anthropicInstance) {
-    if (!features.formAutofill) {
-      throw new Error('Anthropic API is not configured (ANTHROPIC_API_KEY not set)');
-    }
-    anthropicInstance = new Anthropic({
-      apiKey: serverEnv.ANTHROPIC_API_KEY,
-      timeout: 120_000, // 120s — matches TIMEOUT_CONFIG.AI
-    });
-  }
-  return anthropicInstance;
-}
+import { RetryExhaustedError } from '@/lib/utils/retry';
+import { getAnthropicClient, CLAUDE_MODEL } from './client';
+import { callClaudeStructured } from './structured-output';
+import {
+  FormAutofillResultSchema,
+  FormValidationResultSchema,
+  DataConsistencyResultSchema,
+  NextStepsResultSchema,
+} from './schemas';
 
 export interface AutofillInput {
   formType: string;
@@ -36,7 +27,7 @@ export interface AutofillInput {
 }
 
 /**
- * Generate form autofill suggestions using Claude
+ * Generate form autofill suggestions using Claude (structured output).
  */
 export async function generateFormAutofill(
   input: AutofillInput
@@ -64,32 +55,23 @@ ${safeExistingFormData ? JSON.stringify(safeExistingFormData, null, 2) : 'No exi
 `;
 
   try {
-    const message = await withRetry(
-      () => getAnthropicClient().messages.create({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 4096,
-        system: FORM_AUTOFILL_SYSTEM_PROMPT,
-        messages: [
-          {
-            role: 'user',
-            content: `${autofillPrompt}\n\n${dataContext}`,
-          },
-        ],
-      }),
-      AI_RETRY_OPTIONS
-    );
-
-    // Extract text content and parse JSON from the response
-    const content = extractTextContent(message.content);
-
-    if (!content) {
-      throw new Error('No response content from Claude');
-    }
-
-    const parsed = parseClaudeJSON<FormAutofillResult>(content);
+    const result = await callClaudeStructured({
+      toolName: 'form_autofill',
+      toolDescription: 'Generate form autofill suggestions based on extracted document data.',
+      schema: FormAutofillResultSchema,
+      system: [
+        {
+          type: 'text' as const,
+          text: FORM_AUTOFILL_SYSTEM_PROMPT,
+          cache_control: { type: 'ephemeral' as const },
+        },
+      ],
+      userMessage: `${autofillPrompt}\n\n${dataContext}`,
+      cacheableSystem: false, // already manually cached above
+    });
 
     return {
-      ...parsed,
+      ...result,
       processing_time_ms: Date.now() - startTime,
     };
   } catch (error) {
@@ -110,7 +92,7 @@ ${safeExistingFormData ? JSON.stringify(safeExistingFormData, null, 2) : 'No exi
 }
 
 /**
- * Validate form data and identify potential issues
+ * Validate form data and identify potential issues (structured output).
  */
 export async function validateFormData(
   formType: string,
@@ -125,15 +107,19 @@ export async function validateFormData(
   // Filter PII before sending to external AI API
   const safeFormData = filterPiiFromRecord(formData);
 
-  const message = await withRetry(
-    () => getAnthropicClient().messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 2048,
-      system: `You are an expert immigration attorney reviewing form data for errors and inconsistencies. Be thorough but practical.`,
-      messages: [
+  try {
+    return await callClaudeStructured({
+      toolName: 'form_validation',
+      toolDescription: 'Validate immigration form data and identify potential issues.',
+      schema: FormValidationResultSchema,
+      system: [
         {
-          role: 'user',
-          content: `Review this ${formType} form data for potential issues:
+          type: 'text' as const,
+          text: 'You are an expert immigration attorney reviewing form data for errors and inconsistencies. Be thorough but practical.',
+          cache_control: { type: 'ephemeral' as const },
+        },
+      ],
+      userMessage: `Review this ${formType} form data for potential issues:
 
 Form Data:
 ${JSON.stringify(safeFormData, null, 2)}
@@ -144,24 +130,9 @@ ${caseContext ? JSON.stringify(caseContext, null, 2) : 'None provided'}
 Identify:
 1. Errors: Critical issues that would cause form rejection
 2. Warnings: Potential problems that should be reviewed
-3. Suggestions: Improvements or missing optional information
-
-Respond with JSON:
-{
-  "isValid": true/false,
-  "errors": ["list of critical errors"],
-  "warnings": ["list of warnings"],
-  "suggestions": ["list of suggestions"]
-}`,
-        },
-      ],
-    }),
-    AI_RETRY_OPTIONS
-  );
-
-  const content = extractTextContent(message.content);
-
-  if (!content) {
+3. Suggestions: Improvements or missing optional information`,
+    });
+  } catch {
     return {
       isValid: true,
       errors: [],
@@ -169,35 +140,29 @@ Respond with JSON:
       suggestions: [],
     };
   }
-
-  try {
-    return parseClaudeJSON<{
-      isValid: boolean;
-      errors: string[];
-      warnings: string[];
-      suggestions: string[];
-    }>(content);
-  } catch {
-    return {
-      isValid: true,
-      errors: [],
-      warnings: ['Unable to parse validation response'],
-      suggestions: [],
-    };
-  }
 }
 
 /**
- * Generate natural language explanation of form requirements
+ * Generate natural language explanation of form requirements.
+ * Returns free text, so no structured output needed.
  */
 export async function explainFormRequirements(
   formType: string,
   visaType: string
 ): Promise<string> {
+  const { withRetry, AI_RETRY_OPTIONS } = await import('@/lib/utils/retry');
+
   const message = await withRetry(
     () => getAnthropicClient().messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: CLAUDE_MODEL,
       max_tokens: 2048,
+      system: [
+        {
+          type: 'text' as const,
+          text: 'You are an expert immigration attorney assistant. Provide clear, accurate guidance on USCIS form requirements.',
+          cache_control: { type: 'ephemeral' as const },
+        },
+      ],
       messages: [
         {
           role: 'user',
@@ -222,7 +187,7 @@ Keep the explanation clear and concise, suitable for an attorney reviewing with 
 }
 
 /**
- * Analyze document data for consistency across multiple documents
+ * Analyze document data for consistency across multiple documents (structured output).
  */
 export async function analyzeDataConsistency(
   documents: Array<{
@@ -243,58 +208,24 @@ export async function analyzeDataConsistency(
     extractedFields: filterPiiFromExtractedData(doc.extractedFields),
   }));
 
-  const message = await withRetry(
-    () => getAnthropicClient().messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 2048,
-      system: `You are an expert at identifying data discrepancies in immigration documents.`,
-      messages: [
+  try {
+    return await callClaudeStructured({
+      toolName: 'data_consistency',
+      toolDescription: 'Analyze immigration documents for data consistency and identify discrepancies.',
+      schema: DataConsistencyResultSchema,
+      system: [
         {
-          role: 'user',
-          content: `Analyze these documents for data consistency:
+          type: 'text' as const,
+          text: 'You are an expert at identifying data discrepancies in immigration documents.',
+          cache_control: { type: 'ephemeral' as const },
+        },
+      ],
+      userMessage: `Analyze these documents for data consistency:
 
 ${JSON.stringify(safeDocuments, null, 2)}
 
-Compare common fields across documents (name, date of birth, addresses, etc.) and identify any discrepancies.
-
-Respond with JSON:
-{
-  "consistencyScore": 0.95,
-  "discrepancies": [
-    {
-      "field": "full_name",
-      "values": [
-        { "document": "passport", "value": "JOHN DOE" },
-        { "document": "birth_certificate", "value": "John Doe" }
-      ],
-      "recommendation": "Minor formatting difference, acceptable"
-    }
-  ]
-}`,
-        },
-      ],
-    }),
-    AI_RETRY_OPTIONS
-  );
-
-  const content = extractTextContent(message.content);
-
-  if (!content) {
-    return {
-      consistencyScore: 1,
-      discrepancies: [],
-    };
-  }
-
-  try {
-    return parseClaudeJSON<{
-      consistencyScore: number;
-      discrepancies: Array<{
-        field: string;
-        values: Array<{ document: string; value: string }>;
-        recommendation: string;
-      }>;
-    }>(content);
+Compare common fields across documents (name, date of birth, addresses, etc.) and identify any discrepancies.`,
+    });
   } catch {
     return {
       consistencyScore: 1,
@@ -304,7 +235,7 @@ Respond with JSON:
 }
 
 /**
- * Suggest next steps based on case status and documents
+ * Suggest next steps based on case status and documents (structured output).
  */
 export async function suggestNextSteps(
   caseData: {
@@ -320,50 +251,25 @@ export async function suggestNextSteps(
     reason: string;
   }>;
 }> {
-  const message = await withRetry(
-    () => getAnthropicClient().messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 1024,
-      messages: [
+  try {
+    return await callClaudeStructured({
+      toolName: 'next_steps',
+      toolDescription: 'Suggest next steps for an immigration case based on its current status.',
+      schema: NextStepsResultSchema,
+      system: [
         {
-          role: 'user',
-          content: `Based on this immigration case status, suggest the next steps:
+          type: 'text' as const,
+          text: 'You are an expert immigration case advisor. Suggest actionable next steps based on the current case status.',
+          cache_control: { type: 'ephemeral' as const },
+        },
+      ],
+      userMessage: `Based on this immigration case status, suggest the next steps:
 
 Visa Type: ${caseData.visa_type}
 Current Status: ${caseData.status}
 Documents Collected: ${caseData.documents.join(', ') || 'None'}
-Forms Completed: ${caseData.forms_completed.join(', ') || 'None'}
-
-Respond with JSON:
-{
-  "nextSteps": [
-    {
-      "priority": "high",
-      "action": "Collect passport copy",
-      "reason": "Required for all immigration applications"
-    }
-  ]
-}`,
-        },
-      ],
-    }),
-    AI_RETRY_OPTIONS
-  );
-
-  const content = extractTextContent(message.content);
-
-  if (!content) {
-    return { nextSteps: [] };
-  }
-
-  try {
-    return parseClaudeJSON<{
-      nextSteps: Array<{
-        priority: 'high' | 'medium' | 'low';
-        action: string;
-        reason: string;
-      }>;
-    }>(content);
+Forms Completed: ${caseData.forms_completed.join(', ') || 'None'}`,
+    });
   } catch {
     return { nextSteps: [] };
   }

@@ -100,6 +100,39 @@ export interface FormAutofillResult {
   warnings?: string[];
 }
 
+// ---------------------------------------------------------------------------
+// Citation types (Phase 4 — Anthropic Citations API)
+// ---------------------------------------------------------------------------
+
+/** A single citation linking an AI-generated value to a source passage. */
+export interface Citation {
+  /** Citation type: 'document' for source doc refs, 'web' for URLs, 'text' for inline. */
+  type: 'document' | 'web' | 'text';
+  /** The type of source document (e.g. 'passport', 'employment_letter'). */
+  documentType?: string;
+  /** ID of the source document in the database. */
+  documentId?: string;
+  /** The exact text passage that was cited. */
+  citedText: string;
+  /** Start character index in the source document (if available). */
+  startIndex?: number;
+  /** End character index in the source document (if available). */
+  endIndex?: number;
+  /** Page number in a multi-page document (1-indexed, if available). */
+  pageNumber?: number;
+}
+
+/** A form field with optional citation data attached. */
+export interface FormFieldWithCitations extends FormField {
+  /** Citations that support the suggested value for this field. */
+  citations?: Citation[];
+}
+
+/** Form autofill result that includes citation data for each field. */
+export interface FormAutofillResultWithCitations extends Omit<FormAutofillResult, 'fields'> {
+  fields: FormFieldWithCitations[];
+}
+
 export interface AIProviderConfig {
   openai_api_key?: string;
   anthropic_api_key?: string;

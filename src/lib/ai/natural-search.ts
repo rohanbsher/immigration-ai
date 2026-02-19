@@ -5,13 +5,12 @@
  * then executes database queries to find matching cases.
  */
 
-import Anthropic from '@anthropic-ai/sdk';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { parseClaudeJSON } from './utils';
 import { createLogger } from '@/lib/logger';
-import { serverEnv, features } from '@/lib/config';
+import { features } from '@/lib/config';
 import { sanitizeSearchInput } from '@/lib/db/search-utils';
-import { withRetry, AI_RETRY_OPTIONS } from '@/lib/utils/retry';
+import { callClaudeStructured } from './structured-output';
+import { SearchInterpretationSchema } from './schemas';
 
 /**
  * Resolve a Supabase client: use the provided one, or lazily import
@@ -81,21 +80,6 @@ export interface SearchResponse {
   suggestions: string[];
 }
 
-// Lazy-initialize Anthropic client
-let anthropicInstance: Anthropic | null = null;
-
-function getAnthropicClient(): Anthropic {
-  if (!anthropicInstance) {
-    if (!features.formAutofill) {
-      throw new Error('Anthropic API is not configured (ANTHROPIC_API_KEY not set)');
-    }
-    anthropicInstance = new Anthropic({
-      apiKey: serverEnv.ANTHROPIC_API_KEY,
-    });
-  }
-  return anthropicInstance;
-}
-
 /**
  * System prompt for search query parsing.
  */
@@ -108,30 +92,7 @@ Available case statuses: intake, document_collection, in_review, forms_preparati
 
 Available document types: passport, visa, i94, birth_certificate, marriage_certificate, divorce_certificate, employment_letter, pay_stub, tax_return, w2, bank_statement, photo, medical_exam, police_clearance, diploma, transcript, recommendation_letter, other
 
-Parse the user's query and return a JSON object with:
-{
-  "understood": "A human-readable interpretation of what we're searching for",
-  "filters": {
-    "visaType": ["array of visa types to filter by"],
-    "status": ["array of statuses to filter by"],
-    "dateRange": { "start": "YYYY-MM-DD", "end": "YYYY-MM-DD", "field": "created_at|deadline|updated_at" },
-    "documentMissing": ["document types that should NOT be present"],
-    "documentPresent": ["document types that SHOULD be present"],
-    "clientName": "partial name match",
-    "priority": "high|medium|low (based on urgency language)",
-    "hasDeadline": true/false,
-    "textSearch": "free text to search in title/description"
-  },
-  "sortBy": "relevance|date|deadline",
-  "confidence": 0.0-1.0 (how confident you are in the interpretation)
-}
-
-Only include fields that are relevant to the query. Omit null/empty fields.
-
-Examples:
-- "H1B cases" → { "understood": "All H-1B visa cases", "filters": { "visaType": ["H1B"] }, "confidence": 0.95 }
-- "cases missing passport" → { "understood": "Cases where passport document is not uploaded", "filters": { "documentMissing": ["passport"] }, "confidence": 0.9 }
-- "urgent cases with deadline this month" → { "understood": "Cases with deadline in the current month", "filters": { "dateRange": { "end": "YYYY-MM-DD", "field": "deadline" }, "priority": "high" }, "confidence": 0.85 }`;
+Parse the user's query into structured search filters. Only include fields that are relevant to the query.`;
 
 /**
  * Parse a natural language search query using Claude.
@@ -151,34 +112,31 @@ export async function parseSearchQuery(
     };
   }
 
+  // If Anthropic is not configured, fall back to text search
+  if (!features.formAutofill) {
+    return {
+      understood: `Search for "${query}"`,
+      filters: { textSearch: query },
+      confidence: 0.3,
+    };
+  }
+
   try {
-    const message = await withRetry(
-      () => getAnthropicClient().messages.create({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1024,
-        system: SEARCH_PARSE_PROMPT,
-        messages: [
-          {
-            role: 'user',
-            content: `Parse this search query: "${query}"
+    const parsed = await callClaudeStructured({
+      toolName: 'search_interpretation',
+      toolDescription: 'Parse a natural language search query into structured immigration case filters.',
+      schema: SearchInterpretationSchema,
+      system: [
+        {
+          type: 'text' as const,
+          text: SEARCH_PARSE_PROMPT,
+          cache_control: { type: 'ephemeral' as const },
+        },
+      ],
+      userMessage: `Parse this search query: "${query}"
 
-Today's date is ${new Date().toISOString().split('T')[0]}.
-
-Respond with JSON only.`,
-          },
-        ],
-      }),
-      AI_RETRY_OPTIONS
-    );
-
-    const textContent = message.content.find((block) => block.type === 'text');
-    const content = textContent?.type === 'text' ? textContent.text : '';
-
-    if (!content) {
-      throw new Error('No response from Claude');
-    }
-
-    const parsed = parseClaudeJSON<SearchInterpretation>(content);
+Today's date is ${new Date().toISOString().split('T')[0]}.`,
+    });
 
     return {
       understood: parsed.understood || query,

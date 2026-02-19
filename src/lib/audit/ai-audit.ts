@@ -21,6 +21,10 @@ export interface AIAuditEntry {
   dataFieldsSent: string[];
   model: string;
   processingTimeMs?: number;
+  /** Tokens written to the prompt cache (Anthropic prompt caching). */
+  cacheCreationInputTokens?: number;
+  /** Tokens read from the prompt cache (Anthropic prompt caching). */
+  cacheReadInputTokens?: number;
 }
 
 export function logAIRequest(entry: AIAuditEntry): void {
@@ -34,6 +38,8 @@ export function logAIRequest(entry: AIAuditEntry): void {
     dataFieldsSent: entry.dataFieldsSent,
     model: entry.model,
     processingTimeMs: entry.processingTimeMs,
+    cacheCreationInputTokens: entry.cacheCreationInputTokens,
+    cacheReadInputTokens: entry.cacheReadInputTokens,
   });
 
   // Persist to audit_log table (fire-and-forget)
@@ -63,6 +69,8 @@ async function persistAuditLog(entry: AIAuditEntry): Promise<void> {
         documentId: entry.documentId,
         formId: entry.formId,
         caseId: entry.caseId,
+        cacheCreationInputTokens: entry.cacheCreationInputTokens,
+        cacheReadInputTokens: entry.cacheReadInputTokens,
       },
       additional_context: { source: 'ai_audit' },
     });

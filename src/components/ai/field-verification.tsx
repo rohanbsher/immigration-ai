@@ -18,6 +18,14 @@ import {
 } from 'lucide-react';
 import { ConfidenceIndicator } from './confidence-indicator';
 
+interface FieldCitation {
+  type: string;
+  documentType?: string;
+  documentId?: string;
+  citedText: string;
+  pageNumber?: number;
+}
+
 interface FieldToVerify {
   field_id: string;
   field_name: string;
@@ -25,6 +33,7 @@ interface FieldToVerify {
   confidence: number;
   source_document?: string;
   current_value?: string;
+  citations?: FieldCitation[];
 }
 
 interface FieldVerificationProps {
@@ -143,6 +152,11 @@ export function FieldVerification({
               <FileText className="h-4 w-4" />
               <span>Source: {currentField.source_document}</span>
             </div>
+          )}
+
+          {/* Citation evidence */}
+          {currentField.citations && currentField.citations.length > 0 && (
+            <CitationList citations={currentField.citations} />
           )}
 
           {/* Suggested value */}
@@ -315,6 +329,65 @@ export function QuickVerificationList({
           )}
         </div>
       ))}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Citation display component
+// ---------------------------------------------------------------------------
+
+interface CitationListProps {
+  citations: FieldCitation[];
+}
+
+function CitationList({ citations }: CitationListProps) {
+  const [expanded, setExpanded] = useState(false);
+  const displayCitations = expanded ? citations : citations.slice(0, 1);
+
+  const formatDocType = (docType?: string) => {
+    if (!docType) return 'Document';
+    return docType
+      .split('_')
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(' ');
+  };
+
+  return (
+    <div className="space-y-1.5">
+      <p className="text-xs font-medium text-muted-foreground">
+        Cited from ({citations.length}):
+      </p>
+      {displayCitations.map((citation, i) => (
+        <div
+          key={i}
+          className="flex items-start gap-2 text-xs bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 p-2 rounded"
+        >
+          <FileText className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-blue-500" />
+          <div className="min-w-0">
+            <span className="font-medium text-blue-700 dark:text-blue-300">
+              {formatDocType(citation.documentType)}
+              {citation.pageNumber ? ` (p. ${citation.pageNumber})` : ''}
+            </span>
+            <p className="text-muted-foreground mt-0.5 italic break-words">
+              &ldquo;{citation.citedText.length > 120
+                ? citation.citedText.slice(0, 120) + '...'
+                : citation.citedText}&rdquo;
+            </p>
+          </div>
+        </div>
+      ))}
+      {citations.length > 1 && (
+        <button
+          type="button"
+          onClick={() => setExpanded(!expanded)}
+          className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+        >
+          {expanded
+            ? 'Show less'
+            : `Show ${citations.length - 1} more citation${citations.length - 1 > 1 ? 's' : ''}`}
+        </button>
+      )}
     </div>
   );
 }

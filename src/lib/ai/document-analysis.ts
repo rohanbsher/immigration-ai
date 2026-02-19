@@ -1,4 +1,4 @@
-// Document analysis service combining OpenAI Vision for OCR
+// Document analysis service with multi-provider routing (OpenAI / Claude / auto)
 
 import {
   analyzeDocumentWithVision,
@@ -6,7 +6,18 @@ import {
   validateDocumentImage,
   extractTextFromImage,
 } from './openai';
+import {
+  analyzeDocumentWithClaude,
+  extractTextWithClaude,
+  detectDocumentTypeWithClaude,
+  validateDocumentImageWithClaude,
+} from './claude-vision';
+import type { VisionAnalysisInput } from './claude-vision';
 import { DocumentAnalysisResult, ExtractedField, AnalysisOptions } from './types';
+import { features } from '@/lib/config';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('ai:document-analysis');
 
 /** Signed URL expiration for AI processing (seconds). */
 const AI_PROCESSING_URL_EXPIRY = 600; // 10 minutes
@@ -25,6 +36,126 @@ export interface AnalysisProgress {
   progress: number; // 0-100
   message: string;
 }
+
+// ---------------------------------------------------------------------------
+// Provider routing helpers
+// ---------------------------------------------------------------------------
+
+type DocumentAnalysisProvider = 'claude' | 'openai' | 'auto';
+
+function getActiveProvider(): DocumentAnalysisProvider {
+  return features.documentAnalysisProvider;
+}
+
+/**
+ * Route vision analysis calls through the configured provider.
+ * In 'auto' mode Claude is attempted first; OpenAI is used as fallback.
+ */
+async function routeVisionAnalysis(
+  input: VisionAnalysisInput
+): Promise<DocumentAnalysisResult> {
+  const provider = getActiveProvider();
+
+  if (provider === 'openai') {
+    return analyzeDocumentWithVision(input);
+  }
+
+  if (provider === 'claude') {
+    return analyzeDocumentWithClaude(input);
+  }
+
+  // auto: Claude first, OpenAI fallback
+  try {
+    return await analyzeDocumentWithClaude(input);
+  } catch (claudeError) {
+    log.warn('Claude vision analysis failed, falling back to OpenAI', {
+      error: claudeError instanceof Error ? claudeError.message : String(claudeError),
+    });
+    return analyzeDocumentWithVision(input);
+  }
+}
+
+/**
+ * Route document validation through the configured provider.
+ */
+async function routeValidateImage(
+  imageUrl: string
+): Promise<{ isValid: boolean; reason?: string; suggestedType?: string }> {
+  const provider = getActiveProvider();
+
+  if (provider === 'openai') {
+    return validateDocumentImage(imageUrl);
+  }
+
+  if (provider === 'claude') {
+    return validateDocumentImageWithClaude(imageUrl);
+  }
+
+  try {
+    return await validateDocumentImageWithClaude(imageUrl);
+  } catch (claudeError) {
+    log.warn('Claude document validation failed, falling back to OpenAI', {
+      error: claudeError instanceof Error ? claudeError.message : String(claudeError),
+    });
+    return validateDocumentImage(imageUrl);
+  }
+}
+
+/**
+ * Route document type detection through the configured provider.
+ */
+async function routeDetectDocumentType(
+  imageUrl: string
+): Promise<{ type: string; confidence: number }> {
+  const provider = getActiveProvider();
+
+  if (provider === 'openai') {
+    return detectDocumentType(imageUrl);
+  }
+
+  if (provider === 'claude') {
+    return detectDocumentTypeWithClaude(imageUrl);
+  }
+
+  try {
+    return await detectDocumentTypeWithClaude(imageUrl);
+  } catch (claudeError) {
+    log.warn('Claude document type detection failed, falling back to OpenAI', {
+      error: claudeError instanceof Error ? claudeError.message : String(claudeError),
+    });
+    return detectDocumentType(imageUrl);
+  }
+}
+
+/**
+ * Route text extraction through the configured provider.
+ */
+async function routeExtractText(
+  imageUrl: string
+): Promise<{ text: string; confidence: number }> {
+  const provider = getActiveProvider();
+
+  if (provider === 'openai') {
+    return extractTextFromImage(imageUrl);
+  }
+
+  if (provider === 'claude') {
+    return extractTextWithClaude(imageUrl);
+  }
+
+  try {
+    return await extractTextWithClaude(imageUrl);
+  } catch (claudeError) {
+    log.warn('Claude text extraction failed, falling back to OpenAI', {
+      error: claudeError instanceof Error ? claudeError.message : String(claudeError),
+    });
+    return extractTextFromImage(imageUrl);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Public API
+// ---------------------------------------------------------------------------
 
 /**
  * Main entry point for document analysis
@@ -67,7 +198,7 @@ export async function analyzeDocument(
     // Step 2: Validate the document image
     reportProgress('validating', 25, 'Validating document image...');
 
-    const validation = await validateDocumentImage(imageUrl);
+    const validation = await routeValidateImage(imageUrl);
 
     if (!validation.isValid) {
       return {
@@ -85,14 +216,14 @@ export async function analyzeDocument(
     let documentType = input.documentType || input.options?.document_type;
 
     if (!documentType) {
-      const detected = await detectDocumentType(imageUrl);
+      const detected = await routeDetectDocumentType(imageUrl);
       documentType = detected.type;
     }
 
-    // Step 4: Extract data using GPT-4 Vision
+    // Step 4: Extract data using the configured vision provider
     reportProgress('extracting', 60, `Extracting data from ${documentType}...`);
 
-    const analysisResult = await analyzeDocumentWithVision({
+    const analysisResult = await routeVisionAnalysis({
       imageUrl,
       documentType,
       options: input.options,
@@ -171,7 +302,7 @@ export async function extractSpecificFields(
   imageUrl: string,
   fieldNames: string[]
 ): Promise<ExtractedField[]> {
-  const result = await analyzeDocumentWithVision({
+  const result = await routeVisionAnalysis({
     imageUrl,
     options: { high_accuracy_mode: true },
   });
@@ -186,7 +317,7 @@ export async function extractSpecificFields(
  * Get just the raw text from a document (useful for full-text search)
  */
 export async function getDocumentText(imageUrl: string): Promise<string> {
-  const result = await extractTextFromImage(imageUrl);
+  const result = await routeExtractText(imageUrl);
   return result.text;
 }
 
@@ -203,8 +334,8 @@ export async function compareDocuments(
 }> {
   // Extract data from both documents
   const [result1, result2] = await Promise.all([
-    analyzeDocumentWithVision({ imageUrl: doc1Url }),
-    analyzeDocumentWithVision({ imageUrl: doc2Url }),
+    routeVisionAnalysis({ imageUrl: doc1Url }),
+    routeVisionAnalysis({ imageUrl: doc2Url }),
   ]);
 
   // Compare document types

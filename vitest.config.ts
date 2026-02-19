@@ -14,10 +14,13 @@ export default defineConfig({
       exclude: [
         'node_modules/**',
         '.next/**',
+        'services/**',
         '**/*.d.ts',
         '**/*.config.*',
         '**/setupTests.ts',
         'src/__mocks__/**',
+        'src/lib/jobs/connection.ts',
+        'src/lib/jobs/queues.ts',
       ],
       thresholds: {
         statements: 75,

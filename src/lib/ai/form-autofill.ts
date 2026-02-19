@@ -180,6 +180,8 @@ export function getRequiredDocuments(
       'Beneficiary birth certificate',
       'Marriage certificate (if filing for spouse)',
       'Proof of relationship',
+      'Utility bills or lease agreements (last 5 years) — for address history',
+      'W-2 forms (last 5 years) — for employment history',
     ],
     'I-131': [
       'Passport',
@@ -197,6 +199,7 @@ export function getRequiredDocuments(
       'Educational credentials/diplomas',
       'Prevailing wage determination',
       'Employer financial documents',
+      'W-2 forms — for employer details',
     ],
     'I-485': [
       'Passport',
@@ -207,7 +210,8 @@ export function getRequiredDocuments(
       'Affidavit of support (I-864)',
       'Evidence of lawful entry',
       'Tax returns or W-2s (for address and employment history)',
-      'Utility bills or lease agreements (for address history)',
+      'Utility bills or lease agreements (last 5 years) — for address history',
+      'W-2 forms (last 5 years) — for employment history',
     ],
     'I-539': [
       'Passport (valid for at least 6 months)',
@@ -248,7 +252,8 @@ export function getRequiredDocuments(
       'Travel history documentation',
       'Marriage/divorce certificates',
       'Birth certificates of children',
-      'W-2s (for employment history verification)',
+      'Utility bills or lease agreements (last 5 years) — for address history',
+      'W-2 forms (last 5 years) — for employment history',
     ],
     'G-1145': [
       'No supporting documents required',
@@ -307,11 +312,21 @@ export function mapExtractedFieldToFormField(
       // From birth certificate (family relationships)
       father_name: 'pt3_father_name',
       mother_name: 'pt3_mother_name',
+      father_date_of_birth: 'pt3_father_dob',
+      mother_date_of_birth: 'pt3_mother_dob',
+      mother_maiden_name: 'pt3_mother_maiden_name',
+      birth_city: 'pt2_beneficiary_pob_city',
+      birth_country: 'pt2_beneficiary_pob_country',
       // From marriage certificate
       date_of_marriage: 'pt2_marriage_date',
       place_of_marriage: 'pt2_marriage_place',
       spouse_1_name: 'pt1_petitioner_name',
       spouse_2_name: 'pt2_beneficiary_name',
+      marriage_city: 'pt2_marriage_city',
+      marriage_state: 'pt2_marriage_state',
+      marriage_country: 'pt2_marriage_country',
+      spouse_1_date_of_birth: 'pt2_petitioner_dob',
+      spouse_2_date_of_birth: 'pt2_beneficiary_dob',
       // From utility bills / lease (address history)
       address: 'pt2_address_street',
     },
@@ -327,6 +342,11 @@ export function mapExtractedFieldToFormField(
       // From I-94
       i94_number: 'pt1_i94_number',
       class_of_admission: 'class_of_admission',
+      // From utility bills
+      service_address_street: 'pt1_current_address_street',
+      service_address_city: 'pt1_current_address_city',
+      service_address_state: 'pt1_current_address_state',
+      service_address_zip: 'pt1_current_address_zip',
     },
     'I-140': {
       // Beneficiary biographical (from passport)
@@ -348,9 +368,15 @@ export function mapExtractedFieldToFormField(
       field_of_study: 'pt7_field_of_study',
       institution_name: 'pt7_institution_name',
       institution_country: 'pt7_institution_country',
+      institution_city: 'pt7_institution_city',
+      institution_state: 'pt7_institution_state',
+      enrollment_start_date: 'pt7_study_start_date',
+      enrollment_end_date: 'pt7_study_end_date',
       graduation_date: 'pt7_degree_date',
       // From W-2 (employer verification)
       employer_ein: 'pt1_employer_ein',
+      employer_city: 'pt1_employer_city',
+      employer_state: 'pt1_employer_state',
       wages_tips: 'pt5_offered_wage',
     },
     'I-485': {
@@ -380,8 +406,29 @@ export function mapExtractedFieldToFormField(
       // From W-2 / employment letter (employment history)
       employer_name: 'pt4_employer_name',
       job_title: 'pt4_occupation',
+      employer_city: 'pt4_employer_city',
+      employer_state: 'pt4_employer_state',
+      employer_ein: 'pt4_employer_ein',
       // From utility bills / lease (address history)
       address: 'pt1_current_address',
+      service_address_street: 'pt3_current_address_street',
+      service_address_city: 'pt3_current_address_city',
+      service_address_state: 'pt3_current_address_state',
+      service_address_zip: 'pt3_current_address_zip',
+      service_address_country: 'pt3_current_address_country',
+      // From birth cert — enhanced
+      birth_city: 'pt1_pob_city',
+      birth_state: 'pt1_pob_state',
+      birth_country: 'pt1_country_of_birth',
+      father_date_of_birth: 'pt2_father_dob',
+      mother_date_of_birth: 'pt2_mother_dob',
+      mother_maiden_name: 'pt2_mother_maiden_name',
+      // From marriage cert — enhanced
+      marriage_city: 'pt3_marriage_city',
+      marriage_state: 'pt3_marriage_state',
+      marriage_country: 'pt3_marriage_country',
+      // From I-94
+      travel_document_number: 'pt1_travel_doc_number',
     },
     'I-539': {
       // Applicant biographical (from passport)
@@ -417,6 +464,11 @@ export function mapExtractedFieldToFormField(
       admission_date: 'pt2_last_entry_date',
       class_of_admission: 'pt2_status_at_entry',
       admitted_until: 'pt2_status_expires',
+      // From I-94
+      travel_document_number: 'pt2_travel_doc_number',
+      // From birth cert
+      birth_city: 'pt1_pob_city',
+      birth_country: 'pt1_country_of_birth',
       // From W-2 (employment verification)
       employer_name: 'pt2_employer_name',
     },
@@ -475,6 +527,19 @@ export function mapExtractedFieldToFormField(
       wages_tips: 'pt8_income',
       // From utility bills / lease (address history)
       address: 'pt3_current_address',
+      service_address_street: 'pt2_current_address_street',
+      service_address_city: 'pt2_current_address_city',
+      service_address_state: 'pt2_current_address_state',
+      service_address_zip: 'pt2_current_address_zip',
+      // From tax returns
+      filing_address_street: 'pt2_current_address_street',
+      filing_address_city: 'pt2_current_address_city',
+      filing_address_state: 'pt2_current_address_state',
+      filing_address_zip: 'pt2_current_address_zip',
+      spouse_name: 'pt3_spouse_name',
+      // From W-2
+      employer_city: 'pt4_employer_city',
+      employer_state: 'pt4_employer_state',
     },
     'G-1145': {
       given_name: 'applicant_first_name',
@@ -654,4 +719,173 @@ export function calculateFormCompletion(
     totalRequired,
     highConfidenceCount: highConfidenceFields.length,
   };
+}
+
+export interface AutofillGap {
+  missingDocType: string;
+  description: string;
+  fieldsItWouldFill: string[];
+  fieldCount: number;
+  priority: 'high' | 'medium' | 'low';
+}
+
+/** Document types that provide specific fields for each form. */
+const DOC_FIELD_PROVIDERS: Record<string, Array<{
+  docType: string;
+  description: string;
+  fields: string[];
+  priority: 'high' | 'medium' | 'low';
+}>> = {
+  'I-485': [
+    {
+      docType: 'utility_bill',
+      description: 'Utility bills or lease agreements (last 5 years)',
+      fields: ['address_history_0_street', 'address_history_0_city', 'address_history_0_state', 'address_history_0_zip', 'address_history_0_country', 'address_history_0_from_date', 'address_history_0_to_date', 'address_history_1_street', 'address_history_1_city', 'address_history_1_state', 'address_history_1_zip'],
+      priority: 'high',
+    },
+    {
+      docType: 'w2',
+      description: 'W-2 forms (last 5 years)',
+      fields: ['employment_history_0_employer_name', 'employment_history_0_job_title', 'employment_history_0_from_date', 'employment_history_0_to_date', 'employment_history_1_employer_name', 'employment_history_1_job_title', 'employment_history_1_from_date', 'employment_history_1_to_date'],
+      priority: 'high',
+    },
+    {
+      docType: 'i94',
+      description: 'I-94 Arrival/Departure Record',
+      fields: ['travel_document_number', 'pt1_last_entry_date', 'pt1_port_of_entry', 'pt1_i94_number'],
+      priority: 'high',
+    },
+    {
+      docType: 'birth_certificate',
+      description: 'Birth certificate',
+      fields: ['birth_city', 'birth_state', 'birth_country', 'father_date_of_birth', 'mother_date_of_birth', 'mother_maiden_name'],
+      priority: 'medium',
+    },
+    {
+      docType: 'marriage_certificate',
+      description: 'Marriage certificate',
+      fields: ['marriage_city', 'marriage_state', 'marriage_country'],
+      priority: 'medium',
+    },
+  ],
+  'N-400': [
+    {
+      docType: 'utility_bill',
+      description: 'Utility bills or lease agreements (last 5 years)',
+      fields: ['address_history_0_street', 'address_history_0_city', 'address_history_0_state', 'address_history_0_zip', 'address_history_1_street', 'address_history_1_city', 'address_history_1_state', 'address_history_1_zip'],
+      priority: 'high',
+    },
+    {
+      docType: 'w2',
+      description: 'W-2 forms (last 5 years)',
+      fields: ['employment_history_0_employer_name', 'employment_history_0_job_title', 'employment_history_0_from_date', 'employment_history_1_employer_name', 'employment_history_1_job_title'],
+      priority: 'high',
+    },
+    {
+      docType: 'tax_return',
+      description: 'Tax returns (last 5 years)',
+      fields: ['filing_address_street', 'filing_address_city', 'filing_address_state', 'filing_address_zip', 'spouse_name'],
+      priority: 'medium',
+    },
+  ],
+  'I-130': [
+    {
+      docType: 'birth_certificate',
+      description: 'Birth certificate (petitioner and/or beneficiary)',
+      fields: ['father_date_of_birth', 'mother_date_of_birth', 'mother_maiden_name', 'birth_city', 'birth_country'],
+      priority: 'high',
+    },
+    {
+      docType: 'marriage_certificate',
+      description: 'Marriage certificate',
+      fields: ['marriage_city', 'marriage_state', 'marriage_country', 'spouse_1_date_of_birth', 'spouse_2_date_of_birth'],
+      priority: 'high',
+    },
+    {
+      docType: 'utility_bill',
+      description: 'Utility bills or lease agreements (last 5 years)',
+      fields: ['address_history_0_street', 'address_history_0_city', 'address_history_0_state', 'address_history_0_zip'],
+      priority: 'medium',
+    },
+  ],
+  'I-140': [
+    {
+      docType: 'diploma',
+      description: 'Diploma or degree certificate',
+      fields: ['institution_city', 'institution_state', 'institution_country', 'enrollment_start_date', 'enrollment_end_date'],
+      priority: 'high',
+    },
+    {
+      docType: 'w2',
+      description: 'W-2 forms — for employer details',
+      fields: ['employer_ein', 'employer_city', 'employer_state'],
+      priority: 'high',
+    },
+    {
+      docType: 'transcript',
+      description: 'Academic transcripts',
+      fields: ['institution_city', 'institution_state', 'institution_country', 'enrollment_start_date', 'enrollment_end_date'],
+      priority: 'medium',
+    },
+  ],
+  'I-765': [
+    {
+      docType: 'i94',
+      description: 'I-94 Arrival/Departure Record',
+      fields: ['travel_document_number'],
+      priority: 'high',
+    },
+    {
+      docType: 'birth_certificate',
+      description: 'Birth certificate',
+      fields: ['birth_city', 'birth_country'],
+      priority: 'medium',
+    },
+  ],
+  'I-131': [
+    {
+      docType: 'utility_bill',
+      description: 'Utility bills or lease agreements',
+      fields: ['service_address_street', 'service_address_city', 'service_address_state', 'service_address_zip'],
+      priority: 'medium',
+    },
+  ],
+};
+
+/**
+ * Analyze which documents are missing and what fields they would fill.
+ * No AI calls — pure static cross-reference.
+ */
+export function getAutofillGaps(
+  formType: string,
+  filledFieldIds: string[],
+  uploadedDocTypes: string[]
+): AutofillGap[] {
+  const providers = DOC_FIELD_PROVIDERS[formType] || [];
+  const gaps: AutofillGap[] = [];
+  const filledSet = new Set(filledFieldIds);
+  const uploadedSet = new Set(uploadedDocTypes);
+
+  for (const provider of providers) {
+    // Skip if this doc type is already uploaded
+    if (uploadedSet.has(provider.docType)) continue;
+
+    // Count how many of this provider's fields are unfilled
+    const unfilledFields = provider.fields.filter(f => !filledSet.has(f));
+    if (unfilledFields.length === 0) continue;
+
+    gaps.push({
+      missingDocType: provider.docType,
+      description: provider.description,
+      fieldsItWouldFill: unfilledFields,
+      fieldCount: unfilledFields.length,
+      priority: provider.priority,
+    });
+  }
+
+  // Sort: high priority first, then by field count descending
+  return gaps.sort((a, b) => {
+    const priorityOrder = { high: 0, medium: 1, low: 2 };
+    return priorityOrder[a.priority] - priorityOrder[b.priority] || b.fieldCount - a.fieldCount;
+  });
 }

@@ -3,6 +3,7 @@ import { formsService, documentsService, casesService } from '@/lib/db';
 import { createClient } from '@/lib/supabase/server';
 import {
   autofillForm,
+  getAutofillGaps,
   FormAutofillResult,
   DocumentAnalysisResult,
   ExtractedField,
@@ -313,6 +314,17 @@ export async function POST(
       log.warn('Usage tracking failed', { error: err instanceof Error ? err.message : String(err) });
     });
 
+    // Compute autofill gaps for smart document prompting
+    const filledFieldIds = autofillResult.fields
+      .filter((f) => f.suggested_value)
+      .map((f) => f.field_id);
+
+    const uploadedDocTypes = documents
+      .map((d) => d.document_type)
+      .filter(Boolean) as string[];
+
+    const gaps = getAutofillGaps(form.form_type, filledFieldIds, uploadedDocTypes);
+
     return NextResponse.json({
       form: updatedForm,
       autofill: {
@@ -324,6 +336,7 @@ export async function POST(
         missing_documents: autofillResult.missing_documents,
         warnings: autofillResult.warnings,
       },
+      gaps,
     });
   } catch (error) {
     log.logError('Error autofilling form', error, { formId: id });

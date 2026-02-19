@@ -24,7 +24,7 @@ vi.mock('@/lib/logger', () => ({
 }));
 
 // Import AFTER mocks are set up
-import { fillXFAPdf, buildFieldData, deriveFormType } from './xfa-filler';
+import { fillXFAPdf, buildFieldData, deriveFormType, flattenRepeatingFields } from './xfa-filler';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -91,6 +91,61 @@ describe('XFA Filler Engine', () => {
     vi.unstubAllGlobals();
     delete process.env.PDF_SERVICE_URL;
     delete process.env.PDF_SERVICE_SECRET;
+  });
+
+  // -----------------------------------------------------------------------
+  // flattenRepeatingFields — unit tests for array flattening
+  // -----------------------------------------------------------------------
+  describe('flattenRepeatingFields', () => {
+    test('flattens address_history array into numbered keys', () => {
+      const data = {
+        name: 'John',
+        address_history: [
+          { street: '123 Main St', city: 'Boston', state: 'MA' },
+          { street: '456 Oak Ave', city: 'Cambridge', state: 'MA' },
+        ],
+      };
+      const flat = flattenRepeatingFields(data);
+      expect(flat.address_history_0_street).toBe('123 Main St');
+      expect(flat.address_history_0_city).toBe('Boston');
+      expect(flat.address_history_1_street).toBe('456 Oak Ave');
+      expect(flat.address_history_1_city).toBe('Cambridge');
+      expect(flat.name).toBe('John');
+    });
+
+    test('flattens employment_history array', () => {
+      const data = {
+        employment_history: [
+          { employer_name: 'Acme Corp', job_title: 'Engineer' },
+        ],
+      };
+      const flat = flattenRepeatingFields(data);
+      expect(flat.employment_history_0_employer_name).toBe('Acme Corp');
+      expect(flat.employment_history_0_job_title).toBe('Engineer');
+    });
+
+    test('handles missing arrays gracefully', () => {
+      const flat = flattenRepeatingFields({ name: 'John' });
+      expect(flat.name).toBe('John');
+      expect(Object.keys(flat)).toEqual(['name']);
+    });
+
+    test('handles empty arrays', () => {
+      const flat = flattenRepeatingFields({ address_history: [] });
+      expect(flat.address_history).toEqual([]);
+    });
+
+    test('skips null values in entries', () => {
+      const data = {
+        address_history: [
+          { street: '123 Main St', apt: null, city: 'Boston' },
+        ],
+      };
+      const flat = flattenRepeatingFields(data as Record<string, unknown>);
+      expect(flat.address_history_0_street).toBe('123 Main St');
+      expect(flat.address_history_0_city).toBe('Boston');
+      expect(flat).not.toHaveProperty('address_history_0_apt');
+    });
   });
 
   // -----------------------------------------------------------------------

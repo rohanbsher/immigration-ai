@@ -1,3 +1,9 @@
+import type {
+  AddressHistoryEntry,
+  EmploymentHistoryEntry,
+  EducationHistoryEntry,
+} from '@/types';
+
 // AI-specific types for document analysis and form autofill
 
 export interface ExtractedField {
@@ -98,6 +104,9 @@ export interface FormAutofillResult {
   processing_time_ms: number;
   missing_documents?: string[];
   warnings?: string[];
+  address_history?: AddressHistoryEntry[];
+  employment_history?: EmploymentHistoryEntry[];
+  education_history?: EducationHistoryEntry[];
 }
 
 // ---------------------------------------------------------------------------

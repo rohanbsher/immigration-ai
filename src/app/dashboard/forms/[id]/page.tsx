@@ -1,6 +1,6 @@
 'use client';
 
-import { use, useState, useEffect } from 'react';
+import { use, useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,8 +15,10 @@ import {
 } from 'lucide-react';
 import { useForm, useUpdateForm, useAutofillForm } from '@/hooks/use-forms';
 import { getFormDefinition } from '@/lib/forms/definitions';
+import { getAutofillGaps } from '@/lib/ai/form-autofill';
 import { toast } from 'sonner';
 import { Breadcrumbs, generateFormBreadcrumbs } from '@/components/ui/breadcrumbs';
+import { DocumentPrompt } from '@/components/forms/document-prompt';
 
 import { FormSectionComponent } from './form-section';
 import { FormPreviewTab } from './form-preview-tab';
@@ -41,6 +43,18 @@ export default function FormDetailPage({ params }: { params: Promise<{ id: strin
   const [isInitialized, setIsInitialized] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [activeTab, setActiveTab] = useState('edit');
+
+  // Compute autofill gaps: which documents could fill empty fields.
+  // Must be above early returns to satisfy Rules of Hooks.
+  const autofillGaps = useMemo(() => {
+    if (!form || form.status === 'draft') return [];
+
+    const filledFieldIds = Object.entries(formValues)
+      .filter(([, v]) => v !== undefined && v !== '' && v !== null)
+      .map(([k]) => k);
+
+    return getAutofillGaps(form.form_type, filledFieldIds, []);
+  }, [form, formValues]);
 
   useEffect(() => {
     if (form?.form_data && !isInitialized) {
@@ -155,6 +169,31 @@ export default function FormDetailPage({ params }: { params: Promise<{ id: strin
     ? Math.round((filledRequiredFields / totalRequiredFields) * 100)
     : 0;
 
+  // Compute autofill gaps: which documents could fill empty fields
+  // Only show after AI autofill has run (status is ai_filled or later)
+  const autofillGaps = useMemo(() => {
+    if (form.status === 'draft') return [];
+
+    const filledFieldIds = Object.entries(formValues)
+      .filter(([, v]) => v !== undefined && v !== '' && v !== null)
+      .map(([k]) => k);
+
+    // Extract uploaded doc types from ai_filled_data metadata if available
+    const metadata = (form.ai_filled_data as Record<string, unknown> | null)?._metadata as
+      | { missing_documents?: string[] }
+      | undefined;
+    // Documents NOT in the missing list were uploaded; we don't have a full
+    // uploaded list here, so pass an empty array and let the gap function
+    // filter purely by unfilled fields.
+    const uploadedDocTypes: string[] = [];
+
+    // If metadata lists specific missing documents, we could use them,
+    // but getAutofillGaps already filters by unfilled fields which is more accurate.
+    void metadata;
+
+    return getAutofillGaps(form.form_type, filledFieldIds, uploadedDocTypes);
+  }, [form.status, form.form_type, form.ai_filled_data, formValues]);
+
   return (
     <div className="space-y-6">
       {/* Breadcrumbs */}
@@ -226,6 +265,9 @@ export default function FormDetailPage({ params }: { params: Promise<{ id: strin
         </TabsList>
 
         <TabsContent value="edit" className="space-y-4 mt-6">
+          {autofillGaps.length > 0 && (
+            <DocumentPrompt gaps={autofillGaps} caseId={form.case_id} />
+          )}
           {formDefinition.sections.map((section) => (
             <FormSectionComponent
               key={section.id}

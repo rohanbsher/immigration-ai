@@ -21,6 +21,7 @@ import {
   getRequiredDocuments,
   getUnfilledRequiredFields,
   calculateFormCompletion,
+  getAutofillGaps,
 } from './form-autofill';
 import { ExtractedField, FormField } from './types';
 
@@ -389,5 +390,53 @@ describe('calculateFormCompletion', () => {
     const result = calculateFormCompletion('UNKNOWN', []);
     expect(result.totalRequired).toBe(20);
     expect(result.percentage).toBe(0);
+  });
+});
+
+describe('getAutofillGaps', () => {
+  it('identifies missing utility bills for I-485 address history', () => {
+    const gaps = getAutofillGaps('I-485', [], ['passport']);
+    const utilityGap = gaps.find(g => g.missingDocType === 'utility_bill');
+    expect(utilityGap).toBeDefined();
+    expect(utilityGap!.priority).toBe('high');
+    expect(utilityGap!.fieldCount).toBeGreaterThan(0);
+  });
+
+  it('excludes gaps for already-uploaded document types', () => {
+    const gaps = getAutofillGaps('I-485', [], ['passport', 'utility_bill', 'w2', 'i94', 'birth_certificate', 'marriage_certificate']);
+    expect(gaps).toHaveLength(0);
+  });
+
+  it('excludes gaps when fields are already filled', () => {
+    const allFields = ['address_history_0_street', 'address_history_0_city', 'address_history_0_state', 'address_history_0_zip', 'address_history_0_country', 'address_history_0_from_date', 'address_history_0_to_date', 'address_history_1_street', 'address_history_1_city', 'address_history_1_state', 'address_history_1_zip'];
+    const gaps = getAutofillGaps('I-485', allFields, []);
+    const utilityGap = gaps.find(g => g.missingDocType === 'utility_bill');
+    expect(utilityGap).toBeUndefined();
+  });
+
+  it('returns empty array for unknown form types', () => {
+    expect(getAutofillGaps('UNKNOWN-FORM', [], [])).toEqual([]);
+  });
+
+  it('sorts high priority before medium', () => {
+    const gaps = getAutofillGaps('I-485', [], []);
+    const priorities = gaps.map(g => g.priority);
+    const highIdx = priorities.indexOf('high');
+    const mediumIdx = priorities.indexOf('medium');
+    if (highIdx !== -1 && mediumIdx !== -1) {
+      expect(highIdx).toBeLessThan(mediumIdx);
+    }
+  });
+
+  it('works for N-400 form type', () => {
+    const gaps = getAutofillGaps('N-400', [], []);
+    expect(gaps.length).toBeGreaterThan(0);
+    expect(gaps.some(g => g.missingDocType === 'utility_bill')).toBe(true);
+  });
+
+  it('works for I-130 form type', () => {
+    const gaps = getAutofillGaps('I-130', [], []);
+    expect(gaps.length).toBeGreaterThan(0);
+    expect(gaps.some(g => g.missingDocType === 'birth_certificate')).toBe(true);
   });
 });

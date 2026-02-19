@@ -59,8 +59,10 @@ export {
   mapExtractedFieldToFormField,
   getUnfilledRequiredFields,
   calculateFormCompletion,
+  getAutofillGaps,
   type FormAutofillInput,
   type AutofillProgress,
+  type AutofillGap,
 } from './form-autofill';
 
 // Citations (Phase 4)

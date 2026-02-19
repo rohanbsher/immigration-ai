@@ -24,6 +24,34 @@ const SERVICE_TIMEOUT_MS = 30_000;
 // ---------------------------------------------------------------------------
 
 /**
+ * Flatten array-based repeatable sections into numbered flat fields
+ * that map to USCIS XFA field names.
+ *
+ * Example: address_history[0].street → address_history_0_street
+ */
+export function flattenRepeatingFields(
+  formData: Record<string, unknown>
+): Record<string, unknown> {
+  const flattened = { ...formData };
+
+  const arrayKeys = ['address_history', 'employment_history', 'education_history'];
+  for (const key of arrayKeys) {
+    const arr = formData[key] as Array<Record<string, string>> | undefined;
+    if (Array.isArray(arr)) {
+      arr.forEach((entry, i) => {
+        Object.entries(entry).forEach(([field, value]) => {
+          if (value != null) {
+            flattened[`${key}_${i}_${field}`] = value;
+          }
+        });
+      });
+    }
+  }
+
+  return flattened;
+}
+
+/**
  * Build a flat `Record<string, string>` of XFA field names to formatted
  * values from the field maps and form data.
  */
@@ -31,11 +59,12 @@ export function buildFieldData(
   fieldMaps: AcroFormFieldMap[],
   formData: Record<string, unknown>
 ): { fieldData: Record<string, string>; skippedFields: string[] } {
+  const flatData = flattenRepeatingFields(formData);
   const fieldData: Record<string, string> = {};
   const skippedFields: string[] = [];
 
   for (const mapping of fieldMaps) {
-    const rawValue = getNestedValue(formData, mapping.dataPath);
+    const rawValue = getNestedValue(flatData, mapping.dataPath);
 
     if (rawValue === undefined || rawValue === null || rawValue === '') {
       skippedFields.push(mapping.formFieldName);

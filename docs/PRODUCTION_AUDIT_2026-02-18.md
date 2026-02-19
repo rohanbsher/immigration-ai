@@ -11,16 +11,16 @@
 
 This application is a substantial, well-architected immigration case management platform with **77 API routes, 56 database migrations, and comprehensive AI integration**. The codebase demonstrates strong security awareness with RLS policies, PII encryption, rate limiting, CSRF protection, and audit logging.
 
-However, the audit uncovered **1 show-stopping critical defect, 23 high-severity issues, 35 medium-severity concerns, and 13 low-severity items** that must be addressed before or shortly after production launch. The critical defect alone means **route protection, CSRF validation, idle timeout, and admin access controls are not functioning**.
+However, the audit uncovered **1 show-stopping critical defect, 26 high-severity issues, 41 medium-severity concerns, and 14 low-severity items** across 6 audit dimensions that must be addressed before or shortly after production launch. The critical defect alone means **route protection, CSRF validation, idle timeout, and admin access controls are not functioning**.
 
 ### Severity Distribution
 
 | Severity | Count | Description |
 |----------|-------|-------------|
 | **CRITICAL** | 1 | Application will not function correctly in production |
-| **HIGH** | 23 | Security vulnerabilities or data integrity risks |
-| **MEDIUM** | 35 | Reliability, operational, or defense-in-depth gaps |
-| **LOW** | 13 | Code quality, best practices, minor hardening |
+| **HIGH** | 26 | Security vulnerabilities or data integrity risks |
+| **MEDIUM** | 41 | Reliability, operational, or defense-in-depth gaps |
+| **LOW** | 14 | Code quality, best practices, minor hardening |
 
 ### Finding Categories
 
@@ -31,6 +31,7 @@ However, the audit uncovered **1 show-stopping critical defect, 23 high-severity
 | API Routes | A-1 to A-10 | 10 |
 | Database & RLS | D-1 to D-18 | 18 |
 | Billing System | B-1 to B-13 | 13 |
+| Auth & Session | S-1 to S-10 | 10 |
 | Code Quality | L-1 to L-8 | 8 |
 
 ---
@@ -524,6 +525,108 @@ Stripe Price IDs are used directly without validation that they exist in the Str
 
 ---
 
+## AUTH & SESSION SECURITY FINDINGS (From Auth Stack Analysis)
+
+### S-1: No Audit Logging for Authentication Operations (HIGH)
+**Files:** All auth API routes
+**Impact:** Cannot prove compliance with legal/regulatory requirements
+
+There are no audit logs for:
+- Failed login attempts (beyond rate limiting counters)
+- 2FA enable/disable events
+- Password changes
+- Session creation/destruction
+- Admin privilege escalation
+
+Immigration lawyers need comprehensive audit trails for client confidentiality compliance. Without auth event logging, there's no way to investigate security incidents or prove access controls were enforced.
+
+**Fix:** Add audit log entries for all auth-related events using the existing audit log infrastructure.
+
+### S-2: Rate Limit Key Vulnerable to IP Spoofing (HIGH)
+**File:** `src/lib/auth/api-helpers.ts:129-141`
+**Impact:** Rate limiting can be bypassed or weaponized against other users
+
+The `getClientIp()` function trusts the first IP in `x-forwarded-for` without validating proxy chain depth:
+```typescript
+const forwardedFor = request.headers.get('x-forwarded-for');
+if (forwardedFor) {
+  return forwardedFor.split(',')[0].trim(); // Takes first IP blindly
+}
+```
+
+An attacker can: (1) rotate spoofed IPs to bypass rate limits entirely, or (2) send another user's IP to exhaust their rate limit quota.
+
+**Fix:** Configure trusted proxy count and use `ips[ips.length - trustedProxyCount]` instead of `ips[0]`.
+
+### S-3: Open Redirect Protection Incomplete (HIGH)
+**File:** `src/app/api/auth/callback/route.ts:7-59`
+**Impact:** Attackers could redirect users to phishing sites after OAuth callback
+
+The redirect validation has gaps:
+- Case-sensitive path matching (`/Dashboard` bypasses `/dashboard` filter)
+- No protocol validation (`//evil.com` could pass path normalization)
+- Fragment handling exploitable (`/dashboard#//evil.com`)
+
+**Fix:** Normalize paths to lowercase, reject `//` prefixes and protocol schemes, strip fragments before comparison.
+
+### S-4: Backup Codes Returned in API Response Body (MEDIUM)
+**File:** `src/app/api/2fa/setup/route.ts:35`
+**Impact:** Backup codes could be logged, cached, or intercepted
+
+2FA backup codes are returned in the JSON response body. If this response is logged by middleware, captured by a proxy, or stored in browser response cache, the codes are compromised.
+
+**Fix:** Display backup codes via a secure one-time render page, not in an API JSON response.
+
+### S-5: Session Idle Timeout Doesn't Invalidate Tokens on Failure (MEDIUM)
+**File:** `src/lib/supabase/middleware.ts:105-142`
+**Impact:** Timed-out sessions may remain valid if signOut fails
+
+When idle timeout triggers, `supabase.auth.signOut()` is called but failures are caught and ignored. The client cookies are cleared, but the refresh token remains valid server-side. An attacker with the token could re-authenticate.
+
+**Fix:** Store token revocation list in Redis, or ensure auth tokens are shorter-lived than the idle timeout.
+
+### S-6: 2FA Token Validation Format Inconsistency (MEDIUM)
+**Files:** `src/app/api/2fa/verify/route.ts:12`, `src/app/api/2fa/backup-codes/route.ts:12`
+**Impact:** Backup code regeneration endpoint rejects valid inputs
+
+The verify endpoint accepts 6-8 character tokens, but the backup-codes regeneration endpoint validates exactly 6 characters. Since backup codes are 32 hex characters, the backup-codes endpoint will reject actual backup codes.
+
+**Fix:** Align validation schemas — TOTP tokens are 6 digits, backup codes are 32 hex chars.
+
+### S-7: Missing Anti-Enumeration on Resource Endpoints (MEDIUM)
+**Files:** Various `src/app/api/*/[id]/route.ts`
+**Impact:** Attackers can enumerate valid resource IDs
+
+When unauthorized access is attempted, some endpoints return 403 (Forbidden) instead of 404 (Not Found). This reveals that the resource exists, enabling ID enumeration attacks.
+
+**Fix:** Return 404 for all unauthorized access attempts on ID-based endpoints.
+
+### S-8: Credential Stuffing Not Mitigated (MEDIUM)
+**File:** `src/app/api/auth/login/route.ts`
+**Impact:** Rate limiting allows 5 different accounts to be tested per minute per IP
+
+Rate limiting is IP-based only. An attacker can test one password against 5 different accounts per minute per IP. With rotating IPs, this enables large-scale credential stuffing.
+
+**Fix:** Add email-based rate limiting in addition to IP-based: `rateLimit(RATE_LIMITS.AUTH, 'login:' + email)`.
+
+### S-9: Encryption Key Dev Fallback Uses All-Zeros Key (MEDIUM)
+**File:** `src/lib/crypto/index.ts:24-54`
+**Impact:** Dev-encrypted data is trivially decryptable
+
+The development fallback encryption key is `'0'.repeat(64)` — deterministic and publicly known. If any data encrypted in development leaks or is accidentally migrated to production, it can be decrypted by anyone who reads the source code.
+
+**Fix:** Generate a random dev key per environment (e.g., derive from machine ID), and add a startup check that rejects the all-zeros key even in development.
+
+### S-10: Password Validation Missing Breach Database Check (LOW)
+**File:** `src/app/api/auth/register/route.ts:13-18`
+**Impact:** Users can register with known-compromised passwords
+
+Password requirements enforce complexity (uppercase, lowercase, number, special char, min 8) but don't check against known breached passwords. "Password1!" meets all requirements but appears in virtually every breach database.
+
+**Fix:** Integrate HIBP (Have I Been Pwned) k-anonymity API check on registration.
+
+---
+
 ## LOW SEVERITY FINDINGS
 
 ### L-1: Test Coverage May Not Reach 75% Threshold
@@ -641,40 +744,49 @@ File upload size limits rely on Vercel/edge configuration. There's no applicatio
 
 ### P1: Before Scaling (First 2 Weeks)
 
-11. **[B-3] Enforce team member quota** — Add `enforceQuota('team_members')` to member addition endpoint.
-12. **[B-4] Create `check_document_quota()` trigger** — Prevent concurrent upload bypass.
-13. **[B-2] Implement downgrade enforcement** — Gate premium features for canceled subscriptions.
-14. **[D-5] Add profile email uniqueness constraint** — Prevent duplicate profiles.
-15. **[D-6] Fix soft delete cascading** — Ensure child records are soft-deleted with parents.
-16. **[D-7] Implement form data encryption** — Wire `encryptSensitiveFields()` into form writes, backfill existing data.
-17. **[H-8] Fix prompt injection** — Sanitize user input before interpolating into AI prompts.
-18. **[H-9] Centralize AI confidence thresholds** — Single config, ≥0.9 for critical immigration fields.
-19. **[H-1] Implement nonce-based CSP** — Replace `unsafe-inline`.
-20. **[A-7] Validate AI response schemas** — Add Zod validation for OpenAI/Claude JSON responses.
+11. **[S-1] Add auth event audit logging** — Required for legal compliance. Log logins, failures, 2FA changes, password resets.
+12. **[S-2] Fix IP spoofing in rate limiter** — Configure trusted proxy depth, use rightmost untrusted IP.
+13. **[S-3] Fix open redirect validation** — Case-insensitive matching, reject `//` prefixes and protocol schemes.
+14. **[B-3] Enforce team member quota** — Add `enforceQuota('team_members')` to member addition endpoint.
+15. **[B-4] Create `check_document_quota()` trigger** — Prevent concurrent upload bypass.
+16. **[B-2] Implement downgrade enforcement** — Gate premium features for canceled subscriptions.
+17. **[D-5] Add profile email uniqueness constraint** — Prevent duplicate profiles.
+18. **[D-6] Fix soft delete cascading** — Ensure child records are soft-deleted with parents.
+19. **[H-8] Fix prompt injection** — Sanitize user input before interpolating into AI prompts.
+20. **[H-9] Centralize AI confidence thresholds** — Single config, ≥0.9 for critical immigration fields.
+21. **[H-1] Implement nonce-based CSP** — Replace `unsafe-inline`.
+22. **[A-7] Validate AI response schemas** — Add Zod validation for OpenAI/Claude JSON responses.
 
 ### P2: Before General Availability (First Month)
 
-21. **[H-6] Fix GDPR export** — Async processing, encrypted storage, download link via email.
-22. **[M-5] Fix webhook replay window** — Increase to 1 hour or remove age check.
-23. **[M-2] Enhance PII filtering** — Add regex pattern matching for SSN, passport formats.
-24. **[M-10] Implement account lockout** — Progressive delays per email/account.
-25. **[M-6] Self-host fonts** — Remove Google Fonts build dependency.
-26. **[B-5] Fix webhook signature error handling** — Use `instanceof`/error codes instead of string matching.
-27. **[D-8] Fix document_access_log INSERT policy** — Validate `user_id = auth.uid()` in SECURITY DEFINER function.
-28. **[D-11] Add stuck form autofill cleanup** — Cron job to reset stale `autofilling` forms.
-29. **[D-14] Encrypt PII at rest** — Forms and profiles storing immigration data in plaintext.
-30. **[D-15] Rate limit RPC functions** — Protect 2FA and form autofill from brute force.
+23. **[D-7] Implement form data encryption** — Wire `encryptSensitiveFields()` into form writes, backfill existing data.
+24. **[H-6] Fix GDPR export** — Async processing, encrypted storage, download link via email.
+25. **[M-5] Fix webhook replay window** — Increase to 1 hour or remove age check.
+26. **[M-2] Enhance PII filtering** — Add regex pattern matching for SSN, passport formats.
+27. **[M-10] Implement account lockout** — Progressive delays per email/account.
+28. **[S-8] Add email-based rate limiting** — Mitigate credential stuffing attacks.
+29. **[M-6] Self-host fonts** — Remove Google Fonts build dependency.
+30. **[B-5] Fix webhook signature error handling** — Use `instanceof`/error codes instead of string matching.
+31. **[D-8] Fix document_access_log INSERT policy** — Validate `user_id = auth.uid()` in SECURITY DEFINER function.
+32. **[S-4] Secure backup code delivery** — Show codes via one-time render, not API JSON response.
+33. **[D-11] Add stuck form autofill cleanup** — Cron job to reset stale `autofilling` forms.
+34. **[D-14] Encrypt PII at rest** — Forms and profiles storing immigration data in plaintext.
+35. **[D-15] Rate limit RPC functions** — Protect 2FA and form autofill from brute force.
 
 ### P3: Ongoing Hardening
 
-31. **[M-3] Verify advisory lock scope** — Test concurrent autofill across API and worker.
-32. **[M-4] Audit chat firm isolation** — Verify case access in conversations.
-33. **[M-7] Audit soft delete coverage** — Verify all queries filter `deleted_at`.
-34. **[M-8] Extend circuit breaker** — Cover all AI calls, not just worker processor.
-35. **[M-9] Remove mock virus scanner fallback** — Fail if not configured.
-36. **[D-17] Add missing database indices** — FK columns like `documents.uploaded_by`, `activities.user_id`.
-37. **[B-6] Fix plan features mismatch** — Sync `formAutofill` between frontend and DB.
-38. **[B-7] Make usage tracking failures visible** — Throw on tracking failure or alert.
+36. **[S-7] Return 404 for unauthorized resources** — Prevent resource ID enumeration.
+37. **[S-9] Fix encryption dev fallback** — Replace all-zeros key with random per-environment key.
+38. **[M-3] Verify advisory lock scope** — Test concurrent autofill across API and worker.
+39. **[M-4] Audit chat firm isolation** — Verify case access in conversations.
+40. **[M-7] Audit soft delete coverage** — Verify all queries filter `deleted_at`.
+41. **[M-8] Extend circuit breaker** — Cover all AI calls, not just worker processor.
+42. **[M-9] Remove mock virus scanner fallback** — Fail if not configured.
+43. **[D-17] Add missing database indices** — FK columns like `documents.uploaded_by`, `activities.user_id`.
+44. **[B-6] Fix plan features mismatch** — Sync `formAutofill` between frontend and DB.
+45. **[B-7] Make usage tracking failures visible** — Throw on tracking failure or alert.
+46. **[S-6] Fix 2FA token validation formats** — Align TOTP (6 digits) vs backup code (32 hex) schemas.
+47. **[S-10] Add password breach checking** — Integrate HIBP k-anonymity API on registration.
 
 ---
 
@@ -715,6 +827,6 @@ The billing system has the infrastructure in place (Stripe integration, webhook 
 | Audit & Compliance | 🟢 Mostly Ready | Audit logging present, GDPR export needs async processing |
 | Infrastructure | 🟢 Mostly Ready | Requires Redis, virus scanner, PDF service configured |
 
-**With the P0 items (10 fixes) addressed, the platform will be safe for a controlled launch with a small cohort of trusted law firms.** The P1 items (10 more fixes) should be completed within 2 weeks to support scaling. The remaining P2/P3 items represent defense-in-depth hardening that should be tracked in a sprint backlog.
+**With the P0 items (10 fixes) addressed, the platform will be safe for a controlled launch with a small cohort of trusted law firms.** The P1 items (12 more fixes) should be completed within 2 weeks to support scaling. The remaining P2/P3 items represent defense-in-depth hardening that should be tracked in a sprint backlog.
 
-**Total findings: 72** (1 critical, 23 high, 35 medium, 13 low) across 5 audit dimensions.
+**Total findings: 82** (1 critical, 26 high, 41 medium, 14 low) across 6 audit dimensions.

@@ -113,7 +113,7 @@ export async function enqueueDocumentAnalysis(data: DocumentAnalysisJob) {
   const queue = getDocumentAnalysisQueue();
   return addWithDedup(queue, 'analyze', data, {
     ...AI_JOB_DEFAULTS,
-    jobId: `doc-analysis:${data.documentId}`,
+    jobId: `doc-analysis--${data.documentId}`,
   });
 }
 
@@ -124,7 +124,7 @@ export async function enqueueFormAutofill(data: FormAutofillJob) {
   const queue = getFormAutofillQueue();
   return addWithDedup(queue, 'autofill', data, {
     ...AI_JOB_DEFAULTS,
-    jobId: `form-autofill:${data.formId}`,
+    jobId: `form-autofill--${data.formId}`,
   });
 }
 
@@ -143,7 +143,7 @@ export async function enqueueRecommendations(data: RecommendationsJob) {
   const queue = getRecommendationsQueue();
   return addWithDedup(queue, 'recommend', data, {
     ...AI_JOB_DEFAULTS,
-    jobId: `recommendations:${data.caseId}`,
+    jobId: `recommendations--${data.caseId}`,
   });
 }
 
@@ -154,7 +154,7 @@ export async function enqueueCompleteness(data: CompletenessJob) {
   const queue = getCompletenessQueue();
   return addWithDedup(queue, 'analyze', data, {
     ...AI_JOB_DEFAULTS,
-    jobId: `completeness:${data.caseId}`,
+    jobId: `completeness--${data.caseId}`,
   });
 }
 
@@ -165,7 +165,7 @@ export async function enqueueSuccessScore(data: SuccessScoreJob) {
   const queue = getSuccessScoreQueue();
   return addWithDedup(queue, 'score', data, {
     ...AI_JOB_DEFAULTS,
-    jobId: `success-score:${data.caseId}`,
+    jobId: `success-score--${data.caseId}`,
   });
 }
 

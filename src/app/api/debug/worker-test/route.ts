@@ -39,7 +39,7 @@ export async function GET() {
   // Test enqueueDocumentAnalysis (static import, same as analyze route)
   try {
     const job = await enqueueDocumentAnalysis({
-      documentId: 'test-debug-' + Date.now(),
+      documentId: 'test-debug--' + Date.now(),
       userId: 'test-user',
       caseId: 'test-case',
       documentType: 'passport',

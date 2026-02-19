@@ -2,14 +2,17 @@ FROM node:20-slim AS builder
 
 WORKDIR /app
 
-# Copy worker package files and install dependencies
+# Install root dependencies first (for type resolution during compilation).
+# Shared code in src/lib/ imports packages like @supabase/ssr, next/headers,
+# etc. that live in the main app's package.json. These are needed at compile
+# time but discarded in the production image.
+COPY package.json package-lock.json ./
+RUN npm ci --legacy-peer-deps
+
+# Install worker-specific dependencies
 COPY services/worker/package.json services/worker/package-lock.json* services/worker/
 WORKDIR /app/services/worker
 RUN npm install --legacy-peer-deps
-
-# Symlink node_modules to repo root so shared src/lib code can resolve imports
-# (TypeScript walks up from /app/src/lib/ looking for node_modules)
-RUN ln -s /app/services/worker/node_modules /app/node_modules
 
 # Copy shared library code (used via @/lib/* path alias)
 WORKDIR /app
@@ -24,12 +27,12 @@ COPY services/worker/tsconfig.json services/worker/tsconfig.json
 WORKDIR /app/services/worker
 RUN npm run build
 
-# --- Production stage ---
+# --- Production stage (lean — only worker code and its deps) ---
 FROM node:20-slim
 
 WORKDIR /app
 
-# Copy compiled output and production dependencies
+# Copy compiled output and worker-only production dependencies
 COPY --from=builder /app/services/worker/dist/ dist/
 COPY --from=builder /app/services/worker/node_modules/ node_modules/
 COPY --from=builder /app/services/worker/package.json package.json

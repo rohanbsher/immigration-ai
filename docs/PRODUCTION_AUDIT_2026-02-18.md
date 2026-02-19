@@ -11,16 +11,27 @@
 
 This application is a substantial, well-architected immigration case management platform with **77 API routes, 56 database migrations, and comprehensive AI integration**. The codebase demonstrates strong security awareness with RLS policies, PII encryption, rate limiting, CSRF protection, and audit logging.
 
-However, the audit uncovered **1 show-stopping critical defect, 12 high-severity issues, and 20 medium-severity concerns** that must be addressed before production launch. The critical defect alone means **route protection, CSRF validation, idle timeout, and admin access controls are not functioning**.
+However, the audit uncovered **1 show-stopping critical defect, 23 high-severity issues, 35 medium-severity concerns, and 13 low-severity items** that must be addressed before or shortly after production launch. The critical defect alone means **route protection, CSRF validation, idle timeout, and admin access controls are not functioning**.
 
 ### Severity Distribution
 
 | Severity | Count | Description |
 |----------|-------|-------------|
 | **CRITICAL** | 1 | Application will not function correctly in production |
-| **HIGH** | 12 | Security vulnerabilities or data integrity risks |
-| **MEDIUM** | 20 | Reliability, operational, or defense-in-depth gaps |
-| **LOW** | 8 | Code quality, best practices, minor hardening |
+| **HIGH** | 23 | Security vulnerabilities or data integrity risks |
+| **MEDIUM** | 35 | Reliability, operational, or defense-in-depth gaps |
+| **LOW** | 13 | Code quality, best practices, minor hardening |
+
+### Finding Categories
+
+| Category | Section | Findings |
+|----------|---------|----------|
+| Core Security | C-1, H-1 to H-9 | 10 |
+| Middleware & CSRF | M-1 to M-12 | 12 |
+| API Routes | A-1 to A-10 | 10 |
+| Database & RLS | D-1 to D-18 | 18 |
+| Billing System | B-1 to B-13 | 13 |
+| Code Quality | L-1 to L-8 | 8 |
 
 ---
 
@@ -350,6 +361,169 @@ Confidence scores (0-1 range) are stored as NUMERIC without a CHECK constraint. 
 
 ---
 
+## DATABASE & RLS FINDINGS (From Deep Migration/Policy Analysis)
+
+### D-1: `document_checklists` Table Missing RLS Entirely (HIGH)
+**File:** `supabase/migrations/001_*.sql`
+The `document_checklists` table has no Row-Level Security policies. Any authenticated user can read, write, or delete any checklist item belonging to any case. This is a direct cross-tenant data exposure.
+
+**Fix:** Add RLS policies scoped to case ownership (via `cases.attorney_id` or `cases.client_id`).
+
+### D-2: Case RLS Policies Missing Role Verification (HIGH)
+**Files:** `supabase/migrations/001_*.sql`, `005_*.sql`
+The RLS policies on the `cases` table check user ID but don't verify that the user's role matches the access pattern. An attorney-role check is absent, potentially allowing a `client`-role user who shares the same ID pattern to access cases they shouldn't.
+
+**Fix:** Add role verification to case RLS policies (join on `profiles.role`).
+
+### D-3: Audit Log RLS Has Timing Attack via OR Logic (HIGH)
+**File:** `supabase/migrations/002_*.sql`
+The audit log RLS policy uses an `OR` condition that can be exploited via timing-based side channel to determine whether specific records exist, even for unauthorized users.
+
+**Fix:** Replace `OR`-based access with a single deterministic path.
+
+### D-4: No Quota Enforcement on Case Creation at DB Level (HIGH)
+**Files:** `supabase/migrations/003_*.sql`, `028_*.sql`
+The billing triggers for enforcing plan limits (e.g., "Free plan = 3 cases max") are not properly enforced at the database level. Users can bypass application-level checks by issuing direct INSERTs (e.g., via Supabase client or SQL injection).
+
+**Fix:** Add a `BEFORE INSERT` trigger on `cases` that checks the user's plan limits.
+
+### D-5: Profile Email Uniqueness Not Enforced at DB Level (HIGH)
+**File:** `supabase/migrations/022_*.sql`
+Two profiles can have the same email address. While Supabase Auth enforces email uniqueness for auth users, the `profiles` table may not have a unique constraint on `email`. This can cause authentication confusion and data integrity issues.
+
+**Fix:** Add `ALTER TABLE profiles ADD CONSTRAINT profiles_email_unique UNIQUE (email);`
+
+### D-6: Soft Delete Cascade Is Inconsistent (HIGH)
+**File:** `supabase/migrations/022_*.sql`
+When a parent record is soft-deleted, child records are not consistently soft-deleted. This leaves orphan data accessible, potentially exposing case documents or form data for deleted cases.
+
+**Fix:** Ensure all soft-delete triggers cascade to child tables.
+
+### D-7: Form Data Encryption Backfill Missing (MEDIUM)
+**File:** `supabase/migrations/052_*.sql`
+Migration 052 adds a `form_data_encrypted` boolean column but never actually encrypts existing form data. PII (SSNs, passport numbers, A-numbers) remains in plaintext in `form_data` and `ai_filled_data` columns. The encryption infrastructure exists in `src/lib/crypto/` but is not wired into the form data path.
+
+**Fix:** Create a backfill migration that encrypts existing form data and wire `encryptSensitiveFields()` into all form data writes.
+
+### D-8: `document_access_log` INSERT Policy Too Permissive (MEDIUM)
+**File:** `supabase/migrations/039_*.sql`
+The `log_document_access()` function is `SECURITY DEFINER` and accepts any `user_id` parameter without verifying it matches `auth.uid()`. A compromised application layer could forge access log entries, undermining the audit trail.
+
+**Fix:** Validate `user_id = auth.uid()` inside the function.
+
+### D-9: `document_access_log` SELECT Leaks Document IDs (MEDIUM)
+**File:** `supabase/migrations/006_*.sql`
+Users can see log entries for documents they no longer have permission to access, enabling document enumeration attacks. The SELECT policy should join back to document/case ownership.
+
+### D-10: Soft Delete Trigger Uses SECURITY INVOKER (MEDIUM)
+**File:** `supabase/migrations/048_*.sql`
+The soft-delete enforcement trigger runs with the caller's permissions (`SECURITY INVOKER`) rather than elevated permissions. Combined with a race condition, this could allow unauthorized hard deletes.
+
+### D-11: Form Status `autofilling` Can Get Stuck (MEDIUM)
+**File:** `supabase/migrations/049_*.sql`
+If a server crashes during form autofill, the form remains in `autofilling` status for up to 5 minutes with no automated cleanup mechanism. Only manual intervention resolves stuck forms.
+
+**Fix:** Add a cron job or background check that resets stale `autofilling` forms back to `draft`.
+
+### D-12: Audit Log Uses Placeholder UUID (MEDIUM)
+**File:** `supabase/migrations/022_*.sql`
+System-initiated audit log entries use a hardcoded placeholder UUID (`00000000-0000-0000-0000-000000000000`) instead of `NULL`. This makes it impossible to distinguish system actions from a corrupted user reference.
+
+### D-13: Dual Authorization Paths for Case Deletion (MEDIUM)
+**File:** `supabase/migrations/039_*.sql`
+Both an RLS DELETE policy and a `soft_delete_case()` function have separate authorization checks. If either path is bypassed, deletion succeeds, creating inconsistency in the authorization model.
+
+### D-14: No PII Encryption at Rest for Forms and Profiles (MEDIUM)
+**Files:** Form and profile tables
+Forms (`form_data`, `ai_filled_data`) and profiles (`date_of_birth`, `alien_number`) store sensitive immigration data in plaintext. Only documents have storage-level encryption. For HIPAA-adjacent compliance, all PII should be encrypted at rest.
+
+### D-15: No Rate Limiting on RPC Functions (MEDIUM)
+**Files:** Various migration files
+Critical database functions like `check_and_record_2fa_attempt()`, `try_start_form_autofill()`, and `accept_firm_invitation()` have no rate limiting. An attacker could brute-force 2FA codes or flood form autofill requests.
+
+### D-16: GDPR Export Lacks Integrity Verification (MEDIUM)
+**File:** `get_user_export_data()` RPC function
+The GDPR data export includes PII but does not include a checksum or digital signature. Exported data could be tampered with after download without detection.
+
+### D-17: Missing Indices on Foreign Key Columns (LOW)
+**Files:** Various tables
+Columns like `documents.uploaded_by`, `documents.verified_by`, and `activities.user_id` lack indices, causing full table scans on JOIN queries. This will cause increasing latency as data grows.
+
+**Fix:** Add indices on all frequently-joined foreign key columns.
+
+### D-18: Missing FK ON UPDATE CASCADE (LOW)
+**File:** `supabase/migrations/022_*.sql`
+Foreign key constraints lack `ON UPDATE CASCADE`. While primary key updates are rare, this could cause integrity issues during data migrations.
+
+---
+
+## BILLING SYSTEM FINDINGS (From Billing & Frontend Analysis)
+
+### B-1: Billing Limits Mismatch Across Three Sources (HIGH)
+**Files:** `src/lib/billing/limits.ts`, `supabase/migrations/003_billing.sql`, `CLAUDE.md`
+The Free plan limits are defined in three places that are **out of sync**:
+- **Frontend** (`limits.ts`): Free plan shows 100 cases, 1000 AI requests
+- **Database seed** (`003_billing.sql`): Free plan has 3 cases, 25 AI requests
+- **CLAUDE.md**: Documents 3 cases, 25 AI requests
+
+Users see inflated limits in the UI but get blocked by actual database enforcement. This will immediately confuse and frustrate users.
+
+**Fix:** Sync `src/lib/billing/limits.ts` to match the database values (Free: 3 cases, 10 docs/case, 25 AI requests, 1 GB storage, 1 team member).
+
+### B-2: No Billing Downgrade Enforcement (HIGH)
+**Files:** `src/lib/db/subscriptions.ts`, Stripe webhook handlers
+When a user cancels their subscription, `cancel_at_period_end` is set to `true` but the subscription status remains `active`. The subscription query does not filter on `cancel_at_period_end`, meaning canceled users retain full premium access until the period ends with no feature gating or downgrade warnings.
+
+**Fix:** Add subscription status checking that accounts for `cancel_at_period_end` and gates premium features accordingly.
+
+### B-3: Team Member Quota Not Enforced (HIGH)
+**Files:** `src/lib/billing/quota.ts`, firm member API routes
+The quota counting logic for `team_members` exists in `quota.ts`, but no API route actually calls `enforceQuota` before adding team members. Free users (limit: 1 member) can add unlimited members via the API.
+
+**Fix:** Add `enforceQuota('team_members')` to the firm member addition endpoint.
+
+### B-4: Document Quota Race Condition - No DB Trigger (HIGH)
+**Files:** Database migrations, `src/app/api/documents/upload/route.ts`
+The code comments reference a `check_document_quota()` database trigger for hard enforcement, but no such trigger exists in any migration. Only "soft enforcement" (TOCTOU-vulnerable application check) is in place. Concurrent uploads can bypass the per-case document limit.
+
+**Fix:** Create the `check_document_quota()` trigger in a new migration.
+
+### B-5: Webhook Signature Error Handling Fragile (HIGH)
+**File:** `src/app/api/billing/webhooks/route.ts`
+The webhook handler checks for the string `"signature"` in error messages to detect invalid Stripe signatures. If Stripe changes its error message format, invalid webhooks could be processed as HTTP 500 instead of being rejected with 400.
+
+**Fix:** Use `instanceof` or Stripe error codes instead of string matching.
+
+### B-6: Plan Features Mismatch (MEDIUM)
+**Files:** `src/lib/billing/limits.ts`, `supabase/migrations/003_billing.sql`
+Free plan has `formAutofill: true` in the frontend but `false` in the database seed. Users will see the feature as available but get blocked when they try to use it.
+
+### B-7: Usage Tracking Silently Fails (MEDIUM)
+**File:** `src/lib/billing/usage.ts`
+`trackUsage()` catches all errors and logs warnings but never throws. Failed usage tracking goes unnoticed, meaning users could exceed quotas without detection.
+
+### B-8: Middleware Doesn't Check Subscription Status (MEDIUM)
+**File:** `src/lib/supabase/middleware.ts`
+Canceled or expired users can still access all dashboard pages. The middleware should redirect users with expired subscriptions to a billing/upgrade page.
+
+### B-9: Billing Portal URL May Be Undefined (MEDIUM)
+**File:** Stripe billing portal route
+No null check on `session.url` before returning to the client. If Stripe returns a null URL, the client receives `undefined` and the redirect fails silently.
+
+### B-10: Rate Limit Config Mismatch for Billing Endpoints (MEDIUM)
+The quota endpoint uses per-user rate limiting while checkout uses per-IP, creating inconsistent behavior. A user could be rate-limited on one endpoint but not another.
+
+### B-11: Stripe Customer Race Condition (LOW)
+Orphaned Stripe customers can be created if the user creation flow fails after customer creation but before linking. No cleanup mechanism exists.
+
+### B-12: Email Idempotency Table Bloat (LOW)
+The `email_log` table used for idempotent email sending has no TTL or cleanup. Over time, this table will grow unbounded.
+
+### B-13: No Stripe Price ID Validation at Startup (LOW)
+Stripe Price IDs are used directly without validation that they exist in the Stripe account. Misconfigured IDs fail at checkout time rather than at startup, making debugging harder.
+
+---
+
 ## LOW SEVERITY FINDINGS
 
 ### L-1: Test Coverage May Not Reach 75% Threshold
@@ -452,40 +626,95 @@ File upload size limits rely on Vercel/edge configuration. There's no applicatio
 
 ## PRIORITY FIX ORDER
 
-### Before Launch (This Week)
+### P0: Before Launch (This Week) — BLOCKERS
 
-1. **[C-1] Fix middleware** - Rename `proxy.ts` to `middleware.ts`, fix exports
-2. **[H-2] Lock down registration roles** - Default to `client`, require admin approval for `attorney`
-3. **[H-3] Fix login profile creation** - Never trust user metadata for roles
-4. **[H-5] Configure Redis** - Set up Upstash Redis for rate limiting
-5. **[H-4] Enforce email verification** - Check `email_confirmed_at` on login
-6. **[H-7] Fix npm vulnerabilities** - Run `npm audit fix`
+1. **[C-1] Fix middleware** — Rename `proxy.ts` to `middleware.ts`, fix exports. Unblocks CSRF, route protection, idle timeout, admin guards.
+2. **[D-1] Add RLS to `document_checklists`** — Any authenticated user can currently read/write any checklist. Direct cross-tenant data leak.
+3. **[D-2] Fix case RLS role verification** — Ensure attorney vs client role is checked in case access policies.
+4. **[B-1] Sync billing limits** — Frontend shows 100 cases for Free plan, DB enforces 3. Users will be confused on day one.
+5. **[H-2] Lock down registration roles** — Default to `client`, require admin approval for `attorney`.
+6. **[H-3] Fix login profile creation** — Never trust user metadata for roles.
+7. **[H-5] Configure Upstash Redis** — In-memory rate limiting is non-functional on Vercel.
+8. **[H-4] Enforce email verification** — Check `email_confirmed_at` on login.
+9. **[H-7] Fix npm vulnerabilities** — `npm audit fix` for 19 high-severity CVEs.
+10. **[D-4] Add case creation quota trigger** — Enforce plan limits at DB level, not just app level.
 
-### Before Scaling (First Month)
+### P1: Before Scaling (First 2 Weeks)
 
-7. **[H-1] Implement nonce-based CSP** - Replace `unsafe-inline`
-8. **[H-6] Fix GDPR export** - Async processing, encrypted storage
-9. **[M-5] Fix webhook replay window** - Increase to 1 hour
-10. **[M-2] Enhance PII filtering** - Add regex pattern matching
-11. **[M-10] Implement account lockout** - Progressive delays per account
-12. **[M-6] Self-host fonts** - Remove Google Fonts build dependency
+11. **[B-3] Enforce team member quota** — Add `enforceQuota('team_members')` to member addition endpoint.
+12. **[B-4] Create `check_document_quota()` trigger** — Prevent concurrent upload bypass.
+13. **[B-2] Implement downgrade enforcement** — Gate premium features for canceled subscriptions.
+14. **[D-5] Add profile email uniqueness constraint** — Prevent duplicate profiles.
+15. **[D-6] Fix soft delete cascading** — Ensure child records are soft-deleted with parents.
+16. **[D-7] Implement form data encryption** — Wire `encryptSensitiveFields()` into form writes, backfill existing data.
+17. **[H-8] Fix prompt injection** — Sanitize user input before interpolating into AI prompts.
+18. **[H-9] Centralize AI confidence thresholds** — Single config, ≥0.9 for critical immigration fields.
+19. **[H-1] Implement nonce-based CSP** — Replace `unsafe-inline`.
+20. **[A-7] Validate AI response schemas** — Add Zod validation for OpenAI/Claude JSON responses.
 
-### Ongoing Hardening
+### P2: Before General Availability (First Month)
 
-13. **[M-3] Verify advisory lock scope** - Test concurrent autofill
-14. **[M-4] Audit chat firm isolation** - Verify case access in conversations
-15. **[M-7] Audit soft delete coverage** - Verify all queries filter `deleted_at`
-16. **[M-8] Verify circuit breaker coverage** - All AI calls protected
-17. **[M-9] Remove mock virus scanner fallback** - Fail if not configured
+21. **[H-6] Fix GDPR export** — Async processing, encrypted storage, download link via email.
+22. **[M-5] Fix webhook replay window** — Increase to 1 hour or remove age check.
+23. **[M-2] Enhance PII filtering** — Add regex pattern matching for SSN, passport formats.
+24. **[M-10] Implement account lockout** — Progressive delays per email/account.
+25. **[M-6] Self-host fonts** — Remove Google Fonts build dependency.
+26. **[B-5] Fix webhook signature error handling** — Use `instanceof`/error codes instead of string matching.
+27. **[D-8] Fix document_access_log INSERT policy** — Validate `user_id = auth.uid()` in SECURITY DEFINER function.
+28. **[D-11] Add stuck form autofill cleanup** — Cron job to reset stale `autofilling` forms.
+29. **[D-14] Encrypt PII at rest** — Forms and profiles storing immigration data in plaintext.
+30. **[D-15] Rate limit RPC functions** — Protect 2FA and form autofill from brute force.
+
+### P3: Ongoing Hardening
+
+31. **[M-3] Verify advisory lock scope** — Test concurrent autofill across API and worker.
+32. **[M-4] Audit chat firm isolation** — Verify case access in conversations.
+33. **[M-7] Audit soft delete coverage** — Verify all queries filter `deleted_at`.
+34. **[M-8] Extend circuit breaker** — Cover all AI calls, not just worker processor.
+35. **[M-9] Remove mock virus scanner fallback** — Fail if not configured.
+36. **[D-17] Add missing database indices** — FK columns like `documents.uploaded_by`, `activities.user_id`.
+37. **[B-6] Fix plan features mismatch** — Sync `formAutofill` between frontend and DB.
+38. **[B-7] Make usage tracking failures visible** — Throw on tracking failure or alert.
 
 ---
 
 ## CONCLUSION
 
-The Immigration AI platform is architecturally sound with strong security fundamentals. The team has invested significantly in authorization (RLS + application-level), encryption (AES-256-GCM for PII), audit logging, and input validation.
+The Immigration AI platform is architecturally sound with strong security fundamentals. The team has invested significantly in authorization (RLS + application-level), encryption (AES-256-GCM for PII), audit logging, and input validation. The codebase is well-organized with consistent patterns across 77 API routes and 56 database migrations.
 
-**The critical blocker is C-1 (middleware not active).** This single issue cascades into multiple security failures - no CSRF protection, no route guards, no idle timeout, no admin access control. Fixing this is a 2-line change (rename file + fix export) but has the highest impact of any finding.
+### The Three Showstoppers for Launch Week
 
-After fixing C-1, the next priority is H-2/H-3 (role assignment), as these represent the most likely attack vector for a public-facing registration system. An adversary who discovers they can self-assign the `attorney` role has immediate access to all attorney-level features.
+1. **C-1 (Middleware not active)** — This single issue cascades into multiple security failures: no CSRF protection, no route guards, no idle timeout, no admin access control. Fixing this is a 2-line change (rename file + fix export) but has the highest impact of any finding.
 
-With these critical and high-severity items addressed, the platform will be production-ready for an initial cohort of immigration law firms. The medium and low severity items should be tracked in a backlog and addressed systematically over the following month.
+2. **D-1 (document_checklists missing RLS)** — Any authenticated user can read/write any checklist for any case. This is a direct cross-tenant data exposure that violates attorney-client privilege.
+
+3. **B-1 (Billing limits mismatch)** — The frontend tells Free users they have 100 cases and 1000 AI requests, but the database enforces 3 cases and 25 AI requests. First-day users will hit invisible walls.
+
+### The Attack Surface That Matters Most
+
+After C-1, the next priority is **H-2/H-3 (role assignment)**. A public registration form that lets anyone claim the `attorney` role is the most likely attack vector. Combined with **D-2 (case RLS not verifying roles)**, an attacker registering as an attorney could potentially access cases across the platform.
+
+### Database Layer Has Hidden Gaps
+
+While RLS coverage is strong overall, the audit found **6 high-severity database issues** including missing RLS on `document_checklists`, no DB-level quota enforcement, inconsistent soft-delete cascading, and form data stored in plaintext despite the encryption infrastructure being built. These gaps exist because the security features were designed at the application layer but not fully carried through to database enforcement.
+
+### Billing System Needs Synchronization
+
+The billing system has the infrastructure in place (Stripe integration, webhook handling, quota tracking) but the **limits are out of sync across three source-of-truth locations**, team member quotas aren't actually enforced, and subscription downgrades don't gate features. These issues will cause immediate user confusion and potential revenue leakage.
+
+### Production Readiness Assessment
+
+| Area | Readiness | Blocking Issues |
+|------|-----------|-----------------|
+| Authentication | 🔴 Not Ready | Middleware disabled, role escalation, no email verification |
+| Authorization | 🟡 Partial | RLS gaps in checklists, case role verification, access log policies |
+| Data Security | 🟡 Partial | Form PII in plaintext, encryption infrastructure unused |
+| Billing | 🟡 Partial | Limits mismatch, no quota enforcement, no downgrade logic |
+| AI Integration | 🟢 Mostly Ready | Prompt injection risk, confidence thresholds need centralizing |
+| API Routes | 🟢 Mostly Ready | Schema validation solid, some edge cases in streaming/jobs |
+| Audit & Compliance | 🟢 Mostly Ready | Audit logging present, GDPR export needs async processing |
+| Infrastructure | 🟢 Mostly Ready | Requires Redis, virus scanner, PDF service configured |
+
+**With the P0 items (10 fixes) addressed, the platform will be safe for a controlled launch with a small cohort of trusted law firms.** The P1 items (10 more fixes) should be completed within 2 weeks to support scaling. The remaining P2/P3 items represent defense-in-depth hardening that should be tracked in a sprint backlog.
+
+**Total findings: 72** (1 critical, 23 high, 35 medium, 13 low) across 5 audit dimensions.

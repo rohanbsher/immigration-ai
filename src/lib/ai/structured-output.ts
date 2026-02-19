@@ -28,8 +28,12 @@ export interface StructuredOutputOptions<T extends ZodType> {
   toolDescription: string;
   /** Zod schema that defines the expected response shape. */
   schema: T;
-  /** System prompt (string or array of content blocks). */
-  system: string | Anthropic.Messages.TextBlockParam[];
+  /**
+   * System prompt as content block array.  Use arrays (not strings) so
+   * callers can attach `cache_control: { type: 'ephemeral' }` for
+   * prompt caching.  Passing a plain string silently disables caching.
+   */
+  system: Anthropic.Messages.TextBlockParam[];
   /** User message content (string for text-only, or content blocks for multimodal). */
   userMessage: string | Anthropic.Messages.ContentBlockParam[];
   /** Maximum tokens for the response (default: 4096). */

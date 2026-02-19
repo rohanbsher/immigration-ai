@@ -126,10 +126,9 @@ export async function PATCH(
     if (!parsed.success) return parsed.response;
     const body = parsed.data;
 
-    let validatedTitle: string | undefined;
+    let validated;
     try {
-      const validated = updateConversationSchema.parse(body);
-      validatedTitle = validated.title;
+      validated = updateConversationSchema.parse(body);
     } catch (err) {
       if (err instanceof z.ZodError) {
         return NextResponse.json(
@@ -140,9 +139,7 @@ export async function PATCH(
       throw err;
     }
 
-    if (validatedTitle !== undefined) {
-      await updateConversationTitle(conversationId, user.id, validatedTitle);
-    }
+    await updateConversationTitle(conversationId, user.id, validated.title);
 
     const conversation = await getConversation(conversationId, user.id);
 

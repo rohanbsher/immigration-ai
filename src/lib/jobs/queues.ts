@@ -19,7 +19,9 @@ import {
   type EmailJob,
 } from './types';
 
-// Lazy-initialized queue instances
+// Lazy-initialized queue singletons, bounded by QUEUE_NAMES (max 6).
+// Shared Redis connection keeps the pool small.  Call closeAllQueues()
+// on process shutdown to release connections.
 const queues = new Map<string, Queue>();
 
 export function getOrCreateQueue<T>(name: string): Queue<T> {
@@ -170,4 +172,11 @@ export async function closeAllQueues(): Promise<void> {
   const closePromises = Array.from(queues.values()).map((q) => q.close());
   await Promise.all(closePromises);
   queues.clear();
+}
+
+// Register process-level shutdown hooks to prevent orphaned Redis connections.
+if (typeof process !== 'undefined' && typeof process.once === 'function') {
+  const onExit = () => { closeAllQueues().catch(() => {}); };
+  process.once('SIGTERM', onExit);
+  process.once('SIGINT', onExit);
 }

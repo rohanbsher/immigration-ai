@@ -42,6 +42,23 @@ function resolveTimeout(timeout?: number | TimeoutType): number {
 }
 
 /**
+ * Merge multiple AbortSignals into one. Falls back to manual
+ * event listeners on browsers without AbortSignal.any()
+ * (Chrome < 119, Firefox < 123, Safari < 17.4).
+ */
+function mergeAbortSignals(...signals: AbortSignal[]): AbortSignal {
+  if (typeof AbortSignal !== 'undefined' && typeof (AbortSignal as typeof AbortSignal & { any?: unknown }).any === 'function') {
+    return AbortSignal.any(signals);
+  }
+  const ctrl = new AbortController();
+  for (const sig of signals) {
+    if (sig.aborted) { ctrl.abort(sig.reason); return ctrl.signal; }
+    sig.addEventListener('abort', () => ctrl.abort(sig.reason), { once: true });
+  }
+  return ctrl.signal;
+}
+
+/**
  * Fetch wrapper with timeout support.
  *
  * @param url - The URL to fetch
@@ -76,7 +93,7 @@ export async function fetchWithTimeout(
 
   // Combine the timeout signal with any caller-provided signal
   const signal = options?.signal
-    ? AbortSignal.any([controller.signal, options.signal])
+    ? mergeAbortSignals(controller.signal, options.signal)
     : controller.signal;
 
   try {

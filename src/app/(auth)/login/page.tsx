@@ -9,7 +9,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Eye, EyeOff, Loader2, AlertCircle, CheckCircle2, Clock, Sparkles } from 'lucide-react';
 
 /** Login timeout in milliseconds (15 seconds) */
@@ -19,7 +18,6 @@ function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(false);
   const [oauthLoading, setOauthLoading] = useState<'google' | 'azure' | null>(null);
   const [emailTouched, setEmailTouched] = useState(false);
   const [loginTimedOut, setLoginTimedOut] = useState(false);
@@ -192,21 +190,6 @@ function LoginForm() {
                     {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                   </Button>
                 </div>
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="rememberMe"
-                  checked={rememberMe}
-                  onCheckedChange={(checked) => setRememberMe(checked === true)}
-                  disabled={isLoading}
-                />
-                <Label
-                  htmlFor="rememberMe"
-                  className="text-sm font-normal cursor-pointer text-muted-foreground"
-                >
-                  Remember me for 30 days
-                </Label>
               </div>
 
               <Button type="submit" className="w-full" disabled={isLoading || isSubmitting || (emailTouched && !isEmailValid)}>

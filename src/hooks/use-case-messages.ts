@@ -6,6 +6,9 @@ import { createClient } from '@/lib/supabase/client';
 import { fetchWithTimeout } from '@/lib/api/fetch-with-timeout';
 import { parseApiResponse } from '@/lib/api/parse-response';
 
+/** Polling interval for messages when realtime is supplementing (ms). */
+const MESSAGE_POLL_INTERVAL_MS = 30_000;
+
 interface MessageSender {
   id: string;
   first_name: string;
@@ -79,8 +82,8 @@ export function useCaseMessages(caseId: string | undefined) {
     queryKey: ['case-messages', caseId],
     queryFn: () => fetchMessages(caseId!),
     enabled: !!caseId,
-    staleTime: 30 * 1000, // 30 seconds — realtime updates supplement polling
-    refetchInterval: 30000,
+    staleTime: MESSAGE_POLL_INTERVAL_MS,
+    refetchInterval: MESSAGE_POLL_INTERVAL_MS,
     refetchIntervalInBackground: false,
   });
 
@@ -98,26 +101,11 @@ export function useCaseMessages(caseId: string | undefined) {
           table: 'case_messages',
           filter: `case_id=eq.${caseId}`,
         },
-        (payload) => {
-          // Optimistically add the new message to the cache
-          queryClient.setQueryData<MessagesResponse>(
-            ['case-messages', caseId],
-            (oldData) => {
-              if (!oldData) return oldData;
-
-              // Check if message already exists (to avoid duplicates)
-              const exists = oldData.data.some((msg) => msg.id === payload.new.id);
-              if (exists) return oldData;
-
-              return {
-                ...oldData,
-                data: [...oldData.data, payload.new as CaseMessage],
-                total: oldData.total + 1,
-              };
-            }
-          );
-
-          // Refetch to get full message with sender info
+        () => {
+          // Invalidate to refetch with full sender info.
+          // We don't optimistically add the raw payload because it lacks
+          // sender/attachment data and would be immediately overwritten
+          // by the refetch, causing a visual flicker.
           queryClient.invalidateQueries({ queryKey: ['case-messages', caseId] });
         }
       )

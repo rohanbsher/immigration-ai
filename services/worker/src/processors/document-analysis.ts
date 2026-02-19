@@ -22,7 +22,8 @@ import { getWorkerSupabase } from '../supabase';
 import { trackUsage } from '../track-usage';
 
 const MIN_CONFIDENCE_THRESHOLD = 0.5;
-const SIGNED_URL_EXPIRY = 600; // 10 minutes
+/** Signed URL lifetime in seconds (Supabase storage API expects seconds). */
+const SIGNED_URL_EXPIRY_SECONDS = 600;
 
 /**
  * Select the appropriate circuit breaker based on the configured provider.
@@ -61,7 +62,7 @@ export async function processDocumentAnalysis(
   // 1. Generate a signed URL for the document
   const { data: signedUrlData, error: signedUrlError } = await supabase.storage
     .from('documents')
-    .createSignedUrl(storagePath, SIGNED_URL_EXPIRY);
+    .createSignedUrl(storagePath, SIGNED_URL_EXPIRY_SECONDS);
 
   if (signedUrlError || !signedUrlData) {
     throw new Error(`Failed to generate signed URL for document ${documentId}: ${signedUrlError?.message}`);

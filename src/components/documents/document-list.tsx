@@ -54,6 +54,7 @@ const typeLabels: Record<DocumentType, string> = {
   diploma: 'Diploma',
   transcript: 'Transcript',
   recommendation_letter: 'Recommendation Letter',
+  utility_bill: 'Utility Bill',
   other: 'Other',
 };
 

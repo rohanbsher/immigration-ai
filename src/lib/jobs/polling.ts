@@ -55,6 +55,8 @@ export function startJobPolling(
 
       if (status.progress !== undefined) {
         callbacks.onProgress?.(status.progress);
+        // Reset backoff when the job reports progress (actively working)
+        currentInterval = INITIAL_INTERVAL_MS;
       }
 
       if (status.status === 'completed') {

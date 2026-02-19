@@ -71,23 +71,10 @@ const fakeUser = { id: 'user-1', email: 'test@example.com' };
 const fakeSession = { user: fakeUser, access_token: 'token-123' };
 
 describe('useAuth', () => {
-  const originalConsoleError = console.error;
-
   beforeEach(() => {
     vi.clearAllMocks();
     authChangeCallback = null;
     mockGetSession.mockResolvedValue({ data: { session: null }, error: null });
-
-    // Suppress act() warnings that flood stderr and cause OOM in vitest forks
-    console.error = (...args: unknown[]) => {
-      const msg = typeof args[0] === 'string' ? args[0] : '';
-      if (msg.includes('not wrapped in act')) return;
-      originalConsoleError(...args);
-    };
-  });
-
-  afterEach(() => {
-    console.error = originalConsoleError;
   });
 
   test('initial state has isLoading true and user null', () => {

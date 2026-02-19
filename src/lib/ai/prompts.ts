@@ -62,6 +62,16 @@ Required fields:
 - mother_name: Mother's full name (maiden name if shown)
 - certificate_number: Registration/certificate number
 - registration_date: Date certificate was registered (YYYY-MM-DD)
+- father_date_of_birth: Father's date of birth if shown (YYYY-MM-DD), or null
+- father_place_of_birth: Father's place of birth if shown, or null
+- father_nationality: Father's nationality/citizenship if shown, or null
+- mother_date_of_birth: Mother's date of birth if shown (YYYY-MM-DD), or null
+- mother_place_of_birth: Mother's place of birth if shown, or null
+- mother_maiden_name: Mother's maiden name if shown separately from mother_name, or null
+- birth_city: City of birth
+- birth_state: State/province of birth
+- birth_country: Country of birth
+- registration_number: Registration number if shown separately from certificate_number, or null
 
 For each field, provide:
 - value: The extracted value or null if not found
@@ -85,6 +95,11 @@ Required fields:
 - place_of_marriage: City, state/province, country
 - certificate_number: Registration/certificate number
 - officiant_name: Name of the officiant/registrar
+- marriage_city: City where the marriage took place
+- marriage_state: State/province where the marriage took place
+- marriage_country: Country where the marriage took place
+- spouse_1_date_of_birth: First spouse's date of birth if shown (YYYY-MM-DD), or null
+- spouse_2_date_of_birth: Second spouse's date of birth if shown (YYYY-MM-DD), or null
 
 For each field, provide:
 - value: The extracted value or null if not found
@@ -159,6 +174,11 @@ Required fields:
 - tax_paid: Total tax paid with currency
 - ssn_last_four: Last 4 digits of SSN only (for privacy)
 - address: Address shown on the return
+- filing_address_street: Street address from the return
+- filing_address_city: City from the filing address
+- filing_address_state: State from the filing address
+- filing_address_zip: ZIP code from the filing address
+- self_employment_income: Schedule C net profit if present, or null
 
 For each field, provide:
 - value: The extracted value or null if not found
@@ -245,6 +265,35 @@ For each field, provide:
 Respond with a JSON object in this format:
 {
   "document_type": "divorce_certificate",
+  "extracted_fields": [...],
+  "overall_confidence": 0.85,
+  "warnings": []
+}`;
+
+export const UTILITY_BILL_EXTRACTION_PROMPT = `Analyze this utility bill, lease agreement, or proof of residence and extract the following information:
+
+Required fields:
+- account_holder_name: Full name of the account holder or lessee
+- service_address_street: Street address where service is provided
+- service_address_apt: Apartment/unit number if any
+- service_address_city: City
+- service_address_state: State
+- service_address_zip: ZIP code
+- service_address_country: Country (default "United States" if not shown)
+- bill_date: Date of the bill or lease start date (YYYY-MM-DD)
+- service_start_date: When service started at this address, if shown (YYYY-MM-DD)
+- service_end_date: When service ended at this address, if shown (YYYY-MM-DD), or null if current
+- document_subtype: Type of document — "utility_bill", "lease", "mortgage_statement", "bank_statement_with_address"
+- utility_provider: Name of utility company or landlord
+
+For each field, provide:
+- value: The extracted value or null if not found
+- confidence: A score from 0 to 1
+- requires_verification: true if the value is unclear or uncertain
+
+Respond with a JSON object in this format:
+{
+  "document_type": "utility_bill",
   "extracted_fields": [...],
   "overall_confidence": 0.85,
   "warnings": []
@@ -471,6 +520,9 @@ Required fields:
 - passport_number: Passport number associated with this record
 - country_of_citizenship: Country of citizenship
 - date_of_birth: Format as YYYY-MM-DD
+- travel_document_number: Travel document number if different from passport number, or null
+- gender: Gender as shown on the I-94 (M or F), or null
+- prior_entries: Summary of prior U.S. entries if travel history is shown (e.g., "3 prior entries, most recent: 2024-01-15 via JFK"), or null
 
 For each field, provide:
 - value: The extracted value or null if not found
@@ -503,6 +555,12 @@ Required fields:
 - state_wages: State wages, tips, etc. (Box 16)
 - state_tax_withheld: State income tax (Box 17)
 - tax_year: Tax year for this W-2
+- employment_start_date: Approximate employment start date if determinable (YYYY-MM-DD), or null
+- employment_end_date: Approximate employment end date (YYYY-MM-DD), or "present" if current
+- employer_city: City from employer address (Box c)
+- employer_state: State from employer address (Box c)
+- employer_zip: ZIP code from employer address (Box c)
+- employer_country: Country of employer (default "United States" if not shown)
 
 For each field, provide:
 - value: The extracted value or null if not found
@@ -561,6 +619,8 @@ Required fields:
 - institution_country: Country where the institution is located
 - accreditation: Accreditation body if mentioned, or null
 - diploma_number: Certificate or diploma number if shown
+- institution_city: City where the institution is located
+- institution_state: State/province where the institution is located
 
 For each field, provide:
 - value: The extracted value or null if not found
@@ -589,6 +649,11 @@ Required fields:
 - total_credits: Total credits earned
 - degree_status: Conferred, In Progress, or Withdrawn
 - courses: Summary of key courses (list up to 10 relevant courses with grades)
+- institution_city: City where the institution is located
+- institution_state: State/province where the institution is located
+- institution_country: Country where the institution is located (if not already captured above)
+- enrollment_start_date: Date enrollment began (YYYY-MM-DD), or null
+- enrollment_end_date: Date enrollment ended or expected to end (YYYY-MM-DD), or null
 
 For each field, provide:
 - value: The extracted value or null if not found
@@ -678,6 +743,7 @@ export function getExtractionPrompt(documentType: string): string {
     transcript: TRANSCRIPT_EXTRACTION_PROMPT,
     recommendation_letter: RECOMMENDATION_LETTER_EXTRACTION_PROMPT,
     photo: PHOTO_VALIDATION_PROMPT,
+    utility_bill: UTILITY_BILL_EXTRACTION_PROMPT,
   };
 
   return prompts[documentType] || GENERIC_DOCUMENT_EXTRACTION_PROMPT;

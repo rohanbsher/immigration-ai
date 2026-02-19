@@ -853,21 +853,23 @@ describe('Admin API Routes', () => {
     });
 
     it('calculates MRR from active Stripe subscriptions (monthly)', async () => {
+      const subItems = [
+        {
+          items: {
+            data: [{ price: { unit_amount: 4900, recurring: { interval: 'month' } } }],
+          },
+        },
+        {
+          items: {
+            data: [{ price: { unit_amount: 14900, recurring: { interval: 'month' } } }],
+          },
+        },
+      ];
       const mockStripe = {
         subscriptions: {
-          list: vi.fn().mockResolvedValue({
-            data: [
-              {
-                items: {
-                  data: [{ price: { unit_amount: 4900, recurring: { interval: 'month' } } }],
-                },
-              },
-              {
-                items: {
-                  data: [{ price: { unit_amount: 14900, recurring: { interval: 'month' } } }],
-                },
-              },
-            ],
+          list: vi.fn().mockReturnValue({
+            data: subItems,
+            async *[Symbol.asyncIterator]() { for (const s of subItems) yield s; },
           }),
         },
       };
@@ -920,16 +922,18 @@ describe('Admin API Routes', () => {
     });
 
     it('normalizes yearly subscriptions to monthly MRR', async () => {
+      const subItems = [
+        {
+          items: {
+            data: [{ price: { unit_amount: 47000, recurring: { interval: 'year' } } }],
+          },
+        },
+      ];
       const mockStripe = {
         subscriptions: {
-          list: vi.fn().mockResolvedValue({
-            data: [
-              {
-                items: {
-                  data: [{ price: { unit_amount: 47000, recurring: { interval: 'year' } } }],
-                },
-              },
-            ],
+          list: vi.fn().mockReturnValue({
+            data: subItems,
+            async *[Symbol.asyncIterator]() { for (const s of subItems) yield s; },
           }),
         },
       };
@@ -984,7 +988,9 @@ describe('Admin API Routes', () => {
     it('returns mrr: 0 when Stripe call fails (graceful degradation)', async () => {
       const mockStripe = {
         subscriptions: {
-          list: vi.fn().mockRejectedValue(new Error('Stripe API error')),
+          list: vi.fn().mockReturnValue({
+            async *[Symbol.asyncIterator]() { throw new Error('Stripe API error'); },
+          }),
         },
       };
       vi.mocked(getStripeClient).mockReturnValue(mockStripe as never);

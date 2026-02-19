@@ -807,3 +807,216 @@ describe('Rate Limit Module', () => {
     });
   });
 });
+
+// ─── Redis-enabled module tests (resetModules) ─────────────────
+
+describe('Rate Limit Module (Redis enabled)', () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  function setupMocks(options: {
+    redisRateLimiting: boolean;
+    isProduction: boolean;
+    redisClient: unknown;
+    limitFn?: ReturnType<typeof vi.fn>;
+    warnFn?: ReturnType<typeof vi.fn>;
+  }) {
+    const warnFn = options.warnFn ?? vi.fn();
+    vi.doMock('@/lib/logger', () => ({
+      createLogger: () => ({
+        info: vi.fn(),
+        warn: warnFn,
+        error: vi.fn(),
+        debug: vi.fn(),
+      }),
+    }));
+
+    vi.doMock('@/lib/utils/get-client-ip', () => ({
+      getClientIp: vi.fn().mockReturnValue('1.2.3.4'),
+    }));
+
+    vi.doMock('@/lib/config', () => ({
+      features: {
+        redisRateLimiting: options.redisRateLimiting,
+        isProduction: options.isProduction,
+      },
+      serverEnv: {},
+      env: {},
+    }));
+
+    vi.doMock('@/lib/redis', () => ({
+      getRedisClient: vi.fn().mockReturnValue(options.redisClient),
+    }));
+
+    const limitFn = options.limitFn ?? vi.fn().mockResolvedValue({
+      success: true,
+      limit: 10,
+      remaining: 9,
+      reset: Date.now() + 60000,
+      pending: Promise.resolve(),
+    });
+
+    // Ratelimit is used as `new Ratelimit(...)` and has a static `slidingWindow` method.
+    // Use a real class so `new` works correctly.
+    class MockRatelimit {
+      limit = limitFn;
+      constructor() {
+        // no-op
+      }
+      static slidingWindow = vi.fn().mockReturnValue({ type: 'slidingWindow' });
+    }
+
+    vi.doMock('@upstash/ratelimit', () => ({
+      Ratelimit: MockRatelimit,
+    }));
+
+    return { warnFn, limitFn };
+  }
+
+  it('uses Upstash when Redis is configured and available', async () => {
+    const { limitFn } = setupMocks({
+      redisRateLimiting: true,
+      isProduction: false,
+      redisClient: { get: vi.fn(), set: vi.fn() },
+    });
+
+    const mod = await import('./index');
+    const limiter = mod.createRateLimiter({
+      maxRequests: 10,
+      windowMs: 60000,
+      keyPrefix: 'redis-test',
+    });
+    const req = new NextRequest(new URL('http://localhost:3000/api/test'), {
+      method: 'GET',
+    });
+
+    const result = await limiter.check(req);
+
+    expect(result.success).toBe(true);
+    expect(limitFn).toHaveBeenCalled();
+  });
+
+  it('falls back to in-memory on Redis error', async () => {
+    const { limitFn } = setupMocks({
+      redisRateLimiting: true,
+      isProduction: false,
+      redisClient: { get: vi.fn(), set: vi.fn() },
+      limitFn: vi.fn().mockRejectedValue(new Error('Redis connection failed')),
+    });
+
+    const mod = await import('./index');
+    const limiter = mod.createRateLimiter({
+      maxRequests: 5,
+      windowMs: 60000,
+      keyPrefix: 'redis-err',
+    });
+    const req = new NextRequest(new URL('http://localhost:3000/api/test'), {
+      method: 'GET',
+    });
+
+    const result = await limiter.check(req);
+
+    expect(limitFn).toHaveBeenCalled();
+    // Falls back to in-memory, which succeeds
+    expect(result.success).toBe(true);
+    expect(result.remaining).toBe(4);
+  });
+
+  it('logs production degraded warning at startup when Redis is missing', async () => {
+    const { warnFn } = setupMocks({
+      redisRateLimiting: false,
+      isProduction: true,
+      redisClient: null,
+      warnFn: vi.fn(),
+    });
+
+    await import('./index');
+
+    expect(warnFn).toHaveBeenCalledWith(
+      expect.stringContaining('Rate limiting is DEGRADED')
+    );
+  });
+
+  it('rateLimit() uses Upstash when Redis is available', async () => {
+    const { limitFn } = setupMocks({
+      redisRateLimiting: true,
+      isProduction: false,
+      redisClient: { get: vi.fn(), set: vi.fn() },
+    });
+
+    const mod = await import('./index');
+    const result = await mod.rateLimit(
+      { maxRequests: 10, windowMs: 60000, keyPrefix: 'rl-redis' },
+      'test-id'
+    );
+
+    expect(result.success).toBe(true);
+    expect(limitFn).toHaveBeenCalled();
+  });
+
+  it('rateLimit() falls back to in-memory on Redis error', async () => {
+    const { limitFn } = setupMocks({
+      redisRateLimiting: true,
+      isProduction: false,
+      redisClient: { get: vi.fn(), set: vi.fn() },
+      limitFn: vi.fn().mockRejectedValue(new Error('Redis down')),
+    });
+
+    const mod = await import('./index');
+    const result = await mod.rateLimit(
+      { maxRequests: 5, windowMs: 60000, keyPrefix: 'rl-fallback' },
+      'test-id'
+    );
+
+    expect(limitFn).toHaveBeenCalled();
+    expect(result.success).toBe(true);
+  });
+
+  it('isRedisRateLimitingEnabled returns true when Redis is configured', async () => {
+    setupMocks({
+      redisRateLimiting: true,
+      isProduction: false,
+      redisClient: { get: vi.fn(), set: vi.fn() },
+    });
+
+    const mod = await import('./index');
+    expect(mod.isRedisRateLimitingEnabled()).toBe(true);
+  });
+
+  it('check() logs missing-Redis warning once in production', async () => {
+    const warnFn = vi.fn();
+    setupMocks({
+      redisRateLimiting: false,
+      isProduction: true,
+      redisClient: null,
+      warnFn,
+    });
+
+    const mod = await import('./index');
+    const limiter = mod.createRateLimiter({
+      maxRequests: 5,
+      windowMs: 60000,
+      keyPrefix: 'prod-warn',
+    });
+    const req = new NextRequest(new URL('http://localhost:3000/api/test'), {
+      method: 'GET',
+    });
+
+    // The module-level startup warning is one call; the check() warning is another
+    const initialWarnCount = warnFn.mock.calls.length;
+    await limiter.check(req);
+    const afterFirstCheck = warnFn.mock.calls.length;
+    await limiter.check(req);
+    const afterSecondCheck = warnFn.mock.calls.length;
+
+    // Should warn at most once from check() (hasWarnedAboutMissingRedis)
+    expect(afterFirstCheck - initialWarnCount).toBeLessThanOrEqual(1);
+    expect(afterSecondCheck).toBe(afterFirstCheck);
+  });
+});

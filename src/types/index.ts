@@ -51,6 +51,7 @@ export type DocumentType =
   | 'diploma'
   | 'transcript'
   | 'recommendation_letter'
+  | 'utility_bill'
   | 'other';
 
 export type DocumentStatus =
@@ -105,5 +106,45 @@ export interface CaseAccessResult {
   hasAccess: boolean;
   /** The case owner's attorney ID, useful for quota checks */
   attorneyId?: string;
+}
+
+// Repeatable Section Types (USCIS Forms)
+
+/** Entry in a 5-year address history (repeatable section on USCIS forms). */
+export interface AddressHistoryEntry {
+  street: string;
+  apt?: string;
+  city: string;
+  state: string;
+  zip: string;
+  country: string;
+  from_date: string;   // YYYY-MM format
+  to_date: string;     // YYYY-MM or "present"
+}
+
+/** Entry in employment history (repeatable section on USCIS forms). */
+export interface EmploymentHistoryEntry {
+  employer_name: string;
+  employer_address?: string;
+  employer_city?: string;
+  employer_state?: string;
+  employer_zip?: string;
+  employer_country?: string;
+  job_title: string;
+  from_date: string;   // YYYY-MM format
+  to_date: string;     // YYYY-MM or "present"
+  duties?: string;
+}
+
+/** Entry in education history. */
+export interface EducationHistoryEntry {
+  institution_name: string;
+  institution_city?: string;
+  institution_state?: string;
+  institution_country?: string;
+  degree_type: string;
+  field_of_study: string;
+  graduation_date: string;  // YYYY-MM format
+  gpa?: string;
 }
 

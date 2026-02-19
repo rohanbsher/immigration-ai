@@ -79,11 +79,9 @@ export async function GET(request: NextRequest) {
     const stripe = getStripeClient();
     if (stripe) {
       try {
-        // Fetch subscriptions in a single bounded page to avoid Vercel timeout.
+        // Auto-paginate through ALL active subscriptions.
         // At scale, this should be replaced with a cached MRR value updated via webhooks.
-        const MAX_SUBS = 100;
-        const subs = await stripe.subscriptions.list({ status: 'active', limit: MAX_SUBS });
-        for (const sub of subs.data) {
+        for await (const sub of stripe.subscriptions.list({ status: 'active', limit: 100 })) {
           const item = sub.items.data[0];
           if (!item?.price?.unit_amount) continue;
           const interval = item.price.recurring?.interval;

@@ -2,14 +2,6 @@ import { describe, test, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { ConfidenceIndicator, ConfidenceBar } from './confidence-indicator';
 
-vi.mock('@/lib/ai/utils', () => ({
-  getConfidenceLevel: (confidence: number) => {
-    if (confidence >= 0.9) return 'high';
-    if (confidence >= 0.7) return 'medium';
-    return 'low';
-  },
-}));
-
 describe('ConfidenceIndicator', () => {
   beforeEach(() => {
     vi.clearAllMocks();

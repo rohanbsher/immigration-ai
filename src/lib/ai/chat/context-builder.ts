@@ -107,19 +107,21 @@ export async function buildCaseContext(caseId: string, userId: string): Promise<
   }> | null;
   const clientData = clientArr?.[0];
 
-  // Fetch recent documents
+  // Fetch recent documents (exclude soft-deleted)
   const { data: documents } = await supabase
     .from('documents')
     .select('id, file_name, document_type, created_at')
     .eq('case_id', caseId)
+    .is('deleted_at', null)
     .order('created_at', { ascending: false })
     .limit(5);
 
-  // Fetch recent forms
+  // Fetch recent forms (exclude soft-deleted)
   const { data: forms } = await supabase
     .from('forms')
     .select('id, form_type, status')
     .eq('case_id', caseId)
+    .is('deleted_at', null)
     .order('updated_at', { ascending: false })
     .limit(5);
 

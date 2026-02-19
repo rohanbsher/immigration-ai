@@ -55,15 +55,13 @@ function LoginForm() {
 
     try {
       await signIn({ email, password, returnUrl: returnUrl || undefined });
-      // Mark completed only AFTER signIn resolves — keeps the timeout
-      // guard active for the entire async operation (navigator.locks deadlock, etc.)
       completedRef.current = true;
-      clearTimeout(timeoutId);
     } catch (err) {
       completedRef.current = true;
-      clearTimeout(timeoutId);
       setIsSubmitting(false);
       setLoginError(err instanceof Error ? err.message : 'Login failed');
+    } finally {
+      clearTimeout(timeoutId);
     }
   };
 

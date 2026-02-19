@@ -79,21 +79,14 @@ export async function GET(request: NextRequest) {
     const stripe = getStripeClient();
     if (stripe) {
       try {
-        // MVP: Stripe list caps at 100 per page. For >100 active subscriptions,
-        // switch to stripe.subscriptions.list().autoPagingEach() or cursor-based pagination.
-        const activeSubscriptions = await stripe.subscriptions.list({
-          status: 'active',
-          limit: 100,
-        });
-        // unit_amount is in cents — keep mrr in cents to match
-        // the dashboard display which divides by 100: `(stats?.mrr || 0) / 100`
-        mrr = activeSubscriptions.data.reduce((sum, sub) => {
+        // Auto-paginate through all active subscriptions (no 100-item cap)
+        for await (const sub of stripe.subscriptions.list({ status: 'active' })) {
           const item = sub.items.data[0];
-          if (!item?.price?.unit_amount) return sum;
+          if (!item?.price?.unit_amount) continue;
           const interval = item.price.recurring?.interval;
           const amount = item.price.unit_amount;
-          return sum + (interval === 'year' ? Math.round(amount / 12) : amount);
-        }, 0);
+          mrr += interval === 'year' ? Math.round(amount / 12) : amount;
+        }
       } catch (error) {
         log.logError('Failed to calculate MRR from Stripe', error);
       }

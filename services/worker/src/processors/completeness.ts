@@ -9,6 +9,7 @@ import { Job } from 'bullmq';
 import type { CompletenessJob } from '@/lib/jobs/types';
 import { analyzeDocumentCompleteness } from '@/lib/ai/document-completeness';
 import { getWorkerSupabase } from '../supabase';
+import { trackUsage } from '../track-usage';
 
 export async function processCompleteness(
   job: Job<CompletenessJob>
@@ -39,6 +40,8 @@ export async function processCompleteness(
   if (updateError) {
     throw new Error(`Failed to store completeness for case ${caseId}: ${updateError.message}`);
   }
+
+  trackUsage(job.data.userId, 'ai_requests').catch(() => {});
 
   await job.updateProgress(100);
 

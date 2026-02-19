@@ -9,6 +9,7 @@ import { Job } from 'bullmq';
 import type { SuccessScoreJob } from '@/lib/jobs/types';
 import { calculateSuccessScore } from '@/lib/scoring/success-probability';
 import { getWorkerSupabase } from '../supabase';
+import { trackUsage } from '../track-usage';
 
 export async function processSuccessScore(
   job: Job<SuccessScoreJob>
@@ -39,6 +40,8 @@ export async function processSuccessScore(
   if (updateError) {
     throw new Error(`Failed to store success score for case ${caseId}: ${updateError.message}`);
   }
+
+  trackUsage(job.data.userId, 'ai_requests').catch(() => {});
 
   await job.updateProgress(100);
 

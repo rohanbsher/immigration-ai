@@ -6,10 +6,19 @@ import { withSentryConfig } from "@sentry/nextjs";
  * These headers protect against common web vulnerabilities.
  */
 const securityHeaders = [
+  // HSTS only in production (prevents localhost HTTPS enforcement in dev)
+  ...(process.env.NODE_ENV === "production"
+    ? [
+        {
+          key: "Strict-Transport-Security",
+          value: "max-age=63072000; includeSubDomains; preload",
+        },
+      ]
+    : []),
   {
-    // Strict Transport Security - enforce HTTPS
-    key: "Strict-Transport-Security",
-    value: "max-age=31536000; includeSubDomains; preload",
+    // Enable DNS prefetching for performance
+    key: "X-DNS-Prefetch-Control",
+    value: "on",
   },
   {
     // Prevent MIME type sniffing

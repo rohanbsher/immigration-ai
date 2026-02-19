@@ -119,10 +119,25 @@ async function main(): Promise<void> {
     { name: QUEUE_NAMES.EMAIL, processor: processEmail },
   ];
 
+  // Lock/stalled settings: AI jobs can take up to 2 minutes (job timeout),
+  // so lockDuration must exceed that to prevent BullMQ from marking them stalled.
+  const AI_WORKER_OPTS = {
+    lockDuration: 150_000, // 2.5 min (exceeds 2-min job timeout)
+    stalledInterval: 120_000,
+    maxStalledCount: 1,
+  };
+  const EMAIL_WORKER_OPTS = {
+    lockDuration: 30_000,
+    stalledInterval: 30_000,
+    maxStalledCount: 2,
+  };
+
   for (const def of workerDefs) {
+    const isEmail = def.name === QUEUE_NAMES.EMAIL;
     const worker = new Worker(def.name, def.processor, {
       connection,
       concurrency,
+      ...(isEmail ? EMAIL_WORKER_OPTS : AI_WORKER_OPTS),
     });
 
     worker.on('completed', (job) => {

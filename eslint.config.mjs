@@ -29,6 +29,13 @@ const eslintConfig = defineConfig([
       "react-hooks/rules-of-hooks": "off",
     },
   },
+  // Sentry config files use require() for instrumentation
+  {
+    files: ["sentry.*.config.ts"],
+    rules: {
+      "@typescript-eslint/no-require-imports": "off",
+    },
+  },
 ]);
 
 export default eslintConfig;

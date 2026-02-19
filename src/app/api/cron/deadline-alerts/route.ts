@@ -36,11 +36,17 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }
 
     // Verify cron secret (for security) - using timing-safe comparison
+    // Supports both: Authorization: Bearer <secret> and x-vercel-cron-secret header
     const authHeader = request.headers.get('authorization');
-    const expectedAuth = `Bearer ${serverEnv.CRON_SECRET}`;
+    const vercelCronHeader = request.headers.get('x-vercel-cron-secret');
+    const expectedSecret = serverEnv.CRON_SECRET ?? '';
+    const expectedAuth = `Bearer ${expectedSecret}`;
 
-    // Always verify authorization with timing-safe comparison
-    if (!authHeader || !safeCompare(authHeader, expectedAuth)) {
+    const isAuthorized =
+      (authHeader && safeCompare(authHeader, expectedAuth)) ||
+      (vercelCronHeader && safeCompare(vercelCronHeader, expectedSecret));
+
+    if (!isAuthorized) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }

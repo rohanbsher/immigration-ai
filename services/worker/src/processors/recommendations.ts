@@ -12,6 +12,7 @@ import { analyzeDocumentCompleteness } from '@/lib/ai/document-completeness';
 import { withAIFallback } from '@/lib/ai/utils';
 import { anthropicBreaker } from '@/lib/ai/circuit-breaker';
 import { getWorkerSupabase } from '../supabase';
+import { trackUsage } from '../track-usage';
 
 interface Recommendation {
   id: string;
@@ -154,6 +155,11 @@ export async function processRecommendations(
 
   if (updateError) {
     throw new Error(`Failed to store recommendations for case ${caseId}: ${updateError.message}`);
+  }
+
+  // Only track usage when AI was actually used (not fallback)
+  if (source === 'ai') {
+    trackUsage(job.data.userId, 'ai_requests').catch(() => {});
   }
 
   await job.updateProgress(100);

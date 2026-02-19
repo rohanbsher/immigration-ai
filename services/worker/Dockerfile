@@ -5,11 +5,12 @@ WORKDIR /app
 # Copy worker package files and install dependencies
 COPY services/worker/package.json services/worker/package-lock.json* services/worker/
 WORKDIR /app/services/worker
-RUN npm install
+RUN npm install --legacy-peer-deps
 
 # Copy shared library code (used via @/lib/* path alias)
 WORKDIR /app
 COPY src/lib/ src/lib/
+COPY src/types/ src/types/
 
 # Copy worker source
 COPY services/worker/src/ services/worker/src/

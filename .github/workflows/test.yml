@@ -107,6 +107,25 @@ jobs:
           CRON_SECRET: ${{ secrets.CRON_SECRET || 'placeholder-cron-secret' }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY || 'sk-placeholder' }}
 
+  build-worker:
+    runs-on: ubuntu-latest
+    needs: [test]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+
+      - name: Install worker dependencies
+        run: cd services/worker && npm ci
+
+      - name: Build worker
+        run: cd services/worker && npm run build
+
   e2e:
     runs-on: ubuntu-latest
     needs: [build, security, secrets-scan]

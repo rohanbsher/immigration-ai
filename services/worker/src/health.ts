@@ -20,18 +20,17 @@ export function startHealthServer(queues: Queue[]): void {
   const app = express();
 
   // -------------------------------------------------------------------------
-  // Bull Board dashboard
+  // Bull Board dashboard — only mounted when password is configured
   // -------------------------------------------------------------------------
-  const serverAdapter = new ExpressAdapter();
-  serverAdapter.setBasePath('/admin/queues');
-
-  createBullBoard({
-    queues: queues.map((q) => new BullMQAdapter(q)),
-    serverAdapter,
-  });
-
-  // Auth middleware for Bull Board dashboard
   if (workerConfig.BULL_BOARD_PASSWORD) {
+    const serverAdapter = new ExpressAdapter();
+    serverAdapter.setBasePath('/admin/queues');
+
+    createBullBoard({
+      queues: queues.map((q) => new BullMQAdapter(q)),
+      serverAdapter,
+    });
+
     app.use('/admin/queues', (req: Request, res: Response, next: NextFunction) => {
       const authHeader = req.headers.authorization;
       if (!authHeader || !authHeader.startsWith('Basic ')) {
@@ -53,14 +52,14 @@ export function startHealthServer(queues: Queue[]): void {
 
       next();
     });
-  } else if (process.env.NODE_ENV === 'production') {
-    // In production, deny access entirely when no password is configured
+
+    app.use('/admin/queues', serverAdapter.getRouter());
+  } else {
+    console.warn('BULL_BOARD_PASSWORD not set — dashboard will not be mounted.');
     app.use('/admin/queues', (_req: Request, res: Response) => {
-      res.status(403).send('Bull Board is disabled. Set BULL_BOARD_PASSWORD to enable.');
+      res.status(404).send('Bull Board is disabled. Set BULL_BOARD_PASSWORD to enable.');
     });
   }
-
-  app.use('/admin/queues', serverAdapter.getRouter());
 
   // -------------------------------------------------------------------------
   // Health endpoint

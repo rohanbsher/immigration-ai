@@ -44,18 +44,6 @@ export default function FormDetailPage({ params }: { params: Promise<{ id: strin
   const [hasChanges, setHasChanges] = useState(false);
   const [activeTab, setActiveTab] = useState('edit');
 
-  // Compute autofill gaps: which documents could fill empty fields.
-  // Must be above early returns to satisfy Rules of Hooks.
-  const autofillGaps = useMemo(() => {
-    if (!form || form.status === 'draft') return [];
-
-    const filledFieldIds = Object.entries(formValues)
-      .filter(([, v]) => v !== undefined && v !== '' && v !== null)
-      .map(([k]) => k);
-
-    return getAutofillGaps(form.form_type, filledFieldIds, []);
-  }, [form, formValues]);
-
   useEffect(() => {
     if (form?.form_data && !isInitialized) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional sync from server data

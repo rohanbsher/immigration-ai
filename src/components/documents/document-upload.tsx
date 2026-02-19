@@ -58,6 +58,7 @@ export function DocumentUpload({ caseId, onSuccess }: DocumentUploadProps) {
   const {
     hasConsented: hasAiConsent,
     showConsentModal,
+    consentError,
     grantConsent,
     openConsentDialog,
     closeConsentDialog,
@@ -207,6 +208,7 @@ export function DocumentUpload({ caseId, onSuccess }: DocumentUploadProps) {
         open={showConsentModal}
         onConsent={handleConsentGranted}
         onCancel={closeConsentDialog}
+        error={consentError}
       />
 
       {/* Quota Warning Banner */}

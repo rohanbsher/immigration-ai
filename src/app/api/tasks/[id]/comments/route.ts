@@ -1,5 +1,4 @@
 import { tasksService } from '@/lib/db';
-import { createClient } from '@/lib/supabase/server';
 import { z } from 'zod';
 import { createLogger } from '@/lib/logger';
 import { withAuth, errorResponse, successResponse, safeParseBody } from '@/lib/auth/api-helpers';
@@ -32,17 +31,8 @@ export const GET = withAuth(async (_request, context, auth) => {
       task.created_by === auth.user.id ||
       task.assigned_to === auth.user.id;
 
-    if (!canView) {
-      const supabase = await createClient();
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', auth.user.id)
-        .single();
-
-      if (profile?.role !== 'admin') {
-        return errorResponse('Forbidden', 403);
-      }
+    if (!canView && auth.profile.role !== 'admin') {
+      return errorResponse('Forbidden', 403);
     }
 
     const comments = await tasksService.getComments(id);

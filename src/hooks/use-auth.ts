@@ -114,9 +114,11 @@ export function useAuth() {
       }>(response);
 
       if (result.requiresConfirmation) {
+        setState(prev => ({ ...prev, isLoading: false }));
         return { requiresConfirmation: true, message: result.message };
       }
 
+      setState(prev => ({ ...prev, isLoading: false }));
       router.push('/dashboard');
       router.refresh();
       return { success: true };
@@ -143,6 +145,10 @@ export function useAuth() {
       });
 
       await parseApiResponse(response);
+
+      // Reset loading before redirect — onAuthStateChange may not fire for
+      // custom API login, leaving isLoading stuck true if redirect is slow.
+      setState(prev => ({ ...prev, isLoading: false }));
 
       // Redirect to returnUrl if provided, otherwise dashboard
       const redirectTo = data.returnUrl || '/dashboard';
@@ -188,6 +194,7 @@ export function useAuth() {
       });
       await parseApiVoidResponse(response);
 
+      setState(prev => ({ ...prev, isLoading: false }));
       router.push('/login');
       router.refresh();
     } catch (error) {

@@ -48,6 +48,7 @@ export function ChatPanel({ className }: ChatPanelProps) {
   const {
     hasConsented,
     showConsentModal,
+    consentError,
     grantConsent,
     openConsentDialog,
     closeConsentDialog,
@@ -146,6 +147,7 @@ export function ChatPanel({ className }: ChatPanelProps) {
         open={showConsentModal}
         onConsent={handleConsentGranted}
         onCancel={closeConsentDialog}
+        error={consentError}
       />
 
       {/* Backdrop */}

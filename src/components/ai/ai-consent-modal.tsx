@@ -9,15 +9,16 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { ShieldCheck } from 'lucide-react';
+import { ShieldCheck, AlertCircle } from 'lucide-react';
 
 interface AIConsentModalProps {
   open: boolean;
   onConsent: () => void;
   onCancel: () => void;
+  error?: string | null;
 }
 
-export function AIConsentModal({ open, onConsent, onCancel }: AIConsentModalProps) {
+export function AIConsentModal({ open, onConsent, onCancel, error }: AIConsentModalProps) {
   return (
     <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) onCancel(); }}>
       <DialogContent showCloseButton={false}>
@@ -70,6 +71,13 @@ export function AIConsentModal({ open, onConsent, onCancel }: AIConsentModalProp
             .
           </p>
         </div>
+
+        {error && (
+          <div className="flex items-center gap-2 rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            <AlertCircle size={16} className="shrink-0" />
+            {error}
+          </div>
+        )}
 
         <DialogFooter>
           <Button variant="outline" onClick={onCancel}>

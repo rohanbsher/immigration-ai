@@ -187,6 +187,22 @@ export function useChat() {
             }
           }
         }
+
+        // Flush any remaining data in the SSE buffer (e.g. final event
+        // without a trailing newline)
+        if (sseBuffer.startsWith('data: ')) {
+          try {
+            const data = JSON.parse(sseBuffer.slice(6));
+            if (data.type === 'content') {
+              assistantContent += data.text;
+              updateMessage(assistantMsgId, assistantContent);
+            } else if (data.type === 'done') {
+              setMessageStreaming(assistantMsgId, false);
+            }
+          } catch {
+            // Ignore incomplete data
+          }
+        }
       } finally {
         readerRef.current = null;
         reader.cancel().catch(() => {});

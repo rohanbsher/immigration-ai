@@ -46,8 +46,6 @@ export default function DashboardPage() {
   const { data: casesData, isLoading: casesLoading } = useCases({}, { limit: 4 });
   const { data: stats, isLoading: statsLoading } = useCaseStats();
 
-  const isLoading = profileLoading || casesLoading || statsLoading;
-
   const dashboardStats = [
     {
       label: 'Active Cases',
@@ -83,90 +81,17 @@ export default function DashboardPage() {
       }))
     : [];
 
-  if (isLoading) {
-    return (
-      <div className="space-y-6">
-        {/* Header skeleton */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div className="space-y-2">
-            <Skeleton className="h-8 w-48" />
-            <Skeleton className="h-4 w-72" />
-          </div>
-          <Skeleton className="h-10 w-28" />
-        </div>
-
-        {/* Stats Grid skeleton */}
-        <GridSkeleton count={4} ItemSkeleton={StatsCardSkeleton} columns={4} />
-
-        {/* Main Content Grid skeleton */}
-        <div className="grid lg:grid-cols-3 gap-6">
-          {/* Recent Cases skeleton */}
-          <div className="lg:col-span-2">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <Skeleton className="h-6 w-32" />
-                <Skeleton className="h-8 w-20" />
-              </CardHeader>
-              <CardContent>
-                <ListSkeleton count={4} ItemSkeleton={CaseCardSkeleton} />
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Status Overview skeleton */}
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <Skeleton className="h-6 w-32" />
-              </CardHeader>
-              <CardContent>
-                <Skeleton className="h-40 w-full rounded-lg" />
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <Skeleton className="h-6 w-40" />
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {Array.from({ length: 3 }).map((_, i) => (
-                    <div key={i} className="flex items-center justify-between">
-                      <Skeleton className="h-4 w-32" />
-                      <Skeleton className="h-4 w-20" />
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-
-        {/* Quick Actions skeleton */}
-        <Card>
-          <CardHeader>
-            <Skeleton className="h-6 w-28" />
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <Skeleton key={i} className="h-24 rounded-lg" />
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  const userName = profile?.first_name || 'there';
+  const userName = profileLoading ? null : (profile?.first_name || 'there');
 
   return (
     <div className="space-y-6">
-      {/* Welcome Header */}
+      {/* Welcome Header - shows immediately, uses skeleton for name if still loading */}
       <MotionSlideUp>
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <h1 className="font-display text-2xl tracking-tight text-foreground">Welcome back, {userName}</h1>
+            <h1 className="font-display text-2xl tracking-tight text-foreground">
+              Welcome back, {userName ?? <Skeleton className="inline-block h-7 w-32 align-middle" />}
+            </h1>
             <p className="text-muted-foreground">
               Here&apos;s what&apos;s happening with your cases today.
             </p>
@@ -180,36 +105,40 @@ export default function DashboardPage() {
         </div>
       </MotionSlideUp>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {dashboardStats.map((stat, index) => {
-          const Icon = stat.icon;
-          return (
-            <MotionCard key={stat.label} delay={index * 0.1}>
-              <Card className="border border-border hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 group">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">{stat.label}</p>
-                      <p className="text-3xl font-bold text-foreground mt-1">
-                        <AnimatedCounter value={stat.value} duration={1.5} />
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">{stat.change}</p>
+      {/* Stats Grid - independent loading */}
+      {statsLoading ? (
+        <GridSkeleton count={4} ItemSkeleton={StatsCardSkeleton} columns={4} />
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {dashboardStats.map((stat, index) => {
+            const Icon = stat.icon;
+            return (
+              <MotionCard key={stat.label} delay={index * 0.1}>
+                <Card className="border border-border hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 group">
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">{stat.label}</p>
+                        <p className="text-3xl font-bold text-foreground mt-1">
+                          <AnimatedCounter value={stat.value} duration={1.5} />
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">{stat.change}</p>
+                      </div>
+                      <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/15 transition-colors">
+                        <Icon className="text-primary" size={24} />
+                      </div>
                     </div>
-                    <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/15 transition-colors">
-                      <Icon className="text-primary" size={24} />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </MotionCard>
-          );
-        })}
-      </div>
+                  </CardContent>
+                </Card>
+              </MotionCard>
+            );
+          })}
+        </div>
+      )}
 
       {/* Main Content Grid */}
       <div className="grid lg:grid-cols-3 gap-6">
-        {/* Recent Cases */}
+        {/* Recent Cases - independent loading */}
         <MotionCard delay={0.3} className="lg:col-span-2">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
@@ -221,7 +150,9 @@ export default function DashboardPage() {
               </Link>
             </CardHeader>
             <CardContent>
-              {casesData?.cases && casesData.cases.length > 0 ? (
+              {casesLoading ? (
+                <ListSkeleton count={4} ItemSkeleton={CaseCardSkeleton} />
+              ) : casesData?.cases && casesData.cases.length > 0 ? (
                 <MotionList className="space-y-4">
                   {casesData.cases.map((caseItem) => (
                     <MotionListItem key={caseItem.id}>
@@ -268,7 +199,9 @@ export default function DashboardPage() {
                 <CardTitle>Status Overview</CardTitle>
               </CardHeader>
               <CardContent>
-                {statusChartData.length > 0 ? (
+                {statsLoading ? (
+                  <Skeleton className="h-40 w-full rounded-lg" />
+                ) : statusChartData.length > 0 ? (
                   <StatusChart data={statusChartData} />
                 ) : (
                   <p className="text-muted-foreground text-center py-4">No data available</p>

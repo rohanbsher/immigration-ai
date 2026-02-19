@@ -1490,13 +1490,16 @@ describe('Database Services', () => {
     describe('markAsRead', () => {
       it('should mark a notification as read', async () => {
         const queryBuilder = createMockQueryBuilder([]);
-        queryBuilder.eq = vi.fn().mockResolvedValue({ data: null, error: null });
+        queryBuilder.eq = vi.fn()
+          .mockReturnValueOnce(queryBuilder)
+          .mockResolvedValueOnce({ data: null, error: null });
         mockSupabase.from.mockReturnValue(queryBuilder);
 
-        await notificationsService.markAsRead('notif-123');
+        await notificationsService.markAsRead('notif-123', 'user-123');
 
         expect(queryBuilder.update).toHaveBeenCalledWith({ read: true });
         expect(queryBuilder.eq).toHaveBeenCalledWith('id', 'notif-123');
+        expect(queryBuilder.eq).toHaveBeenCalledWith('user_id', 'user-123');
       });
     });
 
@@ -1517,13 +1520,16 @@ describe('Database Services', () => {
     describe('deleteNotification', () => {
       it('should delete a notification', async () => {
         const queryBuilder = createMockQueryBuilder([]);
-        queryBuilder.eq = vi.fn().mockResolvedValue({ data: null, error: null });
+        queryBuilder.eq = vi.fn()
+          .mockReturnValueOnce(queryBuilder)
+          .mockResolvedValueOnce({ data: null, error: null });
         mockSupabase.from.mockReturnValue(queryBuilder);
 
-        await notificationsService.deleteNotification('notif-123');
+        await notificationsService.deleteNotification('notif-123', 'user-123');
 
         expect(queryBuilder.delete).toHaveBeenCalled();
         expect(queryBuilder.eq).toHaveBeenCalledWith('id', 'notif-123');
+        expect(queryBuilder.eq).toHaveBeenCalledWith('user_id', 'user-123');
       });
     });
 

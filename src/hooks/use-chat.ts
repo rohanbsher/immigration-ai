@@ -198,9 +198,12 @@ export function useChat() {
       return assistantContent;
     },
     onError: (error) => {
-      // Clear the streaming state on the assistant message so it doesn't get stuck
+      // Clear the streaming state and show error in the assistant message
       if (assistantMsgIdRef.current) {
         setMessageStreaming(assistantMsgIdRef.current, false);
+        if (error.name !== 'AbortError') {
+          updateMessage(assistantMsgIdRef.current, '[Message failed to send]');
+        }
         assistantMsgIdRef.current = null;
       }
       if (error.name === 'AbortError') {

@@ -110,14 +110,14 @@ export async function buildCaseContext(caseId: string, userId: string): Promise<
   // Fetch recent documents
   const { data: documents } = await supabase
     .from('documents')
-    .select('id, original_filename, document_type, created_at')
+    .select('id, file_name, document_type, created_at')
     .eq('case_id', caseId)
     .order('created_at', { ascending: false })
     .limit(5);
 
   // Fetch recent forms
   const { data: forms } = await supabase
-    .from('form_data')
+    .from('forms')
     .select('id, form_type, status')
     .eq('case_id', caseId)
     .order('updated_at', { ascending: false })
@@ -161,7 +161,7 @@ export async function buildCaseContext(caseId: string, userId: string): Promise<
     completeness,
     successScore,
     recentDocuments: (documents || []).map(doc => ({
-      name: doc.original_filename,
+      name: doc.file_name,
       type: doc.document_type || 'unknown',
       uploadedAt: doc.created_at,
     })),

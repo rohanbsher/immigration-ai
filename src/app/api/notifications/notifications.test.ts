@@ -419,10 +419,10 @@ describe('Notifications API Routes', () => {
 
       expect(response.status).toBe(200);
       expect(data.success).toBe(true);
-      expect(notificationsService.markAsRead).toHaveBeenCalledWith(mockNotificationId);
+      expect(notificationsService.markAsRead).toHaveBeenCalledWith(mockNotificationId, mockUserId);
     });
 
-    it('should not call markAsRead when read=false', async () => {
+    it('should return 400 when read=false (schema requires literal true)', async () => {
       mockSupabaseClient.from.mockReturnValue({
         select: vi.fn().mockReturnThis(),
         eq: vi.fn().mockReturnThis(),
@@ -436,8 +436,8 @@ describe('Notifications API Routes', () => {
       const response = await patchNotification(request, makeParams());
       const data = await response.json();
 
-      expect(response.status).toBe(200);
-      expect(data.success).toBe(true);
+      expect(response.status).toBe(400);
+      expect(data.error).toBeDefined();
       expect(notificationsService.markAsRead).not.toHaveBeenCalled();
     });
 
@@ -551,7 +551,7 @@ describe('Notifications API Routes', () => {
 
       expect(response.status).toBe(200);
       expect(data.message).toBe('Notification deleted successfully');
-      expect(notificationsService.deleteNotification).toHaveBeenCalledWith(mockNotificationId);
+      expect(notificationsService.deleteNotification).toHaveBeenCalledWith(mockNotificationId, mockUserId);
     });
 
     it('should return 500 on service error', async () => {
@@ -688,6 +688,7 @@ describe('Notifications API Routes', () => {
     });
 
     it('should return 429 when rate limited', async () => {
+      vi.mocked(serverAuth.getUser).mockResolvedValue({ id: mockUserId, email: 'test@example.com' } as any);
       vi.mocked(rateLimit).mockResolvedValue({ success: false, retryAfter: 30 } as any);
 
       const request = createRequest('GET', '/api/notifications/preferences');
@@ -745,6 +746,7 @@ describe('Notifications API Routes', () => {
     });
 
     it('should return 429 when rate limited', async () => {
+      vi.mocked(serverAuth.getUser).mockResolvedValue({ id: mockUserId, email: 'test@example.com' } as any);
       vi.mocked(rateLimit).mockResolvedValue({ success: false, retryAfter: 60 } as any);
 
       const request = createRequest('PATCH', '/api/notifications/preferences', {

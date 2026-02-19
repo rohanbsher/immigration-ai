@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { profilesService } from '@/lib/db/profiles';
 import { z } from 'zod';
 import { standardRateLimiter } from '@/lib/rate-limit';
-import { encryptSensitiveFields } from '@/lib/crypto';
+import { encrypt } from '@/lib/crypto';
 import { createLogger } from '@/lib/logger';
 import { safeParseBody } from '@/lib/auth/api-helpers';
 
@@ -123,9 +123,17 @@ export async function PATCH(
     if (!parsed.success) return parsed.response;
     const body = parsed.data;
     const validatedData = updateClientSchema.parse(body);
-    const encryptedData = encryptSensitiveFields(validatedData);
 
-    const client = await clientsService.updateClient(id, encryptedData);
+    // Only encrypt alien_number (the only actually sensitive field in this schema).
+    // Other fields like date_of_birth and names are not sensitive enough to warrant
+    // encryption and would match overly broad patterns in encryptSensitiveFields.
+    const { alien_number, ...rest } = validatedData;
+    const updateData: Record<string, unknown> = { ...rest };
+    if (alien_number !== undefined) {
+      updateData.alien_number = alien_number !== null ? encrypt(alien_number) : null;
+    }
+
+    const client = await clientsService.updateClient(id, updateData);
     return NextResponse.json(client);
   } catch (error) {
     if (error instanceof z.ZodError) {

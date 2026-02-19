@@ -96,7 +96,8 @@ class ProfilesService extends BaseService {
       const { data: cases } = await supabase
         .from('cases')
         .select('client_id')
-        .eq('attorney_id', attorneyId);
+        .eq('attorney_id', attorneyId)
+        .is('deleted_at', null);
 
       if (!cases || cases.length === 0) {
         return [];

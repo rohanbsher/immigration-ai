@@ -74,11 +74,16 @@ export async function fetchWithTimeout(
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeout);
 
+  // Combine the timeout signal with any caller-provided signal
+  const signal = options?.signal
+    ? AbortSignal.any([controller.signal, options.signal])
+    : controller.signal;
+
   try {
     const response = await fetch(url, {
       ...options,
       credentials: 'include', // Ensure cookies are sent with requests
-      signal: controller.signal,
+      signal,
     });
     return response;
   } catch (error) {

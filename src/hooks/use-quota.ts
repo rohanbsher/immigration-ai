@@ -1,6 +1,7 @@
 'use client';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useCallback } from 'react';
 import { fetchWithTimeout } from '@/lib/api/fetch-with-timeout';
 import { parseApiResponse } from '@/lib/api/parse-response';
 
@@ -46,7 +47,7 @@ export function useQuotaCheck() {
 export function useInvalidateQuotas() {
   const queryClient = useQueryClient();
 
-  return () => {
+  return useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ['quota'] });
-  };
+  }, [queryClient]);
 }

@@ -180,6 +180,7 @@ class DocumentsService extends BaseService {
         .from('documents')
         .update(updateData)
         .eq('id', id)
+        .is('deleted_at', null)
         .select()
         .single();
 
@@ -207,6 +208,7 @@ class DocumentsService extends BaseService {
           verified_at: new Date().toISOString(),
         })
         .eq('id', id)
+        .is('deleted_at', null)
         .select()
         .single();
 

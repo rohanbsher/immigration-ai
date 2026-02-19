@@ -89,12 +89,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const messagesReset = (stuckMessages as { id: string }[] | null)?.length ?? 0;
 
     // 3. Reset forms stuck in 'autofilling' for >10 minutes
+    //    Also catch forms where updated_at is NULL (never updated after creation)
     const formCutoff = new Date(now - FORM_AUTOFILLING_TIMEOUT_MS).toISOString();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: stuckForms, error: formError } = await (adminClient.from('forms') as any)
       .update({ status: 'draft', updated_at: new Date().toISOString() })
       .eq('status', 'autofilling')
-      .lt('updated_at', formCutoff)
+      .or(`updated_at.lt.${formCutoff},updated_at.is.null`)
       .select('id');
 
     if (formError) {

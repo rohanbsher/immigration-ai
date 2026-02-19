@@ -15,21 +15,20 @@ export async function POST(
   try {
     const { id } = await params;
 
-    // Rate limiting - use SENSITIVE for filing actions
-    const ip = request.headers.get('x-forwarded-for') || 'unknown';
-    const rateLimitResult = await rateLimit(RATE_LIMITS.SENSITIVE, ip);
-    if (!rateLimitResult.success) {
-      return NextResponse.json(
-        { error: 'Too many requests' },
-        { status: 429, headers: { 'Retry-After': rateLimitResult.retryAfter?.toString() || '60' } }
-      );
-    }
-
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Rate limiting by user ID (not IP) to avoid shared-IP issues in law firms
+    const rateLimitResult = await rateLimit(RATE_LIMITS.SENSITIVE, user.id);
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: 'Too many requests' },
+        { status: 429, headers: { 'Retry-After': rateLimitResult.retryAfter?.toString() || '60' } }
+      );
     }
 
     // Check if user is an attorney

@@ -183,8 +183,7 @@ export const useChatStore = create<ChatState>()(
     {
       name: 'chat-store',
       partialize: (state) => ({
-        // Only persist these fields
-        caseId: state.caseId,
+        // Only persist conversation ID - caseId is set fresh from the case page
         currentConversationId: state.currentConversationId,
         // Don't persist messages - they'll be loaded from server
       }),

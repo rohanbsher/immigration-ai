@@ -154,12 +154,10 @@ class ConversationsServiceClass extends BaseService {
         query = query.eq('case_id', options.caseId);
       }
 
-      if (options?.limit) {
-        query = query.limit(options.limit);
-      }
-
       if (options?.offset) {
         query = query.range(options.offset, options.offset + (options.limit || 20) - 1);
+      } else if (options?.limit) {
+        query = query.limit(options.limit);
       }
 
       const { data, error } = await query;

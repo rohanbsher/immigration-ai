@@ -1,4 +1,5 @@
 import { tasksService } from '@/lib/db';
+import { createClient } from '@/lib/supabase/server';
 import { z } from 'zod';
 import { createLogger } from '@/lib/logger';
 import { withAuth, errorResponse, successResponse, safeParseBody } from '@/lib/auth/api-helpers';
@@ -16,7 +17,7 @@ const createCommentSchema = z.object({
  * table) before returning comments. This is defense-in-depth alongside RLS
  * policies on task_comments.
  */
-export const GET = withAuth(async (_request, context, _auth) => {
+export const GET = withAuth(async (_request, context, auth) => {
   try {
     const { id } = await context.params!;
 
@@ -24,6 +25,24 @@ export const GET = withAuth(async (_request, context, _auth) => {
     const task = await tasksService.getTask(id);
     if (!task) {
       return errorResponse('Task not found', 404);
+    }
+
+    // Defense-in-depth: verify the authenticated user can access this task
+    const canView =
+      task.created_by === auth.user.id ||
+      task.assigned_to === auth.user.id;
+
+    if (!canView) {
+      const supabase = await createClient();
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', auth.user.id)
+        .single();
+
+      if (profile?.role !== 'admin') {
+        return errorResponse('Forbidden', 403);
+      }
     }
 
     const comments = await tasksService.getComments(id);

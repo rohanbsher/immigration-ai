@@ -9,7 +9,7 @@ import { safeParseBody } from '@/lib/auth/api-helpers';
 const log = createLogger('api:notifications');
 
 const updateNotificationSchema = z.object({
-  read: z.boolean(),
+  read: z.literal(true),
 });
 
 export async function PATCH(

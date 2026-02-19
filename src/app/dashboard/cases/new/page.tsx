@@ -82,7 +82,7 @@ export default function NewCasePage() {
       ...prev,
       client_id: clientId,
       is_new_client: false,
-      title: `${formData.visa_type || 'Immigration'} Application - ${clientName}`,
+      title: `${prev.visa_type || 'Immigration'} Application - ${clientName}`,
     }));
   };
 

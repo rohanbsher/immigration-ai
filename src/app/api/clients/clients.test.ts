@@ -572,10 +572,11 @@ describe('Clients API Routes', () => {
   // ==========================================================================
   describe('GET /api/clients/[id]', () => {
     beforeEach(() => {
-      // Mock case query for access check
+      // Mock case query for access check (canAccessClient adds .is('deleted_at', null))
       mockSupabaseClient.from.mockReturnValue({
         select: vi.fn().mockReturnThis(),
         eq: vi.fn().mockReturnThis(),
+        is: vi.fn().mockReturnThis(),
         limit: vi.fn().mockResolvedValue({
           data: [{ id: mockCaseId }],
           error: null,
@@ -601,6 +602,7 @@ describe('Clients API Routes', () => {
       mockSupabaseClient.from.mockReturnValue({
         select: vi.fn().mockReturnThis(),
         eq: vi.fn().mockReturnThis(),
+        is: vi.fn().mockReturnThis(),
         limit: vi.fn().mockResolvedValue({
           data: [],
           error: null,
@@ -661,10 +663,11 @@ describe('Clients API Routes', () => {
   // ==========================================================================
   describe('PATCH /api/clients/[id]', () => {
     beforeEach(() => {
-      // Mock case query for access check
+      // Mock case query for access check (canAccessClient adds .is('deleted_at', null))
       mockSupabaseClient.from.mockReturnValue({
         select: vi.fn().mockReturnThis(),
         eq: vi.fn().mockReturnThis(),
+        is: vi.fn().mockReturnThis(),
         limit: vi.fn().mockResolvedValue({
           data: [{ id: mockCaseId }],
           error: null,
@@ -692,6 +695,7 @@ describe('Clients API Routes', () => {
       mockSupabaseClient.from.mockReturnValue({
         select: vi.fn().mockReturnThis(),
         eq: vi.fn().mockReturnThis(),
+        is: vi.fn().mockReturnThis(),
         limit: vi.fn().mockResolvedValue({
           data: [],
           error: null,
@@ -719,6 +723,7 @@ describe('Clients API Routes', () => {
       mockSupabaseClient.from.mockReturnValue({
         select: vi.fn().mockReturnThis(),
         eq: vi.fn().mockReturnThis(),
+        is: vi.fn().mockReturnThis(),
         limit: vi.fn().mockResolvedValue({
           data: [],
           error: null,
@@ -1014,6 +1019,7 @@ describe('Clients API Routes', () => {
       mockSupabaseClient.from.mockReturnValue({
         select: vi.fn().mockReturnThis(),
         eq: vi.fn().mockReturnThis(),
+        is: vi.fn().mockReturnThis(),
         limit: vi.fn().mockResolvedValue({
           data: [],
           error: null,
@@ -1037,10 +1043,11 @@ describe('Clients API Routes', () => {
         first_name: 'Johnny',
       } as any);
 
-      // Mock access check to pass
+      // Mock access check to pass (canAccessClient adds .is('deleted_at', null))
       mockSupabaseClient.from.mockReturnValue({
         select: vi.fn().mockReturnThis(),
         eq: vi.fn().mockReturnThis(),
+        is: vi.fn().mockReturnThis(),
         limit: vi.fn().mockResolvedValue({
           data: [{ id: mockCaseId }],
           error: null,
@@ -1067,6 +1074,7 @@ describe('Clients API Routes', () => {
       mockSupabaseClient.from.mockReturnValue({
         select: vi.fn().mockReturnThis(),
         eq: vi.fn().mockReturnThis(),
+        is: vi.fn().mockReturnThis(),
         limit: vi.fn().mockResolvedValue({
           data: [{ id: mockCaseId }],
           error: null,

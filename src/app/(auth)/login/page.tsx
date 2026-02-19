@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { useState, Suspense, useMemo } from 'react';
+import { useState, Suspense, useMemo, useRef } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -37,23 +37,32 @@ function LoginForm() {
     return emailRegex.test(email);
   }, [email]);
 
+  const completedRef = useRef(false);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginTimedOut(false);
     setLoginError(null);
     setIsSubmitting(true);
+    completedRef.current = false;
 
     const timeoutId = setTimeout(() => {
-      setLoginTimedOut(true);
-      setIsSubmitting(false);
+      if (!completedRef.current) {
+        setLoginTimedOut(true);
+        setIsSubmitting(false);
+      }
     }, LOGIN_TIMEOUT_MS);
 
     try {
+      completedRef.current = true;
+      clearTimeout(timeoutId);
       await signIn({ email, password, returnUrl: returnUrl || undefined });
-      clearTimeout(timeoutId);
     } catch (err) {
+      completedRef.current = true;
       clearTimeout(timeoutId);
-      setIsSubmitting(false);
+      if (!loginTimedOut) {
+        setIsSubmitting(false);
+      }
       setLoginError(err instanceof Error ? err.message : 'Login failed');
     }
   };

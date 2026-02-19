@@ -121,6 +121,7 @@ vi.mock('@/lib/db', () => ({
 // Mock AI service
 vi.mock('@/lib/ai', () => ({
   autofillForm: vi.fn(),
+  getAutofillGaps: vi.fn().mockReturnValue([]),
 }));
 
 // Mock billing quota

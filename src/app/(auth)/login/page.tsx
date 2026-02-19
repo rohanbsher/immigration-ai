@@ -125,6 +125,7 @@ function LoginForm() {
                 <div className="relative">
                   <Input
                     id="email"
+                    name="email"
                     type="email"
                     placeholder="you@example.com"
                     value={email}
@@ -162,6 +163,7 @@ function LoginForm() {
                 <div className="relative">
                   <Input
                     id="password"
+                    name="password"
                     type={showPassword ? 'text' : 'password'}
                     placeholder="Enter your password"
                     value={password}

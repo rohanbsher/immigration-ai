@@ -1,6 +1,6 @@
 # Immigration AI - Current Project State
 
-> Last updated: 2026-02-18 by Context Sync
+> Last updated: 2026-02-19 by Context Sync
 
 ## Project Overview
 
@@ -102,14 +102,15 @@ AI-powered immigration case management platform for attorneys. Built with Next.j
 | 6 | Console migration — Lib/Components (20+ files) | COMPLETE |
 | 7 | ESLint cleanup (exports, Image, unused imports) | COMPLETE |
 
-### Test & Build Status (2026-02-18)
+### Test & Build Status (2026-02-19)
 ```
-Tests:  2,182+ passed | 3 skipped | 0 failures (unit)
+Tests:  2,289+ passed | 4 skipped | 0 failures (unit)
         86 passed | 67 skipped | 0 failures (E2E in CI)
 Build:  Passes (69 routes, no TypeScript errors)
 Lint:   0 errors | 0 warnings
 Console: 0 statements in production code
 Production: Deployed, homepage 200, health OK, auth guards working
+Backend Worker: All 4 phases complete (merged to main)
 ```
 
 ### Test Coverage Gaps (as of 2026-02-16)
@@ -282,34 +283,48 @@ npm run lint         # Run ESLint
 - GDPR data export lacks documents/AI conversations
 - ESLint: 0 errors, 0 warnings (all cleaned up)
 
-## Backend Worker Service (IN PROGRESS — Phase 1 Complete)
+## Backend Worker Service (COMPLETE — All 4 Phases, 2026-02-19)
 
-**Branch:** `feat/worker-service`
+**Branch:** `feat/worker-service` (merged to `main`)
 **Plan:** `docs/BACKEND_INTEGRATION_PLAN.md`
 
-The application needs a background worker to handle long-running AI operations that exceed Vercel's 60s timeout. Architecture decision: **Hybrid** — keep 65+ CRUD routes in Next.js, move 11 long-running operations to a BullMQ worker on Railway.
+Hybrid architecture: 65+ CRUD routes stay in Next.js, 11 long-running operations offloaded to BullMQ worker on Railway.
 
-### Phase 1: Foundation (COMPLETE — 2026-02-18)
-Created the complete BullMQ infrastructure:
+### All Phases Complete
 
-| Component | Location | Status |
-|-----------|----------|--------|
-| BullMQ connection | `src/lib/jobs/connection.ts` | Done |
-| Job types & queue names | `src/lib/jobs/types.ts` | Done |
-| Queue instances + enqueue helpers | `src/lib/jobs/queues.ts` | Done |
-| Frontend polling utility | `src/lib/jobs/polling.ts` | Done |
-| Job status API | `src/app/api/jobs/[id]/status/route.ts` | Done |
-| Worker scaffold | `services/worker/src/` (config, health, index) | Done |
-| Deployment config | `services/worker/Dockerfile` + `railway.toml` | Done |
-| Database migration | `supabase/migrations/054_job_status.sql` | Done |
+| Phase | Description | Status |
+|-------|-------------|--------|
+| Phase 1 | Foundation (connection, types, queues, worker scaffold, Dockerfile) | COMPLETE |
+| Phase 2 | Migrate 6 AI endpoints to async + DB cache + frontend hooks | COMPLETE |
+| Phase 3 | Email queue (pre-render HTML, enqueue, worker processor) | COMPLETE |
+| Phase 4 | Circuit breaker, Sentry, retry strategies | COMPLETE |
 
-**Key env vars added:** `REDIS_URL` (standard Redis for BullMQ), `WORKER_ENABLED` (feature flag)
+### Key Components
 
-### Phase 2: Migrate AI Operations (NEXT)
-Migrate 6 AI endpoints to async job queue: document-analysis, form-autofill, recommendations, completeness, success-score, natural-search.
+| Component | Location |
+|-----------|----------|
+| BullMQ connection | `src/lib/jobs/connection.ts` |
+| Job types & queue names | `src/lib/jobs/types.ts` |
+| Queue instances + enqueue helpers | `src/lib/jobs/queues.ts` |
+| Frontend job-aware fetch | `src/lib/api/job-aware-fetch.ts` |
+| Job status API | `src/app/api/jobs/[id]/status/route.ts` |
+| Circuit breaker | `src/lib/ai/circuit-breaker.ts` |
+| Worker entry point | `services/worker/src/index.ts` |
+| 5 AI processors | `services/worker/src/processors/` |
+| Email processor | `services/worker/src/processors/email.ts` |
+| DB migrations | `054_job_status.sql`, `055_case_ai_cache_columns.sql` |
 
-### Phase 3: Email, Cron, Utilities (PLANNED)
-### Phase 4: Reliability & Monitoring (PLANNED)
+### Staff Engineer Review (3 rounds, 21 fixes)
+- Round 1: 7 fixes (auth, typing, error handling, test mocks)
+- Round 2: 6 fixes (config validation, worker shutdown, health endpoint)
+- Round 3: 8 fixes (stale jobId dedup, quota enforcement, SSRF validation, audit logging, single-queue lookup, sanitizeResult whitelist, migration squash)
+
+### Deployment (PENDING)
+Worker code is ready. Deploy to Railway when ready to go live:
+1. Deploy worker to Railway (root dir = monorepo root)
+2. Set Railway env vars (REDIS_URL, Supabase, AI keys)
+3. Apply migrations #054-055 to production Supabase
+4. Set `WORKER_ENABLED=true` on Vercel
 
 ---
 

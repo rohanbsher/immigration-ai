@@ -95,14 +95,14 @@ export interface JobStatusResponse {
 // =============================================================================
 
 export const QUEUE_NAMES = {
-  DOCUMENT_ANALYSIS: 'ai:document-analysis',
-  FORM_AUTOFILL: 'ai:form-autofill',
-  RECOMMENDATIONS: 'ai:recommendations',
-  COMPLETENESS: 'ai:completeness',
-  SUCCESS_SCORE: 'ai:success-score',
-  NATURAL_SEARCH: 'ai:natural-search',
-  EMAIL: 'util:email',
-  VIRUS_SCAN: 'util:virus-scan',
+  DOCUMENT_ANALYSIS: 'ai-document-analysis',
+  FORM_AUTOFILL: 'ai-form-autofill',
+  RECOMMENDATIONS: 'ai-recommendations',
+  COMPLETENESS: 'ai-completeness',
+  SUCCESS_SCORE: 'ai-success-score',
+  NATURAL_SEARCH: 'ai-natural-search',
+  EMAIL: 'util-email',
+  VIRUS_SCAN: 'util-virus-scan',
   CRON: 'cron',
 } as const;
 

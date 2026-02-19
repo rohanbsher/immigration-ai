@@ -12,6 +12,9 @@ import type { z, ZodType } from 'zod';
 import type Anthropic from '@anthropic-ai/sdk';
 import { getAnthropicClient, CLAUDE_MODEL } from './client';
 import { withRetry, AI_RETRY_OPTIONS } from '@/lib/utils/retry';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('ai:structured-output');
 
 // ---------------------------------------------------------------------------
 // Types
@@ -118,6 +121,15 @@ export async function callClaudeStructured<T extends ZodType>(
   }
 
   // Validate with Zod (the API guarantees schema conformance, but belt-and-suspenders)
-  const parsed = schema.parse(toolUseBlock.input);
-  return parsed;
+  try {
+    const parsed = schema.parse(toolUseBlock.input);
+    return parsed;
+  } catch (zodError) {
+    log.error('Structured output failed Zod validation', {
+      toolName,
+      error: zodError instanceof Error ? zodError.message : String(zodError),
+      rawInput: JSON.stringify(toolUseBlock.input).slice(0, 500),
+    });
+    throw zodError;
+  }
 }

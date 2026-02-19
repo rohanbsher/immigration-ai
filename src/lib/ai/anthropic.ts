@@ -5,7 +5,7 @@ import { FormAutofillResult, ExtractedField } from './types';
 import { FORM_AUTOFILL_SYSTEM_PROMPT, getAutofillPrompt } from './prompts';
 import { extractTextContent } from './utils';
 import { filterPiiFromExtractedData, filterPiiFromRecord } from './pii-filter';
-import { RetryExhaustedError } from '@/lib/utils/retry';
+import { withRetry, AI_RETRY_OPTIONS, RetryExhaustedError } from '@/lib/utils/retry';
 import { getAnthropicClient, CLAUDE_MODEL } from './client';
 import { callClaudeStructured } from './structured-output';
 import {
@@ -150,8 +150,6 @@ export async function explainFormRequirements(
   formType: string,
   visaType: string
 ): Promise<string> {
-  const { withRetry, AI_RETRY_OPTIONS } = await import('@/lib/utils/retry');
-
   const message = await withRetry(
     () => getAnthropicClient().messages.create({
       model: CLAUDE_MODEL,

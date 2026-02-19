@@ -89,11 +89,22 @@ export function parseCitationsFromResponse(
 }
 
 /**
+ * Minimum character length for substring matching.
+ * Values shorter than this are too ambiguous to match reliably
+ * (e.g., "A", "NY" would match too many citations).
+ */
+const MIN_MATCH_LENGTH = 3;
+
+/**
  * Map parsed citations to specific form fields.
  *
- * Uses a simple heuristic: if the citation's `citedText` contains any value
- * that matches (case-insensitive substring) the field's `suggested_value`,
- * the citation is associated with that field.
+ * Uses heuristic matching: the citation's `citedText` must contain the
+ * field's `suggested_value` (or vice versa) via case-insensitive substring.
+ *
+ * Guards against false positives:
+ * - Values shorter than 3 characters are skipped (too ambiguous)
+ * - The shorter string must be at least 40% the length of the longer one
+ *   to avoid "John" matching "Johnson & Johnson LLC"
  *
  * @param citations — Array of parsed citations.
  * @param fields — Array of form fields with suggested values.
@@ -109,12 +120,22 @@ export function mapCitationsToFields(
     if (!field.suggested_value) return field;
 
     const valueLower = field.suggested_value.toLowerCase().trim();
-    if (!valueLower) return field;
+    if (valueLower.length < MIN_MATCH_LENGTH) return field;
 
     const matchingCitations = citations.filter((c) => {
-      const citedLower = c.citedText.toLowerCase();
-      // Match if the cited text contains the field value or vice versa
-      return citedLower.includes(valueLower) || valueLower.includes(citedLower);
+      const citedLower = c.citedText.toLowerCase().trim();
+      if (citedLower.length < MIN_MATCH_LENGTH) return false;
+
+      const shorter = valueLower.length <= citedLower.length ? valueLower : citedLower;
+      const longer = valueLower.length <= citedLower.length ? citedLower : valueLower;
+
+      // The shorter string must be a substring of the longer
+      if (!longer.includes(shorter)) return false;
+
+      // Guard against partial-word matches: shorter must be at least 40% of longer
+      if (shorter.length / longer.length < 0.4) return false;
+
+      return true;
     });
 
     if (matchingCitations.length === 0) return field;

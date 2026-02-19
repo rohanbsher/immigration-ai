@@ -21,7 +21,6 @@ import {
   DocumentValidationSchema,
 } from './schemas';
 import { callClaudeStructured } from './structured-output';
-import { anthropicBreaker } from './circuit-breaker';
 import { createLogger } from '@/lib/logger';
 
 const log = createLogger('ai:claude-vision');
@@ -33,11 +32,17 @@ const log = createLogger('ai:claude-vision');
 export interface VisionAnalysisInput {
   imageUrl?: string;
   imageBase64?: string;
+  /** Media type when providing imageBase64 (default: auto-detected from magic bytes). */
+  imageMediaType?: ImageMediaType | 'application/pdf';
   documentType?: string;
   options?: AnalysisOptions;
 }
 
 type ImageMediaType = 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp';
+
+/** Max file size for Claude vision: 20 MB for images, 32 MB for PDFs. */
+const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
+const MAX_PDF_BYTES = 32 * 1024 * 1024;
 
 // ---------------------------------------------------------------------------
 // Internal helpers
@@ -46,11 +51,14 @@ type ImageMediaType = 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp';
 /**
  * Fetch an image from a signed URL and return its base64-encoded content.
  * Claude requires base64 image data rather than URL references.
+ *
+ * Enforces size limits (20 MB images, 32 MB PDFs) and rejects redirects
+ * to prevent SSRF attacks via compromised storage URLs.
  */
 export async function fetchImageAsBase64(
   signedUrl: string
 ): Promise<{ data: string; mediaType: ImageMediaType | 'application/pdf' }> {
-  const response = await fetch(signedUrl);
+  const response = await fetch(signedUrl, { redirect: 'error' });
 
   if (!response.ok) {
     throw new Error(
@@ -59,11 +67,27 @@ export async function fetchImageAsBase64(
   }
 
   const contentType = response.headers.get('content-type') || 'image/jpeg';
-  const buffer = await response.arrayBuffer();
-  const data = Buffer.from(buffer).toString('base64');
-
   const mediaType = resolveMediaType(contentType);
 
+  // Enforce size limits before buffering into memory
+  const contentLength = response.headers.get('content-length');
+  const maxBytes = mediaType === 'application/pdf' ? MAX_PDF_BYTES : MAX_IMAGE_BYTES;
+  if (contentLength && parseInt(contentLength, 10) > maxBytes) {
+    throw new Error(
+      `Document exceeds ${maxBytes / (1024 * 1024)}MB size limit for Claude vision (got ${Math.round(parseInt(contentLength, 10) / (1024 * 1024))}MB)`
+    );
+  }
+
+  const buffer = await response.arrayBuffer();
+
+  // Double-check actual size (content-length can be absent or inaccurate)
+  if (buffer.byteLength > maxBytes) {
+    throw new Error(
+      `Document exceeds ${maxBytes / (1024 * 1024)}MB size limit for Claude vision (got ${Math.round(buffer.byteLength / (1024 * 1024))}MB)`
+    );
+  }
+
+  const data = Buffer.from(buffer).toString('base64');
   return { data, mediaType };
 }
 
@@ -106,6 +130,41 @@ function buildContentBlock(
 }
 
 /**
+ * Detect media type from the first few bytes of base64-encoded data.
+ * Falls back to 'image/jpeg' if unrecognized.
+ */
+function detectMediaTypeFromBase64(
+  base64Data: string
+): ImageMediaType | 'application/pdf' {
+  // Decode just the first 8 bytes to check magic bytes
+  const header = Buffer.from(base64Data.slice(0, 16), 'base64');
+
+  // PNG: 89 50 4E 47
+  if (header[0] === 0x89 && header[1] === 0x50 && header[2] === 0x4e && header[3] === 0x47) {
+    return 'image/png';
+  }
+  // GIF: 47 49 46 38
+  if (header[0] === 0x47 && header[1] === 0x49 && header[2] === 0x46 && header[3] === 0x38) {
+    return 'image/gif';
+  }
+  // WEBP: 52 49 46 46 ... 57 45 42 50
+  if (header[0] === 0x52 && header[1] === 0x49 && header[2] === 0x46 && header[3] === 0x46 &&
+      header.length >= 12 && header[8] === 0x57 && header[9] === 0x45 && header[10] === 0x42 && header[11] === 0x50) {
+    return 'image/webp';
+  }
+  // PDF: 25 50 44 46 (%PDF)
+  if (header[0] === 0x25 && header[1] === 0x50 && header[2] === 0x44 && header[3] === 0x46) {
+    return 'application/pdf';
+  }
+  // JPEG: FF D8 FF
+  if (header[0] === 0xff && header[1] === 0xd8 && header[2] === 0xff) {
+    return 'image/jpeg';
+  }
+
+  return 'image/jpeg'; // fallback
+}
+
+/**
  * Resolve the base64 data for a vision input.
  * If `imageBase64` is provided it is used directly; otherwise the
  * signed URL is fetched and converted.
@@ -114,7 +173,8 @@ async function resolveBase64(
   input: VisionAnalysisInput
 ): Promise<{ data: string; mediaType: ImageMediaType | 'application/pdf' }> {
   if (input.imageBase64) {
-    return { data: input.imageBase64, mediaType: 'image/jpeg' };
+    const mediaType = input.imageMediaType || detectMediaTypeFromBase64(input.imageBase64);
+    return { data: input.imageBase64, mediaType };
   }
 
   if (!input.imageUrl) {
@@ -148,20 +208,18 @@ export async function analyzeDocumentWithClaude(
   const extractionPrompt = getExtractionPrompt(documentType);
 
   try {
-    const result = await anthropicBreaker.execute(() =>
-      callClaudeStructured({
-        toolName: 'document_analysis',
-        toolDescription:
-          'Extract structured data from an immigration document image.',
-        schema: DocumentAnalysisResultSchema,
-        system: DOCUMENT_ANALYSIS_SYSTEM_PROMPT,
-        userMessage: [
-          { type: 'text' as const, text: extractionPrompt },
-          contentBlock,
-        ],
-        maxTokens: 4096,
-      })
-    );
+    const result = await callClaudeStructured({
+      toolName: 'document_analysis',
+      toolDescription:
+        'Extract structured data from an immigration document image.',
+      schema: DocumentAnalysisResultSchema,
+      system: DOCUMENT_ANALYSIS_SYSTEM_PROMPT,
+      userMessage: [
+        { type: 'text' as const, text: extractionPrompt },
+        contentBlock,
+      ],
+      maxTokens: 4096,
+    });
 
     return {
       ...result,
@@ -186,23 +244,21 @@ export async function extractTextWithClaude(
   const contentBlock = buildContentBlock(data, mediaType);
 
   try {
-    const result = await anthropicBreaker.execute(() =>
-      callClaudeStructured({
-        toolName: 'text_extraction',
-        toolDescription: 'Extract all text from a document image via OCR.',
-        schema: DocumentAnalysisResultSchema,
-        system:
-          'You are a precise OCR engine. Extract every piece of text visible in the document, preserving formatting and line breaks.',
-        userMessage: [
-          {
-            type: 'text' as const,
-            text: 'Extract all text from this document image. Return it in the raw_text field. Also identify any fields you can detect and list them in extracted_fields.',
-          },
-          contentBlock,
-        ],
-        maxTokens: 4096,
-      })
-    );
+    const result = await callClaudeStructured({
+      toolName: 'text_extraction',
+      toolDescription: 'Extract all text from a document image via OCR.',
+      schema: DocumentAnalysisResultSchema,
+      system:
+        'You are a precise OCR engine. Extract every piece of text visible in the document, preserving formatting and line breaks.',
+      userMessage: [
+        {
+          type: 'text' as const,
+          text: 'Extract all text from this document image. Return it in the raw_text field. Also identify any fields you can detect and list them in extracted_fields.',
+        },
+        contentBlock,
+      ],
+      maxTokens: 4096,
+    });
 
     const text = result.raw_text || '';
     return {
@@ -227,18 +283,17 @@ export async function detectDocumentTypeWithClaude(
   const contentBlock = buildContentBlock(data, mediaType);
 
   try {
-    const result = await anthropicBreaker.execute(() =>
-      callClaudeStructured({
-        toolName: 'document_type_detection',
-        toolDescription:
-          'Identify the type of an immigration-related document from its image.',
-        schema: DocumentTypeDetectionSchema,
-        system:
-          'You are an expert at identifying immigration document types from images.',
-        userMessage: [
-          {
-            type: 'text' as const,
-            text: `Identify the type of document in this image. Common types include:
+    const result = await callClaudeStructured({
+      toolName: 'document_type_detection',
+      toolDescription:
+        'Identify the type of an immigration-related document from its image.',
+      schema: DocumentTypeDetectionSchema,
+      system:
+        'You are an expert at identifying immigration document types from images.',
+      userMessage: [
+        {
+          type: 'text' as const,
+          text: `Identify the type of document in this image. Common types include:
 - passport
 - birth_certificate
 - marriage_certificate
@@ -254,12 +309,11 @@ export async function detectDocumentTypeWithClaude(
 - green_card
 - naturalization_certificate
 - other`,
-          },
-          contentBlock,
-        ],
-        maxTokens: 256,
-      })
-    );
+        },
+        contentBlock,
+      ],
+      maxTokens: 256,
+    });
 
     return {
       type: result.type || 'other',
@@ -287,18 +341,17 @@ export async function validateDocumentImageWithClaude(
   const contentBlock = buildContentBlock(data, mediaType);
 
   try {
-    const result = await anthropicBreaker.execute(() =>
-      callClaudeStructured({
-        toolName: 'document_validation',
-        toolDescription:
-          'Validate whether an image is a legitimate document suitable for immigration case processing.',
-        schema: DocumentValidationSchema,
-        system:
-          'You are an expert at evaluating document image quality for immigration case processing.',
-        userMessage: [
-          {
-            type: 'text' as const,
-            text: `Analyze this image and determine if it's a valid document image suitable for immigration case processing.
+    const result = await callClaudeStructured({
+      toolName: 'document_validation',
+      toolDescription:
+        'Validate whether an image is a legitimate document suitable for immigration case processing.',
+      schema: DocumentValidationSchema,
+      system:
+        'You are an expert at evaluating document image quality for immigration case processing.',
+      userMessage: [
+        {
+          type: 'text' as const,
+          text: `Analyze this image and determine if it's a valid document image suitable for immigration case processing.
 
 Invalid images include:
 - Blank or mostly blank images
@@ -306,12 +359,11 @@ Invalid images include:
 - Screenshots of websites
 - Illegible or very low quality images
 - Irrelevant content`,
-          },
-          contentBlock,
-        ],
-        maxTokens: 256,
-      })
-    );
+        },
+        contentBlock,
+      ],
+      maxTokens: 256,
+    });
 
     return {
       isValid: result.isValid,

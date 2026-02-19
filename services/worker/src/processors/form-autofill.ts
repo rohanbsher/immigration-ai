@@ -15,6 +15,7 @@ import {
   type FormFieldWithCitations,
 } from '@/lib/ai';
 import { anthropicBreaker } from '@/lib/ai/circuit-breaker';
+import { features } from '@/lib/config';
 import { logAIRequest } from '@/lib/audit/ai-audit';
 import { getWorkerSupabase } from '../supabase';
 import { trackUsage } from '../track-usage';
@@ -152,12 +153,14 @@ export async function processFormAutofill(
     .filter((f) => f.requires_review)
     .map((f) => f.field_id);
 
-  // Extract citation data if available (Phase 4)
+  // Extract citation data if available and enabled (Phase 4)
   const citationsByField: Record<string, unknown[]> = {};
-  for (const field of autofillResult.fields) {
-    const fieldWithCitations = field as FormFieldWithCitations;
-    if (fieldWithCitations.citations && fieldWithCitations.citations.length > 0) {
-      citationsByField[field.field_id] = fieldWithCitations.citations;
+  if (features.citationsEnabled) {
+    for (const field of autofillResult.fields) {
+      const fieldWithCitations = field as FormFieldWithCitations;
+      if (fieldWithCitations.citations && fieldWithCitations.citations.length > 0) {
+        citationsByField[field.field_id] = fieldWithCitations.citations;
+      }
     }
   }
   const hasCitations = Object.keys(citationsByField).length > 0;

@@ -100,6 +100,10 @@ const serverEnvSchema = z.object({
   // Worker Service
   WORKER_ENABLED: z.enum(['true', 'false']).optional(),
 
+  // AI Provider Configuration
+  DOCUMENT_ANALYSIS_PROVIDER: z.enum(['claude', 'openai', 'auto']).optional(),
+  AI_CITATIONS_ENABLED: z.enum(['true', 'false']).optional(),
+
   // Cron Jobs
   CRON_SECRET: z.string().min(16, 'CRON_SECRET must be at least 16 characters').optional(),
 
@@ -184,6 +188,8 @@ function validateServerEnv() {
     UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN,
     REDIS_URL: process.env.REDIS_URL,
     WORKER_ENABLED: process.env.WORKER_ENABLED,
+    DOCUMENT_ANALYSIS_PROVIDER: process.env.DOCUMENT_ANALYSIS_PROVIDER,
+    AI_CITATIONS_ENABLED: process.env.AI_CITATIONS_ENABLED,
     CRON_SECRET: process.env.CRON_SECRET,
     VIRUS_SCANNER_PROVIDER: process.env.VIRUS_SCANNER_PROVIDER,
     CLAMAV_API_URL: process.env.CLAMAV_API_URL,
@@ -405,9 +411,13 @@ export const features = {
    * Which provider to use for document analysis vision.
    * 'claude' | 'openai' | 'auto' (default: 'auto').
    * In 'auto' mode Claude is tried first with OpenAI as fallback.
+   * Validated by serverEnvSchema -- invalid values rejected at startup.
    */
   documentAnalysisProvider: (process.env.DOCUMENT_ANALYSIS_PROVIDER || 'auto') as
     | 'claude'
     | 'openai'
     | 'auto',
+
+  /** Whether AI citation generation is enabled (default: false). */
+  citationsEnabled: process.env.AI_CITATIONS_ENABLED === 'true',
 } as const;

@@ -15,6 +15,7 @@ import {
   type FormFieldWithCitations,
 } from '@/lib/ai';
 import { anthropicBreaker } from '@/lib/ai/circuit-breaker';
+import { CLAUDE_MODEL } from '@/lib/ai/client';
 import { features } from '@/lib/config';
 import { logAIRequest } from '@/lib/audit/ai-audit';
 import { getWorkerSupabase } from '../supabase';
@@ -174,7 +175,7 @@ export async function processFormAutofill(
         ...aiFilledData,
         _metadata: {
           generated_at: new Date().toISOString(),
-          model: 'claude-sonnet-4',
+          model: CLAUDE_MODEL,
           fields_requiring_review: fieldsRequiringReview,
           missing_documents: autofillResult.missing_documents,
           warnings: autofillResult.warnings,

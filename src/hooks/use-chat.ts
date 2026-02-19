@@ -87,6 +87,9 @@ export function useChat() {
     [addMessage, clearMessages, setConversationId, setError, setLoading]
   );
 
+  // Track the latest assistant message ID for error cleanup
+  const assistantMsgIdRef = useRef<string | null>(null);
+
   // Send message mutation
   const sendMessageMutation = useMutation({
     mutationFn: async (message: string) => {
@@ -109,6 +112,8 @@ export function useChat() {
         content: '',
         isStreaming: true,
       });
+
+      assistantMsgIdRef.current = assistantMsgId;
 
       setLoading(true);
       setError(null);
@@ -147,14 +152,17 @@ export function useChat() {
       readerRef.current = reader;
       const decoder = new TextDecoder();
       let assistantContent = '';
+      let sseBuffer = '';
 
       try {
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
 
-          const chunk = decoder.decode(value, { stream: true });
-          const lines = chunk.split('\n');
+          sseBuffer += decoder.decode(value, { stream: true });
+          const lines = sseBuffer.split('\n');
+          // Keep the last (possibly incomplete) line in the buffer
+          sseBuffer = lines.pop() || '';
 
           for (const line of lines) {
             if (!line.startsWith('data: ')) continue;
@@ -190,6 +198,11 @@ export function useChat() {
       return assistantContent;
     },
     onError: (error) => {
+      // Clear the streaming state on the assistant message so it doesn't get stuck
+      if (assistantMsgIdRef.current) {
+        setMessageStreaming(assistantMsgIdRef.current, false);
+        assistantMsgIdRef.current = null;
+      }
       if (error.name === 'AbortError') {
         readerRef.current?.cancel().catch(() => {});
         readerRef.current = null;

@@ -12,7 +12,6 @@ vi.mock('@/lib/logger', () => ({
 
 import {
   withAIFallback,
-  parseClaudeJSON,
   extractTextContent,
   calculateWeightedScore,
   formatDocumentType,
@@ -21,44 +20,6 @@ import {
   getSuccessScoreStatus,
   truncateText,
 } from './utils';
-
-describe('parseClaudeJSON', () => {
-  it('parses a valid JSON string', () => {
-    const result = parseClaudeJSON<{ name: string }>('{"name":"test"}');
-    expect(result).toEqual({ name: 'test' });
-  });
-
-  it('extracts JSON from ```json fences', () => {
-    const input = '```json\n{"key":"value"}\n```';
-    const result = parseClaudeJSON<{ key: string }>(input);
-    expect(result).toEqual({ key: 'value' });
-  });
-
-  it('extracts JSON from ``` fences without json tag', () => {
-    const input = '```\n{"key":"value"}\n```';
-    const result = parseClaudeJSON<{ key: string }>(input);
-    expect(result).toEqual({ key: 'value' });
-  });
-
-  it('extracts raw JSON object from surrounding text', () => {
-    const input = 'Here is the result: {"score": 42} end of response';
-    const result = parseClaudeJSON<{ score: number }>(input);
-    expect(result).toEqual({ score: 42 });
-  });
-
-  it('throws on malformed JSON', () => {
-    expect(() => parseClaudeJSON('{bad json}')).toThrow();
-  });
-
-  it('throws on empty string', () => {
-    expect(() => parseClaudeJSON('')).toThrow('Empty or invalid content');
-  });
-
-  it('throws on null/undefined', () => {
-    expect(() => parseClaudeJSON(null as unknown as string)).toThrow('Empty or invalid content');
-    expect(() => parseClaudeJSON(undefined as unknown as string)).toThrow('Empty or invalid content');
-  });
-});
 
 describe('withAIFallback', () => {
   it('returns result with source "ai" on success', async () => {

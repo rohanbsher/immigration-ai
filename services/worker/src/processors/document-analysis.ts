@@ -15,6 +15,7 @@ import { analyzeDocument } from '@/lib/ai/document-analysis';
 import type { DocumentAnalysisResult } from '@/lib/ai/types';
 import { openaiBreaker, anthropicBreaker } from '@/lib/ai/circuit-breaker';
 import { features } from '@/lib/config';
+import { CLAUDE_MODEL } from '@/lib/ai/client';
 import { validateStorageUrl } from '@/lib/security';
 import { logAIRequest } from '@/lib/audit/ai-audit';
 import { getWorkerSupabase } from '../supabase';
@@ -46,7 +47,7 @@ function getAuditProvider(): 'openai' | 'anthropic' {
 function getAuditModel(): string {
   const provider = features.documentAnalysisProvider;
   if (provider === 'openai') return 'gpt-4o';
-  return 'claude-sonnet-4'; // Claude or auto (Claude-first)
+  return CLAUDE_MODEL;
 }
 
 export async function processDocumentAnalysis(

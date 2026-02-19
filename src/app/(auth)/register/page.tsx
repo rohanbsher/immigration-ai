@@ -16,7 +16,6 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Eye, EyeOff, Loader2, Check, AlertCircle, CheckCircle2, Sparkles } from 'lucide-react';
-import { toast } from 'sonner';
 import type { UserRole } from '@/types';
 import { getPasswordChecks } from '@/lib/validation/password';
 
@@ -34,6 +33,8 @@ export default function RegisterPage() {
   const [confirmationSent, setConfirmationSent] = useState(false);
   const [oauthLoading, setOauthLoading] = useState<'google' | 'azure' | null>(null);
   const [emailTouched, setEmailTouched] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [formSuccess, setFormSuccess] = useState<string | null>(null);
   const { signUp, signInWithOAuth, isLoading } = useAuth();
 
   const passwordChecks = useMemo(() => getPasswordChecks(formData.password), [formData.password]);
@@ -53,14 +54,16 @@ export default function RegisterPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setFormError(null);
+    setFormSuccess(null);
 
     if (!isPasswordValid) {
-      toast.error('Please meet all password requirements');
+      setFormError('Please meet all password requirements');
       return;
     }
 
     if (accountType === 'attorney' && !formData.barNumber) {
-      toast.error('Bar number is required for attorneys');
+      setFormError('Bar number is required for attorneys');
       return;
     }
 
@@ -77,21 +80,21 @@ export default function RegisterPage() {
 
       if (result.requiresConfirmation) {
         setConfirmationSent(true);
-        toast.success('Check your email to confirm your account');
       } else {
-        toast.success('Account created successfully!');
+        setFormSuccess('Account created successfully!');
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Registration failed');
+      setFormError(err instanceof Error ? err.message : 'Registration failed');
     }
   };
 
   const handleOAuthLogin = async (provider: 'google' | 'azure') => {
     setOauthLoading(provider);
+    setFormError(null);
     try {
       await signInWithOAuth(provider);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'OAuth login failed');
+      setFormError(err instanceof Error ? err.message : 'OAuth login failed');
     } finally {
       setOauthLoading(null);
     }
@@ -168,6 +171,20 @@ export default function RegisterPage() {
                 <TabsTrigger value="client">I&apos;m a Client</TabsTrigger>
               </TabsList>
             </Tabs>
+
+            {formError && (
+              <div className="mb-4 flex items-center gap-2 rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                <AlertCircle size={16} className="shrink-0" />
+                {formError}
+              </div>
+            )}
+
+            {formSuccess && (
+              <div className="mb-4 flex items-center gap-2 rounded-md border border-success/50 bg-success/10 px-4 py-3 text-sm text-success">
+                <CheckCircle2 size={16} className="shrink-0" />
+                {formSuccess}
+              </div>
+            )}
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">

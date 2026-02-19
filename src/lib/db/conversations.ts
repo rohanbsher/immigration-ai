@@ -125,6 +125,7 @@ class ConversationsServiceClass extends BaseService {
         .select()
         .eq('id', conversationId)
         .eq('user_id', userId)
+        .is('deleted_at', null)
         .single();
 
       if (error || !data) {
@@ -146,6 +147,7 @@ class ConversationsServiceClass extends BaseService {
         .from('conversations')
         .select()
         .eq('user_id', userId)
+        .is('deleted_at', null)
         .order('updated_at', { ascending: false });
 
       if (options?.caseId) {
@@ -194,9 +196,10 @@ class ConversationsServiceClass extends BaseService {
     return this.withErrorHandling(async () => {
       const supabase = await this.getSupabaseClient();
 
+      // Soft-delete to preserve attorney-client communication for compliance
       const { error } = await supabase
         .from('conversations')
-        .delete()
+        .update({ deleted_at: new Date().toISOString() })
         .eq('id', conversationId)
         .eq('user_id', userId);
 
@@ -218,6 +221,7 @@ class ConversationsServiceClass extends BaseService {
         .select()
         .eq('user_id', userId)
         .eq('case_id', caseId)
+        .is('deleted_at', null)
         .order('updated_at', { ascending: false })
         .limit(1)
         .single();

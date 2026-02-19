@@ -67,7 +67,6 @@ ${safeExistingFormData ? JSON.stringify(safeExistingFormData, null, 2) : 'No exi
         },
       ],
       userMessage: `${autofillPrompt}\n\n${dataContext}`,
-      cacheableSystem: false, // already manually cached above
     });
 
     return {

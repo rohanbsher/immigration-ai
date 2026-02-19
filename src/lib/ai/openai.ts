@@ -9,6 +9,9 @@ import {
 import { serverEnv, features } from '@/lib/config';
 import { withRetry, AI_RETRY_OPTIONS, RetryExhaustedError } from '@/lib/utils/retry';
 
+/** OpenAI model — single source of truth (mirrors CLAUDE_MODEL in client.ts). */
+export const GPT_MODEL = 'gpt-4o';
+
 // Lazy-initialize OpenAI client to avoid errors during build
 let openaiInstance: OpenAI | null = null;
 
@@ -70,7 +73,7 @@ export async function analyzeDocumentWithVision(
   try {
     const response = await withRetry(
       () => getOpenAIClient().chat.completions.create({
-        model: 'gpt-4o',
+        model: GPT_MODEL,
         messages: [
           {
             role: 'system',
@@ -145,7 +148,7 @@ export async function extractTextFromImage(
 ): Promise<{ text: string; confidence: number }> {
   const response = await withRetry(
     () => getOpenAIClient().chat.completions.create({
-      model: 'gpt-4o',
+      model: GPT_MODEL,
       messages: [
         {
           role: 'user',
@@ -186,7 +189,7 @@ export async function detectDocumentType(
 ): Promise<{ type: string; confidence: number }> {
   const response = await withRetry(
     () => getOpenAIClient().chat.completions.create({
-      model: 'gpt-4o',
+      model: GPT_MODEL,
       messages: [
         {
           role: 'user',
@@ -258,7 +261,7 @@ export async function validateDocumentImage(
 }> {
   const response = await withRetry(
     () => getOpenAIClient().chat.completions.create({
-      model: 'gpt-4o',
+      model: GPT_MODEL,
       messages: [
         {
           role: 'user',

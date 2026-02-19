@@ -11,16 +11,12 @@ import {
   QUEUE_NAMES,
   AI_JOB_DEFAULTS,
   EMAIL_JOB_DEFAULTS,
-  CRON_JOB_DEFAULTS,
   type DocumentAnalysisJob,
   type FormAutofillJob,
   type RecommendationsJob,
   type CompletenessJob,
   type SuccessScoreJob,
-  type NaturalSearchJob,
   type EmailJob,
-  type VirusScanJob,
-  type CronJobPayload,
 } from './types';
 
 // Lazy-initialized queue instances
@@ -58,28 +54,12 @@ export function getSuccessScoreQueue() {
   return getOrCreateQueue<SuccessScoreJob>(QUEUE_NAMES.SUCCESS_SCORE);
 }
 
-export function getNaturalSearchQueue() {
-  return getOrCreateQueue<NaturalSearchJob>(QUEUE_NAMES.NATURAL_SEARCH);
-}
-
 // =============================================================================
 // Utility Queues
 // =============================================================================
 
 export function getEmailQueue() {
   return getOrCreateQueue<EmailJob>(QUEUE_NAMES.EMAIL);
-}
-
-export function getVirusScanQueue() {
-  return getOrCreateQueue<VirusScanJob>(QUEUE_NAMES.VIRUS_SCAN);
-}
-
-// =============================================================================
-// Cron Queue
-// =============================================================================
-
-export function getCronQueue() {
-  return getOrCreateQueue<CronJobPayload>(QUEUE_NAMES.CRON);
 }
 
 // =============================================================================

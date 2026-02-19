@@ -166,6 +166,7 @@ class FormsService extends BaseService {
         throw new Error('Unauthorized');
       }
 
+      // CAS guard: only allow review from valid pre-approval states
       const { data: updatedForm, error } = await supabase
         .from('forms')
         .update({
@@ -175,10 +176,16 @@ class FormsService extends BaseService {
           reviewed_at: new Date().toISOString(),
         })
         .eq('id', id)
+        .in('status', ['draft', 'ai_filled', 'in_review', 'needs_review'])
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        if (error.code === 'PGRST116') {
+          throw new Error('Form cannot be approved from its current status');
+        }
+        throw error;
+      }
 
       return this.decryptFormData(updatedForm as Form);
     }, 'reviewForm', { formId: id });
@@ -188,6 +195,7 @@ class FormsService extends BaseService {
     return this.withErrorHandling(async () => {
       const supabase = await this.getSupabaseClient();
 
+      // CAS guard: only allow filing from 'approved' status
       const { data: updatedForm, error } = await supabase
         .from('forms')
         .update({
@@ -195,10 +203,16 @@ class FormsService extends BaseService {
           filed_at: new Date().toISOString(),
         })
         .eq('id', id)
+        .eq('status', 'approved')
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        if (error.code === 'PGRST116') {
+          throw new Error('Form must be approved before it can be filed');
+        }
+        throw error;
+      }
 
       return this.decryptFormData(updatedForm as Form);
     }, 'markAsFiled', { formId: id });

@@ -71,7 +71,7 @@ export async function GET(request: NextRequest) {
       ? Math.round(((newUsersThisMonth - newUsersLastMonth) / newUsersLastMonth) * 100)
       : newUsersThisMonth > 0 ? 100 : 0;
 
-    // Calculate MRR from active Stripe subscriptions
+    // Calculate MRR from active Stripe subscriptions (bounded to avoid timeout)
     let mrr = 0;
     // MVP: MRR growth calculation not yet implemented — null tells the
     // frontend to display "N/A" instead of a misleading "0%".
@@ -79,8 +79,11 @@ export async function GET(request: NextRequest) {
     const stripe = getStripeClient();
     if (stripe) {
       try {
-        // Auto-paginate through all active subscriptions (no 100-item cap)
-        for await (const sub of stripe.subscriptions.list({ status: 'active' })) {
+        // Fetch subscriptions in a single bounded page to avoid Vercel timeout.
+        // At scale, this should be replaced with a cached MRR value updated via webhooks.
+        const MAX_SUBS = 100;
+        const subs = await stripe.subscriptions.list({ status: 'active', limit: MAX_SUBS });
+        for (const sub of subs.data) {
           const item = sub.items.data[0];
           if (!item?.price?.unit_amount) continue;
           const interval = item.price.recurring?.interval;

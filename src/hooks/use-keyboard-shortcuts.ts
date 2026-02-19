@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useCallback, useRef, useState } from 'react';
+import { useEffect, useCallback, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 interface ShortcutDefinition {
@@ -39,7 +39,7 @@ export function useKeyboardShortcuts() {
     setDialogOpen((prev) => !prev);
   }, []);
 
-  const shortcuts: ShortcutDefinition[] = [
+  const shortcuts: ShortcutDefinition[] = useMemo(() => [
     {
       keys: ['g', 'd'],
       label: 'G D',
@@ -96,7 +96,7 @@ export function useKeyboardShortcuts() {
       action: toggleDialog,
       category: 'Help',
     },
-  ];
+  ], [navigate, toggleDialog]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

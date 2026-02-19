@@ -20,21 +20,20 @@ export async function GET(
   try {
     const { id } = await params;
 
-    // Rate limiting - PDF generation can be resource-intensive
-    const ip = request.headers.get('x-forwarded-for') || 'unknown';
-    const rateLimitResult = await rateLimit(RATE_LIMITS.STANDARD, ip);
-    if (!rateLimitResult.success) {
-      return NextResponse.json(
-        { error: 'Too many requests' },
-        { status: 429, headers: { 'Retry-After': rateLimitResult.retryAfter?.toString() || '60' } }
-      );
-    }
-
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Rate limiting by user ID (not IP) to avoid shared-IP issues in law firms
+    const rateLimitResult = await rateLimit(RATE_LIMITS.STANDARD, user.id);
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: 'Too many requests' },
+        { status: 429, headers: { 'Retry-After': rateLimitResult.retryAfter?.toString() || '60' } }
+      );
     }
 
     // Get the form
@@ -98,11 +97,13 @@ export async function GET(
     // Return the PDF as a downloadable file
     // Convert Uint8Array to Buffer for NextResponse compatibility
     const buffer = Buffer.from(result.pdfBytes);
+    // Sanitize filename to prevent HTTP header injection
+    const safeFileName = (result.fileName || 'form.pdf').replace(/[^a-zA-Z0-9._-]/g, '_');
     return new NextResponse(buffer, {
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="${result.fileName}"`,
+        'Content-Disposition': `attachment; filename="${safeFileName}"`,
         'Content-Length': buffer.length.toString(),
         'Cache-Control': 'no-cache, no-store, must-revalidate',
       },

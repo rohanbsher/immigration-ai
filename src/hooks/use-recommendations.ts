@@ -71,6 +71,7 @@ export function useRecommendations(
   }
 ) {
   const { enabled = true, refetchOnMount = false, staleTime = 30 * 60 * 1000 } = options || {};
+  const queryClient = useQueryClient();
 
   const query = useQuery<CachedRecommendations, Error>({
     queryKey: ['recommendations', caseId],
@@ -88,6 +89,8 @@ export function useRecommendations(
     },
     forceRefresh: async () => {
       const result = await fetchRecommendations(caseId!, true);
+      // Write fresh data back into the React Query cache so the UI updates
+      queryClient.setQueryData(['recommendations', caseId], result);
       return result;
     },
   };

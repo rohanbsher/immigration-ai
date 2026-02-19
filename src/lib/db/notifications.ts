@@ -95,17 +95,18 @@ class NotificationsService extends BaseService {
     }, 'createNotification', { userId: data.user_id, title: data.title });
   }
 
-  async markAsRead(id: string): Promise<void> {
+  async markAsRead(id: string, userId: string): Promise<void> {
     return this.withErrorHandling(async () => {
       const supabase = await this.getSupabaseClient();
 
       const { error } = await supabase
         .from('notifications')
         .update({ read: true })
-        .eq('id', id);
+        .eq('id', id)
+        .eq('user_id', userId);
 
       if (error) throw error;
-    }, 'markAsRead', { notificationId: id });
+    }, 'markAsRead', { notificationId: id, userId });
   }
 
   async markAllAsRead(userId: string): Promise<void> {
@@ -122,17 +123,18 @@ class NotificationsService extends BaseService {
     }, 'markAllAsRead', { userId });
   }
 
-  async deleteNotification(id: string): Promise<void> {
+  async deleteNotification(id: string, userId: string): Promise<void> {
     return this.withErrorHandling(async () => {
       const supabase = await this.getSupabaseClient();
 
       const { error } = await supabase
         .from('notifications')
         .delete()
-        .eq('id', id);
+        .eq('id', id)
+        .eq('user_id', userId);
 
       if (error) throw error;
-    }, 'deleteNotification', { notificationId: id });
+    }, 'deleteNotification', { notificationId: id, userId });
   }
 
   // Helper methods for creating common notifications

@@ -128,8 +128,6 @@ export function useAuth() {
       }
       setState(prev => ({ ...prev, error: error as Error, isLoading: false }));
       throw error;
-    } finally {
-      setState(prev => ({ ...prev, isLoading: false }));
     }
   }, [router]);
 

@@ -4,6 +4,9 @@ import { naturalLanguageSearch } from '@/lib/ai/natural-search';
 import { createRateLimiter, RATE_LIMITS } from '@/lib/rate-limit';
 import { createLogger } from '@/lib/logger';
 import { safeParseBody } from '@/lib/auth/api-helpers';
+import { logAIRequest } from '@/lib/audit/ai-audit';
+import { trackUsage } from '@/lib/billing/quota';
+import { CLAUDE_MODEL } from '@/lib/ai/client';
 
 const log = createLogger('api:cases-search');
 
@@ -79,6 +82,22 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     // Perform search
     const searchResponse = await naturalLanguageSearch(trimmedQuery, user.id);
+
+    // Audit log & usage tracking (fire-and-forget)
+    const usedAI = searchResponse.interpretation.confidence > 0.3;
+    if (usedAI) {
+      logAIRequest({
+        operation: 'natural_search',
+        provider: 'anthropic',
+        userId: user.id,
+        dataFieldsSent: ['query'],
+        model: CLAUDE_MODEL,
+      });
+
+      trackUsage(user.id, 'ai_requests').catch((err) => {
+        log.warn('Failed to track search usage', { error: err instanceof Error ? err.message : String(err) });
+      });
+    }
 
     return NextResponse.json(searchResponse);
   } catch (error) {

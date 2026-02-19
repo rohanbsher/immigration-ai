@@ -3,14 +3,16 @@
 /**
  * Frontend job polling utility.
  *
- * Polls /api/jobs/[id]/status at regular intervals until the job completes or fails.
- * Used by hooks to track background job progress after async submission.
+ * Polls /api/jobs/[id]/status with exponential backoff until the job
+ * completes or fails. Starts fast (1s) and slows down (up to 15s) to
+ * reduce unnecessary requests on long-running jobs.
  */
 
 import { fetchWithTimeout } from '@/lib/api/fetch-with-timeout';
 import type { JobStatusResponse } from './types';
 
-const POLL_INTERVAL_MS = 3_000; // Poll every 3 seconds
+const INITIAL_INTERVAL_MS = 1_000;
+const MAX_INTERVAL_MS = 15_000;
 const MAX_POLL_DURATION_MS = 5 * 60 * 1_000; // Stop after 5 minutes
 
 export interface JobPollingCallbacks {
@@ -22,33 +24,19 @@ export interface JobPollingCallbacks {
 /**
  * Start polling a job's status until it completes or fails.
  *
+ * Uses exponential backoff: 1s → 2s → 4s → 8s → 15s (cap).
+ *
  * @returns A cleanup function that stops polling.
- *
- * @example
- * ```typescript
- * const stop = startJobPolling('job-123', {
- *   onComplete: (result) => {
- *     queryClient.invalidateQueries({ queryKey: ['documents'] });
- *   },
- *   onFailed: (error) => {
- *     toast.error(error || 'Processing failed');
- *   },
- *   onProgress: (progress) => {
- *     setProgress(progress);
- *   },
- * });
- *
- * // To stop polling early:
- * stop();
- * ```
  */
 export function startJobPolling(
   jobId: string,
   callbacks: JobPollingCallbacks = {}
 ): () => void {
   let stopped = false;
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  let currentInterval = INITIAL_INTERVAL_MS;
 
-  const intervalId = setInterval(async () => {
+  async function poll() {
     if (stopped) return;
 
     try {
@@ -57,8 +45,6 @@ export function startJobPolling(
       });
 
       if (!response.ok) {
-        // Job not found or server error — stop polling
-        clearInterval(intervalId);
         stopped = true;
         callbacks.onFailed?.('Unable to check job status');
         return;
@@ -72,24 +58,33 @@ export function startJobPolling(
       }
 
       if (status.status === 'completed') {
-        clearInterval(intervalId);
         stopped = true;
         callbacks.onComplete?.(status.result);
+        return;
       } else if (status.status === 'failed') {
-        clearInterval(intervalId);
         stopped = true;
         callbacks.onFailed?.(status.error || 'Processing failed. Please try again.');
+        return;
       }
     } catch {
       // Network error — keep polling (transient failure)
     }
-  }, POLL_INTERVAL_MS);
+
+    // Schedule next poll with exponential backoff
+    if (!stopped) {
+      timeoutId = setTimeout(poll, currentInterval);
+      currentInterval = Math.min(currentInterval * 2, MAX_INTERVAL_MS);
+    }
+  }
+
+  // Start first poll after initial interval
+  timeoutId = setTimeout(poll, currentInterval);
 
   // Auto-stop after max duration
-  const timeoutId = setTimeout(() => {
+  const maxTimeoutId = setTimeout(() => {
     if (!stopped) {
-      clearInterval(intervalId);
       stopped = true;
+      if (timeoutId) clearTimeout(timeoutId);
       callbacks.onFailed?.('Job timed out. Please check back later.');
     }
   }, MAX_POLL_DURATION_MS);
@@ -97,7 +92,7 @@ export function startJobPolling(
   // Return cleanup function
   return () => {
     stopped = true;
-    clearInterval(intervalId);
-    clearTimeout(timeoutId);
+    if (timeoutId) clearTimeout(timeoutId);
+    clearTimeout(maxTimeoutId);
   };
 }

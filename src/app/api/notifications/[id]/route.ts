@@ -55,7 +55,7 @@ export async function PATCH(
     const { read } = updateNotificationSchema.parse(body);
 
     if (read) {
-      await notificationsService.markAsRead(id);
+      await notificationsService.markAsRead(id, user.id);
     }
 
     return NextResponse.json({ success: true });
@@ -112,7 +112,7 @@ export async function DELETE(
       );
     }
 
-    await notificationsService.deleteNotification(id);
+    await notificationsService.deleteNotification(id, user.id);
 
     return NextResponse.json({ message: 'Notification deleted successfully' });
   } catch (error) {

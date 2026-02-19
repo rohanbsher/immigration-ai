@@ -8,21 +8,20 @@ import { safeParseBody } from '@/lib/auth/api-helpers';
 
 const log = createLogger('api:notification-preferences');
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
-    const ip = request.headers.get('x-forwarded-for') || 'unknown';
-    const rateLimitResult = await rateLimit(RATE_LIMITS.STANDARD, ip);
+    const user = await serverAuth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
+    // Rate limit by user ID (not IP) to avoid shared-IP issues in law firms
+    const rateLimitResult = await rateLimit(RATE_LIMITS.STANDARD, user.id);
     if (!rateLimitResult.success) {
       return NextResponse.json(
         { error: 'Too many requests' },
         { status: 429, headers: { 'Retry-After': rateLimitResult.retryAfter?.toString() || '60' } }
       );
-    }
-
-    const user = await serverAuth.getUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const preferences = await getNotificationPreferences(user.id);
@@ -49,19 +48,18 @@ const updateSchema = z.object({
 
 export async function PATCH(request: NextRequest) {
   try {
-    const ip = request.headers.get('x-forwarded-for') || 'unknown';
-    const rateLimitResult = await rateLimit(RATE_LIMITS.STANDARD, ip);
+    const user = await serverAuth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
+    // Rate limit by user ID (not IP) to avoid shared-IP issues in law firms
+    const rateLimitResult = await rateLimit(RATE_LIMITS.STANDARD, user.id);
     if (!rateLimitResult.success) {
       return NextResponse.json(
         { error: 'Too many requests' },
         { status: 429, headers: { 'Retry-After': rateLimitResult.retryAfter?.toString() || '60' } }
       );
-    }
-
-    const user = await serverAuth.getUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const parsed = await safeParseBody(request);

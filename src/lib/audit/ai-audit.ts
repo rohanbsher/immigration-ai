@@ -7,7 +7,8 @@ export type AIOperation =
   | 'form_autofill'
   | 'chat'
   | 'data_consistency'
-  | 'next_steps';
+  | 'next_steps'
+  | 'natural_search';
 
 export type AIProvider = 'openai' | 'anthropic';
 

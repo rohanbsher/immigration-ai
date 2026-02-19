@@ -47,41 +47,6 @@ export async function withAIFallback<T>(
 }
 
 /**
- * Parses JSON from Claude's response, handling markdown code blocks.
- *
- * Claude often returns JSON wrapped in ```json ... ``` code blocks.
- * This function handles both raw JSON and wrapped JSON.
- *
- * @param content - The raw response content from Claude
- * @returns The parsed JSON object
- * @throws Error if JSON cannot be parsed
- *
- * @example
- * const data = parseClaudeJSON<RecommendationsResponse>(response.content);
- */
-export function parseClaudeJSON<T>(content: string): T {
-  if (!content || typeof content !== 'string') {
-    throw new Error('Empty or invalid content');
-  }
-
-  // Try to extract JSON from markdown code block
-  const jsonMatch = content.match(/```(?:json)?\n?([\s\S]*?)\n?```/) ||
-    content.match(/\{[\s\S]*\}/);
-
-  if (!jsonMatch) {
-    throw new Error('Could not parse JSON response from Claude');
-  }
-
-  const jsonStr = jsonMatch[1] || jsonMatch[0];
-
-  try {
-    return JSON.parse(jsonStr) as T;
-  } catch {
-    throw new Error(`Failed to parse JSON: ${jsonStr.substring(0, 100)}...`);
-  }
-}
-
-/**
  * Extracts text content from a Claude message response.
  *
  * @param content - The content array from Claude's response

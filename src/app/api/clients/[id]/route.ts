@@ -32,13 +32,14 @@ async function canAccessClient(userId: string, clientId: string): Promise<boolea
     return true;
   }
 
-  // Check if user is an attorney with a case for this client
+  // Check if user is an attorney with an active case for this client
   const supabase = await createClient();
   const { data: cases } = await supabase
     .from('cases')
     .select('id')
     .eq('attorney_id', userId)
     .eq('client_id', clientId)
+    .is('deleted_at', null)
     .limit(1);
 
   return cases !== null && cases.length > 0;

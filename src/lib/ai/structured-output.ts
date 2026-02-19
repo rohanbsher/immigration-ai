@@ -12,6 +12,7 @@ import type { z, ZodType } from 'zod';
 import type Anthropic from '@anthropic-ai/sdk';
 import { getAnthropicClient, CLAUDE_MODEL } from './client';
 import { withRetry, AI_RETRY_OPTIONS } from '@/lib/utils/retry';
+import { anthropicBreaker } from './circuit-breaker';
 import { createLogger } from '@/lib/logger';
 
 const log = createLogger('ai:structured-output');
@@ -33,8 +34,6 @@ export interface StructuredOutputOptions<T extends ZodType> {
   userMessage: string | Anthropic.Messages.ContentBlockParam[];
   /** Maximum tokens for the response (default: 4096). */
   maxTokens?: number;
-  /** Whether to add cache_control to system prompt blocks (Phase 2). */
-  cacheableSystem?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -57,7 +56,6 @@ export async function callClaudeStructured<T extends ZodType>(
     system,
     userMessage,
     maxTokens = 4096,
-    cacheableSystem = false,
   } = options;
 
   // Convert Zod schema to JSON Schema using zod v4's native method
@@ -70,43 +68,19 @@ export async function callClaudeStructured<T extends ZodType>(
     input_schema: jsonSchema as Anthropic.Messages.Tool['input_schema'],
   };
 
-  // Build system prompt -- support both string and array-of-blocks forms
-  let systemParam: string | Anthropic.Messages.TextBlockParam[];
-  if (typeof system === 'string') {
-    if (cacheableSystem) {
-      systemParam = [
-        {
-          type: 'text' as const,
-          text: system,
-          cache_control: { type: 'ephemeral' as const },
-        },
-      ];
-    } else {
-      systemParam = system;
-    }
-  } else {
-    // Already an array of content blocks
-    if (cacheableSystem) {
-      systemParam = system.map((block) => ({
-        ...block,
-        cache_control: { type: 'ephemeral' as const },
-      }));
-    } else {
-      systemParam = system;
-    }
-  }
-
-  const message = await withRetry(
-    () =>
-      getAnthropicClient().messages.create({
-        model: CLAUDE_MODEL,
-        max_tokens: maxTokens,
-        system: systemParam,
-        tools: [tool],
-        tool_choice: { type: 'tool', name: toolName },
-        messages: [{ role: 'user', content: userMessage }],
-      }),
-    AI_RETRY_OPTIONS
+  const message = await anthropicBreaker.execute(() =>
+    withRetry(
+      () =>
+        getAnthropicClient().messages.create({
+          model: CLAUDE_MODEL,
+          max_tokens: maxTokens,
+          system,
+          tools: [tool],
+          tool_choice: { type: 'tool', name: toolName },
+          messages: [{ role: 'user', content: userMessage }],
+        }),
+      AI_RETRY_OPTIONS
+    )
   );
 
   // Extract the tool_use content block

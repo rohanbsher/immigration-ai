@@ -156,16 +156,24 @@ export async function getChatResponse(
 
 /**
  * Generate a title for a conversation based on the first message.
+ * Uses a cached system prompt for cost efficiency on repeated calls.
  */
 export async function generateConversationTitle(firstMessage: string): Promise<string> {
   try {
     const response = await getAnthropicClient().messages.create({
       model: CLAUDE_MODEL,
       max_tokens: 50,
+      system: [
+        {
+          type: 'text' as const,
+          text: 'Generate a very brief title (3-5 words) for the conversation. Return only the title, no quotes or explanation.',
+          cache_control: { type: 'ephemeral' as const },
+        },
+      ],
       messages: [
         {
           role: 'user',
-          content: `Generate a very brief title (3-5 words) for a conversation that starts with: "${firstMessage.slice(0, 200)}". Return only the title, no quotes or explanation.`,
+          content: firstMessage.slice(0, 200),
         },
       ],
     });

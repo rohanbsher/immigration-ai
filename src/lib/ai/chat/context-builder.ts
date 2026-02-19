@@ -91,7 +91,7 @@ export async function buildCaseContext(caseId: string, userId: string): Promise<
       )
     `)
     .eq('id', caseId)
-    .eq('user_id', userId)
+    .eq('attorney_id', userId)
     .single();
 
   if (caseError || !caseData) {
@@ -184,14 +184,18 @@ export async function buildChatContext(
   // Fetch user profile
   const { data: profile } = await supabase
     .from('profiles')
-    .select('full_name, role')
+    .select('first_name, last_name, role')
     .eq('id', userId)
     .single();
+
+  const userName = profile?.first_name && profile?.last_name
+    ? `${profile.first_name} ${profile.last_name}`
+    : 'User';
 
   const context: ChatContext = {
     type: caseId ? 'case' : 'general',
     user: {
-      name: profile?.full_name || 'User',
+      name: userName,
       role: profile?.role || 'attorney',
     },
     timestamp: new Date().toISOString(),
@@ -273,6 +277,11 @@ ${c.recentForms.map(f => `- ${f.name}: ${f.status}`).join('\n')}
 /**
  * Format context as system prompt (backward-compatible).
  * Combines static prefix + dynamic context into a single string.
+ *
+ * @deprecated Use `getChatSystemPrefix()` + `formatDynamicContext()` separately
+ * and pass them as distinct content blocks to enable prompt caching on the
+ * static prefix. This combined form prevents caching since the dynamic portion
+ * changes every request.
  */
 export async function formatContextForPrompt(context: ChatContext): Promise<string> {
   const prefix = await getChatSystemPrefix();

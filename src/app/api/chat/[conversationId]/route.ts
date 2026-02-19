@@ -9,6 +9,11 @@ import {
 import { standardRateLimiter, sensitiveRateLimiter } from '@/lib/rate-limit';
 import { createLogger } from '@/lib/logger';
 import { safeParseBody } from '@/lib/auth/api-helpers';
+import { z } from 'zod';
+
+const updateConversationSchema = z.object({
+  title: z.string().min(1).max(200).trim(),
+});
 
 const log = createLogger('api:chat-conversation');
 
@@ -120,10 +125,23 @@ export async function PATCH(
     const parsed = await safeParseBody(request);
     if (!parsed.success) return parsed.response;
     const body = parsed.data;
-    const { title } = body as { title?: string };
 
-    if (title !== undefined) {
-      await updateConversationTitle(conversationId, user.id, title);
+    let validatedTitle: string | undefined;
+    try {
+      const validated = updateConversationSchema.parse(body);
+      validatedTitle = validated.title;
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return NextResponse.json(
+          { error: 'Validation Error', message: err.issues[0].message },
+          { status: 400 }
+        );
+      }
+      throw err;
+    }
+
+    if (validatedTitle !== undefined) {
+      await updateConversationTitle(conversationId, user.id, validatedTitle);
     }
 
     const conversation = await getConversation(conversationId, user.id);

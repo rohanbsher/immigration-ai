@@ -28,13 +28,18 @@ export function useAiConsent() {
   const [hasConsented, setHasConsented] = useState(readConsent);
   const [showConsentModal, setShowConsentModal] = useState(false);
 
+  const [consentError, setConsentError] = useState<string | null>(null);
+
   const grantConsent = useCallback(async () => {
+    setConsentError(null);
     try {
       const res = await fetch('/api/profile/ai-consent', { method: 'POST' });
       await parseApiVoidResponse(res);
     } catch {
-      // Server persistence failed — still set localStorage as cache
-      // The server will reject AI requests until consent is persisted
+      // Server persistence failed — don't mark consent as granted locally
+      // since the server will reject AI requests without the consent record
+      setConsentError('Failed to save consent. Please try again.');
+      return;
     }
 
     const record: ConsentRecord = {
@@ -69,6 +74,7 @@ export function useAiConsent() {
   return {
     hasConsented,
     showConsentModal,
+    consentError,
     grantConsent,
     revokeConsent,
     openConsentDialog,

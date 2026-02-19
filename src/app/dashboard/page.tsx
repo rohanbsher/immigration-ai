@@ -62,10 +62,10 @@ export default function DashboardPage() {
       change: 'Cases under review',
     },
     {
-      label: 'Clients',
-      value: casesData?.total || 0,
+      label: 'Filed',
+      value: (stats?.byStatus?.filed || 0) + (stats?.byStatus?.approved || 0),
       icon: Users,
-      change: 'Total cases',
+      change: 'Filed & approved',
     },
     {
       label: 'Upcoming Deadlines',

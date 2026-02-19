@@ -37,12 +37,6 @@ export interface SuccessScoreJob {
   userId: string;
 }
 
-export interface NaturalSearchJob {
-  query: string;
-  userId: string;
-  firmId: string;
-}
-
 // =============================================================================
 // Utility Job Payloads
 // =============================================================================
@@ -56,20 +50,6 @@ export interface EmailJob {
   userId?: string;
   /** Pre-rendered HTML body (used by worker to avoid React dependency) */
   html?: string;
-}
-
-export interface VirusScanJob {
-  documentId: string;
-  userId: string;
-  storagePath: string;
-}
-
-// =============================================================================
-// Cron Job Payloads
-// =============================================================================
-
-export interface CronJobPayload {
-  triggeredAt: string;
 }
 
 // =============================================================================
@@ -100,10 +80,7 @@ export const QUEUE_NAMES = {
   RECOMMENDATIONS: 'ai-recommendations',
   COMPLETENESS: 'ai-completeness',
   SUCCESS_SCORE: 'ai-success-score',
-  NATURAL_SEARCH: 'ai-natural-search',
   EMAIL: 'util-email',
-  VIRUS_SCAN: 'util-virus-scan',
-  CRON: 'cron',
 } as const;
 
 export type QueueName = (typeof QUEUE_NAMES)[keyof typeof QUEUE_NAMES];
@@ -131,14 +108,4 @@ export const EMAIL_JOB_DEFAULTS = {
   },
   removeOnComplete: { age: 24 * 3600, count: 5000 },
   removeOnFail: { age: 7 * 24 * 3600, count: 5000 },
-};
-
-export const CRON_JOB_DEFAULTS = {
-  attempts: 2,
-  backoff: {
-    type: 'fixed' as const,
-    delay: 30_000,
-  },
-  removeOnComplete: { age: 7 * 24 * 3600, count: 100 },
-  removeOnFail: { age: 30 * 24 * 3600, count: 50 },
 };

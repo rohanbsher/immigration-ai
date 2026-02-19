@@ -93,6 +93,10 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // BullMQ + ioredis must be treated as external packages (not bundled by Turbopack)
+  // to avoid breaking TCP/TLS connections in serverless functions.
+  serverExternalPackages: ["bullmq", "ioredis"],
+
   // Security headers for all routes
   async headers() {
     return [

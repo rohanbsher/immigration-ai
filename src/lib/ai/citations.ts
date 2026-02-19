@@ -96,6 +96,14 @@ export function parseCitationsFromResponse(
 const MIN_MATCH_LENGTH = 3;
 
 /**
+ * Minimum ratio of shorter-string length to longer-string length.
+ * Prevents false positives where a short value matches inside a
+ * much longer, unrelated citation (e.g., "John" matching
+ * "Johnson & Johnson LLC" — ratio 4/23 = 0.17, rejected).
+ */
+const MIN_MATCH_RATIO = 0.4;
+
+/**
  * Map parsed citations to specific form fields.
  *
  * Uses heuristic matching: the citation's `citedText` must contain the
@@ -132,8 +140,8 @@ export function mapCitationsToFields(
       // The shorter string must be a substring of the longer
       if (!longer.includes(shorter)) return false;
 
-      // Guard against partial-word matches: shorter must be at least 40% of longer
-      if (shorter.length / longer.length < 0.4) return false;
+      // Guard against partial-word matches
+      if (shorter.length / longer.length < MIN_MATCH_RATIO) return false;
 
       return true;
     });

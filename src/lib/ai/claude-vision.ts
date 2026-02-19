@@ -52,8 +52,9 @@ const MAX_PDF_BYTES = 32 * 1024 * 1024;
  * Fetch an image from a signed URL and return its base64-encoded content.
  * Claude requires base64 image data rather than URL references.
  *
- * Enforces size limits (20 MB images, 32 MB PDFs) and rejects redirects
- * to prevent SSRF attacks via compromised storage URLs.
+ * Enforces size limits (20 MB images, 32 MB PDFs) via streaming reader
+ * that aborts early if the limit is exceeded, preventing memory spikes.
+ * Rejects redirects to prevent SSRF attacks via compromised storage URLs.
  */
 export async function fetchImageAsBase64(
   signedUrl: string
@@ -68,26 +69,44 @@ export async function fetchImageAsBase64(
 
   const contentType = response.headers.get('content-type') || 'image/jpeg';
   const mediaType = resolveMediaType(contentType);
-
-  // Enforce size limits before buffering into memory
-  const contentLength = response.headers.get('content-length');
   const maxBytes = mediaType === 'application/pdf' ? MAX_PDF_BYTES : MAX_IMAGE_BYTES;
+
+  // Fast-reject via content-length header when available
+  const contentLength = response.headers.get('content-length');
   if (contentLength && parseInt(contentLength, 10) > maxBytes) {
     throw new Error(
       `Document exceeds ${maxBytes / (1024 * 1024)}MB size limit for Claude vision (got ${Math.round(parseInt(contentLength, 10) / (1024 * 1024))}MB)`
     );
   }
 
-  const buffer = await response.arrayBuffer();
-
-  // Double-check actual size (content-length can be absent or inaccurate)
-  if (buffer.byteLength > maxBytes) {
-    throw new Error(
-      `Document exceeds ${maxBytes / (1024 * 1024)}MB size limit for Claude vision (got ${Math.round(buffer.byteLength / (1024 * 1024))}MB)`
-    );
+  // Stream the body with a size-limited reader to abort early
+  // without buffering the entire oversized file into memory.
+  if (!response.body) {
+    throw new Error('Response body is empty');
   }
 
-  const data = Buffer.from(buffer).toString('base64');
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let totalBytes = 0;
+
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      totalBytes += value.byteLength;
+      if (totalBytes > maxBytes) {
+        reader.cancel();
+        throw new Error(
+          `Document exceeds ${maxBytes / (1024 * 1024)}MB size limit for Claude vision (got >${Math.round(totalBytes / (1024 * 1024))}MB)`
+        );
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  const data = Buffer.concat(chunks).toString('base64');
   return { data, mediaType };
 }
 
@@ -130,13 +149,15 @@ function buildContentBlock(
 }
 
 /**
- * Detect media type from the first few bytes of base64-encoded data.
+ * Detect media type from magic bytes in base64-encoded data.
+ * Decodes the first 12 bytes (16 base64 chars) — enough for all
+ * supported signatures including WEBP (bytes 8-11).
  * Falls back to 'image/jpeg' if unrecognized.
  */
 function detectMediaTypeFromBase64(
   base64Data: string
 ): ImageMediaType | 'application/pdf' {
-  // Decode just the first 8 bytes to check magic bytes
+  // 16 base64 chars decode to 12 raw bytes — covers all signatures we check
   const header = Buffer.from(base64Data.slice(0, 16), 'base64');
 
   // PNG: 89 50 4E 47
@@ -147,9 +168,9 @@ function detectMediaTypeFromBase64(
   if (header[0] === 0x47 && header[1] === 0x49 && header[2] === 0x46 && header[3] === 0x38) {
     return 'image/gif';
   }
-  // WEBP: 52 49 46 46 ... 57 45 42 50
+  // WEBP: "RIFF" at 0-3, "WEBP" at 8-11
   if (header[0] === 0x52 && header[1] === 0x49 && header[2] === 0x46 && header[3] === 0x46 &&
-      header.length >= 12 && header[8] === 0x57 && header[9] === 0x45 && header[10] === 0x42 && header[11] === 0x50) {
+      header[8] === 0x57 && header[9] === 0x45 && header[10] === 0x42 && header[11] === 0x50) {
     return 'image/webp';
   }
   // PDF: 25 50 44 46 (%PDF)

@@ -538,6 +538,7 @@ describe('2FA Routes - Security Edge Cases', () => {
       const req = createRequest('GET', '/api/2fa/status');
       const res = await statusHandler(req);
 
+      expect(serverAuth.getUser).toHaveBeenCalled();
       expect(res.status).toBe(200);
       expect(getTwoFactorStatus).toHaveBeenCalledWith(USER_1.id);
       expect(getTwoFactorStatus).not.toHaveBeenCalledWith(USER_2_ID);
@@ -554,6 +555,7 @@ describe('2FA Routes - Security Edge Cases', () => {
       const req = createRequest('POST', '/api/2fa/setup');
       const res = await setupHandler(req);
 
+      expect(serverAuth.getUser).toHaveBeenCalled();
       expect(res.status).toBe(200);
       expect(setupTwoFactor).toHaveBeenCalledWith(USER_1.id, USER_1.email);
       expect(setupTwoFactor).not.toHaveBeenCalledWith(USER_2_ID, expect.anything());
@@ -573,6 +575,7 @@ describe('2FA Routes - Security Edge Cases', () => {
       });
       const res = await verifyHandler(req);
 
+      expect(serverAuth.getUser).toHaveBeenCalled();
       expect(res.status).toBe(200);
       expect(verifyTwoFactorToken).toHaveBeenCalledWith(USER_1.id, '123456');
       expect(verifyTwoFactorToken).not.toHaveBeenCalledWith(USER_2_ID, expect.anything());
@@ -593,6 +596,7 @@ describe('2FA Routes - Security Edge Cases', () => {
       });
       const res = await verifyHandler(req);
 
+      expect(serverAuth.getUser).toHaveBeenCalled();
       expect(res.status).toBe(200);
       expect(verifyAndEnableTwoFactor).toHaveBeenCalledWith(USER_1.id, '654321');
       expect(verifyAndEnableTwoFactor).not.toHaveBeenCalledWith(USER_2_ID, expect.anything());
@@ -612,6 +616,7 @@ describe('2FA Routes - Security Edge Cases', () => {
       });
       const res = await disableHandler(req);
 
+      expect(serverAuth.getUser).toHaveBeenCalled();
       expect(res.status).toBe(200);
       expect(disableTwoFactor).toHaveBeenCalledWith(USER_1.id, '123456');
       expect(disableTwoFactor).not.toHaveBeenCalledWith(USER_2_ID, expect.anything());
@@ -631,12 +636,13 @@ describe('2FA Routes - Security Edge Cases', () => {
       });
       const res = await backupCodesHandler(req);
 
+      expect(serverAuth.getUser).toHaveBeenCalled();
       expect(res.status).toBe(200);
       expect(regenerateBackupCodes).toHaveBeenCalledWith(USER_1.id, '123456');
       expect(regenerateBackupCodes).not.toHaveBeenCalledWith(USER_2_ID, expect.anything());
     });
 
-    it('all 2FA operations use session user ID even when body contains a different userId', async () => {
+    it('setup endpoint ignores userId in request body', async () => {
       vi.mocked(serverAuth.getUser).mockResolvedValue(USER_1 as never);
 
       vi.mocked(setupTwoFactor).mockResolvedValue({
@@ -648,6 +654,7 @@ describe('2FA Routes - Security Edge Cases', () => {
       const req = createRequest('POST', '/api/2fa/setup', { userId: USER_2_ID });
       await setupHandler(req);
 
+      expect(serverAuth.getUser).toHaveBeenCalled();
       expect(setupTwoFactor).toHaveBeenCalledWith(USER_1.id, USER_1.email);
     });
   });

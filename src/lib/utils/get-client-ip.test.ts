@@ -211,5 +211,75 @@ describe('getClientIp', () => {
 
       expect(getClientIp(request)).toBe('anonymous');
     });
+
+    it('should accept IPv6 shorthand ::1', () => {
+      const request = createRequest({
+        'x-real-ip': '::1',
+      });
+
+      expect(getClientIp(request)).toBe('::1');
+    });
+  });
+
+  describe('regex false positives (now rejected by net.isIP)', () => {
+    it('should return "anonymous" for bare dots "..."', () => {
+      const request = createRequest({
+        'x-forwarded-for': '...',
+      });
+
+      expect(getClientIp(request)).toBe('anonymous');
+    });
+
+    it('should return "anonymous" for bare hex string "DEADBEEF"', () => {
+      const request = createRequest({
+        'x-forwarded-for': 'DEADBEEF',
+      });
+
+      expect(getClientIp(request)).toBe('anonymous');
+    });
+
+    it('should return "anonymous" for excessive colons ":::::::"', () => {
+      const request = createRequest({
+        'x-forwarded-for': ':::::::',
+      });
+
+      expect(getClientIp(request)).toBe('anonymous');
+    });
+
+    it('should return "anonymous" for out-of-range octets "999.999.999.999"', () => {
+      const request = createRequest({
+        'x-forwarded-for': '999.999.999.999',
+      });
+
+      expect(getClientIp(request)).toBe('anonymous');
+    });
+
+    it('should return "anonymous" for single hex char "a"', () => {
+      const request = createRequest({
+        'x-forwarded-for': 'a',
+      });
+
+      expect(getClientIp(request)).toBe('anonymous');
+    });
+  });
+
+  describe('header fallthrough on invalid first entry', () => {
+    it('should fall through to X-Real-IP when X-Forwarded-For first entry is invalid', () => {
+      const request = createRequest({
+        'x-forwarded-for': 'DEADBEEF',
+        'x-real-ip': '10.0.0.5',
+      });
+
+      expect(getClientIp(request)).toBe('10.0.0.5');
+    });
+
+    it('should fall through to X-Real-IP when X-Forwarded-For has garbage like ":::::::"', () => {
+      const request = createRequest({
+        'x-forwarded-for': ':::::::',
+        'x-real-ip': '172.16.0.99',
+      });
+
+      expect(getClientIp(request)).toBe('172.16.0.99');
+    });
   });
 });

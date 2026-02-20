@@ -730,6 +730,7 @@ describe('Billing API - IDOR Protection', () => {
     const req = createRequest('GET', `/api/billing/quota?metric=cases&userId=${USER_2_ID}`);
     const res = await quotaGET(req);
 
+    expect(serverAuth.getUser).toHaveBeenCalled();
     expect(res.status).toBe(200);
     expect(checkQuota).toHaveBeenCalledWith(USER_1.id, 'cases');
     expect(checkQuota).not.toHaveBeenCalledWith(USER_2_ID, expect.anything());
@@ -745,6 +746,7 @@ describe('Billing API - IDOR Protection', () => {
     const req = createRequest('GET', `/api/billing/subscription?userId=${USER_2_ID}`);
     const res = await subscriptionGET(req);
 
+    expect(serverAuth.getUser).toHaveBeenCalled();
     expect(res.status).toBe(200);
     expect(getSubscriptionByUserId).toHaveBeenCalledWith(USER_1.id);
     expect(getSubscriptionByUserId).not.toHaveBeenCalledWith(USER_2_ID);
@@ -771,6 +773,7 @@ describe('Billing API - IDOR Protection', () => {
     });
     const res = await checkoutPOST(req);
 
+    expect(serverAuth.getUser).toHaveBeenCalled();
     expect(res.status).toBe(200);
     expect(createCheckoutSession).toHaveBeenCalledWith(
       expect.objectContaining({ userId: USER_1.id })
@@ -795,6 +798,7 @@ describe('Billing API - IDOR Protection', () => {
     });
     const res = await cancelPOST(req);
 
+    expect(serverAuth.getUser).toHaveBeenCalled();
     expect(res.status).toBe(200);
     expect(getUserSubscription).toHaveBeenCalledWith(USER_1.id);
     expect(getUserSubscription).not.toHaveBeenCalledWith(USER_2_ID);
@@ -815,6 +819,7 @@ describe('Billing API - IDOR Protection', () => {
     });
     const res = await resumePOST(req);
 
+    expect(serverAuth.getUser).toHaveBeenCalled();
     expect(res.status).toBe(200);
     expect(getUserSubscription).toHaveBeenCalledWith(USER_1.id);
     expect(getUserSubscription).not.toHaveBeenCalledWith(USER_2_ID);

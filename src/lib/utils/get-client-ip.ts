@@ -1,19 +1,13 @@
+import { isIP } from 'net';
 import { NextRequest } from 'next/server';
 
 /**
- * Lightweight plausibility check for IP addresses.
- * IPv4: must have exactly 3 dots separating digit groups (e.g. 192.168.1.1).
- * IPv6: must contain at least one colon and only hex/colon/dot chars
- *       (dots allowed for IPv4-mapped addresses like ::ffff:192.168.1.1).
- * Not a full RFC validator — just enough to reject obvious non-IPs.
+ * Validate an IP address using Node.js built-in `net.isIP()`.
+ * Returns true for valid IPv4 and IPv6 addresses (including IPv4-mapped
+ * IPv6 like ::ffff:192.168.1.1). Returns false for everything else.
  */
-const IPV4_PATTERN = /^\d{1,3}(\.\d{1,3}){3}$/;
-const IPV6_CHARS = /^[\da-fA-F:.]+$/;
-
 function isPlausibleIp(value: string): boolean {
-  if (IPV4_PATTERN.test(value)) return true;
-  if (value.includes(':') && /[\da-fA-F]/.test(value) && IPV6_CHARS.test(value)) return true;
-  return false;
+  return isIP(value) !== 0;
 }
 
 /**

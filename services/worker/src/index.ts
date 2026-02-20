@@ -106,7 +106,7 @@ async function main(): Promise<void> {
   });
 
   // Start health/admin server (include DLQ in queue list for dashboard visibility)
-  startHealthServer([...queues]);
+  startHealthServer([...queues, dlqQueue]);
 
   // Register BullMQ workers for each AI queue
   const concurrency = workerConfig.WORKER_CONCURRENCY;
@@ -159,13 +159,18 @@ async function main(): Promise<void> {
       // Forward exhausted jobs (all retries spent) to DLQ for manual inspection
       const maxAttempts = job?.opts?.attempts ?? 1;
       if (job && job.attemptsMade >= maxAttempts) {
+        // Strip PII-bearing fields before storing in DLQ
+        const { html, templateData, to, ...safeData } = (job.data ?? {}) as Record<string, unknown>;
         dlqQueue.add('failed', {
           originalQueue: def.name,
           originalJobId: job.id,
-          data: job.data,
+          data: safeData,
           error: err.message,
           failedAt: new Date().toISOString(),
           attemptsMade: job.attemptsMade,
+        }, {
+          removeOnComplete: { age: 30 * 24 * 3600 },  // 30 days
+          removeOnFail: { age: 30 * 24 * 3600 },
         }).catch((dlqErr) => {
           console.error(`[DLQ] Failed to enqueue exhausted job ${job.id}:`, dlqErr);
         });

@@ -32,7 +32,7 @@ interface HealthCheck {
 // Track server start time for uptime calculation
 const serverStartTime = Date.now();
 
-const healthRateLimiter = createRateLimiter({ ...RATE_LIMITS.STANDARD, maxRequests: 60 });
+const healthRateLimiter = createRateLimiter({ ...RATE_LIMITS.STANDARD, maxRequests: 60, keyPrefix: 'health' });
 
 export async function GET(request: NextRequest) {
   // Rate limit to prevent DoS (IP-based since health checks are unauthenticated)

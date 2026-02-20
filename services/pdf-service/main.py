@@ -16,6 +16,7 @@ import os
 import re
 import json
 import xml.etree.ElementTree as ET
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pikepdf
@@ -65,12 +66,15 @@ TEMPLATE_FILES: dict[str, str] = {
     "I-140": "i-140.pdf",
     "N-400": "n-400.pdf",
     "G-1145": "g-1145.pdf",
+    "I-129": "i-129.pdf",
+    "I-539": "i-539.pdf",
 }
 
 
 class FillRequest(BaseModel):
     form_type: str
     field_data: dict[str, str]
+    flatten: bool = False
 
 
 class FillStats(BaseModel):
@@ -90,7 +94,7 @@ def _verify_auth(authorization: str | None) -> None:
         raise HTTPException(401, "Invalid service token")
 
 
-def fill_xfa_pdf(template_path: str, field_data: dict[str, str]) -> tuple[bytes, FillStats]:
+def fill_xfa_pdf(template_path: str, field_data: dict[str, str], form_type: str = "", flatten: bool = False) -> tuple[bytes, FillStats]:
     """Fill XFA fields in a PDF and return (pdf_bytes, stats)."""
     with pikepdf.open(template_path) as pdf:
         root = pdf.Root
@@ -170,6 +174,20 @@ def fill_xfa_pdf(template_path: str, field_data: dict[str, str]) -> tuple[bytes,
         if "/NeedAppearances" not in acroform:
             acroform[pikepdf.Name("/NeedAppearances")] = True
 
+        # Flatten fields if requested (locks them for filing)
+        if flatten:
+            for field in acroform.get("/Fields", []):
+                field[pikepdf.Name("/Ff")] = 1  # ReadOnly flag
+
+        # Set PDF metadata
+        now = datetime.now(timezone.utc)
+        with pdf.open_metadata() as meta:
+            meta["dc:title"] = f"USCIS Form {form_type}" if form_type else "USCIS Form"
+            meta["dc:description"] = f"Immigration Form {form_type} - Filled"
+            meta["dc:creator"] = ["Immigration AI"]
+            meta["xmp:CreatorTool"] = "Immigration AI PDF Service"
+            meta["xmp:CreateDate"] = now.isoformat()
+
         # Save to memory buffer
         buf = io.BytesIO()
         pdf.save(buf)
@@ -204,7 +222,7 @@ async def handle_fill_pdf(
         )
 
     try:
-        pdf_bytes, stats = fill_xfa_pdf(str(template_path), request.field_data)
+        pdf_bytes, stats = fill_xfa_pdf(str(template_path), request.field_data, request.form_type, request.flatten)
     except Exception as e:
         logger.exception("PDF fill error for %s", request.form_type)
         raise HTTPException(500, f"PDF fill error: {str(e)}")

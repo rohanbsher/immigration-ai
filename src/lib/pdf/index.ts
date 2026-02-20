@@ -12,7 +12,7 @@ import { PDFDocument, StandardFonts, rgb, PDFFont, PDFPage } from 'pdf-lib';
 import { access } from 'fs/promises';
 import type { FormType } from '@/types';
 import { getFieldMappings, FormFieldMapping } from './templates';
-import { getTemplatePath, getNestedValue } from './acroform-filler';
+import { getTemplatePath, getNestedValue, formatDate } from './acroform-filler';
 import { fillXFAPdf } from './xfa-filler';
 import { getUSCISFieldMap, hasUSCISFieldMap } from './uscis-fields';
 import { createLogger } from '@/lib/logger';
@@ -54,6 +54,10 @@ export interface PDFGenerationResult {
   error?: string;
   /** When true the output was produced from an official USCIS template */
   isAcroFormFilled?: boolean;
+  /** Number of fields that were filled (XFA path only) */
+  filledFieldCount?: number;
+  /** Total number of fields in the mapping (XFA path only) */
+  totalFieldCount?: number;
 }
 
 export interface FormData {
@@ -100,6 +104,8 @@ export async function generateFormPDF(form: FormData): Promise<PDFGenerationResu
             pdfBytes: result.pdfBytes,
             fileName: `${form.formType}_${form.id.slice(0, 8)}_${Date.now()}.pdf`,
             isAcroFormFilled: true,
+            filledFieldCount: result.filledFieldCount,
+            totalFieldCount: result.totalFieldCount,
           };
         }
 
@@ -329,17 +335,20 @@ function drawField(
 
   y -= 14;
 
-  // Handle multi-line values
-  const lines = wrapText(value || 'N/A', font, 10, maxWidth);
-  for (const line of lines) {
-    page.drawText(line, {
-      x: x + 10,
-      y,
-      size: 10,
-      font,
-      color: rgb(0.3, 0.3, 0.3),
-    });
-    y -= 14;
+  // Split on explicit newlines first, then wrap each line to fit width
+  const paragraphs = (value || 'N/A').split('\n');
+  for (const paragraph of paragraphs) {
+    const wrapped = wrapText(paragraph, font, 10, maxWidth);
+    for (const line of wrapped) {
+      page.drawText(line, {
+        x: x + 10,
+        y,
+        size: 10,
+        font,
+        color: rgb(0.3, 0.3, 0.3),
+      });
+      y -= 14;
+    }
   }
 
   y -= 8; // Extra spacing between fields
@@ -377,26 +386,82 @@ function wrapText(text: string, font: PDFFont, fontSize: number, maxWidth: numbe
 // getNestedValue is imported from ./acroform-filler
 
 /**
+ * Format a boolean-like value as a visual checkbox.
+ */
+export function formatCheckbox(value: unknown): string | null {
+  if (typeof value === 'boolean') {
+    return value ? '[X] Yes' : '[ ] No';
+  }
+  if (typeof value === 'string') {
+    const lower = value.toLowerCase().trim();
+    if (lower === 'yes' || lower === '1' || lower === 'true') return '[X] Yes';
+    if (lower === 'no' || lower === '0' || lower === 'false' || lower === '') return '[ ] No';
+  }
+  return null;
+}
+
+/**
+ * Format an array of objects as structured multi-line text.
+ * e.g., address_history entries become "Street: 123 Main | City: NY | State: NY"
+ */
+function formatArrayOfObjects(arr: unknown[]): string {
+  return arr.map((item, i) => {
+    if (typeof item === 'object' && item !== null && !Array.isArray(item)) {
+      const entries = Object.entries(item as Record<string, unknown>)
+        .filter(([, v]) => v !== null && v !== undefined && v !== '')
+        .map(([k, v]) => `${formatLabel(k)}: ${formatValue(v)}`)
+        .join(' | ');
+      return `${i + 1}. ${entries}`;
+    }
+    return `${i + 1}. ${formatValue(item)}`;
+  }).join('\n');
+}
+
+/**
+ * Detect if a string looks like a date value.
+ */
+function looksLikeDate(value: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}/.test(value) || /^\d{2}\/\d{2}\/\d{4}$/.test(value);
+}
+
+/**
  * Format a value for display.
  */
-function formatValue(value: unknown): string {
+export function formatValue(value: unknown): string {
   if (value === null || value === undefined) {
     return '';
   }
 
+  // Render actual booleans as checkbox indicators
   if (typeof value === 'boolean') {
-    return value ? 'Yes' : 'No';
+    return value ? '[X] Yes' : '[ ] No';
   }
 
   if (value instanceof Date) {
-    return value.toLocaleDateString('en-US');
+    return formatDate(value);
+  }
+
+  // String values — check for dates
+  if (typeof value === 'string') {
+    if (looksLikeDate(value)) {
+      return formatDate(value);
+    }
+    return value;
   }
 
   if (typeof value === 'object') {
     if (Array.isArray(value)) {
+      // Check if array contains objects (structured data)
+      if (value.length > 0 && typeof value[0] === 'object' && value[0] !== null) {
+        return formatArrayOfObjects(value);
+      }
       return value.map(formatValue).join(', ');
     }
-    return JSON.stringify(value, null, 2);
+    // Render plain objects as structured key: value lines
+    const entries = Object.entries(value as Record<string, unknown>)
+      .filter(([, v]) => v !== null && v !== undefined && v !== '')
+      .map(([k, v]) => `${formatLabel(k)}: ${formatValue(v)}`);
+    return entries.join('\n');
   }
 
   return String(value);

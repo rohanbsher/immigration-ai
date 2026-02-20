@@ -1,9 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { formsService, casesService } from '@/lib/db';
-import { createClient } from '@/lib/supabase/server';
+import { NextResponse } from 'next/server';
+import { formsService } from '@/lib/db';
+import { withAuth, errorResponse, verifyFormAccess } from '@/lib/auth/api-helpers';
 import { generateFormPDF, isPDFGenerationSupported } from '@/lib/pdf';
 import { auditService } from '@/lib/audit';
-import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 import { createLogger } from '@/lib/logger';
 import type { FormType } from '@/types';
 
@@ -13,55 +12,26 @@ const log = createLogger('api:forms-pdf');
  * GET /api/forms/[id]/pdf
  * Generate and download a filled PDF for the form.
  */
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export const GET = withAuth(async (_request, context, auth) => {
   try {
-    const { id } = await params;
-
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Rate limiting by user ID (not IP) to avoid shared-IP issues in law firms
-    const rateLimitResult = await rateLimit(RATE_LIMITS.STANDARD, user.id);
-    if (!rateLimitResult.success) {
-      return NextResponse.json(
-        { error: 'Too many requests' },
-        { status: 429, headers: { 'Retry-After': rateLimitResult.retryAfter?.toString() || '60' } }
-      );
-    }
+    const { id } = await context.params!;
 
     // Get the form
     const form = await formsService.getForm(id);
     if (!form) {
-      return NextResponse.json({ error: 'Form not found' }, { status: 404 });
+      return errorResponse('Form not found', 404);
     }
 
     // Verify access via the case
-    const caseData = await casesService.getCase(form.case_id);
-    if (!caseData) {
-      return NextResponse.json({ error: 'Case not found' }, { status: 404 });
-    }
-
-    const isAttorney = caseData.attorney_id === user.id;
-    const isClient = caseData.client_id === user.id;
-
-    if (!isAttorney && !isClient) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    const formAccess = await verifyFormAccess(auth.user.id, id);
+    if (!formAccess.success) {
+      return errorResponse(formAccess.error, formAccess.status);
     }
 
     // Check if PDF generation is supported for this form type
     const formType = form.form_type as FormType;
     if (!isPDFGenerationSupported(formType)) {
-      return NextResponse.json(
-        { error: `PDF generation not yet supported for form type: ${formType}` },
-        { status: 400 }
-      );
+      return errorResponse(`PDF generation not yet supported for form type: ${formType}`, 400);
     }
 
     // Generate the PDF
@@ -75,10 +45,7 @@ export async function GET(
     });
 
     if (!result.success || !result.pdfBytes) {
-      return NextResponse.json(
-        { error: result.error || 'Failed to generate PDF' },
-        { status: 500 }
-      );
+      return errorResponse(result.error || 'Failed to generate PDF', 500);
     }
 
     // Log the PDF generation for audit trail
@@ -90,29 +57,37 @@ export async function GET(
         action: 'pdf_download',
         form_type: formType,
         form_status: form.status,
-        downloaded_by: isAttorney ? 'attorney' : 'client',
+        downloaded_by: formAccess.access.isAttorney ? 'attorney' : 'client',
       },
     });
 
     // Return the PDF as a downloadable file
-    // Convert Uint8Array to Buffer for NextResponse compatibility
     const buffer = Buffer.from(result.pdfBytes);
-    // Sanitize filename to prevent HTTP header injection
     const safeFileName = (result.fileName || 'form.pdf').replace(/[^a-zA-Z0-9._-]/g, '_');
+    const pdfType = result.isAcroFormFilled ? 'filing-ready' : 'draft';
+    const responseHeaders: Record<string, string> = {
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="${safeFileName}"`,
+      'Content-Length': buffer.length.toString(),
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'X-PDF-Type': pdfType,
+      'Access-Control-Expose-Headers': 'X-PDF-Type, X-Fill-Stats',
+    };
+
+    if (result.filledFieldCount !== undefined && result.totalFieldCount !== undefined) {
+      responseHeaders['X-Fill-Stats'] = JSON.stringify({
+        filled: result.filledFieldCount,
+        total: result.totalFieldCount,
+        formType,
+      });
+    }
+
     return new NextResponse(buffer, {
       status: 200,
-      headers: {
-        'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="${safeFileName}"`,
-        'Content-Length': buffer.length.toString(),
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-      },
+      headers: responseHeaders,
     });
   } catch (error) {
     log.logError('Error generating PDF', error);
-    return NextResponse.json(
-      { error: 'Failed to generate PDF' },
-      { status: 500 }
-    );
+    return errorResponse('Failed to generate PDF', 500);
   }
-}
+});

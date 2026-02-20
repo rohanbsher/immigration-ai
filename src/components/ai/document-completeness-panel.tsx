@@ -98,7 +98,7 @@ export function DocumentCompletenessPanel({
 
       {/* Checklists */}
       <div className="space-y-4">
-        {data.missingRequired.length > 0 && (
+        {data.missingRequired?.length > 0 && (
           <DocumentSection
             title="Missing Required"
             documents={data.missingRequired}
@@ -109,14 +109,14 @@ export function DocumentCompletenessPanel({
           />
         )}
 
-        {data.uploadedDocs.length > 0 && (
+        {data.uploadedDocs?.length > 0 && (
           <UploadedDocumentsSection
             documents={data.uploadedDocs}
             caseId={caseId}
           />
         )}
 
-        {data.missingOptional.length > 0 && (
+        {data.missingOptional?.length > 0 && (
           <DocumentSection
             title="Optional Documents"
             documents={data.missingOptional}
@@ -130,7 +130,7 @@ export function DocumentCompletenessPanel({
       </div>
 
       {/* Recommendations */}
-      {showRecommendations && data.recommendations.length > 0 && (
+      {showRecommendations && data.recommendations?.length > 0 && (
         <RecommendationsSection recommendations={data.recommendations} />
       )}
     </AIContentBox>

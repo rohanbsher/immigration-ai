@@ -54,7 +54,7 @@ export function SuccessScoreBadge({
     );
   }
 
-  if (error || !data || (data as typeof data & { degraded?: boolean }).degraded) {
+  if (error || !data || (data as typeof data & { degraded?: boolean }).degraded || typeof data.overallScore !== 'number') {
     return null;
   }
 
@@ -84,9 +84,9 @@ export function SuccessScoreBadge({
         <TooltipContent>
           <p className="font-medium">Success Probability: {label}</p>
           <p className="text-xs text-muted-foreground">
-            Based on {data.factors.length} factors
+            Based on {data.factors?.length ?? 0} factors
           </p>
-          {data.riskFactors.length > 0 && (
+          {(data.riskFactors?.length ?? 0) > 0 && (
             <p className="text-xs text-destructive mt-1">
               {data.riskFactors.length} risk factor(s)
             </p>

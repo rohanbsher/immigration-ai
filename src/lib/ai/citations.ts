@@ -9,37 +9,76 @@
 
 import type { Citation, FormFieldWithCitations } from './types';
 import { createLogger } from '@/lib/logger';
+import { getAnthropicClient, CLAUDE_MODEL } from './client';
+import { anthropicBreaker } from './circuit-breaker';
+import { withRetry, AI_RETRY_OPTIONS } from '@/lib/utils/retry';
 
 const log = createLogger('ai:citations');
 
 // ---------------------------------------------------------------------------
-// Types for raw Anthropic citation annotations
+// Types for raw Anthropic citation annotations (real API format)
 // ---------------------------------------------------------------------------
 
-interface RawCitationAnnotation {
-  type: string;
-  /** Cited text passage. */
-  cited_text?: string;
-  /** Start index in the source. */
-  start_index?: number;
-  /** End index in the source. */
-  end_index?: number;
-  /** Document index in the sources array. */
-  document_index?: number;
-  /** Page number (1-indexed). */
-  page_number?: number;
-  /** Document title / filename. */
+/**
+ * Raw citation annotation from the Anthropic Citations API.
+ *
+ * The API returns three location types:
+ * - `char_location`: character-level offsets (start_char_index / end_char_index)
+ * - `page_location`: page-level ranges (start_page_number / end_page_number)
+ * - `content_block_location`: block-level ranges (start_block_index / end_block_index)
+ *
+ * All types carry `cited_text`, `document_index`, and optional `document_title`.
+ */
+interface RawCitation {
+  type: 'char_location' | 'page_location' | 'content_block_location';
+  cited_text: string;
+  document_index: number;
   document_title?: string;
+  // char_location fields
+  start_char_index?: number;
+  end_char_index?: number;
+  // page_location fields
+  start_page_number?: number;
+  end_page_number?: number;
+  // content_block_location fields
+  start_block_index?: number;
+  end_block_index?: number;
 }
 
 interface RawContentBlock {
   type: string;
   text?: string;
-  annotations?: RawCitationAnnotation[];
+  citations?: RawCitation[];
 }
 
 interface RawCitationResponse {
   content?: RawContentBlock[];
+}
+
+// ---------------------------------------------------------------------------
+// Public input/output types for generateFieldCitations
+// ---------------------------------------------------------------------------
+
+export interface CitationDocument {
+  documentId: string;
+  documentType: string;
+  rawText: string;
+}
+
+export interface CitationField {
+  fieldId: string;
+  fieldName: string;
+  suggestedValue: string;
+}
+
+export interface CitationInput {
+  documents: CitationDocument[];
+  fields: CitationField[];
+}
+
+export interface CitationResult {
+  citations: Citation[];
+  processingTimeMs: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -49,8 +88,13 @@ interface RawCitationResponse {
 /**
  * Parse citation annotations from a raw Anthropic response.
  *
- * The Citations API adds `annotations` arrays to text content blocks.
- * This function normalizes them into our `Citation` type.
+ * The Citations API returns `citations` arrays on text content blocks.
+ * Each citation has a `type` that determines the location format:
+ * - `char_location`: start_char_index / end_char_index
+ * - `page_location`: start_page_number / end_page_number
+ * - `content_block_location`: start_block_index / end_block_index
+ *
+ * This function normalizes all three formats into our `Citation` type.
  *
  * @param response — The raw message response from the Anthropic API.
  * @param documentMap — Optional mapping from document index → { documentId, documentType }.
@@ -64,24 +108,33 @@ export function parseCitationsFromResponse(
   if (!response.content) return citations;
 
   for (const block of response.content) {
-    if (block.type !== 'text' || !block.annotations) continue;
+    if (block.type !== 'text' || !block.citations) continue;
 
-    for (const annotation of block.annotations) {
-      if (!annotation.cited_text) continue;
+    for (const raw of block.citations) {
+      if (!raw.cited_text) continue;
 
-      const docInfo = annotation.document_index !== undefined
-        ? documentMap?.get(annotation.document_index)
+      const docInfo = raw.document_index !== undefined
+        ? documentMap?.get(raw.document_index)
         : undefined;
 
-      citations.push({
+      const citation: Citation = {
         type: 'document',
-        citedText: annotation.cited_text,
-        startIndex: annotation.start_index,
-        endIndex: annotation.end_index,
-        pageNumber: annotation.page_number,
+        citedText: raw.cited_text,
         documentId: docInfo?.documentId,
-        documentType: docInfo?.documentType || annotation.document_title,
-      });
+        documentType: docInfo?.documentType || raw.document_title,
+      };
+
+      // Normalize location fields based on citation type
+      if (raw.type === 'char_location') {
+        citation.startIndex = raw.start_char_index;
+        citation.endIndex = raw.end_char_index;
+      } else if (raw.type === 'page_location') {
+        citation.pageNumber = raw.start_page_number;
+      }
+      // content_block_location — no direct mapping to our Citation fields;
+      // we store only the citedText and document info.
+
+      citations.push(citation);
     }
   }
 
@@ -173,4 +226,105 @@ export function hasCitations(fields: FormFieldWithCitations[]): boolean {
  */
 export function countCitations(fields: FormFieldWithCitations[]): number {
   return fields.reduce((sum, f) => sum + (f.citations?.length || 0), 0);
+}
+
+// ---------------------------------------------------------------------------
+// Pass 2: Generate citations for autofilled fields
+// ---------------------------------------------------------------------------
+
+const MAX_TOKENS_CITATIONS = 4096;
+
+/**
+ * Generate citations for autofilled form fields (Pass 2).
+ *
+ * Sends document text as `document` content blocks with `citations: { enabled: true }`
+ * and asks Claude to quote passages that support each field's suggested value.
+ *
+ * This is best-effort: on any error, logs and returns empty citations so
+ * the autofill result is never blocked.
+ */
+export async function generateFieldCitations(
+  input: CitationInput
+): Promise<CitationResult> {
+  const startTime = Date.now();
+
+  // Filter out documents with empty rawText
+  const validDocs = input.documents.filter((d) => d.rawText.trim().length > 0);
+
+  // Return early if nothing to cite
+  if (validDocs.length === 0 || input.fields.length === 0) {
+    return { citations: [], processingTimeMs: Date.now() - startTime };
+  }
+
+  // Build document-index-to-info mapping
+  const documentMap = new Map<number, { documentId: string; documentType: string }>();
+  validDocs.forEach((doc, idx) => {
+    documentMap.set(idx, { documentId: doc.documentId, documentType: doc.documentType });
+  });
+
+  // Build document content blocks
+  const documentBlocks = validDocs.map((doc) => ({
+    type: 'document' as const,
+    source: {
+      type: 'text' as const,
+      media_type: 'text/plain' as const,
+      data: doc.rawText,
+    },
+    title: doc.documentType,
+    context: `Source document: ${doc.documentType} (ID: ${doc.documentId})`,
+    citations: { enabled: true as const },
+    cache_control: { type: 'ephemeral' as const },
+  }));
+
+  // Build the field-listing prompt
+  const fieldLines = input.fields.map(
+    (f) => `- ${f.fieldName} (ID: ${f.fieldId}): "${f.suggestedValue}"`
+  );
+
+  const textBlock = {
+    type: 'text' as const,
+    text: [
+      'For each of the following form field values, quote the exact passage from the source documents that supports the value.',
+      'If a value cannot be found in any document, skip it.',
+      '',
+      ...fieldLines,
+    ].join('\n'),
+  };
+
+  try {
+    const response = await anthropicBreaker.execute(() =>
+      withRetry(
+        () =>
+          getAnthropicClient().messages.create({
+            model: CLAUDE_MODEL,
+            max_tokens: MAX_TOKENS_CITATIONS,
+            messages: [
+              {
+                role: 'user',
+                content: [...documentBlocks, textBlock],
+              },
+            ],
+          }),
+        AI_RETRY_OPTIONS
+      )
+    );
+
+    const citations = parseCitationsFromResponse(
+      response as unknown as RawCitationResponse,
+      documentMap
+    );
+
+    const processingTimeMs = Date.now() - startTime;
+    log.info('Generated field citations', {
+      documentCount: validDocs.length,
+      fieldCount: input.fields.length,
+      citationCount: citations.length,
+      processingTimeMs,
+    });
+
+    return { citations, processingTimeMs };
+  } catch (error) {
+    log.logError('Failed to generate field citations (best-effort)', error);
+    return { citations: [], processingTimeMs: Date.now() - startTime };
+  }
 }

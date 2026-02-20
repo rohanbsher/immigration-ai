@@ -2,12 +2,18 @@
  * BullMQ Redis connection configuration.
  *
  * BullMQ requires a standard Redis connection (ioredis), NOT the Upstash REST API.
- * Upstash provides both:
- *   - REST API: UPSTASH_REDIS_REST_URL (used by @upstash/redis for rate limiting)
- *   - Standard Redis: REDIS_URL (used by BullMQ via ioredis)
  *
- * The REDIS_URL comes from Upstash dashboard > your database > Details tab.
- * Format: rediss://default:<password>@<host>:6379
+ * Two separate Redis instances are used:
+ *   - Railway Redis: REDIS_URL (BullMQ job queues, noeviction policy)
+ *     Worker uses private URL (redis://...railway.internal:6379)
+ *     Vercel uses public URL (redis://...<host>.railway.app:<port>)
+ *   - Upstash Redis: UPSTASH_REDIS_REST_URL (rate limiting, HTTP REST)
+ *
+ * This separation is required because:
+ *   - BullMQ needs noeviction (jobs must never be evicted)
+ *   - Rate limiting needs volatile-ttl (expired keys should auto-evict)
+ *   - Vercel Edge Functions need HTTP REST (can't use TCP sockets)
+ *   - Railway private networking gives sub-ms latency to the worker
  */
 
 import { ConnectionOptions } from 'bullmq';
@@ -21,7 +27,7 @@ function parseRedisUrl(url: string): ConnectionOptions {
     username: parsed.username || undefined,
     tls: parsed.protocol === 'rediss:' ? {} : undefined,
     maxRetriesPerRequest: null, // Required by BullMQ
-    enableReadyCheck: false, // Upstash compatibility
+    enableReadyCheck: false,
   };
 }
 
@@ -50,7 +56,7 @@ export function requireJobConnection(): ConnectionOptions {
   if (!connection) {
     throw new Error(
       'REDIS_URL is not configured. BullMQ requires a standard Redis connection. ' +
-      'Set REDIS_URL to your Upstash Redis standard endpoint (rediss://...).'
+      'Set REDIS_URL to your Railway Redis endpoint.'
     );
   }
   return connection;

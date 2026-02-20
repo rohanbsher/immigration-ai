@@ -1,11 +1,11 @@
-import { withAttorneyAuth, errorResponse } from '@/lib/auth/api-helpers';
+import { withAuth, errorResponse } from '@/lib/auth/api-helpers';
 import { clientsService } from '@/lib/db/clients';
 import { createLogger } from '@/lib/logger';
 import { NextResponse } from 'next/server';
 
 const log = createLogger('api:clients-search');
 
-export const GET = withAttorneyAuth(async (request, _context, auth) => {
+export const GET = withAuth(async (request, _context, auth) => {
   try {
     const { searchParams } = new URL(request.url);
     const query = searchParams.get('q') || '';
@@ -20,4 +20,4 @@ export const GET = withAttorneyAuth(async (request, _context, auth) => {
     log.logError('Error searching clients', error);
     return errorResponse('Failed to search clients', 500);
   }
-});
+}, { roles: ['attorney'], rateLimit: 'SENSITIVE' });

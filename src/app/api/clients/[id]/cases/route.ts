@@ -1,6 +1,7 @@
 import { withAuth, errorResponse, successResponse } from '@/lib/auth/api-helpers';
 import { clientsService } from '@/lib/db/clients';
 import { createClient } from '@/lib/supabase/server';
+import { standardRateLimiter } from '@/lib/rate-limit';
 import { createLogger } from '@/lib/logger';
 
 const log = createLogger('api:client-cases');
@@ -8,6 +9,11 @@ const log = createLogger('api:client-cases');
 export const GET = withAuth(async (_request, context, auth) => {
   try {
     const { id: clientId } = await context.params!;
+
+    // Post-auth user-ID rate limit for per-user fairness
+    // (withAuth already provides IP-based pre-auth DDoS protection)
+    const userRateLimit = await standardRateLimiter.limit(_request, auth.user.id);
+    if (!userRateLimit.allowed) return userRateLimit.response;
 
     // Authorization check
     // Client can only view their own cases

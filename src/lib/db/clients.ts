@@ -91,15 +91,11 @@ class ClientsService extends BaseService {
 
   async getClients(
     options: ClientPaginationOptions = {},
-    userId?: string
+    userId: string
   ): Promise<{ data: ClientWithCases[]; total: number }> {
     return this.withErrorHandling(async () => {
       const supabase = await this.getSupabaseClient();
       const { page = 1, limit = 20, search } = options;
-
-      if (!userId) {
-        throw new Error('userId is required');
-      }
 
       // Single query: fetch cases with client profile data using Supabase's join syntax
       // This replaces the previous 2-query approach (N+1 fix)
@@ -171,7 +167,8 @@ class ClientsService extends BaseService {
           .from('profiles')
           .select('id, email, first_name, last_name, phone, date_of_birth, country_of_birth, nationality, avatar_url, created_at, updated_at')
           .eq('role', 'client')
-          .eq('primary_firm_id', firmId);
+          .eq('primary_firm_id', firmId)
+          .limit(500);
 
         if (firmClients) {
           for (const row of firmClients) {
@@ -212,13 +209,9 @@ class ClientsService extends BaseService {
     }, 'getClients');
   }
 
-  async getClientById(id: string, userId?: string): Promise<ClientWithCases | null> {
+  async getClientById(id: string, userId: string): Promise<ClientWithCases | null> {
     return this.withErrorHandling(async () => {
       const supabase = await this.getSupabaseClient();
-
-      if (!userId) {
-        throw new Error('userId is required');
-      }
 
       // Check that the client has cases belonging to the current attorney
       const { data: cases } = await supabase
@@ -292,13 +285,9 @@ class ClientsService extends BaseService {
     }, 'getClientCases', { clientId });
   }
 
-  async updateClient(id: string, data: UpdateClientData, userId?: string): Promise<Client> {
+  async updateClient(id: string, data: UpdateClientData, userId: string): Promise<Client> {
     return this.withErrorHandling(async () => {
       const supabase = await this.getSupabaseClient();
-
-      if (!userId) {
-        throw new Error('userId is required');
-      }
 
       // Check that the client has cases belonging to the current attorney
       const { data: linkedCases } = await supabase
@@ -408,14 +397,10 @@ class ClientsService extends BaseService {
     }, 'createClient', { email: data.email });
   }
 
-  async searchClients(query: string, userId?: string): Promise<Client[]> {
+  async searchClients(query: string, userId: string): Promise<Client[]> {
     return this.withErrorHandling(async () => {
       const supabase = await this.getSupabaseClient();
       const admin = getAdminClient();
-
-      if (!userId) {
-        throw new Error('userId is required');
-      }
 
       const sanitizedQuery = sanitizeSearchInput(query);
       if (sanitizedQuery.length === 0) {

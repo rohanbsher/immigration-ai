@@ -182,6 +182,7 @@ vi.mock('@/lib/auth/api-helpers', () => {
         status,
         headers: { 'Content-Type': 'application/json' },
       }),
+    resolveUserFirmId: vi.fn().mockResolvedValue(null),
     safeParseBody: async (request: any) => {
       try {
         const data = await request.json();

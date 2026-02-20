@@ -593,9 +593,7 @@ describe('Database Services', () => {
         expect(result).toEqual({ data: [], total: 0 });
       });
 
-      it('should throw error when userId not provided', async () => {
-        await expect(clientsService.getClients()).rejects.toThrow('userId is required');
-      });
+      // userId is now a required parameter — TypeScript enforces this at compile time
     });
 
     describe('getClient', () => {

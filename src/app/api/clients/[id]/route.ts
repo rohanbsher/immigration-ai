@@ -7,7 +7,7 @@ import { z } from 'zod';
 import { standardRateLimiter } from '@/lib/rate-limit';
 import { encrypt } from '@/lib/crypto';
 import { createLogger } from '@/lib/logger';
-import { safeParseBody } from '@/lib/auth/api-helpers';
+import { safeParseBody, resolveUserFirmId } from '@/lib/auth/api-helpers';
 
 const log = createLogger('api:clients-detail');
 
@@ -49,32 +49,13 @@ async function canAccessClient(userId: string, clientId: string): Promise<boolea
   }
 
   // Fallback: check if the client belongs to the same firm (caseless client).
-  // Uses admin client to bypass RLS for cross-table firm lookup.
-  const admin = getAdminClient();
-
-  const { data: attorneyProfile } = await admin
-    .from('profiles')
-    .select('primary_firm_id')
-    .eq('id', userId)
-    .single();
-
-  let firmId = (attorneyProfile as { primary_firm_id: string | null } | null)?.primary_firm_id;
-
-  if (!firmId) {
-    const { data: membership } = await admin
-      .from('firm_members')
-      .select('firm_id')
-      .eq('user_id', userId)
-      .limit(1)
-      .single();
-
-    firmId = (membership as { firm_id: string } | null)?.firm_id ?? null;
-  }
+  const firmId = await resolveUserFirmId(userId);
 
   if (!firmId) {
     return false;
   }
 
+  const admin = getAdminClient();
   const { data: clientProfile } = await admin
     .from('profiles')
     .select('id')

@@ -69,13 +69,13 @@ describe('useAiConsent', () => {
     expect(stored.version).toBe('1.0');
   });
 
-  test('grantConsent with server failure does not write localStorage and sets consentError', async () => {
+  test('grantConsent with server failure does not write localStorage, sets consentError, and re-throws', async () => {
     mockFetch.mockRejectedValue(new Error('Network error'));
 
     const { result } = renderHook(() => useAiConsent());
 
     await act(async () => {
-      await result.current.grantConsent();
+      await expect(result.current.grantConsent()).rejects.toThrow('Network error');
     });
 
     expect(result.current.hasConsented).toBe(false);

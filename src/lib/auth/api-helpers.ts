@@ -342,7 +342,7 @@ export async function requireAiConsent(userId: string): Promise<NextResponse | n
  * Resolve the user's firm_id from their profile or firm_members fallback.
  * Returns null if no firm association exists.
  */
-async function resolveUserFirmId(userId: string): Promise<string | null> {
+export async function resolveUserFirmId(userId: string): Promise<string | null> {
   const { profile } = await getProfileAsAdmin(userId);
   if (profile?.primary_firm_id) {
     return profile.primary_firm_id;

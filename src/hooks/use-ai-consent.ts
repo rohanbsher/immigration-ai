@@ -35,11 +35,11 @@ export function useAiConsent() {
     try {
       const res = await fetch('/api/profile/ai-consent', { method: 'POST' });
       await parseApiVoidResponse(res);
-    } catch {
+    } catch (err) {
       // Server persistence failed — don't mark consent as granted locally
       // since the server will reject AI requests without the consent record
       setConsentError('Failed to save consent. Please try again.');
-      return;
+      throw err;
     }
 
     const record: ConsentRecord = {

@@ -111,7 +111,7 @@ export default function InvitationPage() {
           </div>
           <CardTitle>Join {invitation.firm.name}</CardTitle>
           <CardDescription>
-            {inviterName} has invited you to join their firm on Immigration AI.
+            {inviterName} has invited you to join their firm on CaseFill.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">

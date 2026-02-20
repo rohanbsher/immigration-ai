@@ -7,6 +7,38 @@ import { requireJobConnection } from '@/lib/jobs/connection';
 import { QUEUE_NAMES } from '@/lib/jobs/types';
 import { Queue, Worker } from 'bullmq';
 
+// Allowlist: only keep non-PII fields safe for DLQ storage and Sentry reporting.
+// Any new job fields default to being excluded -- must be explicitly added here.
+const DLQ_SAFE_FIELDS = [
+  'requestId', 'documentId', 'caseId', 'documentType', 'storagePath',
+  'formId', 'formType', 'visaType', 'userId', 'subject', 'templateName',
+  'emailLogId',
+] as const;
+
+// Regex patterns for PII that could leak into error messages
+const PII_SCRUB_PATTERNS: Array<{ pattern: RegExp; replacement: string }> = [
+  { pattern: /\b\d{3}-\d{2}-\d{4}\b/g, replacement: '[SSN]' },
+  { pattern: /\bA\d{8,9}\b/gi, replacement: '[A-NUM]' },
+  { pattern: /\b[A-Z]{1,2}\d{6,8}\b/g, replacement: '[PASSPORT]' },
+  { pattern: /\b(?:EAC|WAC|LIN|SRC|MSC|IOE)\d{10}\b/gi, replacement: '[RECEIPT#]' },
+];
+
+function scrubPiiFromString(text: string): string {
+  let result = text;
+  for (const { pattern, replacement } of PII_SCRUB_PATTERNS) {
+    result = result.replace(pattern, replacement);
+  }
+  return result;
+}
+
+function filterJobData(raw: Record<string, unknown>): Record<string, unknown> {
+  const safe: Record<string, unknown> = {};
+  for (const key of DLQ_SAFE_FIELDS) {
+    if (key in raw) safe[key] = raw[key];
+  }
+  return safe;
+}
+
 // Processors
 import { processDocumentAnalysis } from './processors/document-analysis';
 import { processFormAutofill } from './processors/form-autofill';
@@ -22,7 +54,7 @@ import { processEmail } from './processors/email';
 function printBanner(): void {
   console.log('');
   console.log('='.repeat(60));
-  console.log('  Immigration AI - Worker Service v0.1.0');
+  console.log('  CaseFill - Worker Service v0.1.0');
   console.log('='.repeat(60));
   console.log(`  Environment:  ${workerConfig.NODE_ENV}`);
   console.log(`  Port:         ${workerConfig.PORT}`);
@@ -78,6 +110,27 @@ async function main(): Promise<void> {
       dsn: workerConfig.SENTRY_DSN,
       environment: workerConfig.NODE_ENV,
       tracesSampleRate: workerConfig.NODE_ENV === 'production' ? 0.1 : 1.0,
+      beforeSend(event) {
+        // Scrub PII patterns from exception messages
+        if (event.exception?.values) {
+          for (const ex of event.exception.values) {
+            if (ex.value) {
+              ex.value = scrubPiiFromString(ex.value);
+            }
+          }
+        }
+        // Scrub PII from message
+        if (event.message) {
+          event.message = scrubPiiFromString(event.message);
+        }
+        // Filter jobData in extras through safe fields allowlist
+        if (event.extra?.jobData && typeof event.extra.jobData === 'object') {
+          event.extra.jobData = filterJobData(
+            event.extra.jobData as Record<string, unknown>
+          );
+        }
+        return event;
+      },
     });
     console.log('Sentry initialized.');
   }
@@ -150,33 +203,23 @@ async function main(): Promise<void> {
 
     worker.on('failed', (job, err) => {
       const reqId = job?.data?.requestId;
-      console.error(`[${def.name}] Job ${job?.id} failed${reqId ? ` (requestId: ${reqId})` : ''}:`, err.message);
+      console.error(`[${def.name}] Job ${job?.id} failed${reqId ? ` (requestId: ${reqId})` : ''}:`, scrubPiiFromString(err.message));
+      const safeJobData = filterJobData((job?.data ?? {}) as Record<string, unknown>);
       Sentry.captureException(err, {
         tags: { queue: def.name, jobId: job?.id, requestId: reqId },
-        extra: { jobData: job?.data },
+        extra: { jobData: safeJobData },
       });
 
       // Forward exhausted jobs (all retries spent) to DLQ for manual inspection
       const maxAttempts = job?.opts?.attempts ?? 1;
       if (job && job.attemptsMade >= maxAttempts) {
-        // Allowlist: only keep non-PII fields safe for DLQ storage.
-        // Any new job fields default to being excluded — must be explicitly added here.
-        const raw = (job.data ?? {}) as Record<string, unknown>;
-        const DLQ_SAFE_FIELDS = [
-          'requestId', 'documentId', 'caseId', 'documentType', 'storagePath',
-          'formId', 'formType', 'visaType', 'userId', 'subject', 'templateName',
-          'emailLogId',
-        ];
-        const safeData: Record<string, unknown> = {};
-        for (const key of DLQ_SAFE_FIELDS) {
-          if (key in raw) safeData[key] = raw[key];
-        }
+        const safeData = filterJobData((job.data ?? {}) as Record<string, unknown>);
 
         dlqQueue.add('failed', {
           originalQueue: def.name,
           originalJobId: job.id,
           data: safeData,
-          error: err.message,
+          error: scrubPiiFromString(err.message),
           failedAt: new Date().toISOString(),
           attemptsMade: job.attemptsMade,
         }, {

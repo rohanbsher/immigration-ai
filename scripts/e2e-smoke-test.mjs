@@ -47,7 +47,7 @@ function check(name, condition, detail) {
 }
 
 async function run() {
-  const testEmail = `smoke-${Date.now()}@immigration-ai.dev`;
+  const testEmail = `smoke-${Date.now()}@casefill.ai`;
   const testPassword = 'SmokeTest99!Secure';
 
   // ═══════════════════════════════════════════

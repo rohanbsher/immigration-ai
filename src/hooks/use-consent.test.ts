@@ -2,7 +2,7 @@ import { describe, test, expect, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useConsent } from './use-consent';
 
-const CONSENT_KEY = 'immigration-ai-consent';
+const CONSENT_KEY = 'casefill-consent';
 
 function setStoredConsent(analytics: boolean) {
   localStorage.setItem(

@@ -68,7 +68,7 @@ describe('notifications', () => {
       expect(sendEmail).toHaveBeenCalledWith(
         expect.objectContaining({
           to: 'test@test.com',
-          subject: 'Welcome to Immigration AI!',
+          subject: 'Welcome to CaseFill!',
           react: 'welcome-html',
         }),
         'user-1',
@@ -82,7 +82,7 @@ describe('notifications', () => {
 
       expect(WelcomeEmail).toHaveBeenCalledWith({
         userName: 'Alice',
-        loginUrl: 'https://immigrationai.app/login',
+        loginUrl: 'https://casefill.ai/login',
       });
     });
   });
@@ -94,7 +94,7 @@ describe('notifications', () => {
       expect(sendEmail).toHaveBeenCalledWith(
         expect.objectContaining({
           to: 'test@test.com',
-          subject: 'Reset Your Immigration AI Password',
+          subject: 'Reset Your CaseFill Password',
           react: 'reset-html',
         }),
         undefined,
@@ -252,7 +252,7 @@ describe('notifications', () => {
       expect(sendEmail).toHaveBeenCalledWith(
         expect.objectContaining({
           to: 'invitee@test.com',
-          subject: "You've been invited to join Immigration Firm on Immigration AI",
+          subject: "You've been invited to join Immigration Firm on CaseFill",
         }),
         undefined,
         'team_invitation',
@@ -301,7 +301,7 @@ describe('notifications', () => {
       expect(sendEmail).toHaveBeenCalledWith(
         expect.objectContaining({
           to: 'attorney@test.com',
-          subject: 'Welcome to Pro - Immigration AI',
+          subject: 'Welcome to Pro - CaseFill',
         }),
         'attorney-1',
         'billing_update',
@@ -325,7 +325,7 @@ describe('notifications', () => {
 
       expect(sendEmail).toHaveBeenCalledWith(
         expect.objectContaining({
-          subject: 'Welcome to Enterprise - Immigration AI',
+          subject: 'Welcome to Enterprise - CaseFill',
         }),
         expect.anything(),
         expect.anything(),
@@ -341,7 +341,7 @@ describe('notifications', () => {
 
       expect(sendEmail).toHaveBeenCalledWith(
         expect.objectContaining({
-          subject: 'Action required: Payment failed - Immigration AI',
+          subject: 'Action required: Payment failed - CaseFill',
         }),
         expect.anything(),
         expect.anything(),
@@ -357,7 +357,7 @@ describe('notifications', () => {
 
       expect(sendEmail).toHaveBeenCalledWith(
         expect.objectContaining({
-          subject: 'Your subscription has been cancelled - Immigration AI',
+          subject: 'Your subscription has been cancelled - CaseFill',
         }),
         expect.anything(),
         expect.anything(),

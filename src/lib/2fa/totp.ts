@@ -3,7 +3,7 @@ import { randomBytes } from 'crypto';
 
 const DEFAULT_DIGITS = 6;
 const DEFAULT_PERIOD = 30;
-const DEFAULT_ISSUER = 'Immigration AI';
+const DEFAULT_ISSUER = 'CaseFill';
 
 export function generateSecret(): string {
   // Generate a 20-byte random secret (160 bits, as per RFC 4226)

@@ -33,10 +33,10 @@ vi.mock('./client', () => ({
     },
   },
   EMAIL_CONFIG: {
-    from: 'Immigration AI <noreply@immigrationai.app>',
-    replyTo: 'support@immigrationai.app',
-    appName: 'Immigration AI',
-    appUrl: 'https://immigrationai.app',
+    from: 'CaseFill <noreply@casefill.ai>',
+    replyTo: 'support@casefill.ai',
+    appName: 'CaseFill',
+    appUrl: 'https://casefill.ai',
   },
 }));
 
@@ -90,13 +90,13 @@ describe('Email Module', () => {
       expect(result.success).toBe(true);
       expect(result.messageId).toBe('resend-msg-123');
       expect(mockResendSend).toHaveBeenCalledWith({
-        from: 'Immigration AI <noreply@immigrationai.app>',
+        from: 'CaseFill <noreply@casefill.ai>',
         to: 'user@example.com',
         subject: 'Test Email',
         html: '<p>Hello</p>',
         react: undefined,
         text: undefined,
-        replyTo: 'support@immigrationai.app',
+        replyTo: 'support@casefill.ai',
         cc: undefined,
         bcc: undefined,
         tags: undefined,
@@ -360,10 +360,10 @@ describe('Email Module - Resend Not Configured', () => {
     vi.doMock('./client', () => ({
       resend: null,
       EMAIL_CONFIG: {
-        from: 'Immigration AI <noreply@immigrationai.app>',
-        replyTo: 'support@immigrationai.app',
-        appName: 'Immigration AI',
-        appUrl: 'https://immigrationai.app',
+        from: 'CaseFill <noreply@casefill.ai>',
+        replyTo: 'support@casefill.ai',
+        appName: 'CaseFill',
+        appUrl: 'https://casefill.ai',
       },
     }));
 

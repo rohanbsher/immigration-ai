@@ -1,4 +1,4 @@
-# Immigration AI - Comprehensive Application Audit Report
+# CaseFill - Comprehensive Application Audit Report
 
 **Date:** January 28, 2026
 **Auditor:** Claude Opus 4.5 (Automated)
@@ -9,7 +9,7 @@
 
 ## Executive Summary
 
-The Immigration AI application is a **feature-rich** immigration case management platform with ~30+ features implemented across 26 pages and 65 API routes. The codebase compiles, the build succeeds, and 97.7% of unit tests pass (951/973). However, the audit uncovered **critical session management bugs** that prevent reliable use, API authentication issues, 22 failing tests, and several infrastructure gaps that block production readiness.
+The CaseFill application is a **feature-rich** immigration case management platform with ~30+ features implemented across 26 pages and 65 API routes. The codebase compiles, the build succeeds, and 97.7% of unit tests pass (951/973). However, the audit uncovered **critical session management bugs** that prevent reliable use, API authentication issues, 22 failing tests, and several infrastructure gaps that block production readiness.
 
 **Overall Grade: B-** (Solid codebase, significant auth/session bugs blocking production)
 
@@ -195,7 +195,7 @@ Coverage did not generate a report due to the test failures causing early exit. 
    - This causes all data-fetching pages to show "Failed to load" errors
 
 4. **Production Deployment Outdated** (HIGH)
-   - Vercel production (`immigration-ai-topaz.vercel.app`) returns 404 on `/dashboard/firm`
+   - Vercel production (`casefill.ai`) returns 404 on `/dashboard/firm`
    - 141+ files not committed/pushed to Git
    - Production does not reflect current codebase
 

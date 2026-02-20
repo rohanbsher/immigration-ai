@@ -162,7 +162,7 @@ jobs:
 
       - name: Verify E2E target is reachable
         run: |
-          BASE_URL="${E2E_BASE_URL:-https://immigration-ai-topaz.vercel.app}"
+          BASE_URL="${E2E_BASE_URL:-https://casefill.ai}"
           echo "Checking $BASE_URL/api/health ..."
           for i in 1 2 3; do
             STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/api/health" || echo "000")
@@ -175,13 +175,13 @@ jobs:
           done
           echo "WARNING: Health check failed after 3 attempts, tests may fail"
         env:
-          E2E_BASE_URL: ${{ secrets.E2E_BASE_URL || 'https://immigration-ai-topaz.vercel.app' }}
+          E2E_BASE_URL: ${{ secrets.E2E_BASE_URL || 'https://casefill.ai' }}
 
       - name: Run E2E tests
         run: npm run test:e2e
         env:
           CI: true
-          E2E_BASE_URL: ${{ secrets.E2E_BASE_URL || 'https://immigration-ai-topaz.vercel.app' }}
+          E2E_BASE_URL: ${{ secrets.E2E_BASE_URL || 'https://casefill.ai' }}
           E2E_ATTORNEY_EMAIL: ${{ secrets.E2E_ATTORNEY_EMAIL }}
           E2E_ATTORNEY_PASSWORD: ${{ secrets.E2E_ATTORNEY_PASSWORD }}
           E2E_CLIENT_EMAIL: ${{ secrets.E2E_CLIENT_EMAIL }}

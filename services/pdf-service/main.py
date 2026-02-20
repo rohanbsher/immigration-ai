@@ -184,8 +184,8 @@ def fill_xfa_pdf(template_path: str, field_data: dict[str, str], form_type: str 
         with pdf.open_metadata() as meta:
             meta["dc:title"] = f"USCIS Form {form_type}" if form_type else "USCIS Form"
             meta["dc:description"] = f"Immigration Form {form_type} - Filled"
-            meta["dc:creator"] = ["Immigration AI"]
-            meta["xmp:CreatorTool"] = "Immigration AI PDF Service"
+            meta["dc:creator"] = ["CaseFill"]
+            meta["xmp:CreatorTool"] = "CaseFill PDF Service"
             meta["xmp:CreateDate"] = now.isoformat()
 
         # Save to memory buffer

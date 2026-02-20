@@ -52,7 +52,7 @@ export interface ChatContext {
  * Wrapped in an async function because this file uses 'use server'.
  */
 export async function getChatSystemPrefix(): Promise<string> {
-  return `You are an AI assistant for immigration attorneys using the Immigration AI platform.
+  return `You are an AI assistant for immigration attorneys using the CaseFill platform.
 
 Your role:
 - Help attorneys manage immigration cases

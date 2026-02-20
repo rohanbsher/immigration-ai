@@ -1,4 +1,4 @@
-# Immigration AI
+# CaseFill
 
 A modern, AI-powered immigration case management platform for attorneys that provides secure document management, intelligent document processing, and automated form filling.
 
@@ -33,8 +33,8 @@ A modern, AI-powered immigration case management platform for attorneys that pro
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/immigration-ai.git
-cd immigration-ai
+git clone https://github.com/yourusername/casefill.git
+cd casefill
 ```
 
 2. Install dependencies:
@@ -65,7 +65,7 @@ npm run dev
 ## Project Structure
 
 ```
-immigration-ai/
+casefill/
 ├── src/
 │   ├── app/                    # Next.js App Router pages
 │   │   ├── (auth)/            # Authentication pages

@@ -149,7 +149,7 @@ export default function NotFound() {
 
         <p className="text-center text-xs text-muted-foreground mt-6">
           If you believe this is an error, please{' '}
-          <a href="mailto:support@immigrationai.com" className="text-primary hover:underline">
+          <a href="mailto:support@casefill.ai" className="text-primary hover:underline">
             contact support
           </a>
         </p>

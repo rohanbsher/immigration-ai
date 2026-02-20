@@ -1,4 +1,4 @@
-# Immigration AI - Current Project State
+# CaseFill - Current Project State
 
 > Last updated: 2026-02-20 14:30 by Code Review + Must-Fix/Should-Fix Session
 
@@ -51,7 +51,7 @@ AI-powered immigration case management platform for attorneys. Built with Next.j
 - CSRF protection and SSRF prevention
 
 ### Production Services (Configured 2026-02-18)
-- **Hosting:** Vercel — https://immigration-ai-topaz.vercel.app
+- **Hosting:** Vercel — https://casefill.ai
 - **Database:** Supabase Free (project ref: sforzkbeahfkeilynbwk) — 46 migrations applied
 - **Rate Limiting:** Upstash Redis (sharing-buffalo-59262.upstash.io)
 - **Email:** Resend (configured, DNS verification pending custom domain)
@@ -263,7 +263,7 @@ npm run lint         # Run ESLint
 
 ### Production Launch Readiness (2026-02-18)
 
-**Production infrastructure configured and deployed. App live at https://immigration-ai-topaz.vercel.app**
+**Production infrastructure configured and deployed. App live at https://casefill.ai**
 
 #### Phase 1 Blockers: ALL RESOLVED
 1. ~~Supabase production instance + migrations~~ — DONE (46 migrations applied)

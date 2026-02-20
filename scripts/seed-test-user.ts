@@ -28,7 +28,7 @@ const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
 
 const TEST_USERS = [
   {
-    email: 'e2e-attorney@immigration-ai.dev',
+    email: 'e2e-attorney@casefill.ai',
     password: 'E2EAttorney123!',
     email_confirm: true,
     user_metadata: {
@@ -39,7 +39,7 @@ const TEST_USERS = [
     },
   },
   {
-    email: 'e2e-client@immigration-ai.dev',
+    email: 'e2e-client@casefill.ai',
     password: 'E2EClient123!',
     email_confirm: true,
     user_metadata: {

@@ -1,5 +1,5 @@
 {
-  "name": "immigration-ai-worker",
+  "name": "casefill-worker",
   "version": "0.1.0",
   "private": true,
   "scripts": {

@@ -145,7 +145,7 @@ export function BillingUpdateEmail(props: BillingUpdateEmailProps) {
         return (
           <>
             <Text style={paragraph}>
-              Thank you for subscribing to Immigration AI! Your {planName} plan is now active.
+              Thank you for subscribing to CaseFill! Your {planName} plan is now active.
             </Text>
             <div style={successBox}>
               <Text style={{ ...boxTitle, color: '#166534' }}>Subscription Active</Text>
@@ -231,7 +231,7 @@ export function BillingUpdateEmail(props: BillingUpdateEmailProps) {
           <>
             <Text style={paragraph}>
               We were unable to process your payment. Please update your payment method to continue
-              using Immigration AI.
+              using CaseFill.
             </Text>
             <div style={errorBox}>
               <Text style={{ ...boxTitle, color: '#991b1b' }}>Action Required</Text>
@@ -246,7 +246,7 @@ export function BillingUpdateEmail(props: BillingUpdateEmailProps) {
         return (
           <>
             <Text style={paragraph}>
-              Your free trial is ending soon. Subscribe now to continue using all Immigration AI
+              Your free trial is ending soon. Subscribe now to continue using all CaseFill
               features without interruption.
             </Text>
             <div style={warningBox}>
@@ -280,7 +280,7 @@ export function BillingUpdateEmail(props: BillingUpdateEmailProps) {
       <Text style={paragraph}>
         Best regards,
         <br />
-        The Immigration AI Team
+        The CaseFill Team
       </Text>
     </BaseEmail>
   );

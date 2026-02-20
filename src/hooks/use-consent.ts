@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useSyncExternalStore } from 'react';
 
-const CONSENT_KEY = 'immigration-ai-consent';
+const CONSENT_KEY = 'casefill-consent';
 
 interface ConsentState {
   analytics: boolean;

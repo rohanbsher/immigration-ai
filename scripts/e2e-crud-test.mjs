@@ -16,7 +16,7 @@ function request(opts, data) {
 async function run() {
   // Step 1: Login to get session cookies
   const loginData = JSON.stringify({
-    email: 'e2e-test-attorney@immigration-ai.dev',
+    email: 'e2e-test-attorney@casefill.ai',
     password: 'TestPass123Secure'
   });
 

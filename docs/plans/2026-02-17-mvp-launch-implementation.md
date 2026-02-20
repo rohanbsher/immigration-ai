@@ -2,7 +2,7 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Ship Immigration AI as a working MVP with all services wired, backend gaps fixed, and a distinctive visual redesign.
+**Goal:** Ship CaseFill as a working MVP with all services wired, backend gaps fixed, and a distinctive visual redesign.
 
 **Architecture:** Five sequential phases — consolidate uncommitted work, wire 4 external services (Redis, Sentry, Resend, Stripe), fix 4 backend API gaps, redesign all pages with Frontend Design skill, then verify and deploy. Each phase uses Ralph Loop for iterative execution.
 
@@ -231,7 +231,7 @@ Expected: All pass.
 
 ```
 RESEND_API_KEY=re_your_api_key
-EMAIL_FROM=Immigration AI <noreply@yourdomain.com>
+EMAIL_FROM=CaseFill <noreply@yourdomain.com>
 EMAIL_REPLY_TO=support@yourdomain.com
 ```
 
@@ -283,8 +283,8 @@ STRIPE_PRICE_ENTERPRISE_YEARLY=price_...
 **Step 2: Create Stripe products and prices**
 
 In Stripe dashboard, create:
-- Product: "Immigration AI Pro" with monthly ($49/mo) and yearly ($470/yr) prices
-- Product: "Immigration AI Enterprise" with monthly ($149/mo) and yearly ($1,430/yr) prices
+- Product: "CaseFill Pro" with monthly ($49/mo) and yearly ($470/yr) prices
+- Product: "CaseFill Enterprise" with monthly ($149/mo) and yearly ($1,430/yr) prices
 - Copy price IDs into `.env.local`
 
 **Step 3: Write failing test for MRR calculation**

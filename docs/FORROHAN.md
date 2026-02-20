@@ -1,4 +1,4 @@
-# Immigration AI - Learning Journal
+# CaseFill - Learning Journal
 
 > A friendly guide to understanding this codebase, written for you to remember what we built and why.
 
@@ -6,7 +6,7 @@
 
 ## What Is This Project?
 
-**Immigration AI** is a SaaS platform that helps immigration attorneys manage their cases more efficiently using AI. Think of it as a smart assistant that can:
+**CaseFill** is a SaaS platform that helps immigration attorneys manage their cases more efficiently using AI. Think of it as a smart assistant that can:
 
 1. **Read documents** - Upload a passport, and AI extracts all the relevant data
 2. **Fill forms automatically** - AI takes extracted data and fills USCIS forms like I-130, I-485, etc.

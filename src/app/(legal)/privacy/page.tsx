@@ -1,8 +1,8 @@
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Privacy Policy | Immigration AI',
-  description: 'Privacy policy for Immigration AI platform',
+  title: 'Privacy Policy | CaseFill',
+  description: 'Privacy policy for CaseFill platform',
 };
 
 export default function PrivacyPolicyPage() {
@@ -15,7 +15,7 @@ export default function PrivacyPolicyPage() {
         <section className="mb-8">
           <h2 className="text-2xl font-semibold mb-4">1. Introduction</h2>
           <p>
-            Immigration AI (&ldquo;we&rdquo;, &ldquo;our&rdquo;, or &ldquo;us&rdquo;) is committed to protecting your privacy.
+            CaseFill (&ldquo;we&rdquo;, &ldquo;our&rdquo;, or &ldquo;us&rdquo;) is committed to protecting your privacy.
             This Privacy Policy explains how we collect, use, disclose, and safeguard your
             information when you use our immigration case management platform.
           </p>
@@ -68,7 +68,7 @@ export default function PrivacyPolicyPage() {
           </ul>
           <p className="mt-4">
             To exercise these rights, visit your account settings or contact us at
-            privacy@immigrationai.app
+            privacy@casefill.ai
           </p>
         </section>
 
@@ -106,7 +106,7 @@ export default function PrivacyPolicyPage() {
           </ul>
           <p className="mt-4">
             To exercise these rights, visit your account settings, email us at
-            privacy@immigrationai.app, or contact us at support@immigrationai.app.
+            privacy@casefill.ai, or contact us at support@casefill.ai.
           </p>
           <p className="mt-2">
             <strong>Categories of Personal Information Collected:</strong> We collect
@@ -135,7 +135,8 @@ export default function PrivacyPolicyPage() {
               purposes
             </li>
             <li>
-              <strong>Audit Logs:</strong> Retained for 3 years for security and compliance
+              <strong>Audit Logs:</strong> Retained for 7 years per USCIS compliance
+              requirements (8 CFR 103.2(b)(18))
             </li>
           </ul>
           <p className="mt-4">
@@ -222,8 +223,8 @@ export default function PrivacyPolicyPage() {
             If you have any questions about this Privacy Policy, please contact us:
           </p>
           <ul className="list-none mt-2 space-y-1">
-            <li>Email: privacy@immigrationai.app</li>
-            <li>Address: Immigration AI, Inc.</li>
+            <li>Email: privacy@casefill.ai</li>
+            <li>Address: CaseFill, Inc.</li>
           </ul>
         </section>
       </div>

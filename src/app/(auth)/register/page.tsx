@@ -109,7 +109,7 @@ export default function RegisterPage() {
               <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center">
                 <Sparkles className="text-primary-foreground" size={16} />
               </div>
-              <span className="font-display text-lg tracking-tight">Immigration AI</span>
+              <span className="font-display text-lg tracking-tight">CaseFill</span>
             </Link>
           </div>
 
@@ -146,9 +146,9 @@ export default function RegisterPage() {
         <div className="flex justify-center mb-8">
           <Link href="/" className="flex items-center gap-2">
             <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold text-lg">
-              IA
+              CF
             </div>
-            <span className="font-semibold text-xl">Immigration AI</span>
+            <span className="font-semibold text-xl">CaseFill</span>
           </Link>
         </div>
 

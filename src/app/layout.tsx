@@ -21,13 +21,13 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Immigration AI - Smart Immigration Case Management",
+  title: "CaseFill - Smart Immigration Case Management",
   description: "AI-powered immigration case management platform for attorneys. Streamline visa applications, document management, and compliance tracking.",
   openGraph: {
-    title: "Immigration AI - Smart Immigration Case Management",
+    title: "CaseFill - Smart Immigration Case Management",
     description: "AI-powered immigration case management platform for attorneys.",
     type: "website",
-    siteName: "Immigration AI",
+    siteName: "CaseFill",
   },
   robots: {
     index: true,

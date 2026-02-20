@@ -1,4 +1,4 @@
-# Immigration AI - Architecture Document
+# CaseFill - Architecture Document
 
 > Comprehensive technical architecture for the AI-powered immigration case management platform.
 > **Last Updated:** 2026-01-27
@@ -27,7 +27,7 @@
 
 ### What This Application Does
 
-Immigration AI is a SaaS platform that helps immigration attorneys manage cases more efficiently through AI-powered document analysis and form filling. The platform:
+CaseFill is a SaaS platform that helps immigration attorneys manage cases more efficiently through AI-powered document analysis and form filling. The platform:
 
 1. **Manages Immigration Cases** - Attorneys create cases for clients, track status, deadlines, and required documentation
 2. **Analyzes Documents with AI** - Upload passports, birth certificates, etc. and AI extracts relevant data using vision models

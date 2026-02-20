@@ -1,7 +1,7 @@
-# MVP Launch Design: Immigration AI
+# MVP Launch Design: CaseFill
 
 **Date:** 2026-02-17
-**Goal:** Get Immigration AI in front of real immigration attorneys as a working MVP
+**Goal:** Get CaseFill in front of real immigration attorneys as a working MVP
 **Approach:** Service-first, then polish (Approach A)
 
 ---

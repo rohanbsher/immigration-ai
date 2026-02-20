@@ -16,7 +16,7 @@ import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest';
 const { mockValidate, mockGenerate, mockToString } = vi.hoisted(() => ({
   mockValidate: vi.fn().mockReturnValue(0),
   mockGenerate: vi.fn().mockReturnValue('123456'),
-  mockToString: vi.fn().mockReturnValue('otpauth://totp/Immigration%20AI:test@example.com?secret=TEST'),
+  mockToString: vi.fn().mockReturnValue('otpauth://totp/CaseFill:test@example.com?secret=TEST'),
 }));
 
 vi.mock('otpauth', () => {
@@ -145,7 +145,7 @@ describe('verifyTOTP', () => {
 describe('getKeyUri', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockToString.mockReturnValue('otpauth://totp/Immigration%20AI:user@example.com?secret=TEST');
+    mockToString.mockReturnValue('otpauth://totp/CaseFill:user@example.com?secret=TEST');
   });
 
   it('generates a URI containing otpauth scheme', () => {
@@ -160,7 +160,7 @@ describe('getKeyUri', () => {
 
   it('uses default issuer when not specified', () => {
     const uri = getKeyUri('JBSWY3DPEHPK3PXP', 'user@example.com');
-    expect(uri).toContain('Immigration');
+    expect(uri).toContain('CaseFill');
   });
 
   it('uses custom issuer when specified', () => {
@@ -231,7 +231,7 @@ describe('real TOTP verification (unmocked)', () => {
     realVerifyTOTP = (token: string, secret: string): boolean => {
       try {
         const totp = new RealOTPAuth.TOTP({
-          issuer: 'Immigration AI',
+          issuer: 'CaseFill',
           label: 'User',
           algorithm: 'SHA1',
           digits: 6,
@@ -249,7 +249,7 @@ describe('real TOTP verification (unmocked)', () => {
   // Helper: build a TOTP instance with the same config as totp.ts
   function makeTOTP(secret: string) {
     return new RealOTPAuth.TOTP({
-      issuer: 'Immigration AI',
+      issuer: 'CaseFill',
       label: 'User',
       algorithm: 'SHA1',
       digits: 6,
@@ -303,7 +303,7 @@ describe('real TOTP verification (unmocked)', () => {
     const email = 'attorney@lawfirm.com';
 
     const totp = new RealOTPAuth.TOTP({
-      issuer: 'Immigration AI',
+      issuer: 'CaseFill',
       label: email,
       algorithm: 'SHA1',
       digits: 6,
@@ -316,7 +316,7 @@ describe('real TOTP verification (unmocked)', () => {
     expect(uri).toMatch(/^otpauth:\/\/totp\//);
     expect(uri).toContain(encodeURIComponent(email));
     expect(uri).toContain('secret=');
-    expect(uri).toContain('issuer=Immigration');
+    expect(uri).toContain('issuer=CaseFill');
   });
 
   it('different secrets produce valid 6-digit tokens', () => {

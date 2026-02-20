@@ -42,16 +42,16 @@ export const resend = new Proxy({} as Resend, {
 export const EMAIL_CONFIG = {
   /** Sender address for outgoing emails (server-only) */
   get from() {
-    return serverEnv.EMAIL_FROM || 'Immigration AI <noreply@immigrationai.app>';
+    return serverEnv.EMAIL_FROM || 'CaseFill <noreply@casefill.ai>';
   },
   /** Reply-to address (server-only) */
   get replyTo() {
-    return serverEnv.EMAIL_REPLY_TO || 'support@immigrationai.app';
+    return serverEnv.EMAIL_REPLY_TO || 'support@casefill.ai';
   },
   /** Application name for email templates */
-  appName: 'Immigration AI',
+  appName: 'CaseFill',
   /** Application URL for links in emails */
   get appUrl() {
-    return env.NEXT_PUBLIC_APP_URL || 'https://immigrationai.app';
+    return env.NEXT_PUBLIC_APP_URL || 'https://casefill.ai';
   },
 } as const;

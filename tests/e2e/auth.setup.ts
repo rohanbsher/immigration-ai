@@ -58,7 +58,7 @@ async function authenticateRole(
 
   // Dismiss cookie consent banner to prevent dialog conflicts in tests
   await page.evaluate(() => {
-    localStorage.setItem('immigration-ai-consent', JSON.stringify({
+    localStorage.setItem('casefill-consent', JSON.stringify({
       analytics: false,
       timestamp: new Date().toISOString(),
       version: '1.0',

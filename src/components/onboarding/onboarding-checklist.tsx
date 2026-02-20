@@ -19,7 +19,7 @@ import {
   Rocket,
 } from 'lucide-react';
 
-const STORAGE_KEY = 'immigration-ai-onboarding';
+const STORAGE_KEY = 'casefill-onboarding';
 
 interface OnboardingStep {
   id: string;

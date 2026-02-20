@@ -1,4 +1,4 @@
-# Immigration AI - Detailed Execution Plan
+# CaseFill - Detailed Execution Plan
 
 > Generated: 2026-01-30 17:30
 > This file contains line-by-line implementation details for each task in TODO.md

@@ -1,5 +1,5 @@
 /**
- * Centralized logging utility for the Immigration AI application.
+ * Centralized logging utility for the CaseFill application.
  *
  * Provides structured, context-aware logging with support for different
  * log levels and environments. Designed to be easily extended for

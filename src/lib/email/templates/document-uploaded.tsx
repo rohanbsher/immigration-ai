@@ -99,7 +99,7 @@ export function DocumentUploadedEmail({
       <Text style={paragraph}>
         Best regards,
         <br />
-        The Immigration AI Team
+        The CaseFill Team
       </Text>
     </BaseEmail>
   );

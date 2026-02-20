@@ -2,7 +2,7 @@ import { Metadata } from 'next';
 import { AlertTriangle, Scale, FileCheck, UserCheck } from 'lucide-react';
 
 export const metadata: Metadata = {
-  title: 'AI Technology Disclaimer | Immigration AI',
+  title: 'AI Technology Disclaimer | CaseFill',
   description: 'Important information about AI-assisted document processing and form preparation',
 };
 
@@ -21,7 +21,7 @@ export default function AIDisclaimerPage() {
               Important Notice
             </h2>
             <p className="text-warning-foreground/80 dark:text-warning/80">
-              Immigration AI is a technology tool designed to assist licensed immigration
+              CaseFill is a technology tool designed to assist licensed immigration
               attorneys. It is <strong>NOT</strong> a substitute for professional legal advice.
               All AI-generated content must be reviewed by a qualified immigration attorney
               before any filing with USCIS or other government agencies.
@@ -37,13 +37,13 @@ export default function AIDisclaimerPage() {
             <h2 className="text-2xl font-semibold m-0">Not Legal Advice</h2>
           </div>
           <p>
-            Immigration AI provides AI-assisted document analysis and form preparation tools.
+            CaseFill provides AI-assisted document analysis and form preparation tools.
             The use of this platform:
           </p>
           <ul className="list-disc pl-6 mt-2 space-y-2">
             <li>
               <strong>Does not create an attorney-client relationship</strong> between you and
-              Immigration AI or its operators
+              CaseFill or its operators
             </li>
             <li>
               <strong>Does not constitute legal advice</strong> under any jurisdiction
@@ -93,7 +93,7 @@ export default function AIDisclaimerPage() {
             <h2 className="text-2xl font-semibold m-0">Attorney Review Required</h2>
           </div>
           <p>
-            Immigration AI is designed as a workflow tool for licensed immigration attorneys.
+            CaseFill is designed as a workflow tool for licensed immigration attorneys.
             The platform enforces the following requirements:
           </p>
           <ul className="list-disc pl-6 mt-2 space-y-2">
@@ -119,7 +119,7 @@ export default function AIDisclaimerPage() {
         <section className="mb-8">
           <h2 className="text-2xl font-semibold mb-4">Unauthorized Practice of Law</h2>
           <p>
-            Immigration AI is designed exclusively for use by licensed attorneys and their
+            CaseFill is designed exclusively for use by licensed attorneys and their
             supervised staff. This platform:
           </p>
           <ul className="list-disc pl-6 mt-2 space-y-2">
@@ -162,11 +162,11 @@ export default function AIDisclaimerPage() {
         <section className="mb-8">
           <h2 className="text-2xl font-semibold mb-4">Limitation of Liability</h2>
           <p>
-            By using Immigration AI, you acknowledge and agree that:
+            By using CaseFill, you acknowledge and agree that:
           </p>
           <ul className="list-disc pl-6 mt-2 space-y-2">
             <li>
-              Immigration AI and its operators shall not be liable for any damages arising
+              CaseFill and its operators shall not be liable for any damages arising
               from reliance on AI-generated content without proper attorney review
             </li>
             <li>
@@ -174,7 +174,7 @@ export default function AIDisclaimerPage() {
               with the reviewing attorney
             </li>
             <li>
-              Immigration AI makes no warranties regarding the accuracy, completeness, or
+              CaseFill makes no warranties regarding the accuracy, completeness, or
               legal sufficiency of AI-generated outputs
             </li>
             <li>
@@ -190,15 +190,15 @@ export default function AIDisclaimerPage() {
             If you have questions about this AI Technology Disclaimer or our platform:
           </p>
           <ul className="list-none mt-2 space-y-1">
-            <li>Email: legal@immigrationai.app</li>
-            <li>Address: Immigration AI, Inc.</li>
+            <li>Email: legal@casefill.ai</li>
+            <li>Address: CaseFill, Inc.</li>
           </ul>
         </section>
 
         <section className="bg-muted/50 p-6 rounded-lg">
           <h2 className="text-xl font-semibold mb-3">Acknowledgment</h2>
           <p className="text-sm">
-            By using Immigration AI, you confirm that you have read, understood, and agree
+            By using CaseFill, you confirm that you have read, understood, and agree
             to this AI Technology Disclaimer. You acknowledge that AI-generated content is
             provided as a starting point only and that licensed attorney review is required
             before any immigration filing.

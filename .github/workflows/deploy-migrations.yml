@@ -67,7 +67,7 @@ jobs:
       - name: Post-migration smoke test
         run: |
           echo "Verifying production health after migration..."
-          PROD_URL="${{ secrets.PRODUCTION_URL || 'https://immigration-ai-topaz.vercel.app' }}"
+          PROD_URL="${{ secrets.PRODUCTION_URL || 'https://casefill.ai' }}"
           for i in 1 2 3 4 5; do
             STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$PROD_URL/api/health" || echo "000")
             if [ "$STATUS" = "200" ]; then

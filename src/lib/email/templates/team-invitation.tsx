@@ -82,14 +82,14 @@ export function TeamInvitationEmail({
   expiresAt,
 }: TeamInvitationEmailProps) {
   const roleLabel = ROLE_LABELS[role] || role;
-  const previewText = `${inviterName} has invited you to join ${firmName} on Immigration AI`;
+  const previewText = `${inviterName} has invited you to join ${firmName} on CaseFill`;
 
   return (
     <BaseEmail previewText={previewText}>
       <Heading style={heading}>You&apos;re Invited!</Heading>
 
       <Text style={paragraph}>
-        <strong>{inviterName}</strong> has invited you to join their team on Immigration AI.
+        <strong>{inviterName}</strong> has invited you to join their team on CaseFill.
       </Text>
 
       <div style={invitationBox}>
@@ -118,7 +118,7 @@ export function TeamInvitationEmail({
       <Text style={paragraph}>
         Best regards,
         <br />
-        The Immigration AI Team
+        The CaseFill Team
       </Text>
     </BaseEmail>
   );

@@ -1,8 +1,8 @@
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Terms of Service | Immigration AI',
-  description: 'Terms of service for Immigration AI platform',
+  title: 'Terms of Service | CaseFill',
+  description: 'Terms of service for CaseFill platform',
 };
 
 export default function TermsOfServicePage() {
@@ -15,7 +15,7 @@ export default function TermsOfServicePage() {
         <section className="mb-8">
           <h2 className="text-2xl font-semibold mb-4">1. Acceptance of Terms</h2>
           <p>
-            By accessing or using Immigration AI (&ldquo;Service&rdquo;), you agree to be bound by these
+            By accessing or using CaseFill (&ldquo;Service&rdquo;), you agree to be bound by these
             Terms of Service. If you do not agree to these terms, you may not use the Service.
           </p>
         </section>
@@ -23,7 +23,7 @@ export default function TermsOfServicePage() {
         <section className="mb-8">
           <h2 className="text-2xl font-semibold mb-4">2. Description of Service</h2>
           <p>
-            Immigration AI is a case management platform that uses artificial intelligence
+            CaseFill is a case management platform that uses artificial intelligence
             to assist immigration attorneys and their clients with document analysis, form
             preparation, and case tracking. The Service is designed to enhance, not replace,
             professional legal judgment.
@@ -133,7 +133,7 @@ export default function TermsOfServicePage() {
           <h2 className="text-2xl font-semibold mb-4">8. Intellectual Property</h2>
           <p>
             The Service and its original content, features, and functionality are owned by
-            Immigration AI and are protected by international copyright, trademark, and
+            CaseFill and are protected by international copyright, trademark, and
             other intellectual property laws. You retain ownership of content you upload.
           </p>
         </section>
@@ -141,7 +141,7 @@ export default function TermsOfServicePage() {
         <section className="mb-8">
           <h2 className="text-2xl font-semibold mb-4">9. Indemnification</h2>
           <p>
-            You agree to indemnify, defend, and hold harmless Immigration AI, its officers,
+            You agree to indemnify, defend, and hold harmless CaseFill, its officers,
             directors, employees, agents, and affiliates from and against any and all claims,
             damages, losses, costs, and expenses (including reasonable attorneys&rsquo; fees)
             arising from or relating to:
@@ -167,7 +167,7 @@ export default function TermsOfServicePage() {
         <section className="mb-8">
           <h2 className="text-2xl font-semibold mb-4">10. Limitation of Liability</h2>
           <p>
-            TO THE MAXIMUM EXTENT PERMITTED BY LAW, IMMIGRATION AI SHALL NOT BE LIABLE FOR
+            TO THE MAXIMUM EXTENT PERMITTED BY LAW, CASEFILL SHALL NOT BE LIABLE FOR
             ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, OR ANY
             LOSS OF PROFITS OR REVENUES, WHETHER INCURRED DIRECTLY OR INDIRECTLY, INCLUDING
             BUT NOT LIMITED TO:
@@ -232,7 +232,7 @@ export default function TermsOfServicePage() {
             be attempted to be resolved through good-faith negotiation. If the dispute
             cannot be resolved within thirty (30) days, either party may pursue formal
             legal remedies. You agree to waive any right to a jury trial and to participate
-            in any class action lawsuit against Immigration AI.
+            in any class action lawsuit against CaseFill.
           </p>
         </section>
 
@@ -261,8 +261,8 @@ export default function TermsOfServicePage() {
             If you have any questions about these Terms, please contact us:
           </p>
           <ul className="list-none mt-2 space-y-1">
-            <li>Email: legal@immigrationai.app</li>
-            <li>Address: Immigration AI, Inc.</li>
+            <li>Email: legal@casefill.ai</li>
+            <li>Address: CaseFill, Inc.</li>
           </ul>
         </section>
       </div>

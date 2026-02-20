@@ -9,7 +9,7 @@ vi.mock('@/lib/api/parse-response', () => ({
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
 
-const CONSENT_KEY = 'immigration-ai-ai-consent';
+const CONSENT_KEY = 'casefill-ai-consent';
 
 describe('useAiConsent', () => {
   beforeEach(() => {

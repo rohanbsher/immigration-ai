@@ -1,4 +1,4 @@
-# Immigration AI - Complete Frontend Redesign Plan
+# CaseFill - Complete Frontend Redesign Plan
 
 ## The Problem: "AI Slop" Diagnosis
 
@@ -181,7 +181,7 @@ The AI should be invisible infrastructure - like spell-check in a word processor
    - "Your clients see progress, not your inbox." (with screenshot)
 4. **Social proof:** Small logos of law firms or bar associations (if real)
 5. **Pricing:** 2 plans (Free / Pro). No enterprise card - just "Need more? Talk to us."
-6. **Footer:** One line: (c) 2026 Immigration AI | Privacy | Terms | Contact
+6. **Footer:** One line: (c) 2026 CaseFill | Privacy | Terms | Contact
 
 ### Login Page: "Just Get In"
 

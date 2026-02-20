@@ -27,7 +27,7 @@ describe('CSRF Module', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     process.env.NODE_ENV = 'development';
-    process.env.NEXT_PUBLIC_SITE_URL = 'https://immigrationai.app';
+    process.env.NEXT_PUBLIC_SITE_URL = 'https://casefill.ai';
   });
 
   afterEach(() => {
@@ -182,8 +182,8 @@ describe('CSRF Module', () => {
 
       it('should use https protocol in production', () => {
         const request = createMockRequest('POST', {
-          origin: 'https://immigrationai.app',
-          host: 'immigrationai.app',
+          origin: 'https://casefill.ai',
+          host: 'casefill.ai',
         });
         const result = validateCsrf(request);
 
@@ -193,7 +193,7 @@ describe('CSRF Module', () => {
       it('should not allow localhost in production by default', () => {
         const request = createMockRequest('POST', {
           origin: 'http://localhost:3000',
-          host: 'immigrationai.app',
+          host: 'casefill.ai',
         });
         const result = validateCsrf(request);
 
@@ -218,8 +218,8 @@ describe('CSRF Module', () => {
     describe('X-Forwarded-Proto header', () => {
       it('should respect x-forwarded-proto header', () => {
         const request = createMockRequest('POST', {
-          origin: 'https://immigrationai.app',
-          host: 'immigrationai.app',
+          origin: 'https://casefill.ai',
+          host: 'casefill.ai',
           'x-forwarded-proto': 'https',
         });
         const result = validateCsrf(request);

@@ -11,7 +11,7 @@
  *   node scripts/validate-production.mjs
  *
  * Optional env vars:
- *   BASE_URL           — Target URL (default: https://immigration-ai-topaz.vercel.app)
+ *   BASE_URL           — Target URL (default: https://casefill.ai)
  *   E2E_ADMIN_EMAIL    — Admin account for admin route tests
  *   E2E_ADMIN_PASSWORD
  *   CRON_SECRET        — For detailed health check
@@ -23,7 +23,7 @@ import { randomBytes } from 'node:crypto';
 // Configuration
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const BASE_URL = (process.env.BASE_URL || 'https://immigration-ai-topaz.vercel.app').replace(/\/$/, '');
+const BASE_URL = (process.env.BASE_URL || 'https://casefill.ai').replace(/\/$/, '');
 const ATTORNEY_EMAIL = process.env.E2E_ATTORNEY_EMAIL;
 const ATTORNEY_PASSWORD = process.env.E2E_ATTORNEY_PASSWORD;
 const CLIENT_EMAIL = process.env.E2E_CLIENT_EMAIL;

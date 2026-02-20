@@ -1,4 +1,4 @@
-# Immigration AI - Agent Task List
+# CaseFill - Agent Task List
 
 > Last updated: 2026-02-19 (CI fully green, runtime hardening session)
 
@@ -37,14 +37,14 @@ All three implementation plans have been verified as 100% complete.
 
 ---
 
-## Current State (2026-02-20 14:30)
+## Current State (2026-02-20 17:30)
 
 ```
-Tests:  3,319 passed | 4 skipped | 0 failures (125 test files)
+Tests:  3,493 passed | 4 skipped | 0 failures (134 test files)
 Build:  Passes (tsc clean, Vercel production Ready)
 Coverage: 86%+ statements, 70.42% branches
-Migrations: 63 SQL files (all applied to production)
-Production: Deployed to https://immigration-ai-topaz.vercel.app (E2E audit PASSED)
+Migrations: 64 SQL files (all applied to production)
+Production: Deployed to https://casefill.ai (E2E audit PASSED)
 Worker: Deployed to https://immigration-ai-production.up.railway.app (E2E verified)
 PDF Service: Deployed to https://pdf-service-production-abc5.up.railway.app (9 templates)
 Branch: main (all deployment steps complete)
@@ -53,7 +53,8 @@ CI: ALL 6 JOBS GREEN
 PDF Fields: 697 AcroForm field mappings (9 forms — added I-129 + I-539)
 AI Mappings: 50+ field mappings across 6 forms
 Citations: Two-pass architecture LIVE (AI_CITATIONS_ENABLED=true on Vercel)
-DB Audit: 41 tables, 141 constraints, 42 triggers, all RLS enabled, 0 orphaned rows
+RFE Engine: 15 deterministic rules, 5 visa categories, <100ms, migration 064 applied
+DB Audit: 42 tables, 141+ constraints, 42+ triggers, all RLS enabled, 0 orphaned rows
 Rate Limiting: All post-auth endpoints use user.id (not IP), withRateLimit no double-count
 Error Boundaries: Shared DashboardErrorBoundary + 11 thin wrappers (was 11 x 88-line copies)
 DLQ: Allowlist-based PII stripping (DLQ_SAFE_FIELDS) — new fields excluded by default
@@ -86,11 +87,13 @@ Priority order for the next agent session. User is handling custom domain purcha
 - [x] Cron cleanup tests (14 tests) — auth, stuck documents/messages/forms reset, query builder assertions, error handling
 - [x] Document-requests/[id] tests (25 tests) — GET/PATCH/DELETE, attorney/client RBAC, rate limiting, zod validation
 
-### Remaining Test Coverage (LOW priority)
+### Remaining Test Coverage
 
-5. **WS-TESTS-P3: Frontend Tests** (LOW)
-   - Top 20 critical components + top 10 hooks
-   - Biggest coverage gap: 94 components at ~1%, 25/27 hooks untested
+5. **WS-TESTS-P3: Frontend Tests** (IN PROGRESS — 2026-02-20)
+   - Completed: RfeRiskPanel (17), DashboardErrorBoundary (11), DocumentCompletenessPanel (18), UsageMeter (10)
+   - Completed hooks: useRfeAssessment (16), useCases (17), useUser (20)
+   - Completed route: RFE assessment route (16)
+   - Remaining: ~85 more components at ~1%, ~20 hooks untested
 
 ### User is handling:
 - Custom domain purchase → update NEXT_PUBLIC_APP_URL + SITE_URL
@@ -210,7 +213,7 @@ Priority order for the next agent session. User is handling custom domain purcha
 - [x] Configure Resend for email
 - [x] Configure Sentry for error tracking (org: immigration-ai-ni)
 - [x] Configure Stripe in test mode (4 price IDs + webhook)
-- [x] Deploy to Vercel (https://immigration-ai-topaz.vercel.app)
+- [x] Deploy to Vercel (https://casefill.ai)
 - [x] Set all 29 Vercel production environment variables
 **Remaining Tasks:**
 - [ ] Buy custom domain → update NEXT_PUBLIC_APP_URL + SITE_URL
@@ -222,13 +225,13 @@ Priority order for the next agent session. User is handling custom domain purcha
 
 ## Non-Blocking Work Streams
 
-### WS-TESTS-P1: Security-Critical API Route Tests (HIGH PRIORITY)
-**Status:** Not started
-**Assigned Agent:** Unassigned (test-writer)
+### WS-TESTS-P1: Security-Critical API Route Tests (COMPLETE — 2026-02-20)
+**Status:** COMPLETE — 208 tests across 2FA, Admin, Billing
+**Assigned Agent:** lead
 **Tasks:**
-- [ ] 2FA route tests (5 endpoints: setup, verify, status, backup-codes, disable)
-- [ ] Admin route tests (5 endpoints: stats, users, user detail, suspend, unsuspend)
-- [ ] Billing route tests (7 endpoints: checkout, portal, cancel, resume, subscription, quota, webhooks)
+- [x] 2FA route tests (75 tests: setup, verify, status, backup-codes, disable + security)
+- [x] Admin route tests (40 tests: stats, users, user detail, suspend, unsuspend)
+- [x] Billing route tests (93 tests: checkout, portal, cancel, resume, subscription, quota, webhooks, usage, invoices + security)
 
 ### WS-TESTS-P2: Feature API Route Tests (COMPLETE — 2026-02-20)
 **Status:** COMPLETE — all feature routes tested
@@ -312,6 +315,19 @@ Priority order for the next agent session. User is handling custom domain purcha
 ### WS-GRILL: Staff Engineer Review Fixes (COMPLETE)
 - [x] 9/9 issues fixed and verified
 
+### WS-RFE: RFE Prevention Engine Phase 1 (COMPLETE — 2026-02-20)
+**Status:** COMPLETE — 15 deterministic rules, assessment engine, API, UI panel
+**Assigned Agent:** lead
+**Tasks:**
+- [x] Define RFE risk types and scoring model (additive penalty: 100 - sum of severity * confidence)
+- [x] Implement H-1B, I-130, I-485, I-140/EB, and common rules (15 total)
+- [x] Build assessment engine with cache-first DB read
+- [x] Create API route `GET /api/cases/[id]/rfe-assessment` with degraded fallback
+- [x] Create `useRfeAssessment` hook + `RfeRiskPanel` component (full/compact/mini)
+- [x] Migration 064: `rfe_assessments` table + cache columns on `cases`
+- [x] 40 unit tests for rules engine + 16 API route tests (all passing)
+- [x] Apply migration 064 to production Supabase
+
 ### WS-CITATIONS: AI Citations — Phase 4 (COMPLETE — 2026-02-19)
 **Status:** COMPLETE — two-pass citation generation with feature flag
 **Design:** `docs/plans/2026-02-19-citations-design.md`
@@ -349,6 +365,6 @@ Priority order for the next agent session. User is handling custom domain purcha
 ```bash
 npm run dev          # Start dev server
 npm run build        # Production build
-npm run test:run     # Run tests (3,319 passing)
+npm run test:run     # Run tests (3,493 passing)
 npm run lint         # Check lint issues
 ```

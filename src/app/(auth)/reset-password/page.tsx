@@ -101,7 +101,7 @@ export default function ResetPasswordPage() {
               <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center">
                 <Sparkles className="text-primary-foreground" size={16} />
               </div>
-              <span className="font-display text-lg tracking-tight">Immigration AI</span>
+              <span className="font-display text-lg tracking-tight">CaseFill</span>
             </Link>
           </div>
 
@@ -136,7 +136,7 @@ export default function ResetPasswordPage() {
               <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center">
                 <Sparkles className="text-primary-foreground" size={16} />
               </div>
-              <span className="font-display text-lg tracking-tight">Immigration AI</span>
+              <span className="font-display text-lg tracking-tight">CaseFill</span>
             </Link>
           </div>
 
@@ -188,7 +188,7 @@ export default function ResetPasswordPage() {
             <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center">
               <Sparkles className="text-primary-foreground" size={16} />
             </div>
-            <span className="font-display text-lg tracking-tight">Immigration AI</span>
+            <span className="font-display text-lg tracking-tight">CaseFill</span>
           </Link>
         </div>
 

@@ -64,7 +64,7 @@ export default defineConfig({
           origins: [{
             origin: process.env.E2E_BASE_URL || 'http://localhost:3000',
             localStorage: [{
-              name: 'immigration-ai-consent',
+              name: 'casefill-consent',
               value: JSON.stringify({ analytics: false, timestamp: '2026-01-01T00:00:00Z', version: '1.0' }),
             }],
           }],
@@ -85,7 +85,7 @@ export default defineConfig({
           origins: [{
             origin: process.env.E2E_BASE_URL || 'http://localhost:3000',
             localStorage: [{
-              name: 'immigration-ai-consent',
+              name: 'casefill-consent',
               value: JSON.stringify({ analytics: false, timestamp: '2026-01-01T00:00:00Z', version: '1.0' }),
             }],
           }],
@@ -129,7 +129,7 @@ export default defineConfig({
           origins: [{
             origin: process.env.E2E_BASE_URL || 'http://localhost:3000',
             localStorage: [{
-              name: 'immigration-ai-consent',
+              name: 'casefill-consent',
               value: JSON.stringify({ analytics: false, timestamp: '2026-01-01T00:00:00Z', version: '1.0' }),
             }],
           }],

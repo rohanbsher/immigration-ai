@@ -6,7 +6,7 @@
 import * as Sentry from '@sentry/nextjs';
 
 const SENTRY_DSN = process.env.NEXT_PUBLIC_SENTRY_DSN;
-const CONSENT_KEY = 'immigration-ai-consent';
+const CONSENT_KEY = 'casefill-consent';
 
 function hasAnalyticsConsent(): boolean {
   if (typeof window === 'undefined') return false;

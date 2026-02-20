@@ -407,7 +407,7 @@ export const AuthHelpers = {
       await page.evaluate(() => {
         localStorage.clear();
         // Re-set cookie consent to prevent consent banner from appearing
-        localStorage.setItem('immigration-ai-consent', JSON.stringify({
+        localStorage.setItem('casefill-consent', JSON.stringify({
           analytics: false, timestamp: new Date().toISOString(), version: '1.0',
         }));
       });
@@ -508,7 +508,7 @@ export const CleanupHelpers = {
  */
 export async function dismissConsent(page: Page): Promise<void> {
   await page.addInitScript(() => {
-    localStorage.setItem('immigration-ai-consent', JSON.stringify({
+    localStorage.setItem('casefill-consent', JSON.stringify({
       analytics: false, timestamp: '2026-01-01T00:00:00Z', version: '1.0',
     }));
   });

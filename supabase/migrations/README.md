@@ -1,6 +1,6 @@
 # Database Migrations
 
-SQL migration files for the Immigration AI PostgreSQL database (via Supabase).
+SQL migration files for the CaseFill PostgreSQL database (via Supabase).
 
 ## Naming Convention
 

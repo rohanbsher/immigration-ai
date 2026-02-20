@@ -1,4 +1,4 @@
-# Immigration AI - Production Setup Guide
+# CaseFill - Production Setup Guide
 
 > Generated: 2026-02-06 | Based on comprehensive codebase audit
 
@@ -237,7 +237,7 @@ Not strictly required but important for production.
 | Variable | Type | Example |
 |----------|------|---------|
 | `RESEND_API_KEY` | Server-only | `re_abc123...` |
-| `EMAIL_FROM` | Server-only | `Immigration AI <noreply@yourdomain.com>` |
+| `EMAIL_FROM` | Server-only | `CaseFill <noreply@yourdomain.com>` |
 | `EMAIL_REPLY_TO` | Server-only | `support@yourdomain.com` |
 
 **Email types:** subscription_created, subscription_cancelled, payment_succeeded, payment_failed, welcome, case_update, deadline_alert, invitation
@@ -326,7 +326,7 @@ STRIPE_PRICE_ENTERPRISE_YEARLY=price_...
 #### Optional - Email (3)
 ```bash
 RESEND_API_KEY=re_...
-EMAIL_FROM=Immigration AI <noreply@yourdomain.com>
+EMAIL_FROM=CaseFill <noreply@yourdomain.com>
 EMAIL_REPLY_TO=support@yourdomain.com
 ```
 

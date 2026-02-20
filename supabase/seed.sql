@@ -1,5 +1,5 @@
 -- ============================================================================
--- Immigration AI - Local Development Seed Data
+-- CaseFill - Local Development Seed Data
 -- ============================================================================
 --
 -- This file runs AFTER all migrations via `supabase db reset`.
@@ -24,7 +24,7 @@
 -- Profiles (attorneys)
 -- attorney_1: Maria Chen (firm owner)
 -- attorney_2: James Nakamura (firm attorney)
-DO $$ BEGIN RAISE NOTICE 'Seeding Immigration AI local dev data...'; END $$;
+DO $$ BEGIN RAISE NOTICE 'Seeding CaseFill local dev data...'; END $$;
 
 
 -- ============================================================================

@@ -8,7 +8,7 @@ import { BillingUpdateEmail } from './templates/billing-update';
 import { PasswordResetEmail } from './templates/password-reset';
 import { createClient } from '@/lib/supabase/server';
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://immigrationai.app';
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://casefill.ai';
 
 interface UserInfo {
   id: string;
@@ -45,7 +45,7 @@ export async function sendWelcomeEmail(
   await sendEmail(
     {
       to: email,
-      subject: 'Welcome to Immigration AI!',
+      subject: 'Welcome to CaseFill!',
       react: WelcomeEmail({ userName: firstName, loginUrl }),
     },
     userId,
@@ -62,7 +62,7 @@ export async function sendPasswordResetEmail(
   await sendEmail(
     {
       to: email,
-      subject: 'Reset Your Immigration AI Password',
+      subject: 'Reset Your CaseFill Password',
       react: PasswordResetEmail({
         userName,
         resetUrl,
@@ -308,7 +308,7 @@ export async function sendTeamInvitationEmail(
   await sendEmail(
     {
       to: inviteeEmail,
-      subject: `You've been invited to join ${firmName} on Immigration AI`,
+      subject: `You've been invited to join ${firmName} on CaseFill`,
       react: TeamInvitationEmail({
         inviterName,
         firmName,
@@ -365,18 +365,18 @@ function getBillingEmailSubject(
 ): string {
   switch (eventType) {
     case 'subscription_created':
-      return `Welcome to ${planName || 'Pro'} - Immigration AI`;
+      return `Welcome to ${planName || 'Pro'} - CaseFill`;
     case 'subscription_updated':
-      return `Your subscription has been updated - Immigration AI`;
+      return `Your subscription has been updated - CaseFill`;
     case 'subscription_cancelled':
-      return `Your subscription has been cancelled - Immigration AI`;
+      return `Your subscription has been cancelled - CaseFill`;
     case 'payment_succeeded':
-      return `Payment received - Immigration AI`;
+      return `Payment received - CaseFill`;
     case 'payment_failed':
-      return `Action required: Payment failed - Immigration AI`;
+      return `Action required: Payment failed - CaseFill`;
     case 'trial_ending':
-      return `Your trial is ending soon - Immigration AI`;
+      return `Your trial is ending soon - CaseFill`;
     default:
-      return `Billing update - Immigration AI`;
+      return `Billing update - CaseFill`;
   }
 }

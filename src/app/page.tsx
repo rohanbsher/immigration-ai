@@ -27,7 +27,7 @@ export default function Home() {
                   <Sparkles className="text-primary-foreground" size={16} />
                 </div>
                 <span className="font-display text-lg tracking-tight text-foreground">
-                  Immigration AI
+                  CaseFill
                 </span>
               </Link>
               <div className="hidden md:flex items-center gap-8">
@@ -194,7 +194,7 @@ export default function Home() {
           </div>
           <div className="grid md:grid-cols-3 gap-6">
             <TestimonialCard
-              quote="Immigration AI has transformed how we handle H-1B cases. What used to take hours now takes minutes."
+              quote="CaseFill has transformed how we handle H-1B cases. What used to take hours now takes minutes."
               author="Sarah Chen"
               title="Partner, Chen Immigration Law"
               rating={5}
@@ -233,7 +233,7 @@ export default function Home() {
             <PricingCard
               plan="Free"
               price="$0"
-              description="Try Immigration AI risk-free"
+              description="Try CaseFill risk-free"
               features={[
                 'Up to 3 active cases',
                 'Basic document analysis',
@@ -305,7 +305,7 @@ export default function Home() {
                   <Sparkles className="text-primary-foreground" size={14} />
                 </div>
                 <span className="font-display text-base tracking-tight text-foreground">
-                  Immigration AI
+                  CaseFill
                 </span>
               </Link>
               <p className="text-sm text-muted-foreground leading-relaxed">
@@ -333,14 +333,14 @@ export default function Home() {
             <div>
               <h4 className="text-sm font-semibold text-foreground mb-4">Support</h4>
               <ul className="space-y-2.5 text-sm text-muted-foreground">
-                <li><a href="mailto:support@immigrationai.app" className="hover:text-foreground transition-colors">Help Center</a></li>
-                <li><a href="mailto:support@immigrationai.app" className="hover:text-foreground transition-colors">Contact Us</a></li>
+                <li><a href="mailto:support@casefill.ai" className="hover:text-foreground transition-colors">Help Center</a></li>
+                <li><a href="mailto:support@casefill.ai" className="hover:text-foreground transition-colors">Contact Us</a></li>
               </ul>
             </div>
           </div>
           <div className="pt-8 border-t border-border/40 flex flex-col md:flex-row justify-between items-center gap-4">
             <p className="text-sm text-muted-foreground">
-              &copy; {new Date().getFullYear()} Immigration AI. All rights reserved.
+              &copy; {new Date().getFullYear()} CaseFill. All rights reserved.
             </p>
             <div className="flex items-center gap-6 text-sm text-muted-foreground">
               <Link href="/terms" className="hover:text-foreground transition-colors">Terms</Link>

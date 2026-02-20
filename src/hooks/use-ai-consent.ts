@@ -3,7 +3,7 @@
 import { useState, useCallback } from 'react';
 import { parseApiVoidResponse } from '@/lib/api/parse-response';
 
-const CONSENT_KEY = 'immigration-ai-ai-consent';
+const CONSENT_KEY = 'casefill-ai-consent';
 const CONSENT_VERSION = '1.0';
 
 interface ConsentRecord {

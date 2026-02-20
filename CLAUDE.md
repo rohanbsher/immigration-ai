@@ -1,4 +1,4 @@
-# Immigration AI - Claude Code Project Memory
+# CaseFill - Claude Code Project Memory
 
 > AI-powered immigration case management platform for attorneys
 

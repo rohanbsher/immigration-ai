@@ -1,5 +1,5 @@
 /**
- * Security utilities for the Immigration AI application.
+ * Security utilities for the CaseFill application.
  */
 
 export {

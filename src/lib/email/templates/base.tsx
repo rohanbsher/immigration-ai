@@ -65,7 +65,7 @@ const hr = {
 };
 
 export function BaseEmail({ previewText, children }: BaseEmailProps) {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://immigrationai.app';
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://casefill.ai';
 
   return (
     <Html>
@@ -78,7 +78,7 @@ export function BaseEmail({ previewText, children }: BaseEmailProps) {
               src={`${appUrl}/logo.png`}
               width="150"
               height="40"
-              alt="Immigration AI"
+              alt="CaseFill"
               style={logo}
             />
           </Section>
@@ -89,7 +89,7 @@ export function BaseEmail({ previewText, children }: BaseEmailProps) {
 
           <Section style={footer}>
             <Text style={footerText}>
-              Immigration AI - Intelligent Immigration Case Management
+              CaseFill - Intelligent Immigration Case Management
             </Text>
             <Text style={footerText}>
               <Link href={`${appUrl}/dashboard/settings/notifications`} style={footerLink}>

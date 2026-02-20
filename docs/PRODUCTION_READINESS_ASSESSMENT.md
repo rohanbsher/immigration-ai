@@ -1,14 +1,14 @@
 # Production Readiness Assessment
 
 **Date**: 2026-02-12
-**Scope**: Full-stack review of Immigration AI platform for attorney end-to-end use
+**Scope**: Full-stack review of CaseFill platform for attorney end-to-end use
 **Overall Score**: **72 / 100** — Not yet production-ready for end-to-end attorney filing
 
 ---
 
 ## Executive Summary
 
-Immigration AI is a well-architected SaaS platform with strong security fundamentals, comprehensive test coverage (83%, 1,591 passing tests), and a nearly complete feature set across case management, billing, multi-tenancy, and AI-powered document analysis. However, **critical gaps in PDF generation, form coverage, and infrastructure configuration** prevent lawyers from using this application end-to-end for actual USCIS filings today.
+CaseFill is a well-architected SaaS platform with strong security fundamentals, comprehensive test coverage (83%, 1,591 passing tests), and a nearly complete feature set across case management, billing, multi-tenancy, and AI-powered document analysis. However, **critical gaps in PDF generation, form coverage, and infrastructure configuration** prevent lawyers from using this application end-to-end for actual USCIS filings today.
 
 The platform is ready for **internal case management and form preparation workflows** but requires focused work on 4 critical blockers before it can serve as a complete filing tool.
 
@@ -273,7 +273,7 @@ Zod schemas use `z.string()` instead of `z.enum()` for fields like visa_type and
 
 ## Conclusion
 
-The Immigration AI platform has a **strong foundation** — the architecture is sound, security is well-implemented, testing is thorough, and most features are complete. The 72 API endpoints, 40 database migrations, and 1,591 tests demonstrate significant engineering investment.
+The CaseFill platform has a **strong foundation** — the architecture is sound, security is well-implemented, testing is thorough, and most features are complete. The 72 API endpoints, 40 database migrations, and 1,591 tests demonstrate significant engineering investment.
 
 However, the **single biggest gap** is that an attorney cannot take a completed form and generate a USCIS-ready PDF for filing. This makes the current system a **case management and preparation tool**, not an **end-to-end filing solution**. Closing this gap, along with infrastructure setup and form coverage expansion, is what stands between the current state and production readiness.
 

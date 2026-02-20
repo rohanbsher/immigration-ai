@@ -44,7 +44,7 @@ const warningText = {
 };
 
 export function PasswordResetEmail({ userName, resetUrl, expiresIn }: PasswordResetEmailProps) {
-  const previewText = 'Reset your Immigration AI password';
+  const previewText = 'Reset your CaseFill password';
 
   return (
     <BaseEmail previewText={previewText}>
@@ -53,7 +53,7 @@ export function PasswordResetEmail({ userName, resetUrl, expiresIn }: PasswordRe
       <Text style={paragraph}>Hi {userName},</Text>
 
       <Text style={paragraph}>
-        We received a request to reset your Immigration AI password. Click the button below to
+        We received a request to reset your CaseFill password. Click the button below to
         create a new password.
       </Text>
 
@@ -67,14 +67,14 @@ export function PasswordResetEmail({ userName, resetUrl, expiresIn }: PasswordRe
       </Text>
 
       <Text style={warningText}>
-        For security reasons, never share this link with anyone. Immigration AI will never ask you
+        For security reasons, never share this link with anyone. CaseFill will never ask you
         for your password via email.
       </Text>
 
       <Text style={paragraph}>
         Best regards,
         <br />
-        The Immigration AI Team
+        The CaseFill Team
       </Text>
     </BaseEmail>
   );

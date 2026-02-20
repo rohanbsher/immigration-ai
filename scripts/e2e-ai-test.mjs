@@ -16,7 +16,7 @@ function req(opts, data) {
 async function run() {
   // Login
   const loginData = JSON.stringify({
-    email: 'e2e-test-attorney@immigration-ai.dev',
+    email: 'e2e-test-attorney@casefill.ai',
     password: 'TestPass123Secure'
   });
   const loginRes = await req({

@@ -1,4 +1,4 @@
-# Immigration AI - Features
+# CaseFill - Features
 
 > Last updated: 2026-02-19 (Runtime hardening, AbortSignal polyfill, worker shutdown hooks)
 

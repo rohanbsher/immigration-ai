@@ -1,4 +1,4 @@
--- Immigration AI Database Schema
+-- CaseFill Database Schema
 -- This migration creates the initial database structure
 
 -- Note: Using gen_random_uuid() which is built into PostgreSQL 13+

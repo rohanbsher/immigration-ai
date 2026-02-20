@@ -240,7 +240,7 @@ export function Sidebar({ user }: SidebarProps) {
               <div className="w-8 h-8 rounded-lg bg-sidebar-primary flex items-center justify-center">
                 <Sparkles className="text-sidebar-primary-foreground" size={15} />
               </div>
-              <span className="font-display text-[15px] tracking-tight">Immigration AI</span>
+              <span className="font-display text-[15px] tracking-tight">CaseFill</span>
             </Link>
           )}
           <Button

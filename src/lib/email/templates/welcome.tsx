@@ -49,20 +49,20 @@ const listItem = {
 };
 
 export function WelcomeEmail({ userName, loginUrl }: WelcomeEmailProps) {
-  const previewText = `Welcome to Immigration AI, ${userName}!`;
+  const previewText = `Welcome to CaseFill, ${userName}!`;
 
   return (
     <BaseEmail previewText={previewText}>
-      <Heading style={heading}>Welcome to Immigration AI!</Heading>
+      <Heading style={heading}>Welcome to CaseFill!</Heading>
 
       <Text style={paragraph}>Hi {userName},</Text>
 
       <Text style={paragraph}>
-        Thank you for joining Immigration AI. We&apos;re excited to help you streamline your
+        Thank you for joining CaseFill. We&apos;re excited to help you streamline your
         immigration case management with the power of artificial intelligence.
       </Text>
 
-      <Text style={paragraph}>Here&apos;s what you can do with Immigration AI:</Text>
+      <Text style={paragraph}>Here&apos;s what you can do with CaseFill:</Text>
 
       <ul style={list}>
         <li style={listItem}>AI-powered document analysis and data extraction</li>
@@ -83,7 +83,7 @@ export function WelcomeEmail({ userName, loginUrl }: WelcomeEmailProps) {
       <Text style={paragraph}>
         Best regards,
         <br />
-        The Immigration AI Team
+        The CaseFill Team
       </Text>
     </BaseEmail>
   );

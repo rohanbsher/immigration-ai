@@ -71,6 +71,11 @@ export {
   mapCitationsToFields,
   hasCitations,
   countCitations,
+  generateFieldCitations,
+  type CitationDocument,
+  type CitationField,
+  type CitationInput,
+  type CitationResult,
 } from './citations';
 
 // Prompts (for customization if needed)

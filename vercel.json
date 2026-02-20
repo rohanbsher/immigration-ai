@@ -39,7 +39,7 @@
     },
     {
       "path": "/api/cron/cleanup",
-      "schedule": "0,30 * * * *"
+      "schedule": "0 2 * * *"
     },
     {
       "path": "/api/cron/audit-archive",

@@ -12,6 +12,12 @@ import {
   FormField,
   DocumentAnalysisResult,
 } from './types';
+import type { FormFieldWithCitations, FormAutofillResultWithCitations } from './types';
+import { features } from '@/lib/config';
+import { generateFieldCitations, mapCitationsToFields } from './citations';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('ai:form-autofill');
 
 export interface FormAutofillInput {
   formType: string;
@@ -120,6 +126,57 @@ export async function autofillForm(
         requires_review: field.requires_review || hasDiscrepancy,
       };
     });
+
+    // -----------------------------------------------------------------
+    // Pass 2: Citation generation (optional, feature-flagged)
+    // -----------------------------------------------------------------
+    if (features.citationsEnabled && input.documentAnalyses.length > 0) {
+      reportProgress('validating', 90, 'Generating source citations...');
+
+      try {
+        const citationDocs = input.documentAnalyses
+          .filter((a) => a.raw_text && a.raw_text.trim().length > 0)
+          .map((a) => ({
+            documentId: a.document_type,
+            documentType: a.document_type,
+            rawText: a.raw_text!,
+          }));
+
+        const citationFields = fieldsWithReviewFlags
+          .filter((f) => f.suggested_value)
+          .map((f) => ({
+            fieldId: f.field_id,
+            fieldName: f.field_name,
+            suggestedValue: f.suggested_value!,
+          }));
+
+        if (citationDocs.length > 0 && citationFields.length > 0) {
+          const citationResult = await generateFieldCitations({
+            documents: citationDocs,
+            fields: citationFields,
+          });
+
+          if (citationResult.citations.length > 0) {
+            const fieldsWithCitations = mapCitationsToFields(
+              citationResult.citations,
+              fieldsWithReviewFlags as FormFieldWithCitations[]
+            );
+
+            reportProgress('complete', 100, 'Autofill complete with citations');
+
+            return {
+              ...autofillResult,
+              fields: fieldsWithCitations,
+              warnings,
+            } as FormAutofillResultWithCitations;
+          }
+        }
+      } catch (citationError) {
+        log.warn('Citation generation failed, returning results without citations', {
+          error: citationError instanceof Error ? citationError.message : String(citationError),
+        });
+      }
+    }
 
     reportProgress('complete', 100, 'Autofill complete');
 

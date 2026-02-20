@@ -201,6 +201,9 @@ export async function POST(
           extracted_fields: extractedFields,
           overall_confidence: doc.ai_confidence_score || 0,
           processing_time_ms: 0,
+          raw_text: typeof extractedData['_raw_text'] === 'string'
+            ? (extractedData['_raw_text'] as string)
+            : undefined,
         };
       }
     );
@@ -258,6 +261,15 @@ export async function POST(
       .filter((f) => f.requires_review)
       .map((f) => f.field_id);
 
+    // Extract per-field citations if available (two-pass citations)
+    const fieldCitations: Record<string, unknown[]> = {};
+    for (const field of autofillResult.fields) {
+      const fieldWithCites = field as { citations?: unknown[] };
+      if (fieldWithCites.citations && fieldWithCites.citations.length > 0) {
+        fieldCitations[field.field_id] = fieldWithCites.citations;
+      }
+    }
+
     // Update form with AI results - ATOMIC operation with all data together
     // This prevents partial state if the update fails partway through
     const atomicUpdateData = {
@@ -272,6 +284,10 @@ export async function POST(
           warnings: autofillResult.warnings,
           overall_confidence: autofillResult.overall_confidence,
           processing_time_ms: autofillResult.processing_time_ms,
+          ...(Object.keys(fieldCitations).length > 0 && {
+            citations: fieldCitations,
+            citations_model: 'claude-sonnet-4-20250514',
+          }),
         },
       },
       ai_confidence_scores: confidenceScores,
@@ -324,6 +340,10 @@ export async function POST(
 
     const gaps = getAutofillGaps(form.form_type, filledFieldIds, uploadedDocTypes);
 
+    const citationsCount = Object.keys(fieldCitations).length > 0
+      ? Object.values(fieldCitations).reduce((sum, c) => sum + c.length, 0)
+      : 0;
+
     return NextResponse.json({
       form: updatedForm,
       autofill: {
@@ -334,6 +354,7 @@ export async function POST(
         fields_requiring_review: fieldsRequiringReview.length,
         missing_documents: autofillResult.missing_documents,
         warnings: autofillResult.warnings,
+        citations_count: citationsCount,
       },
       gaps,
     });

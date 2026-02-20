@@ -132,13 +132,11 @@ describe('parseCitationsFromResponse', () => {
     expect(result[0]).toEqual({
       type: 'document',
       citedText: 'Date of Birth: 1990-01-15',
+      startIndex: 0,
+      endIndex: 1,
       documentId: undefined,
       documentType: undefined,
     });
-    // content_block_location does not map to startIndex/endIndex/pageNumber
-    expect(result[0].startIndex).toBeUndefined();
-    expect(result[0].endIndex).toBeUndefined();
-    expect(result[0].pageNumber).toBeUndefined();
   });
 
   it('returns empty array for empty response', () => {
@@ -290,6 +288,8 @@ describe('parseCitationsFromResponse', () => {
     expect(result[1].citedText).toBe('Second passage');
     expect(result[1].pageNumber).toBe(2);
     expect(result[2].citedText).toBe('Third passage');
+    expect(result[2].startIndex).toBe(1);
+    expect(result[2].endIndex).toBe(2);
   });
 
   it('skips citations with empty cited_text', () => {

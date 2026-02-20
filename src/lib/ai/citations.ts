@@ -130,9 +130,10 @@ export function parseCitationsFromResponse(
         citation.endIndex = raw.end_char_index;
       } else if (raw.type === 'page_location') {
         citation.pageNumber = raw.start_page_number;
+      } else if (raw.type === 'content_block_location') {
+        citation.startIndex = raw.start_block_index;
+        citation.endIndex = raw.end_block_index;
       }
-      // content_block_location — no direct mapping to our Citation fields;
-      // we store only the citedText and document info.
 
       citations.push(citation);
     }

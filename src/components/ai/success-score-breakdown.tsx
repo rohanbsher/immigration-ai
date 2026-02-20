@@ -55,7 +55,7 @@ export function SuccessScoreBreakdown({
   }
 
   // Show empty state for errors or degraded results (missing AI keys, no data, etc.)
-  const isDegraded = error || !data || (data as typeof data & { degraded?: boolean })?.degraded;
+  const isDegraded = error || !data || (data as typeof data & { degraded?: boolean })?.degraded || typeof data?.overallScore !== 'number';
 
   if (isDegraded) {
     return (
@@ -98,7 +98,7 @@ export function SuccessScoreBreakdown({
         {/* Expanded details */}
         {isExpanded && (
           <div className="space-y-3 pt-2">
-            {data.factors.map((factor) => (
+            {data.factors?.map((factor) => (
               <FactorBar key={factor.name} factor={factor} />
             ))}
           </div>
@@ -126,7 +126,7 @@ export function SuccessScoreBreakdown({
             <AIBadge size="sm" label="AI" showTooltip tooltipText="AI-powered analysis" />
           </div>
           <p className="text-sm text-muted-foreground">
-            Based on {data.factors.length} scoring factors
+            Based on {data.factors?.length ?? 0} scoring factors
           </p>
           <p className="text-xs text-muted-foreground/70 mt-1">
             Confidence: {Math.round(data.confidence * 100)}%
@@ -141,21 +141,21 @@ export function SuccessScoreBreakdown({
           Scoring Factors
         </h4>
         <div className="space-y-3">
-          {data.factors.map((factor) => (
+          {data.factors?.map((factor) => (
             <FactorRow key={factor.name} factor={factor} />
           ))}
         </div>
       </div>
 
       {/* Risk Factors */}
-      {data.riskFactors.length > 0 && (
+      {(data.riskFactors?.length ?? 0) > 0 && (
         <div className="mb-6">
           <h4 className="text-sm font-medium text-destructive flex items-center gap-2 mb-2">
             <AlertTriangle size={14} />
-            Risk Factors ({data.riskFactors.length})
+            Risk Factors ({data.riskFactors?.length ?? 0})
           </h4>
           <ul className="space-y-1">
-            {data.riskFactors.map((risk, index) => (
+            {data.riskFactors?.map((risk, index) => (
               <li
                 key={index}
                 className="text-sm text-destructive flex items-start gap-2"
@@ -169,14 +169,14 @@ export function SuccessScoreBreakdown({
       )}
 
       {/* Improvements */}
-      {showImprovements && data.improvements.length > 0 && (
+      {showImprovements && (data.improvements?.length ?? 0) > 0 && (
         <div className="pt-4 border-t border-ai-accent/20">
           <h4 className="text-sm font-medium text-success-foreground flex items-center gap-2 mb-2">
             <TrendingUp size={14} />
             How to Improve
           </h4>
           <ul className="space-y-1">
-            {data.improvements.map((improvement, index) => (
+            {data.improvements?.map((improvement, index) => (
               <li
                 key={index}
                 className="text-sm text-success flex items-start gap-2"

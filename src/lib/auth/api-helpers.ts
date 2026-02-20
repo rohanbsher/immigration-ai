@@ -23,6 +23,7 @@ import { createClient } from '@/lib/supabase/server';
 import { getProfileAsAdmin } from '@/lib/supabase/admin';
 import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 import { createLogger } from '@/lib/logger';
+import { getClientIp } from '@/lib/utils/get-client-ip';
 import type { UserRole } from '@/types';
 import { User } from '@supabase/supabase-js';
 
@@ -127,22 +128,8 @@ export type AccessResult<T> =
 // Helper Utilities
 // =============================================================================
 
-/**
- * Get client IP address from request headers.
- */
-export function getClientIp(request: NextRequest): string {
-  const forwardedFor = request.headers.get('x-forwarded-for');
-  if (forwardedFor) {
-    return forwardedFor.split(',')[0].trim();
-  }
-
-  const realIp = request.headers.get('x-real-ip');
-  if (realIp) {
-    return realIp;
-  }
-
-  return 'unknown';
-}
+// Re-export hardened getClientIp (imported above from @/lib/utils/get-client-ip)
+export { getClientIp };
 
 /**
  * Create a standardized error response.

@@ -252,12 +252,12 @@ describe('Authentication Module', () => {
         expect(ip).toBe('192.168.1.2');
       });
 
-      it('should return unknown when no IP headers present', () => {
+      it('should return anonymous when no IP headers present', () => {
         const request = createMockRequest();
 
         const ip = getClientIp(request);
 
-        expect(ip).toBe('unknown');
+        expect(ip).toBe('anonymous');
       });
 
       it('should prefer x-forwarded-for over x-real-ip', () => {

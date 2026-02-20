@@ -31,9 +31,15 @@ export async function GET(request: NextRequest, { params }: Params) {
   try {
     const { visaType } = await params;
 
-    // Rate limiting
-    const ip = request.headers.get('x-forwarded-for') || 'unknown';
-    const rateLimitResult = await rateLimit(RATE_LIMITS.STANDARD, ip);
+    // Authenticate FIRST, then rate-limit on user ID.
+    // Rate-limiting on IP before auth allows attackers to DoS the limiter
+    // with spoofed X-Forwarded-For headers.
+    const user = await serverAuth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const rateLimitResult = await rateLimit(RATE_LIMITS.STANDARD, user.id);
 
     if (!rateLimitResult.success) {
       return NextResponse.json(
@@ -43,12 +49,6 @@ export async function GET(request: NextRequest, { params }: Params) {
           headers: { 'Retry-After': rateLimitResult.retryAfter?.toString() || '60' }
         }
       );
-    }
-
-    // Authentication
-    const user = await serverAuth.getUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     // Validate visa type

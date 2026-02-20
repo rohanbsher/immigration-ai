@@ -37,13 +37,13 @@ All three implementation plans have been verified as 100% complete.
 
 ---
 
-## Current State (2026-02-20 00:50)
+## Current State (2026-02-20 01:40)
 
 ```
-Tests:  2,695 passed | 4 skipped | 0 failures (106 test files)
+Tests:  2,747 passed | 4 skipped | 0 failures (109 test files)
 Build:  Passes (tsc clean, Vercel production Ready)
 Coverage: 86%+ statements, 70.42% branches
-Migrations: 63 SQL files (062 applied, 063 pending deploy)
+Migrations: 63 SQL files (all applied to production)
 Production: Deployed to https://immigration-ai-topaz.vercel.app
 Worker: Deployed to https://immigration-ai-production.up.railway.app (E2E verified)
 PDF Service: Deployed to https://pdf-service-production-abc5.up.railway.app (9 templates)
@@ -78,11 +78,12 @@ Priority order for the next agent session. User is handling custom domain purcha
 - [x] GDPR data export expansion — Migration 063 adds AI conversations (`conversations` + `conversation_messages`) and case messages to `get_user_export_data()`. Forms export now includes `form_data` for data portability.
 - [x] AI_CITATIONS_ENABLED=true — Already set on Vercel production (confirmed)
 
-### Remaining Test Coverage (MEDIUM/LOW priority)
+### Sprint 4: WS-TESTS-P2 Feature Route Tests — COMPLETE (2026-02-20)
+- [x] Cron audit-archive tests (13 tests) — auth, archive/cleanup phases, partial failures, null defaults
+- [x] Cron cleanup tests (14 tests) — auth, stuck documents/messages/forms reset, query builder assertions, error handling
+- [x] Document-requests/[id] tests (25 tests) — GET/PATCH/DELETE, attorney/client RBAC, rate limiting, zod validation
 
-4. **WS-TESTS-P2: Feature Route Tests** (MEDIUM)
-   - Chat, Notification, Cron, Health, Profile, Task, Document-request routes
-   - Files: `src/app/api/chat/*.test.ts`, etc.
+### Remaining Test Coverage (LOW priority)
 
 5. **WS-TESTS-P3: Frontend Tests** (LOW)
    - Top 20 critical components + top 10 hooks
@@ -226,13 +227,20 @@ Priority order for the next agent session. User is handling custom domain purcha
 - [ ] Admin route tests (5 endpoints: stats, users, user detail, suspend, unsuspend)
 - [ ] Billing route tests (7 endpoints: checkout, portal, cancel, resume, subscription, quota, webhooks)
 
-### WS-TESTS-P2: Feature API Route Tests (MEDIUM PRIORITY)
-**Status:** Not started
-**Assigned Agent:** Unassigned (test-writer)
+### WS-TESTS-P2: Feature API Route Tests (COMPLETE — 2026-02-20)
+**Status:** COMPLETE — all feature routes tested
 **Tasks:**
-- [ ] Chat route tests (2 endpoints)
-- [ ] Notification route tests (5 endpoints)
-- [ ] Cron, health, profile, task, document-request route tests
+- [x] Chat route tests (27 tests, existing)
+- [x] Notification route tests (34 tests, existing)
+- [x] Cron deadline-alerts (7 tests, existing)
+- [x] Cron audit-archive (13 tests, NEW)
+- [x] Cron cleanup (14 tests, NEW)
+- [x] Health route tests (23 tests, existing)
+- [x] Profile route tests (13 tests, existing)
+- [x] Profile AI consent (15 tests, existing)
+- [x] Task route tests (30 tests, existing)
+- [x] Task comments (8 tests, existing)
+- [x] Document-requests/[id] (25 tests, NEW)
 
 ### WS-TESTS-P3: Frontend Tests (LOW PRIORITY)
 **Status:** Not started
@@ -243,9 +251,9 @@ Priority order for the next agent session. User is handling custom domain purcha
 
 ### WS-REMAINING: Non-Blocking Improvements
 **Tasks:**
-- [ ] Include documents/AI conversations in GDPR data export
+- [x] Include documents/AI conversations in GDPR data export (migration 063)
 - [x] Fix ESLint warnings (src/ files cleaned up, e2e test warnings remain)
-- [ ] Rate-limit consistency: migrate ~38 post-auth endpoints from IP to user.id
+- [x] Rate-limit consistency: all post-auth endpoints use user.id (authenticate() restructured + GDPR migrated)
 
 ---
 

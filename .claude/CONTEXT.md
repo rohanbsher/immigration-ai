@@ -103,19 +103,20 @@ AI-powered immigration case management platform for attorneys. Built with Next.j
 | 6 | Console migration — Lib/Components (20+ files) | COMPLETE |
 | 7 | ESLint cleanup (exports, Image, unused imports) | COMPLETE |
 
-### Test & Build Status (2026-02-19 23:30)
+### Test & Build Status (2026-02-20 01:40)
 ```
-Tests:  2,532 passed | 4 skipped | 0 failures (93 test files)
+Tests:  2,747 passed | 4 skipped | 0 failures (109 test files)
         86 passed | 67 skipped | 0 failures (E2E in CI)
 Build:  Passes (69 routes, no TypeScript errors)
 Lint:   0 errors (55 warnings in e2e only)
 Console: 0 statements in production code
 Coverage: 86%+ statements, 70.42% branches
 CI:     ALL 6 JOBS GREEN
-Production: Deployed + DB audit PASSED (41 tables, 62 migrations, 0 orphans)
+Production: Deployed + DB audit PASSED (41 tables, 63 migrations, 0 orphans)
 Backend Worker: All 4 phases complete
 PDF Fields: 697 AcroForm field mappings across 9 USCIS forms
-Migrations: 062 applied (scan_status column + firm_id backfill)
+Migrations: 063 applied (GDPR export expansion)
+Rate Limiting: All post-auth endpoints use user.id (not IP)
 ```
 
 ### Test Coverage (as of 2026-02-19)
@@ -286,8 +287,8 @@ npm run lint         # Run ESLint
 - Stripe live mode activation
 
 ### Remaining Non-Blocking
-- GDPR data export lacks documents/AI conversations
 - ESLint: 0 errors, 0 warnings (all cleaned up)
+- Frontend tests: 94 components at ~1% coverage, 25/27 hooks untested (WS-TESTS-P3)
 
 ## Backend Worker Service (COMPLETE — All 4 Phases, 2026-02-19)
 
@@ -363,9 +364,12 @@ Worker deployed to Railway and verified end-to-end.
 - Component unit tests (94 components at ~1% coverage)
 - Hook tests (25/27 hooks untested)
 
-**Priority 2 — Remaining API route coverage:**
-- Some security-critical routes still need deeper testing
-- E2E coverage: 67 tests skipped (environment-dependent)
+**Priority 2 — Security-critical route tests (WS-TESTS-P1):**
+- 2FA route tests (5 endpoints)
+- Admin route tests (5 endpoints)
+- Billing route tests (7 endpoints)
+
+**Note:** WS-TESTS-P2 (feature route tests) is COMPLETE — all chat, notification, cron, health, profile, task, document-request routes have test coverage.
 
 ### WS-INFRA: Infrastructure Setup (COMPLETE — 2026-02-18)
 All core production services configured and deployed. See "Production Services" section above for details.

@@ -31,7 +31,10 @@ export type AcroFieldType =
   | 'date'
   | 'ssn'
   | 'phone'
-  | 'alien_number';
+  | 'alien_number'
+  | 'zip_code'
+  | 'currency'
+  | 'yes_no';
 
 export interface AcroFormFieldMap {
   /** Actual AcroForm field name inside the USCIS PDF */
@@ -122,6 +125,70 @@ export function formatAlienNumber(value: unknown): string {
 }
 
 // ---------------------------------------------------------------------------
+// Split-date helpers (for XFA forms with separate Month/Day/Year fields)
+// ---------------------------------------------------------------------------
+
+/** Extract month (MM) from a date value. */
+export function formatMonth(value: unknown): string {
+  const full = formatDate(value);
+  if (!full) return '';
+  const parts = full.split('/');
+  return parts.length === 3 ? parts[0] : '';
+}
+
+/** Extract day (DD) from a date value. */
+export function formatDay(value: unknown): string {
+  const full = formatDate(value);
+  if (!full) return '';
+  const parts = full.split('/');
+  return parts.length === 3 ? parts[1] : '';
+}
+
+/** Extract year (YYYY) from a date value. */
+export function formatYear(value: unknown): string {
+  const full = formatDate(value);
+  if (!full) return '';
+  const parts = full.split('/');
+  return parts.length === 3 ? parts[2] : '';
+}
+
+// ---------------------------------------------------------------------------
+// Additional USCIS-specific formatters
+// ---------------------------------------------------------------------------
+
+/** Format a yes/no value. Returns the matching string or empty. */
+export function formatYesNo(
+  value: unknown,
+  yesText = 'Yes',
+  noText = 'No'
+): string {
+  if (value === null || value === undefined) return '';
+  const str = String(value).toLowerCase().trim();
+  if (['yes', 'true', '1', 'y'].includes(str)) return yesText;
+  if (['no', 'false', '0', 'n'].includes(str)) return noText;
+  if (typeof value === 'boolean') return value ? yesText : noText;
+  return '';
+}
+
+/** Format a currency value as $X,XXX.XX */
+export function formatCurrency(value: unknown): string {
+  if (value === null || value === undefined || value === '') return '';
+  const num = typeof value === 'number' ? value : parseFloat(String(value).replace(/[^0-9.-]/g, ''));
+  if (isNaN(num)) return String(value);
+  return num.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 2 });
+}
+
+/** Preserve leading zeros on zip codes (5 or 9 digits). */
+export function formatZipCode(value: unknown): string {
+  if (!value) return '';
+  const str = String(value).replace(/[^0-9-]/g, '');
+  const digits = str.replace(/-/g, '');
+  if (digits.length === 5) return digits;
+  if (digits.length === 9) return `${digits.slice(0, 5)}-${digits.slice(5)}`;
+  return str;
+}
+
+// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
@@ -150,6 +217,12 @@ export function formatFieldValue(value: unknown, type: AcroFieldType): string {
       return formatPhone(value);
     case 'alien_number':
       return formatAlienNumber(value);
+    case 'zip_code':
+      return formatZipCode(value);
+    case 'currency':
+      return formatCurrency(value);
+    case 'yes_no':
+      return formatYesNo(value);
     case 'text':
       // USCIS convention: names are uppercase, but we apply it to all text
       // fields. Callers needing verbatim values (emails, etc.) should use a

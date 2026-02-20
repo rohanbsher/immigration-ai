@@ -1,5 +1,5 @@
 /**
- * Unit tests for the USCIS field map registry and all 9 field maps.
+ * Unit tests for the USCIS field map registry and all 11 field maps.
  *
  * Validates structural correctness, field counts, naming conventions,
  * and critical field presence for each USCIS form type.
@@ -17,19 +17,12 @@ import type { AcroFormFieldMap } from '../acroform-filler';
 describe('USCIS Field Map Registry', () => {
   const FORMS_WITH_MAPS: FormType[] = [
     'I-130', 'I-485', 'I-765', 'I-131', 'N-400', 'I-140', 'G-1145', 'I-129', 'I-539',
+    'I-20', 'DS-160',
   ];
-
-  const FORMS_WITHOUT_MAPS: FormType[] = ['I-20', 'DS-160'];
 
   test('hasUSCISFieldMap returns true for all mapped forms', () => {
     for (const ft of FORMS_WITH_MAPS) {
       expect(hasUSCISFieldMap(ft), `expected ${ft} to have a field map`).toBe(true);
-    }
-  });
-
-  test('hasUSCISFieldMap returns false for unmapped forms', () => {
-    for (const ft of FORMS_WITHOUT_MAPS) {
-      expect(hasUSCISFieldMap(ft), `expected ${ft} to NOT have a field map`).toBe(false);
     }
   });
 
@@ -42,14 +35,8 @@ describe('USCIS Field Map Registry', () => {
     }
   });
 
-  test('getUSCISFieldMap returns undefined for unmapped forms', () => {
-    for (const ft of FORMS_WITHOUT_MAPS) {
-      expect(getUSCISFieldMap(ft), `expected ${ft} to return undefined`).toBeUndefined();
-    }
-  });
-
-  test('registry covers all 9 supported forms', () => {
-    expect(FORMS_WITH_MAPS).toHaveLength(9);
+  test('registry covers all 11 supported forms', () => {
+    expect(FORMS_WITH_MAPS).toHaveLength(11);
     for (const ft of FORMS_WITH_MAPS) {
       expect(getUSCISFieldMap(ft)).toBeDefined();
     }
@@ -63,9 +50,10 @@ describe('USCIS Field Map Registry', () => {
 describe('Field Map Structural Validation', () => {
   const ALL_MAPS: FormType[] = [
     'I-130', 'I-485', 'I-765', 'I-131', 'N-400', 'I-140', 'G-1145', 'I-129', 'I-539',
+    'I-20', 'DS-160',
   ];
 
-  const VALID_TYPES = ['text', 'checkbox', 'radio', 'dropdown', 'date', 'ssn', 'phone', 'alien_number'];
+  const VALID_TYPES = ['text', 'checkbox', 'radio', 'dropdown', 'date', 'ssn', 'phone', 'alien_number', 'zip_code', 'currency', 'yes_no'];
 
   for (const formType of ALL_MAPS) {
     describe(`${formType} field map`, () => {
@@ -156,7 +144,9 @@ describe('Field Map Coverage', () => {
   const EXPECTED_COUNTS: [FormType, number][] = [
     ['G-1145', 5],
     ['I-131', 15],
+    ['I-20', 20],
     ['I-140', 20],
+    ['DS-160', 25],
     ['N-400', 30],
     ['I-539', 35],
     ['I-765', 45],
@@ -339,6 +329,42 @@ describe('Critical Fields Present', () => {
     expect(dataPaths).toContain('email');
     expect(dataPaths).toContain('mobilePhone');
   });
+
+  test('I-20 has student and program fields', () => {
+    const map = getUSCISFieldMap('I-20')!;
+    const dataPaths = map.map(f => f.dataPath);
+
+    expect(dataPaths).toContain('student.lastName');
+    expect(dataPaths).toContain('student.firstName');
+    expect(dataPaths).toContain('student.dateOfBirth');
+    expect(dataPaths).toContain('school.name');
+    expect(dataPaths).toContain('program.name');
+    expect(dataPaths).toContain('program.startDate');
+    expect(dataPaths).toContain('financial.tuition');
+  });
+
+  test('DS-160 has personal and passport fields', () => {
+    const map = getUSCISFieldMap('DS-160')!;
+    const dataPaths = map.map(f => f.dataPath);
+
+    expect(dataPaths).toContain('personal.lastName');
+    expect(dataPaths).toContain('personal.firstName');
+    expect(dataPaths).toContain('personal.dateOfBirth');
+    expect(dataPaths).toContain('passport.number');
+    expect(dataPaths).toContain('passport.expiryDate');
+    expect(dataPaths).toContain('travel.visaType');
+    expect(dataPaths).toContain('usContact.lastName');
+    expect(dataPaths).toContain('contact.email');
+  });
+
+  test('DS-160 has sex checkbox fields (male/female)', () => {
+    const map = getUSCISFieldMap('DS-160')!;
+    const checkboxFields = map.filter(f => f.type === 'checkbox');
+    const checkValues = checkboxFields.map(f => f.checkValue);
+
+    expect(checkValues).toContain('male');
+    expect(checkValues).toContain('female');
+  });
 });
 
 // =========================================================================
@@ -386,6 +412,7 @@ describe('Field Type Distribution', () => {
   test('every form has at least one text-type field', () => {
     const ALL_FORMS: FormType[] = [
       'I-130', 'I-485', 'I-765', 'I-131', 'N-400', 'I-140', 'G-1145', 'I-129', 'I-539',
+      'I-20', 'DS-160',
     ];
     for (const ft of ALL_FORMS) {
       const map = getUSCISFieldMap(ft)!;

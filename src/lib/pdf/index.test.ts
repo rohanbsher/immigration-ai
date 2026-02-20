@@ -176,10 +176,10 @@ describe('PDF Generation Service', () => {
       expect(result.isAcroFormFilled).toBe(false);
     });
 
-    test('skips XFA for form types without field mappings', async () => {
-      simulateTemplateExists();
+    test('falls back to summary PDF when template file is missing', async () => {
+      // Do NOT call simulateTemplateExists() — access() rejects by default
 
-      // I-20 has no USCIS field map (only summary PDF mappings)
+      // I-20 has a field map, but no template on disk → falls back to summary
       const form = makeForm('I-20', { student: { lastName: 'Test' } });
       const result = await generateFormPDF(form);
 

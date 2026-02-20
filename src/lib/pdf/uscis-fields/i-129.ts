@@ -64,7 +64,7 @@ export const I129_ACRO_FIELDS: AcroFormFieldMap[] = [
   {
     formFieldName: 'form1.Pt1Line4_ZipCode',
     dataPath: 'petitioner.address.zipCode',
-    type: 'text',
+    type: 'zip_code',
   },
 
   // -- Company details ----------------------------------------------------
@@ -251,7 +251,7 @@ export const I129_ACRO_FIELDS: AcroFormFieldMap[] = [
   {
     formFieldName: 'form1.Pt3Line9_ZipCode',
     dataPath: 'beneficiary.address.zipCode',
-    type: 'text',
+    type: 'zip_code',
   },
   {
     formFieldName: 'form1.Pt3Line9_Country',
@@ -304,14 +304,12 @@ export const I129_ACRO_FIELDS: AcroFormFieldMap[] = [
   {
     formFieldName: 'form1.Pt5Line4_OfferedWage',
     dataPath: 'job.offeredWage',
-    type: 'text',
-    format: (v) => String(v ?? ''),
+    type: 'currency',
   },
   {
     formFieldName: 'form1.Pt5Line5_PrevailingWage',
     dataPath: 'job.prevailingWage',
-    type: 'text',
-    format: (v) => String(v ?? ''),
+    type: 'currency',
   },
   {
     formFieldName: 'form1.Pt5Line6_HoursPerWeek',
@@ -339,7 +337,7 @@ export const I129_ACRO_FIELDS: AcroFormFieldMap[] = [
   {
     formFieldName: 'form1.Pt5Line7_WorkZipCode',
     dataPath: 'job.workZipCode',
-    type: 'text',
+    type: 'zip_code',
   },
 
   // -- Employment dates ---------------------------------------------------

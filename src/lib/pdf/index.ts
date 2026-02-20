@@ -47,6 +47,11 @@ function deepMerge(
   return result;
 }
 
+export interface PDFGenerationOptions {
+  /** When true, adds a "DRAFT - For Review Only" watermark. Default: false. */
+  isDraft?: boolean;
+}
+
 export interface PDFGenerationResult {
   success: boolean;
   pdfBytes?: Uint8Array;
@@ -76,7 +81,10 @@ export interface FormData {
  * have a field map for the form type). Falls back to the summary PDF
  * generator otherwise.
  */
-export async function generateFormPDF(form: FormData): Promise<PDFGenerationResult> {
+export async function generateFormPDF(
+  form: FormData,
+  options: PDFGenerationOptions = {}
+): Promise<PDFGenerationResult> {
   try {
     // Deep-merge form_data and ai_filled_data, with form_data taking precedence
     const mergedData = form.aiFilledData
@@ -123,9 +131,11 @@ export async function generateFormPDF(form: FormData): Promise<PDFGenerationResu
       }
     }
 
-    // Fallback: generate a summary PDF (DRAFT watermark)
+    // Fallback: generate a summary PDF
     const fieldMappings = getFieldMappings(form.formType);
-    const pdfBytes = await generateSummaryPDF(form.formType, mergedData, fieldMappings);
+    const pdfBytes = await generateSummaryPDF(form.formType, mergedData, fieldMappings, {
+      isDraft: options.isDraft ?? false,
+    });
 
     return {
       success: true,
@@ -149,7 +159,8 @@ export async function generateFormPDF(form: FormData): Promise<PDFGenerationResu
 async function generateSummaryPDF(
   formType: FormType,
   data: Record<string, unknown>,
-  fieldMappings: FormFieldMapping[]
+  fieldMappings: FormFieldMapping[],
+  options: { isDraft?: boolean } = {}
 ): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
   const font = await doc.embedFont(StandardFonts.Helvetica);
@@ -225,7 +236,7 @@ async function generateSummaryPDF(
     }
   }
 
-  // Add footer with timestamp
+  // Add footer with timestamp (and optional DRAFT watermark)
   const pages = doc.getPages();
   for (let i = 0; i < pages.length; i++) {
     const currentPage = pages[i];
@@ -239,16 +250,18 @@ async function generateSummaryPDF(
         color: rgb(0.5, 0.5, 0.5),
       }
     );
-    currentPage.drawText(
-      'DRAFT - For Review Only - Not for Filing',
-      {
-        x: 612 / 2 - 100,
-        y: 15,
-        size: 8,
-        font: boldFont,
-        color: rgb(0.8, 0.2, 0.2),
-      }
-    );
+    if (options.isDraft) {
+      currentPage.drawText(
+        'DRAFT - For Review Only - Not for Filing',
+        {
+          x: 612 / 2 - 100,
+          y: 15,
+          size: 8,
+          font: boldFont,
+          color: rgb(0.8, 0.2, 0.2),
+        }
+      );
+    }
   }
 
   return doc.save();

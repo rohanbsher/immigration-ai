@@ -2,6 +2,8 @@
  * Barrel export for USCIS AcroForm field mappings.
  *
  * Verified against USCIS XFA PDFs downloaded Feb 2026.
+ * I-20 and DS-160 are non-USCIS forms (school-issued / State Dept online)
+ * but included for completeness.
  */
 
 import type { FormType } from '@/types';
@@ -16,6 +18,8 @@ import { N400_ACRO_FIELDS } from './n-400';
 import { I140_ACRO_FIELDS } from './i-140';
 import { I129_ACRO_FIELDS } from './i-129';
 import { I539_ACRO_FIELDS } from './i-539';
+import { I20_ACRO_FIELDS } from './i-20';
+import { DS160_ACRO_FIELDS } from './ds-160';
 
 export { G1145_ACRO_FIELDS } from './g-1145';
 export { I130_ACRO_FIELDS } from './i-130';
@@ -26,6 +30,8 @@ export { N400_ACRO_FIELDS } from './n-400';
 export { I140_ACRO_FIELDS } from './i-140';
 export { I129_ACRO_FIELDS } from './i-129';
 export { I539_ACRO_FIELDS } from './i-539';
+export { I20_ACRO_FIELDS } from './i-20';
+export { DS160_ACRO_FIELDS } from './ds-160';
 
 const FIELD_MAP_REGISTRY: Partial<Record<FormType, AcroFormFieldMap[]>> = {
   'G-1145': G1145_ACRO_FIELDS,
@@ -37,6 +43,8 @@ const FIELD_MAP_REGISTRY: Partial<Record<FormType, AcroFormFieldMap[]>> = {
   'I-140': I140_ACRO_FIELDS,
   'I-129': I129_ACRO_FIELDS,
   'I-539': I539_ACRO_FIELDS,
+  'I-20': I20_ACRO_FIELDS,
+  'DS-160': DS160_ACRO_FIELDS,
 };
 
 /**

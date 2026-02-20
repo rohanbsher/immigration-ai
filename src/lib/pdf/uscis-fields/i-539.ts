@@ -104,7 +104,7 @@ export const I539_ACRO_FIELDS: AcroFormFieldMap[] = [
   {
     formFieldName: 'form1.Pt1Line8_ZipCode',
     dataPath: 'mailingAddress.zipCode',
-    type: 'text',
+    type: 'zip_code',
   },
   {
     formFieldName: 'form1.Pt1Line8_Province',
@@ -141,7 +141,7 @@ export const I539_ACRO_FIELDS: AcroFormFieldMap[] = [
   {
     formFieldName: 'form1.Pt1Line9_ZipCode',
     dataPath: 'physicalAddress.zipCode',
-    type: 'text',
+    type: 'zip_code',
   },
 
   // =======================================================================

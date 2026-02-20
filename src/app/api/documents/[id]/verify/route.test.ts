@@ -50,7 +50,7 @@ vi.mock('@/lib/auth/api-helpers', () => {
   const successResponseFn = (data: unknown, status = 200) =>
     NextResponse.json({ success: true, data }, { status });
 
-  const withAuth = (handler: Function) => {
+  const withAuth = (handler: (...args: unknown[]) => unknown) => {
     return async (request: NextRequest, context: Record<string, unknown>) => {
       if (!mockAuthUser) {
         return errorResponseFn('Unauthorized', 401);

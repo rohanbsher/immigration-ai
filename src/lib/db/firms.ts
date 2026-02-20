@@ -207,7 +207,7 @@ export async function getFirmMembers(firmId: string): Promise<FirmMember[]> {
     .from('firm_members')
     .select(`
       *,
-      profiles (
+      profiles:profiles!firm_members_user_id_fkey (
         id,
         email,
         first_name,
@@ -232,7 +232,7 @@ export async function getFirmMember(firmId: string, userId: string): Promise<Fir
     .from('firm_members')
     .select(`
       *,
-      profiles (
+      profiles:profiles!firm_members_user_id_fkey (
         id,
         email,
         first_name,
@@ -270,7 +270,7 @@ export async function updateFirmMember(
     .eq('user_id', userId)
     .select(`
       *,
-      profiles (
+      profiles:profiles!firm_members_user_id_fkey (
         id,
         email,
         first_name,

@@ -107,6 +107,21 @@ vi.mock('@/lib/supabase/server', () => ({
   createClient: vi.fn(() => Promise.resolve(mockSupabaseClient)),
 }));
 
+// Mock admin client used by canAccessClient for firm-based fallback.
+// Returns null for all queries by default (no firm match = deny access).
+const mockAdminQueryBuilder = {
+  select: vi.fn().mockReturnThis(),
+  eq: vi.fn().mockReturnThis(),
+  limit: vi.fn().mockReturnThis(),
+  single: vi.fn().mockResolvedValue({ data: null, error: null }),
+};
+
+vi.mock('@/lib/supabase/admin', () => ({
+  getAdminClient: vi.fn(() => ({
+    from: vi.fn(() => mockAdminQueryBuilder),
+  })),
+}));
+
 // Mock db services
 vi.mock('@/lib/db/clients', () => ({
   clientsService: {
@@ -356,7 +371,7 @@ describe('Clients API Routes', () => {
         page: 1,
         limit: 20,
         search: undefined,
-      });
+      }, mockAttorneyId);
     });
 
     it('should return empty array when attorney has no clients', async () => {
@@ -410,7 +425,7 @@ describe('Clients API Routes', () => {
         page: 2,
         limit: 1,
         search: 'john',
-      });
+      }, mockAttorneyId);
     });
 
     it('should clamp pagination params to valid ranges', async () => {
@@ -434,7 +449,7 @@ describe('Clients API Routes', () => {
         page: 1,
         limit: 100,
         search: undefined,
-      });
+      }, mockAttorneyId);
     });
 
     it('should handle database errors gracefully', async () => {
@@ -458,22 +473,14 @@ describe('Clients API Routes', () => {
   // GET /api/clients/search
   // ==========================================================================
   describe('GET /api/clients/search', () => {
-    beforeEach(() => {
-      // Mock profile query for role check
-      mockSupabaseClient.from.mockReturnValue({
-        select: vi.fn().mockReturnThis(),
-        eq: vi.fn().mockReturnThis(),
-        single: vi.fn().mockResolvedValue({
-          data: { role: 'attorney' },
-          error: null,
-        }),
-      });
-    });
-
     it('should return 401 when not authenticated', async () => {
-      mockSupabaseClient.auth.getUser.mockResolvedValue({
-        data: { user: null },
-        error: null,
+      vi.mocked(authenticate).mockResolvedValue({
+        success: false,
+        error: 'Unauthorized',
+        response: new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), {
+          status: 401,
+          headers: { 'Content-Type': 'application/json' },
+        }) as any,
       });
 
       const request = createMockRequest('GET', '/api/clients/search', undefined, { q: 'john' });
@@ -485,13 +492,13 @@ describe('Clients API Routes', () => {
     });
 
     it('should return 403 when non-attorney tries to search', async () => {
-      mockSupabaseClient.from.mockReturnValue({
-        select: vi.fn().mockReturnThis(),
-        eq: vi.fn().mockReturnThis(),
-        single: vi.fn().mockResolvedValue({
-          data: { role: 'client' },
-          error: null,
-        }),
+      vi.mocked(authenticate).mockResolvedValue({
+        success: false,
+        error: 'Forbidden',
+        response: new Response(JSON.stringify({ success: false, error: 'Only attorneys can search clients' }), {
+          status: 403,
+          headers: { 'Content-Type': 'application/json' },
+        }) as any,
       });
 
       const request = createMockRequest('GET', '/api/clients/search', undefined, { q: 'john' });
@@ -503,8 +510,9 @@ describe('Clients API Routes', () => {
     });
 
     it('should return 429 when rate limited', async () => {
-      vi.mocked(sensitiveRateLimiter.limit).mockResolvedValue({
-        allowed: false,
+      vi.mocked(authenticate).mockResolvedValue({
+        success: false,
+        error: 'Too Many Requests',
         response: new Response(JSON.stringify({ error: 'Too Many Requests' }), {
           status: 429,
           headers: { 'Content-Type': 'application/json' },
@@ -518,30 +526,42 @@ describe('Clients API Routes', () => {
     });
 
     it('should return empty array for query less than 2 characters', async () => {
-      vi.mocked(sensitiveRateLimiter.limit).mockResolvedValue({ allowed: true });
+      vi.mocked(authenticate).mockResolvedValue({
+        success: true,
+        user: { id: mockAttorneyId, email: 'attorney@example.com' } as any,
+        profile: mockAttorneyProfile as any,
+      });
 
       const request = createMockRequest('GET', '/api/clients/search', undefined, { q: 'j' });
       const response = await searchClients(request);
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data).toEqual([]);
+      expect(data).toEqual({ success: true, data: [] });
       expect(clientsService.searchClients).not.toHaveBeenCalled();
     });
 
     it('should return empty array for empty query', async () => {
-      vi.mocked(sensitiveRateLimiter.limit).mockResolvedValue({ allowed: true });
+      vi.mocked(authenticate).mockResolvedValue({
+        success: true,
+        user: { id: mockAttorneyId, email: 'attorney@example.com' } as any,
+        profile: mockAttorneyProfile as any,
+      });
 
       const request = createMockRequest('GET', '/api/clients/search', undefined, {});
       const response = await searchClients(request);
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data).toEqual([]);
+      expect(data).toEqual({ success: true, data: [] });
     });
 
     it('should search clients with valid query', async () => {
-      vi.mocked(sensitiveRateLimiter.limit).mockResolvedValue({ allowed: true });
+      vi.mocked(authenticate).mockResolvedValue({
+        success: true,
+        user: { id: mockAttorneyId, email: 'attorney@example.com' } as any,
+        profile: mockAttorneyProfile as any,
+      });
       vi.mocked(clientsService.searchClients).mockResolvedValue([mockClient] as any);
 
       const request = createMockRequest('GET', '/api/clients/search', undefined, { q: 'john' });
@@ -549,13 +569,17 @@ describe('Clients API Routes', () => {
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data).toHaveLength(1);
-      expect(data[0].first_name).toBe('John');
-      expect(clientsService.searchClients).toHaveBeenCalledWith('john');
+      expect(data.data).toHaveLength(1);
+      expect(data.data[0].first_name).toBe('John');
+      expect(clientsService.searchClients).toHaveBeenCalledWith('john', mockAttorneyId);
     });
 
     it('should handle search errors gracefully', async () => {
-      vi.mocked(sensitiveRateLimiter.limit).mockResolvedValue({ allowed: true });
+      vi.mocked(authenticate).mockResolvedValue({
+        success: true,
+        user: { id: mockAttorneyId, email: 'attorney@example.com' } as any,
+        profile: mockAttorneyProfile as any,
+      });
       vi.mocked(clientsService.searchClients).mockRejectedValue(new Error('Search error'));
 
       const request = createMockRequest('GET', '/api/clients/search', undefined, { q: 'john' });
@@ -638,7 +662,7 @@ describe('Clients API Routes', () => {
       expect(response.status).toBe(200);
       expect(data.id).toBe(mockClientId);
       expect(data.first_name).toBe('John');
-      expect(clientsService.getClientById).toHaveBeenCalledWith(mockClientId);
+      expect(clientsService.getClientById).toHaveBeenCalledWith(mockClientId, mockAttorneyId);
     });
 
     it('should return client when client views own profile', async () => {
@@ -768,7 +792,7 @@ describe('Clients API Routes', () => {
 
       expect(response.status).toBe(200);
       expect(data.first_name).toBe('Johnny');
-      expect(clientsService.updateClient).toHaveBeenCalledWith(mockClientId, { first_name: 'Johnny' });
+      expect(clientsService.updateClient).toHaveBeenCalledWith(mockClientId, { first_name: 'Johnny' }, mockAttorneyId);
     });
 
     it('should allow client to update own profile', async () => {
@@ -812,40 +836,32 @@ describe('Clients API Routes', () => {
   // ==========================================================================
   describe('GET /api/clients/[id]/cases', () => {
     beforeEach(() => {
-      // Mock profile and case queries
-      mockSupabaseClient.from.mockImplementation((table: string) => {
-        if (table === 'profiles') {
-          return {
-            select: vi.fn().mockReturnThis(),
-            eq: vi.fn().mockReturnThis(),
-            single: vi.fn().mockResolvedValue({
-              data: { role: 'attorney' },
-              error: null,
-            }),
-          };
-        }
-        if (table === 'cases') {
-          return {
-            select: vi.fn().mockReturnThis(),
-            eq: vi.fn().mockReturnThis(),
-            limit: vi.fn().mockResolvedValue({
-              data: [{ id: mockCaseId }],
-              error: null,
-            }),
-          };
-        }
-        return {
-          select: vi.fn().mockReturnThis(),
-          eq: vi.fn().mockReturnThis(),
-          single: vi.fn().mockResolvedValue({ data: null, error: null }),
-        };
+      // Default: authenticated as attorney with cases access
+      vi.mocked(authenticate).mockResolvedValue({
+        success: true,
+        user: { id: mockAttorneyId, email: 'attorney@example.com' } as any,
+        profile: mockAttorneyProfile as any,
+      });
+
+      // Mock case query for attorney authorization
+      mockSupabaseClient.from.mockReturnValue({
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        limit: vi.fn().mockResolvedValue({
+          data: [{ id: mockCaseId }],
+          error: null,
+        }),
       });
     });
 
     it('should return 401 when not authenticated', async () => {
-      mockSupabaseClient.auth.getUser.mockResolvedValue({
-        data: { user: null },
-        error: null,
+      vi.mocked(authenticate).mockResolvedValue({
+        success: false,
+        error: 'Unauthorized',
+        response: new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), {
+          status: 401,
+          headers: { 'Content-Type': 'application/json' },
+        }) as any,
       });
 
       const request = createMockRequest('GET', `/api/clients/${mockClientId}/cases`);
@@ -857,27 +873,10 @@ describe('Clients API Routes', () => {
     });
 
     it('should return 403 when client tries to view other client cases', async () => {
-      mockSupabaseClient.auth.getUser.mockResolvedValue({
-        data: { user: { id: mockClientId, email: 'john.doe@example.com' } },
-        error: null,
-      });
-
-      mockSupabaseClient.from.mockImplementation((table: string) => {
-        if (table === 'profiles') {
-          return {
-            select: vi.fn().mockReturnThis(),
-            eq: vi.fn().mockReturnThis(),
-            single: vi.fn().mockResolvedValue({
-              data: { role: 'client' },
-              error: null,
-            }),
-          };
-        }
-        return {
-          select: vi.fn().mockReturnThis(),
-          eq: vi.fn().mockReturnThis(),
-          single: vi.fn().mockResolvedValue({ data: null, error: null }),
-        };
+      vi.mocked(authenticate).mockResolvedValue({
+        success: true,
+        user: { id: mockClientId, email: 'john.doe@example.com' } as any,
+        profile: { ...mockClientProfile, role: 'client' } as any,
       });
 
       const request = createMockRequest('GET', `/api/clients/${mockOtherClientId}/cases`);
@@ -889,32 +888,13 @@ describe('Clients API Routes', () => {
     });
 
     it('should return 403 when attorney has no cases with client', async () => {
-      mockSupabaseClient.from.mockImplementation((table: string) => {
-        if (table === 'profiles') {
-          return {
-            select: vi.fn().mockReturnThis(),
-            eq: vi.fn().mockReturnThis(),
-            single: vi.fn().mockResolvedValue({
-              data: { role: 'attorney' },
-              error: null,
-            }),
-          };
-        }
-        if (table === 'cases') {
-          return {
-            select: vi.fn().mockReturnThis(),
-            eq: vi.fn().mockReturnThis(),
-            limit: vi.fn().mockResolvedValue({
-              data: [],
-              error: null,
-            }),
-          };
-        }
-        return {
-          select: vi.fn().mockReturnThis(),
-          eq: vi.fn().mockReturnThis(),
-          single: vi.fn().mockResolvedValue({ data: null, error: null }),
-        };
+      mockSupabaseClient.from.mockReturnValue({
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        limit: vi.fn().mockResolvedValue({
+          data: [],
+          error: null,
+        }),
       });
 
       const request = createMockRequest('GET', `/api/clients/${mockOtherClientId}/cases`);
@@ -933,33 +913,16 @@ describe('Clients API Routes', () => {
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data).toHaveLength(2);
-      expect(data[0].visa_type).toBe('H-1B');
+      expect(data.data).toHaveLength(2);
+      expect(data.data[0].visa_type).toBe('H-1B');
       expect(clientsService.getClientCases).toHaveBeenCalledWith(mockClientId);
     });
 
     it('should return own cases when client views', async () => {
-      mockSupabaseClient.auth.getUser.mockResolvedValue({
-        data: { user: { id: mockClientId, email: 'john.doe@example.com' } },
-        error: null,
-      });
-
-      mockSupabaseClient.from.mockImplementation((table: string) => {
-        if (table === 'profiles') {
-          return {
-            select: vi.fn().mockReturnThis(),
-            eq: vi.fn().mockReturnThis(),
-            single: vi.fn().mockResolvedValue({
-              data: { role: 'client' },
-              error: null,
-            }),
-          };
-        }
-        return {
-          select: vi.fn().mockReturnThis(),
-          eq: vi.fn().mockReturnThis(),
-          single: vi.fn().mockResolvedValue({ data: null, error: null }),
-        };
+      vi.mocked(authenticate).mockResolvedValue({
+        success: true,
+        user: { id: mockClientId, email: 'john.doe@example.com' } as any,
+        profile: { ...mockClientProfile, role: 'client' } as any,
       });
 
       vi.mocked(clientsService.getClientCases).mockResolvedValue(mockCases as any);
@@ -969,26 +932,14 @@ describe('Clients API Routes', () => {
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data).toHaveLength(2);
+      expect(data.data).toHaveLength(2);
     });
 
     it('should return 403 for invalid user role', async () => {
-      mockSupabaseClient.from.mockImplementation((table: string) => {
-        if (table === 'profiles') {
-          return {
-            select: vi.fn().mockReturnThis(),
-            eq: vi.fn().mockReturnThis(),
-            single: vi.fn().mockResolvedValue({
-              data: { role: 'invalid' },
-              error: null,
-            }),
-          };
-        }
-        return {
-          select: vi.fn().mockReturnThis(),
-          eq: vi.fn().mockReturnThis(),
-          single: vi.fn().mockResolvedValue({ data: null, error: null }),
-        };
+      vi.mocked(authenticate).mockResolvedValue({
+        success: true,
+        user: { id: mockAttorneyId, email: 'attorney@example.com' } as any,
+        profile: { ...mockAttorneyProfile, role: 'invalid' } as any,
       });
 
       const request = createMockRequest('GET', `/api/clients/${mockClientId}/cases`);

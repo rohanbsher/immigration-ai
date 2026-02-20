@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { clientsService } from '@/lib/db/clients';
 import { createClient } from '@/lib/supabase/server';
+import { getAdminClient } from '@/lib/supabase/admin';
 import { profilesService } from '@/lib/db/profiles';
 import { z } from 'zod';
 import { standardRateLimiter } from '@/lib/rate-limit';
@@ -24,7 +25,8 @@ const updateClientSchema = z.object({
  * Verify that the current user can access this client.
  * Returns true if:
  * - User is the client themselves, OR
- * - User is an attorney with at least one case with this client
+ * - User is an attorney with at least one case with this client, OR
+ * - The client belongs to the same firm (caseless client with primary_firm_id)
  */
 async function canAccessClient(userId: string, clientId: string): Promise<boolean> {
   // User is the client themselves
@@ -42,7 +44,46 @@ async function canAccessClient(userId: string, clientId: string): Promise<boolea
     .is('deleted_at', null)
     .limit(1);
 
-  return cases !== null && cases.length > 0;
+  if (cases !== null && cases.length > 0) {
+    return true;
+  }
+
+  // Fallback: check if the client belongs to the same firm (caseless client).
+  // Uses admin client to bypass RLS for cross-table firm lookup.
+  const admin = getAdminClient();
+
+  const { data: attorneyProfile } = await admin
+    .from('profiles')
+    .select('primary_firm_id')
+    .eq('id', userId)
+    .single();
+
+  let firmId = (attorneyProfile as { primary_firm_id: string | null } | null)?.primary_firm_id;
+
+  if (!firmId) {
+    const { data: membership } = await admin
+      .from('firm_members')
+      .select('firm_id')
+      .eq('user_id', userId)
+      .limit(1)
+      .single();
+
+    firmId = (membership as { firm_id: string } | null)?.firm_id ?? null;
+  }
+
+  if (!firmId) {
+    return false;
+  }
+
+  const { data: clientProfile } = await admin
+    .from('profiles')
+    .select('id')
+    .eq('id', clientId)
+    .eq('role', 'client')
+    .eq('primary_firm_id', firmId)
+    .single();
+
+  return clientProfile !== null;
 }
 
 export async function GET(
@@ -70,7 +111,7 @@ export async function GET(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const client = await clientsService.getClientById(id);
+    const client = await clientsService.getClientById(id, user.id);
 
     if (!client) {
       return NextResponse.json({ error: 'Client not found' }, { status: 404 });
@@ -133,7 +174,7 @@ export async function PATCH(
       updateData.alien_number = alien_number !== null ? encrypt(alien_number) : null;
     }
 
-    const client = await clientsService.updateClient(id, updateData);
+    const client = await clientsService.updateClient(id, updateData, user.id);
     return NextResponse.json(client);
   } catch (error) {
     if (error instanceof z.ZodError) {

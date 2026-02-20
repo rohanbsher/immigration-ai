@@ -1,7 +1,7 @@
 'use client';
 
 import { cn } from '@/lib/utils';
-import { useChat } from '@/hooks/use-chat';
+import { useChat, useChatWithCase } from '@/hooks/use-chat';
 import { MessageSquare, Sparkles } from 'lucide-react';
 
 interface ChatButtonProps {
@@ -80,11 +80,11 @@ export function CaseChatButton({
   caseId: string;
   className?: string;
 }) {
-  const { openChat } = useChat();
+  const { openChat } = useChatWithCase(caseId);
 
   return (
     <button
-      onClick={() => openChat(caseId)}
+      onClick={openChat}
       className={cn(
         'flex items-center gap-2 px-3 py-1.5 rounded-lg',
         'bg-ai-accent-muted hover:bg-ai-accent-muted/80 text-ai-accent',

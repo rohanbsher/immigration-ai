@@ -19,11 +19,13 @@ import {
   Shield,
 } from 'lucide-react';
 import { fetchWithTimeout } from '@/lib/api/fetch-with-timeout';
+import { logger } from '@/lib/logger';
 import { useUser } from '@/hooks/use-user';
 import { useAuth } from '@/hooks/use-auth';
 import { toast } from 'sonner';
 import { TwoFactorSetup } from '@/components/settings/two-factor-setup';
 import { GdprDataManagement } from '@/components/settings/gdpr-data-management';
+import { AiConsentSettings } from '@/components/settings/ai-consent-settings';
 import { NotificationPreferences } from '@/components/settings/notification-preferences';
 import { validatePassword } from '@/lib/validation/password';
 
@@ -81,7 +83,7 @@ export default function SettingsPage() {
       toast.success('Profile updated successfully');
       refetch(); // Refresh user data
     } catch (error) {
-      console.error('Profile update failed:', error);
+      logger.error('Profile update failed', { error });
       toast.error('Failed to update profile');
     } finally {
       setIsSaving(false);
@@ -110,7 +112,7 @@ export default function SettingsPage() {
         confirm_password: '',
       });
     } catch (error) {
-      console.error('Password update failed:', error);
+      logger.error('Password update failed', { error });
       toast.error('Failed to update password');
     } finally {
       setIsSaving(false);
@@ -416,6 +418,7 @@ export default function SettingsPage() {
 
         {/* Privacy Tab */}
         <TabsContent value="privacy" className="space-y-6">
+          <AiConsentSettings />
           <GdprDataManagement />
         </TabsContent>
       </Tabs>

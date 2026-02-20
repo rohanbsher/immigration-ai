@@ -24,21 +24,7 @@ import { SuccessScoreBadge } from '@/components/ai/success-score-badge';
 import { CasesEmptyState } from '@/components/ui/empty-state';
 import { Skeleton, StatsCardSkeleton, GridSkeleton, CaseCardSkeleton, ListSkeleton } from '@/components/ui/skeletons';
 import type { CaseStatus } from '@/types';
-
-// Chart colors use CSS hex values because they are passed to the chart library,
-// not used as Tailwind classes. These map to the semantic meaning of each status.
-const STATUS_COLORS: Record<string, string> = {
-  intake: '#94a3b8',
-  document_collection: '#f59e0b',
-  in_review: '#3b82f6',
-  forms_preparation: '#8b5cf6',
-  ready_for_filing: '#6366f1',
-  filed: '#22c55e',
-  pending_response: '#f97316',
-  approved: '#10b981',
-  denied: '#ef4444',
-  closed: '#64748b',
-};
+import { STATUS_COLORS } from '@/lib/constants/status-colors';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -81,7 +67,7 @@ export default function DashboardPage() {
       }))
     : [];
 
-  const userName = profileLoading ? null : (profile?.first_name || 'there');
+  const userName = profileLoading ? null : (profile?.first_name?.trim() || null);
 
   return (
     <div className="space-y-6">
@@ -90,7 +76,7 @@ export default function DashboardPage() {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h1 className="font-display text-2xl tracking-tight text-foreground">
-              Welcome back, {userName ?? <Skeleton className="inline-block h-7 w-32 align-middle" />}
+              Welcome back{profileLoading ? <>{', '}<Skeleton className="inline-block h-7 w-32 align-middle" /></> : userName ? `, ${userName}` : ''}
             </h1>
             <p className="text-muted-foreground">
               Here&apos;s what&apos;s happening with your cases today.

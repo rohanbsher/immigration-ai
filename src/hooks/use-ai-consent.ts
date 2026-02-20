@@ -53,12 +53,8 @@ export function useAiConsent() {
   }, []);
 
   const revokeConsent = useCallback(async () => {
-    try {
-      const res = await fetch('/api/profile/ai-consent', { method: 'DELETE' });
-      await parseApiVoidResponse(res);
-    } catch {
-      // Best effort
-    }
+    const res = await fetch('/api/profile/ai-consent', { method: 'DELETE' });
+    await parseApiVoidResponse(res);
     localStorage.removeItem(CONSENT_KEY);
     setHasConsented(false);
   }, []);

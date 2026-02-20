@@ -9,14 +9,14 @@ const log = createLogger('api:clients');
 /**
  * GET /api/clients - Get all clients with pagination (attorney only)
  */
-export const GET = withAttorneyAuth(async (request) => {
+export const GET = withAttorneyAuth(async (request, _context, auth) => {
   try {
     const { searchParams } = new URL(request.url);
     const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
     const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '20', 10)));
     const search = searchParams.get('search') || undefined;
 
-    const { data: clients, total } = await clientsService.getClients({ page, limit, search });
+    const { data: clients, total } = await clientsService.getClients({ page, limit, search }, auth.user.id);
 
     return NextResponse.json({
       data: clients,
@@ -42,7 +42,7 @@ const createClientSchema = z.object({
 /**
  * POST /api/clients - Create a new client (attorney only)
  */
-export const POST = withAttorneyAuth(async (request) => {
+export const POST = withAttorneyAuth(async (request, _context, auth) => {
   try {
     const safeParsed = await safeParseBody(request);
     if (!safeParsed.success) return safeParsed.response;
@@ -53,7 +53,7 @@ export const POST = withAttorneyAuth(async (request) => {
       return errorResponse(parsed.error.issues[0].message, 400);
     }
 
-    const client = await clientsService.createClient(parsed.data);
+    const client = await clientsService.createClient(parsed.data, auth.user.id);
     return NextResponse.json(client, { status: 201 });
   } catch (error) {
     log.logError('Error creating client', error);

@@ -126,14 +126,26 @@ export function CasesEmptyState({ onCreateCase }: { onCreateCase?: () => void })
   );
 }
 
-export function DocumentsEmptyState() {
+export function DocumentsEmptyState({ hasCases = false }: { hasCases?: boolean } = {}) {
+  if (!hasCases) {
+    return (
+      <EmptyState
+        icon={FileTextIcon}
+        title="No documents yet"
+        description="Create a case to start uploading documents. Documents are organized by case for easy tracking."
+        actionLabel="Create a Case"
+        actionHref="/dashboard/cases/new"
+        secondaryActionLabel="View Cases"
+        secondaryActionHref="/dashboard/cases"
+      />
+    );
+  }
+
   return (
     <EmptyState
       icon={FileTextIcon}
       title="No documents uploaded"
-      description="Upload client documents like passports, visas, and supporting evidence. Our AI will automatically extract key information."
-      actionLabel="Upload Documents"
-      actionHref="/dashboard/documents/upload"
+      description="Upload documents from your case details page. Our AI will automatically extract key information from passports, visas, and supporting evidence."
       secondaryActionLabel="View Cases"
       secondaryActionHref="/dashboard/cases"
     />

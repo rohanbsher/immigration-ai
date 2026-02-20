@@ -16,7 +16,7 @@ import type { DocumentAnalysisResult } from '@/lib/ai/types';
 import { openaiBreaker, anthropicBreaker } from '@/lib/ai/circuit-breaker';
 import { features } from '@/lib/config';
 import { CLAUDE_MODEL } from '@/lib/ai/client';
-import { validateStorageUrl } from '@/lib/security';
+import { validateStorageUrl } from '@/lib/security/url-validation';
 import { logAIRequest } from '@/lib/audit/ai-audit';
 import { getWorkerSupabase } from '../supabase';
 import { trackUsage } from '../track-usage';

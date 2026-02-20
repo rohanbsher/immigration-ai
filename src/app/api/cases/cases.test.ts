@@ -204,10 +204,20 @@ const mockFormsService = {
   createForm: vi.fn().mockResolvedValue(mockForm),
 };
 
+const mockActivitiesService = {
+  logCaseCreated: vi.fn().mockResolvedValue(undefined),
+  logCaseUpdated: vi.fn().mockResolvedValue(undefined),
+  logStatusChanged: vi.fn().mockResolvedValue(undefined),
+  logDocumentUploaded: vi.fn().mockResolvedValue(undefined),
+  logFormCreated: vi.fn().mockResolvedValue(undefined),
+  getActivitiesByCase: vi.fn().mockResolvedValue([]),
+};
+
 vi.mock('@/lib/db', () => ({
   casesService: mockCasesService,
   documentsService: mockDocumentsService,
   formsService: mockFormsService,
+  activitiesService: mockActivitiesService,
 }));
 
 // Mock rate limiting

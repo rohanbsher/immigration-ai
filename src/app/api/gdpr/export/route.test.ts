@@ -12,7 +12,11 @@ import { NextRequest } from 'next/server';
 
 vi.mock('@/lib/auth');
 vi.mock('@/lib/supabase/server');
-vi.mock('@/lib/rate-limit');
+vi.mock('@/lib/rate-limit', () => ({
+  sensitiveRateLimiter: {
+    limit: vi.fn(),
+  },
+}));
 vi.mock('@/lib/logger', () => ({
   createLogger: () => ({
     info: vi.fn(),
@@ -26,7 +30,7 @@ vi.mock('@/lib/logger', () => ({
 import { GET, POST } from './route';
 import { serverAuth } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
-import { rateLimit } from '@/lib/rate-limit';
+import { sensitiveRateLimiter } from '@/lib/rate-limit';
 import { createMockChain, createMockSupabaseFrom } from '@/test-utils/mock-supabase-chain';
 
 function createRequest(method: string, body?: Record<string, unknown>) {
@@ -43,7 +47,7 @@ describe('GDPR Export API', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(rateLimit).mockResolvedValue({ success: true, remaining: 10 });
+    vi.mocked(sensitiveRateLimiter.limit).mockResolvedValue({ allowed: true });
     vi.mocked(serverAuth.getUser).mockResolvedValue({ id: 'user-1', email: 'test@example.com' } as never);
     mockSupabase = createMockSupabaseFrom();
     vi.mocked(createClient).mockResolvedValue(mockSupabase as never);
@@ -55,13 +59,16 @@ describe('GDPR Export API', () => {
 
   describe('GET /api/gdpr/export', () => {
     it('returns 429 when rate limited', async () => {
-      vi.mocked(rateLimit).mockResolvedValue({ success: false, remaining: 0, retryAfter: 30 });
+      vi.mocked(sensitiveRateLimiter.limit).mockResolvedValue({
+        allowed: false,
+        response: new Response(JSON.stringify({ error: 'Too Many Requests' }), { status: 429 }),
+      } as never);
 
       const response = await GET(createRequest('GET'));
       const data = await response.json();
 
       expect(response.status).toBe(429);
-      expect(data.error).toContain('Too many requests');
+      expect(data.error).toContain('Too Many Requests');
     });
 
     it('returns 401 when not authenticated', async () => {
@@ -113,17 +120,32 @@ describe('GDPR Export API', () => {
       expect(response.status).toBe(500);
       expect(data.error).toBe('Failed to fetch export history');
     });
+
+    it('rate limits by user.id not IP', async () => {
+      const chain = createMockChain({ data: [], error: null });
+      mockSupabase.from.mockReturnValue(chain);
+
+      await GET(createRequest('GET'));
+
+      expect(sensitiveRateLimiter.limit).toHaveBeenCalledWith(
+        expect.any(NextRequest),
+        'user-1'
+      );
+    });
   });
 
   describe('POST /api/gdpr/export', () => {
     it('returns 429 when rate limited', async () => {
-      vi.mocked(rateLimit).mockResolvedValue({ success: false, remaining: 0, retryAfter: 60 });
+      vi.mocked(sensitiveRateLimiter.limit).mockResolvedValue({
+        allowed: false,
+        response: new Response(JSON.stringify({ error: 'Too Many Requests' }), { status: 429 }),
+      } as never);
 
       const response = await POST(createRequest('POST'));
       const data = await response.json();
 
       expect(response.status).toBe(429);
-      expect(data.error).toContain('Too many requests');
+      expect(data.error).toContain('Too Many Requests');
     });
 
     it('returns 401 when not authenticated', async () => {

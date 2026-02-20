@@ -1,27 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { serverAuth } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
-import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit';
+import { sensitiveRateLimiter } from '@/lib/rate-limit';
 import { createLogger } from '@/lib/logger';
 
 const log = createLogger('api:gdpr-export');
 
 export async function GET(request: NextRequest) {
   try {
-    const ip = request.headers.get('x-forwarded-for') || 'unknown';
-    const rateLimitResult = await rateLimit(RATE_LIMITS.SENSITIVE, ip);
-
-    if (!rateLimitResult.success) {
-      return NextResponse.json(
-        { error: 'Too many requests. Please try again later.' },
-        { status: 429, headers: { 'Retry-After': rateLimitResult.retryAfter?.toString() || '60' } }
-      );
-    }
-
     const user = await serverAuth.getUser();
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const limitResult = await sensitiveRateLimiter.limit(request, user.id);
+    if (!limitResult.allowed) return limitResult.response;
 
     const supabase = await createClient();
 
@@ -55,20 +48,13 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const ip = request.headers.get('x-forwarded-for') || 'unknown';
-    const rateLimitResult = await rateLimit(RATE_LIMITS.SENSITIVE, ip);
-
-    if (!rateLimitResult.success) {
-      return NextResponse.json(
-        { error: 'Too many requests. Please try again later.' },
-        { status: 429, headers: { 'Retry-After': rateLimitResult.retryAfter?.toString() || '60' } }
-      );
-    }
-
     const user = await serverAuth.getUser();
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const limitResult = await sensitiveRateLimiter.limit(request, user.id);
+    if (!limitResult.allowed) return limitResult.response;
 
     const supabase = await createClient();
 

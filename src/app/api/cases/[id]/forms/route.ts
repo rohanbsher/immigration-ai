@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { formsService, casesService } from '@/lib/db';
+import { formsService, casesService, activitiesService } from '@/lib/db';
 import { createClient } from '@/lib/supabase/server';
 import { z } from 'zod';
 import { standardRateLimiter } from '@/lib/rate-limit';
@@ -106,6 +106,11 @@ export async function POST(
       case_id: caseId,
       form_type: validatedData.form_type as Parameters<typeof formsService.createForm>[0]['form_type'],
       form_data: validatedData.form_data,
+    });
+
+    // Log activity (fire and forget)
+    activitiesService.logFormCreated(caseId, validatedData.form_type, form.id, user.id).catch(err => {
+      log.warn('Activity log failed', { error: err });
     });
 
     return NextResponse.json(form, { status: 201 });

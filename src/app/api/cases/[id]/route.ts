@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { casesService } from '@/lib/db';
+import { casesService, activitiesService } from '@/lib/db';
 import { createClient } from '@/lib/supabase/server';
 import { z } from 'zod';
 import { sendCaseUpdateEmail } from '@/lib/email/notifications';
@@ -153,6 +153,18 @@ export async function PATCH(
         user.id
       ).catch((err) => {
         log.logError('Failed to send case update email', err);
+      });
+    }
+
+    // Log activity (fire and forget)
+    if (statusChanged && validatedData.status) {
+      activitiesService.logStatusChanged(id, previousStatus!, validatedData.status, user.id).catch(err => {
+        log.warn('Activity log failed', { error: err });
+      });
+    } else {
+      const changes = Object.keys(updatePayload).join(', ');
+      activitiesService.logCaseUpdated(id, `Updated: ${changes}`, user.id).catch(err => {
+        log.warn('Activity log failed', { error: err });
       });
     }
 

@@ -37,13 +37,13 @@ All three implementation plans have been verified as 100% complete.
 
 ---
 
-## Current State (2026-02-19 23:30)
+## Current State (2026-02-20 00:50)
 
 ```
-Tests:  2,532 passed | 4 skipped | 0 failures (93 test files)
+Tests:  2,695 passed | 4 skipped | 0 failures (106 test files)
 Build:  Passes (tsc clean, Vercel production Ready)
 Coverage: 86%+ statements, 70.42% branches
-Migrations: 62 SQL files (all applied to production — DB audit PASSED)
+Migrations: 63 SQL files (062 applied, 063 pending deploy)
 Production: Deployed to https://immigration-ai-topaz.vercel.app
 Worker: Deployed to https://immigration-ai-production.up.railway.app (E2E verified)
 PDF Service: Deployed to https://pdf-service-production-abc5.up.railway.app (9 templates)
@@ -51,8 +51,9 @@ Branch: main (all deployment steps complete)
 CI: ALL 6 JOBS GREEN
 PDF Fields: 697 AcroForm field mappings (9 forms — added I-129 + I-539)
 AI Mappings: 50+ field mappings across 6 forms
-Citations: Two-pass architecture complete (AI_CITATIONS_ENABLED feature flag)
+Citations: Two-pass architecture LIVE (AI_CITATIONS_ENABLED=true on Vercel)
 DB Audit: 41 tables, 141 constraints, 42 triggers, all RLS enabled, 0 orphaned rows
+Rate Limiting: All post-auth endpoints use user.id (not IP) — GDPR routes migrated
 ```
 
 > **Full launch tracker: `.claude/LAUNCH_TRACKER.md`**
@@ -63,48 +64,29 @@ DB Audit: 41 tables, 141 constraints, 42 triggers, all RLS enabled, 0 orphaned r
 
 Priority order for the next agent session. User is handling custom domain purchase in parallel.
 
-### Sprint 1: PDF Polish (estimate: ~1 session)
-These are the last 3 tasks blocking "filing-ready" PDF output:
+### Sprint 1: PDF Polish — COMPLETE (2026-02-19)
+- [x] PDF-4: USCIS Formatting (dates, checkboxes, continuation sheets)
+- [x] PDF-5: Conditional DRAFT watermark (filing-ready output)
+- [x] PDF-9c: I-20 + DS-160 field maps
 
-1. **PDF-4: USCIS Formatting** — Handle MM/DD/YYYY dates, checkbox fields, continuation sheets
-   - Files: `src/lib/pdf/index.ts`, `src/lib/pdf/uscis-fields/*.ts`
-   - Pattern: Look at existing field maps, add date formatters and checkbox handling
+### Sprint 2: Security-Critical API Route Tests — COMPLETE (2026-02-19)
+- [x] 13 new test files, 147 tests covering documents, forms, cases sub-routes, AI routes, deadlines
+- [x] Full suite: 2,693 tests passing
 
-2. **PDF-5: Remove DRAFT Watermark** — Make PDFs filing-ready
-   - Files: `services/pdf-service/main.py` (pikepdf), `src/lib/pdf/index.ts`
-   - Note: DRAFT watermark is currently added by the pdf-service; need to make it conditional or remove
+### Sprint 3: Hardening — COMPLETE (2026-02-20)
+- [x] Rate-limit user.id migration — Restructured `authenticate()` in `api-helpers.ts` to auth-first, then rate-limit by `user.id`. Also migrated GDPR export/delete routes from IP to user.id.
+- [x] GDPR data export expansion — Migration 063 adds AI conversations (`conversations` + `conversation_messages`) and case messages to `get_user_export_data()`. Forms export now includes `form_data` for data portability.
+- [x] AI_CITATIONS_ENABLED=true — Already set on Vercel production (confirmed)
 
-3. **PDF-9c: I-20 + DS-160 Field Maps** — Add remaining 2 form field maps
-   - Files: `src/lib/pdf/uscis-fields/i-20.ts` (new), `src/lib/pdf/uscis-fields/ds-160.ts` (new)
-   - Pattern: Follow existing i-129.ts / i-539.ts as templates
+### Remaining Test Coverage (MEDIUM/LOW priority)
 
-### Sprint 2: Test Coverage (estimate: ~2 sessions, parallelizable)
-
-4. **WS-TESTS-P1: Security-Critical Route Tests** (HIGH)
-   - 2FA routes: setup, verify, status, backup-codes, disable (5 endpoints)
-   - Admin routes: stats, users, user detail, suspend, unsuspend (5 endpoints)
-   - Billing routes: checkout, portal, cancel, resume, subscription, quota, webhooks (7 endpoints)
-   - Files: `src/app/api/2fa/**/*.test.ts`, `src/app/api/admin/**/*.test.ts`, `src/app/api/billing/**/*.test.ts`
-   - Use existing test patterns from `src/app/api/cases/cases.test.ts`
-
-5. **WS-TESTS-P2: Feature Route Tests** (MEDIUM)
+4. **WS-TESTS-P2: Feature Route Tests** (MEDIUM)
    - Chat, Notification, Cron, Health, Profile, Task, Document-request routes
    - Files: `src/app/api/chat/*.test.ts`, etc.
 
-6. **WS-TESTS-P3: Frontend Tests** (LOW)
+5. **WS-TESTS-P3: Frontend Tests** (LOW)
    - Top 20 critical components + top 10 hooks
    - Biggest coverage gap: 94 components at ~1%, 25/27 hooks untested
-
-### Sprint 3: Hardening (can be done alongside tests)
-
-7. **Rate-limit user.id migration** — Change ~38 post-auth endpoints from IP-based to user.id-based rate limiting
-   - Files: All API routes under `src/app/api/`
-   - Pattern: Change `rateLimit({ identifier: ip })` to `rateLimit({ identifier: user.id })`
-
-8. **GDPR data export expansion** — Include documents and AI conversations
-   - Files: `src/lib/db/` (get_user_export_data RPC)
-
-9. **Enable AI_CITATIONS_ENABLED=true** on Vercel (just a flag flip via `vercel env add`)
 
 ### User is handling:
 - Custom domain purchase → update NEXT_PUBLIC_APP_URL + SITE_URL

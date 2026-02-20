@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { casesService } from '@/lib/db';
+import { casesService, activitiesService } from '@/lib/db';
 import { z } from 'zod';
 import {
   withAuth,
@@ -89,6 +89,11 @@ export const POST = withAttorneyAuth(async (request, _context, auth) => {
       auth.user.id,
       auth.profile?.primary_firm_id
     );
+
+    // Log activity (fire and forget)
+    activitiesService.logCaseCreated(newCase.id, validatedData.title, auth.user.id).catch(err => {
+      log.warn('Activity log failed', { error: err });
+    });
 
     return successResponse(newCase, 201);
   } catch (error) {

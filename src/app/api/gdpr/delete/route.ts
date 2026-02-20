@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { serverAuth } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
-import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit';
+import { standardRateLimiter, sensitiveRateLimiter } from '@/lib/rate-limit';
 import { createLogger } from '@/lib/logger';
 import { safeParseBody } from '@/lib/auth/api-helpers';
 
@@ -18,20 +18,13 @@ const cancelRequestSchema = z.object({
 
 export async function GET(request: NextRequest) {
   try {
-    const ip = request.headers.get('x-forwarded-for') || 'unknown';
-    const rateLimitResult = await rateLimit(RATE_LIMITS.STANDARD, ip);
-
-    if (!rateLimitResult.success) {
-      return NextResponse.json(
-        { error: 'Too many requests' },
-        { status: 429, headers: { 'Retry-After': rateLimitResult.retryAfter?.toString() || '60' } }
-      );
-    }
-
     const user = await serverAuth.getUser();
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const limitResult = await standardRateLimiter.limit(request, user.id);
+    if (!limitResult.allowed) return limitResult.response;
 
     const supabase = await createClient();
 
@@ -65,20 +58,13 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const ip = request.headers.get('x-forwarded-for') || 'unknown';
-    const rateLimitResult = await rateLimit(RATE_LIMITS.SENSITIVE, ip);
-
-    if (!rateLimitResult.success) {
-      return NextResponse.json(
-        { error: 'Too many requests. Please try again later.' },
-        { status: 429, headers: { 'Retry-After': rateLimitResult.retryAfter?.toString() || '60' } }
-      );
-    }
-
     const user = await serverAuth.getUser();
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const limitResult = await sensitiveRateLimiter.limit(request, user.id);
+    if (!limitResult.allowed) return limitResult.response;
 
     const parsed = await safeParseBody(request);
     if (!parsed.success) return parsed.response;
@@ -130,20 +116,13 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const ip = request.headers.get('x-forwarded-for') || 'unknown';
-    const rateLimitResult = await rateLimit(RATE_LIMITS.SENSITIVE, ip);
-
-    if (!rateLimitResult.success) {
-      return NextResponse.json(
-        { error: 'Too many requests' },
-        { status: 429, headers: { 'Retry-After': rateLimitResult.retryAfter?.toString() || '60' } }
-      );
-    }
-
     const user = await serverAuth.getUser();
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const limitResult = await sensitiveRateLimiter.limit(request, user.id);
+    if (!limitResult.allowed) return limitResult.response;
 
     const parsed = await safeParseBody(request);
     if (!parsed.success) return parsed.response;

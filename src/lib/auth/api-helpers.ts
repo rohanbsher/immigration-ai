@@ -201,11 +201,53 @@ export async function authenticate(
 ): Promise<AuthResult> {
   const { roles, rateLimit: rateLimitConfig = 'STANDARD', rateLimitKey } = options;
 
-  // Apply rate limiting if configured
+  // Authenticate user FIRST so we can rate-limit by user.id (not IP)
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    // For unauthenticated requests, still apply IP-based rate limiting
+    // to prevent brute-force attacks against the auth layer
+    if (rateLimitConfig !== false) {
+      const limitConfig = RATE_LIMITS[rateLimitConfig];
+      const ip = getClientIp(request);
+      const result = await rateLimit(limitConfig, ip);
+      if (!result.success) {
+        return {
+          success: false,
+          error: 'Too many requests',
+          response: NextResponse.json(
+            { error: 'Too many requests' },
+            {
+              status: 429,
+              headers: {
+                'Retry-After': result.retryAfter?.toString() || '60',
+              },
+            }
+          ),
+        };
+      }
+    }
+
+    log.debug('401 Unauthorized', {
+      hasCookieHeader: !!request.headers.get('cookie'),
+      url: request.url,
+      method: request.method,
+    });
+    return {
+      success: false,
+      error: 'Unauthorized',
+      response: errorResponse('Unauthorized', 401),
+    };
+  }
+
+  // Apply rate limiting keyed by user.id (preferred) or custom key
   if (rateLimitConfig !== false) {
     const limitConfig = RATE_LIMITS[rateLimitConfig];
-    const ip = rateLimitKey || getClientIp(request);
-    const result = await rateLimit(limitConfig, ip);
+    const identifier = rateLimitKey || user.id;
+    const result = await rateLimit(limitConfig, identifier);
 
     if (!result.success) {
       return {
@@ -222,26 +264,6 @@ export async function authenticate(
         ),
       };
     }
-  }
-
-  // Get authenticated user
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    // Debug logging for 401 errors
-    log.debug('401 Unauthorized', {
-      hasCookieHeader: !!request.headers.get('cookie'),
-      url: request.url,
-      method: request.method,
-    });
-    return {
-      success: false,
-      error: 'Unauthorized',
-      response: errorResponse('Unauthorized', 401),
-    };
   }
 
   // Get user profile using admin client (bypasses RLS since user is already authenticated)

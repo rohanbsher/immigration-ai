@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { documentsService, casesService } from '@/lib/db';
+import { documentsService, casesService, activitiesService } from '@/lib/db';
 import { createClient } from '@/lib/supabase/server';
 import { withAuth, errorResponse, successResponse } from '@/lib/auth/api-helpers';
 import { validateFile } from '@/lib/file-validation';
@@ -204,6 +204,11 @@ export const POST = withAuth(async (request, context, auth) => {
       auth.user.id
     ).catch((err) => {
       log.logError('Failed to send document upload email', err);
+    });
+
+    // Log activity (fire and forget)
+    activitiesService.logDocumentUploaded(caseId, file.name, document.id, auth.user.id).catch(err => {
+      log.warn('Activity log failed', { error: err });
     });
 
     return NextResponse.json(document, { status: 201 });

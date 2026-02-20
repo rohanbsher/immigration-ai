@@ -33,6 +33,7 @@ import { toast } from 'sonner';
 import { DocumentCompletenessPanel } from '@/components/ai/document-completeness-panel';
 import { SuccessScoreBreakdown } from '@/components/ai/success-score-breakdown';
 import { NextStepsPanel } from '@/components/ai/next-steps-panel';
+import { RFERiskPanel } from '@/components/ai/rfe-risk-panel';
 import { CaseChatButton } from '@/components/chat/chat-button';
 import { CaseMessagesPanel } from '@/components/messaging';
 import { TaskList } from '@/components/tasks';
@@ -255,6 +256,7 @@ function CaseDetailContent({
 
             {/* Right Column: AI Panels */}
             <div className="space-y-6">
+              <RFERiskPanel caseId={id} variant="full" />
               <DocumentCompletenessPanel
                 caseId={id}
                 variant="full"

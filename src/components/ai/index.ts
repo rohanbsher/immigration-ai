@@ -20,6 +20,7 @@ export {
 export {
   NextStepsPanel,
 } from './next-steps-panel';
+export { RFERiskPanel } from './rfe-risk-panel';
 
 // AI Consent
 export { AIConsentModal } from './ai-consent-modal';

@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { SearchResults } from '@/components/search/search-results';
 
 interface AISearchInputProps {
   placeholder?: string;
@@ -179,12 +180,19 @@ export function AISearchInput({
         </Button>
       </div>
 
+      {/* Search Results */}
+      {data && !showSuggestions && (
+        <div className="absolute top-full left-0 right-0 mt-1 bg-card rounded-lg border border-border shadow-lg z-50 max-h-[400px] overflow-y-auto">
+          <SearchResults response={data} />
+        </div>
+      )}
+
       {/* Suggestions dropdown */}
-      {showSuggestions && !isSearching && (
+      {showSuggestions && !isSearching && !data && (
         <SuggestionsDropdown
           recentSearches={recentSearches}
-          aiSuggestions={data?.suggestions || []}
-          interpretation={data?.interpretation}
+          aiSuggestions={[]}
+          interpretation={undefined}
           onSelect={handleSelectSuggestion}
           onClose={() => setShowSuggestions(false)}
         />

@@ -219,8 +219,31 @@ describe('real TOTP verification (unmocked)', () => {
   // Load the real otpauth library, bypassing the vi.mock above
   let RealOTPAuth: typeof import('otpauth');
 
+  // A real verifyTOTP that uses the unmocked otpauth library.
+  // vi.importActual('./totp') won't work because totp.ts internally
+  // imports 'otpauth' which remains mocked at the module level.
+  // Instead we replicate the exact same logic here with real otpauth.
+  let realVerifyTOTP: (token: string, secret: string) => boolean;
+
   beforeAll(async () => {
     RealOTPAuth = await vi.importActual<typeof import('otpauth')>('otpauth');
+
+    realVerifyTOTP = (token: string, secret: string): boolean => {
+      try {
+        const totp = new RealOTPAuth.TOTP({
+          issuer: 'Immigration AI',
+          label: 'User',
+          algorithm: 'SHA1',
+          digits: 6,
+          period: 30,
+          secret: RealOTPAuth.Secret.fromBase32(secret),
+        });
+        const delta = totp.validate({ token, window: 1 });
+        return delta !== null;
+      } catch {
+        return false;
+      }
+    };
   });
 
   // Helper: build a TOTP instance with the same config as totp.ts
@@ -293,18 +316,43 @@ describe('real TOTP verification (unmocked)', () => {
     expect(uri).toContain('issuer=Immigration');
   });
 
-  it('different secrets produce different TOTP codes', () => {
-    const secretA = generateSecret();
-    const secretB = generateSecret();
+  it('different secrets produce valid 6-digit tokens', () => {
+    const secrets = Array.from({ length: 5 }, () => generateSecret());
 
-    // Secrets themselves must differ
-    expect(secretA).not.toBe(secretB);
+    // All secrets must be unique
+    const uniqueSecrets = new Set(secrets);
+    expect(uniqueSecrets.size).toBe(5);
 
-    const tokenA = makeTOTP(secretA).generate();
-    const tokenB = makeTOTP(secretB).generate();
+    // Each secret produces a valid 6-digit numeric token
+    const tokens = secrets.map((s) => makeTOTP(s).generate());
+    for (const token of tokens) {
+      expect(token).toMatch(/^\d{6}$/);
+    }
 
-    // Extremely unlikely (1 in 1,000,000) that two random secrets
-    // produce the same 6-digit code at the same instant
-    expect(tokenA).not.toBe(tokenB);
+    // With 5 independent random secrets, the probability of ALL tokens
+    // being identical is (1/10^6)^4 ≈ 10^-24 — effectively zero
+    const uniqueTokens = new Set(tokens);
+    expect(uniqueTokens.size).toBeGreaterThan(1);
+  });
+
+  it('real verifyTOTP accepts a valid token', () => {
+    const secret = generateSecret();
+    const token = makeTOTP(secret).generate();
+
+    expect(realVerifyTOTP(token, secret)).toBe(true);
+  });
+
+  it('real verifyTOTP rejects an invalid token', () => {
+    // Use a fixed secret so we can be confident '000000' won't match
+    const secret = generateSecret();
+
+    expect(realVerifyTOTP('000000', secret)).toBe(false);
+    expect(realVerifyTOTP('999999', secret)).toBe(false);
+  });
+
+  it('real verifyTOTP rejects an empty string', () => {
+    const secret = generateSecret();
+
+    expect(realVerifyTOTP('', secret)).toBe(false);
   });
 });

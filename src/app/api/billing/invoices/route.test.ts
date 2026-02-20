@@ -187,4 +187,17 @@ describe('GET /api/billing/invoices', () => {
     expect(res.status).toBe(500);
     expect(json.error).toBe('Failed to fetch invoices');
   });
+
+  it('ignores userId query param and returns only authenticated user invoices (IDOR)', async () => {
+    vi.mocked(getUserInvoices).mockResolvedValue(mockInvoices as any);
+
+    const req = createRequest('/api/billing/invoices?userId=attacker-id');
+    const res = await GET(req, {} as any);
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.success).toBe(true);
+    expect(getUserInvoices).toHaveBeenCalledWith(MOCK_USER_ID);
+    expect(getUserInvoices).not.toHaveBeenCalledWith('attacker-id');
+  });
 });

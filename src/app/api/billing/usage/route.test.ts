@@ -236,4 +236,25 @@ describe('GET /api/billing/usage', () => {
     expect(response.status).toBe(200);
     expect(data.data.cases).toBe(100);
   });
+
+  it('ignores userId query param and returns only authenticated user data (IDOR)', async () => {
+    vi.mocked(serverAuth.getUser).mockResolvedValue({
+      id: mockUserId,
+      email: 'test@example.com',
+    } as any);
+
+    vi.mocked(standardRateLimiter.limit).mockResolvedValue({ allowed: true });
+    vi.mocked(checkQuota).mockResolvedValue(mockQuotaResponse);
+
+    const request = new NextRequest('http://localhost:3000/api/billing/usage?userId=attacker-id', {
+      method: 'GET',
+    });
+    const response = await GET(request);
+    const data = await response.json();
+
+    expect(serverAuth.getUser).toHaveBeenCalled();
+    expect(response.status).toBe(200);
+    expect(checkQuota).toHaveBeenCalledWith(mockUserId, 'cases');
+    expect(checkQuota).not.toHaveBeenCalledWith('attacker-id', expect.anything());
+  });
 });

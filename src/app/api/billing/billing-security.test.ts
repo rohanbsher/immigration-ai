@@ -824,6 +824,26 @@ describe('Billing API - IDOR Protection', () => {
     expect(getUserSubscription).toHaveBeenCalledWith(USER_1.id);
     expect(getUserSubscription).not.toHaveBeenCalledWith(USER_2_ID);
   });
+
+  it('portal creates session for authenticated user only, ignoring userId in body', async () => {
+    vi.mocked(createBillingPortalSession).mockResolvedValue({
+      url: 'https://billing.stripe.com/session/test',
+    } as never);
+
+    const req = createRequest('POST', '/api/billing/portal', {
+      userId: USER_2_ID,
+    });
+    const res = await portalPOST(req);
+
+    expect(serverAuth.getUser).toHaveBeenCalled();
+    expect(res.status).toBe(200);
+    expect(createBillingPortalSession).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: USER_1.id })
+    );
+    expect(createBillingPortalSession).not.toHaveBeenCalledWith(
+      expect.objectContaining({ userId: USER_2_ID })
+    );
+  });
 });
 
 describe('Billing API - Cross-cutting Auth', () => {

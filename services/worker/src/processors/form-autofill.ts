@@ -106,6 +106,9 @@ export async function processFormAutofill(
       extracted_fields: extractedFields,
       overall_confidence: doc.ai_confidence_score || 0,
       processing_time_ms: 0,
+      raw_text: typeof extractedData['_raw_text'] === 'string'
+        ? (extractedData['_raw_text'] as string)
+        : undefined,
     };
   });
 

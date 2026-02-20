@@ -123,6 +123,16 @@ export async function sendEmail(
   }
 
   if (!resend) {
+    // In development, log the email for local preview instead of failing
+    if (features.isDevelopment) {
+      log.info('Dev email preview', {
+        to: options.to,
+        subject: options.subject,
+        bodyLength: (options.html || '').length,
+      });
+      return { success: true, messageId: 'dev-preview' };
+    }
+
     log.warn('Email not sent: Resend is not configured');
     if (emailLog) {
       await supabase

@@ -85,7 +85,6 @@ import {
   withAuth,
   withAttorneyAuth,
   withAdminAuth,
-  getClientIp,
   errorResponse,
   successResponse,
 } from './api-helpers';
@@ -231,48 +230,7 @@ describe('Authentication Module', () => {
   });
 
   describe('API Helper Functions', () => {
-    describe('getClientIp', () => {
-      it('should extract IP from x-forwarded-for header', () => {
-        const request = createMockRequest({
-          headers: { 'x-forwarded-for': '192.168.1.1, 10.0.0.1' },
-        });
-
-        const ip = getClientIp(request);
-
-        expect(ip).toBe('192.168.1.1');
-      });
-
-      it('should extract IP from x-real-ip header', () => {
-        const request = createMockRequest({
-          headers: { 'x-real-ip': '192.168.1.2' },
-        });
-
-        const ip = getClientIp(request);
-
-        expect(ip).toBe('192.168.1.2');
-      });
-
-      it('should return anonymous when no IP headers present', () => {
-        const request = createMockRequest();
-
-        const ip = getClientIp(request);
-
-        expect(ip).toBe('anonymous');
-      });
-
-      it('should prefer x-forwarded-for over x-real-ip', () => {
-        const request = createMockRequest({
-          headers: {
-            'x-forwarded-for': '192.168.1.1',
-            'x-real-ip': '192.168.1.2',
-          },
-        });
-
-        const ip = getClientIp(request);
-
-        expect(ip).toBe('192.168.1.1');
-      });
-    });
+    // getClientIp tests live in src/lib/utils/get-client-ip.test.ts (30+ comprehensive tests)
 
     describe('errorResponse', () => {
       it('should create error response with status', () => {
@@ -1021,18 +979,6 @@ describe('Authentication Module', () => {
           expect.objectContaining({ keyPrefix: 'ai' }),
           expect.any(String)
         );
-      });
-    });
-
-    describe('Multiple x-forwarded-for IPs', () => {
-      it('should extract first IP from comma-separated list', () => {
-        const request = createMockRequest({
-          headers: { 'x-forwarded-for': '  192.168.1.1  , 10.0.0.1, 172.16.0.1  ' },
-        });
-
-        const ip = getClientIp(request);
-
-        expect(ip).toBe('192.168.1.1');
       });
     });
 

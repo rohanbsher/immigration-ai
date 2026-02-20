@@ -37,23 +37,26 @@ All three implementation plans have been verified as 100% complete.
 
 ---
 
-## Current State (2026-02-20 01:40)
+## Current State (2026-02-20 14:30)
 
 ```
-Tests:  2,747 passed | 4 skipped | 0 failures (109 test files)
+Tests:  3,319 passed | 4 skipped | 0 failures (125 test files)
 Build:  Passes (tsc clean, Vercel production Ready)
 Coverage: 86%+ statements, 70.42% branches
 Migrations: 63 SQL files (all applied to production)
-Production: Deployed to https://immigration-ai-topaz.vercel.app
+Production: Deployed to https://immigration-ai-topaz.vercel.app (E2E audit PASSED)
 Worker: Deployed to https://immigration-ai-production.up.railway.app (E2E verified)
 PDF Service: Deployed to https://pdf-service-production-abc5.up.railway.app (9 templates)
 Branch: main (all deployment steps complete)
+E2E Audit: 27/27 pages pass, 3 bugs found & fixed, all committed & deployed
 CI: ALL 6 JOBS GREEN
 PDF Fields: 697 AcroForm field mappings (9 forms — added I-129 + I-539)
 AI Mappings: 50+ field mappings across 6 forms
 Citations: Two-pass architecture LIVE (AI_CITATIONS_ENABLED=true on Vercel)
 DB Audit: 41 tables, 141 constraints, 42 triggers, all RLS enabled, 0 orphaned rows
-Rate Limiting: All post-auth endpoints use user.id (not IP) — GDPR routes migrated
+Rate Limiting: All post-auth endpoints use user.id (not IP), withRateLimit no double-count
+Error Boundaries: Shared DashboardErrorBoundary + 11 thin wrappers (was 11 x 88-line copies)
+DLQ: Allowlist-based PII stripping (DLQ_SAFE_FIELDS) — new fields excluded by default
 ```
 
 > **Full launch tracker: `.claude/LAUNCH_TRACKER.md`**
@@ -331,17 +334,21 @@ Priority order for the next agent session. User is handling custom domain purcha
 3. Run `ALLOW_IN_MEMORY_RATE_LIMIT=true npm run build && npm run test:run` to verify starting state
 4. Claim a work stream before starting
 
-### Recent Session Notes (2026-02-19 19:20)
-- CI fully green after fixing build-worker job (root deps installation + zod v3 downgrade)
-- Worker `services/worker/package.json` uses zod v3 (not v4) due to openai peer dep
-- `AbortSignal.any()` polyfill added in `fetch-with-timeout.ts` for older browsers
-- SIGTERM/SIGINT shutdown hooks added to `queues.ts` for clean worker exit
-- Branch coverage improved to 70.42%
+### Recent Session Notes (2026-02-20 14:30)
+- `/grill` code review identified 3 must-fix + 5 should-fix + 3 nitpick items
+- All must-fix and should-fix items resolved in commit `fd12272`
+- DLQ PII stripping changed from blocklist to allowlist (DLQ_SAFE_FIELDS)
+- `withRateLimit` HOF no longer double-counts (headers returned from `limit()`)
+- 11 error boundary files consolidated into shared `DashboardErrorBoundary` component
+- IP validation tightened with proper IPv4 pattern + IPv6 char check
+- Health endpoint uses `getAdminClient()` singleton instead of per-request client
+- Email retry flow simplified to uniform error throwing inside `withRetry`
+- Create case dialog clears formError on reopen via useEffect
 
 ### Key Commands
 ```bash
 npm run dev          # Start dev server
 npm run build        # Production build
-npm run test:run     # Run tests (2,289+ passing)
+npm run test:run     # Run tests (3,319 passing)
 npm run lint         # Check lint issues
 ```

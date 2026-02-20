@@ -290,7 +290,7 @@ export function createRateLimiter(config: RateLimitConfig) {
           return await checkRateLimitUpstash(key, config);
         } catch (error) {
           // Redis error: fall back to in-memory instead of failing open
-          log.warn('Redis rate limit check failed, falling back to in-memory', { error, key });
+          log.warn('Redis rate limit check failed, falling back to in-memory', { error, key: config.keyPrefix || 'unknown' });
           return checkRateLimitInMemory(key, config);
         }
       }
@@ -454,7 +454,7 @@ export async function rateLimit(
       };
     } catch (error) {
       // Redis error: fall back to in-memory instead of failing open
-      log.warn('Redis rate limit check failed, falling back to in-memory', { error, identifier });
+      log.warn('Redis rate limit check failed, falling back to in-memory', { error, prefix: config.keyPrefix || 'unknown' });
     }
   }
 

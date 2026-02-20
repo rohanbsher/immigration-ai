@@ -1,14 +1,14 @@
 # Immigration AI - Current Project State
 
-> Last updated: 2026-02-19 23:30 by DB Audit Session
+> Last updated: 2026-02-20 14:30 by Code Review + Must-Fix/Should-Fix Session
 
 ## Project Overview
 
 AI-powered immigration case management platform for attorneys. Built with Next.js 16, TypeScript, Supabase, and AI integrations (OpenAI + Anthropic).
 
-## Current Status: Deployed to Production — DB Audit PASSED
+## Current Status: Deployed to Production — E2E Audit PASSED
 
-**Overall Score: 93/100** — Production infrastructure configured and deployed. DB schema fully audited.
+**Overall Score: 95/100** — Full E2E browser audit passed (27/27 pages). 3 bugs found and fixed. Production deployed and verified.
 
 | Category | Score | Notes |
 |----------|-------|-------|
@@ -103,20 +103,22 @@ AI-powered immigration case management platform for attorneys. Built with Next.j
 | 6 | Console migration — Lib/Components (20+ files) | COMPLETE |
 | 7 | ESLint cleanup (exports, Image, unused imports) | COMPLETE |
 
-### Test & Build Status (2026-02-20 01:40)
+### Test & Build Status (2026-02-20 14:30)
 ```
-Tests:  2,747 passed | 4 skipped | 0 failures (109 test files)
+Tests:  3,319 passed | 4 skipped | 0 failures (125 test files)
         86 passed | 67 skipped | 0 failures (E2E in CI)
 Build:  Passes (69 routes, no TypeScript errors)
 Lint:   0 errors (55 warnings in e2e only)
 Console: 0 statements in production code
 Coverage: 86%+ statements, 70.42% branches
 CI:     ALL 6 JOBS GREEN
-Production: Deployed + DB audit PASSED (41 tables, 63 migrations, 0 orphans)
-Backend Worker: All 4 phases complete
+Production: Deployed + E2E audit PASSED (27/27 pages, 3 bugs fixed)
+Backend Worker: All 4 phases complete + DLQ (allowlist PII stripping) + requestId tracing
 PDF Fields: 697 AcroForm field mappings across 9 USCIS forms
 Migrations: 063 applied (GDPR export expansion)
-Rate Limiting: All post-auth endpoints use user.id (not IP)
+Rate Limiting: All post-auth endpoints use user.id (not IP) + health endpoint rate-limited + withRateLimit no double-count
+Cron: 3 jobs (deadline-alerts daily@6am, cleanup daily@2am, audit-archive weekly@Sun3am)
+Error Boundaries: Shared DashboardErrorBoundary component + 11 thin wrappers
 ```
 
 ### Test Coverage (as of 2026-02-19)

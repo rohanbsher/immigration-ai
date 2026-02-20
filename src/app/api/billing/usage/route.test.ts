@@ -237,7 +237,10 @@ describe('GET /api/billing/usage', () => {
     expect(data.data.cases).toBe(100);
   });
 
-  it('ignores userId query param and returns only authenticated user data (IDOR)', async () => {
+  // Regression guard: the route currently uses serverAuth.getUser() to derive
+  // identity from the session — it never reads query params. This test ensures
+  // that if someone later adds query-param parsing, it won't bypass session identity.
+  it('regression guard: route uses session identity, not query params (IDOR prevention)', async () => {
     vi.mocked(serverAuth.getUser).mockResolvedValue({
       id: mockUserId,
       email: 'test@example.com',

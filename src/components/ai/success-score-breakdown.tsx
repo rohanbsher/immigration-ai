@@ -129,7 +129,7 @@ export function SuccessScoreBreakdown({
             Based on {data.factors?.length ?? 0} scoring factors
           </p>
           <p className="text-xs text-muted-foreground/70 mt-1">
-            Confidence: {Math.round(data.confidence * 100)}%
+            Confidence: {Math.round((data.confidence ?? 0) * 100)}%
           </p>
         </div>
       </div>

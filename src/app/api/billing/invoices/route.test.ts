@@ -188,7 +188,10 @@ describe('GET /api/billing/invoices', () => {
     expect(json.error).toBe('Failed to fetch invoices');
   });
 
-  it('ignores userId query param and returns only authenticated user invoices (IDOR)', async () => {
+  // Regression guard: the route currently uses withAuth to derive identity from
+  // cookies — it never reads query params. This test ensures that if someone later
+  // adds query-param parsing, it won't bypass session-based identity.
+  it('regression guard: route uses session identity, not query params (IDOR prevention)', async () => {
     vi.mocked(getUserInvoices).mockResolvedValue(mockInvoices as any);
 
     const req = createRequest('/api/billing/invoices?userId=attacker-id');

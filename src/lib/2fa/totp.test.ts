@@ -273,14 +273,17 @@ describe('real TOTP verification (unmocked)', () => {
     expect(delta).toBe(0);
   });
 
-  it('rejects invalid tokens', () => {
+  it('rejects a token that differs from the valid one', () => {
     const secret = generateSecret();
     const totp = makeTOTP(secret);
 
-    // Obviously wrong tokens should return null
-    expect(totp.validate({ token: '000000', window: 1 })).toBeNull();
-    expect(totp.validate({ token: '999999', window: 1 })).toBeNull();
-    expect(totp.validate({ token: '111111', window: 1 })).toBeNull();
+    // Generate the real valid token, then derive a guaranteed-different one.
+    // TOTP tokens are HMAC-derived (not sequential), so +1 won't accidentally
+    // land on an adjacent window's token.
+    const validToken = totp.generate();
+    const invalidToken = String((parseInt(validToken, 10) + 1) % 1000000).padStart(6, '0');
+
+    expect(totp.validate({ token: invalidToken, window: 1 })).toBeNull();
   });
 
   it('window boundary: current token verifies within window=1', () => {
@@ -342,12 +345,15 @@ describe('real TOTP verification (unmocked)', () => {
     expect(realVerifyTOTP(token, secret)).toBe(true);
   });
 
-  it('real verifyTOTP rejects an invalid token', () => {
-    // Use a fixed secret so we can be confident '000000' won't match
+  it('real verifyTOTP rejects a token that differs from the valid one', () => {
     const secret = generateSecret();
+    const validToken = makeTOTP(secret).generate();
 
-    expect(realVerifyTOTP('000000', secret)).toBe(false);
-    expect(realVerifyTOTP('999999', secret)).toBe(false);
+    // Derive a guaranteed-different token to avoid the ~0.001% flake risk
+    // of hardcoded values accidentally matching a valid TOTP window
+    const invalidToken = String((parseInt(validToken, 10) + 1) % 1000000).padStart(6, '0');
+
+    expect(realVerifyTOTP(invalidToken, secret)).toBe(false);
   });
 
   it('real verifyTOTP rejects an empty string', () => {

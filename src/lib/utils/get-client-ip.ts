@@ -1,10 +1,19 @@
 import { NextRequest } from 'next/server';
 
-/** Basic check: value contains only characters valid in IPv4/IPv6 addresses. */
-const IP_CHARS = /^[\d.:a-fA-F]+$/;
+/**
+ * Lightweight plausibility check for IP addresses.
+ * IPv4: must have exactly 3 dots separating digit groups (e.g. 192.168.1.1).
+ * IPv6: must contain at least one colon and only hex/colon/dot chars
+ *       (dots allowed for IPv4-mapped addresses like ::ffff:192.168.1.1).
+ * Not a full RFC validator — just enough to reject obvious non-IPs.
+ */
+const IPV4_PATTERN = /^\d{1,3}(\.\d{1,3}){3}$/;
+const IPV6_CHARS = /^[\da-fA-F:.]+$/;
 
 function isPlausibleIp(value: string): boolean {
-  return IP_CHARS.test(value);
+  if (IPV4_PATTERN.test(value)) return true;
+  if (value.includes(':') && /[\da-fA-F]/.test(value) && IPV6_CHARS.test(value)) return true;
+  return false;
 }
 
 /**

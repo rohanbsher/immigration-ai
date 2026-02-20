@@ -79,6 +79,12 @@ export function CreateCaseDialog({ open, onOpenChange }: CreateCaseDialogProps) 
 
   const { data: searchResults, isLoading: isSearching } = useSearchClients(debouncedSearch);
 
+  useEffect(() => {
+    if (open) {
+      setFormError(null);
+    }
+  }, [open]);
+
   // Debounce the search input by 300ms (only when dialog is open)
   useEffect(() => {
     if (!open) return;

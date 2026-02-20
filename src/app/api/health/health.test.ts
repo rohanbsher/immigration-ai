@@ -16,7 +16,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { NextRequest } from 'next/server';
 
 // ---------------------------------------------------------------------------
-// Mock @supabase/supabase-js (health uses it directly, not @/lib/supabase/server)
+// Mock @/lib/supabase/admin (health uses getAdminClient for DB check)
 // ---------------------------------------------------------------------------
 
 const { mockSupabaseFrom } = vi.hoisted(() => {
@@ -24,8 +24,8 @@ const { mockSupabaseFrom } = vi.hoisted(() => {
   return { mockSupabaseFrom };
 });
 
-vi.mock('@supabase/supabase-js', () => ({
-  createClient: vi.fn().mockReturnValue({
+vi.mock('@/lib/supabase/admin', () => ({
+  getAdminClient: vi.fn().mockReturnValue({
     from: mockSupabaseFrom,
   }),
 }));

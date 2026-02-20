@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { getDetailedRedisHealth } from '@/lib/rate-limit/health';
 import { safeCompareSecrets } from '@/lib/security/timing-safe';
 import { createRateLimiter, RATE_LIMITS } from '@/lib/rate-limit';
+import { getAdminClient } from '@/lib/supabase/admin';
 
 // NOTE: Health checks intentionally use process.env directly (not serverEnv)
 // to diagnose configuration issues. If serverEnv validation fails, we still
@@ -120,11 +120,7 @@ async function checkDatabase(): Promise<HealthCheck> {
   const startTime = Date.now();
 
   try {
-    // Use service role to bypass RLS for health check
-    const supabase = createSupabaseClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
+    const supabase = getAdminClient();
 
     // Simple query to verify connectivity
     const { error } = await supabase.from('profiles').select('id').limit(1);

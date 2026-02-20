@@ -331,7 +331,7 @@ export function createRateLimiter(config: RateLimitConfig) {
     async limit(
       req: NextRequest,
       userId?: string
-    ): Promise<{ allowed: true } | { allowed: false; response: NextResponse }> {
+    ): Promise<{ allowed: true; headers: Record<string, string> } | { allowed: false; response: NextResponse }> {
       const result = await this.check(req, userId);
       const headers = this.getHeaders(result);
 
@@ -354,7 +354,7 @@ export function createRateLimiter(config: RateLimitConfig) {
         };
       }
 
-      return { allowed: true };
+      return { allowed: true, headers };
     },
   };
 }
@@ -400,10 +400,8 @@ export function withRateLimit<T extends NextRequest>(
 
     const response = await handler(req, ...args);
 
-    // Add rate limit headers to successful responses
-    const checkResult = await limiter.check(req, userId);
-    const headers = limiter.getHeaders(checkResult);
-    for (const [key, value] of Object.entries(headers)) {
+    // Add rate limit headers from the single check (no second check call)
+    for (const [key, value] of Object.entries(limitResult.headers)) {
       response.headers.set(key, value);
     }
 

@@ -159,8 +159,19 @@ async function main(): Promise<void> {
       // Forward exhausted jobs (all retries spent) to DLQ for manual inspection
       const maxAttempts = job?.opts?.attempts ?? 1;
       if (job && job.attemptsMade >= maxAttempts) {
-        // Strip PII-bearing fields before storing in DLQ
-        const { html, templateData, to, ...safeData } = (job.data ?? {}) as Record<string, unknown>;
+        // Allowlist: only keep non-PII fields safe for DLQ storage.
+        // Any new job fields default to being excluded — must be explicitly added here.
+        const raw = (job.data ?? {}) as Record<string, unknown>;
+        const DLQ_SAFE_FIELDS = [
+          'requestId', 'documentId', 'caseId', 'documentType', 'storagePath',
+          'formId', 'formType', 'visaType', 'userId', 'subject', 'templateName',
+          'emailLogId',
+        ];
+        const safeData: Record<string, unknown> = {};
+        for (const key of DLQ_SAFE_FIELDS) {
+          if (key in raw) safeData[key] = raw[key];
+        }
+
         dlqQueue.add('failed', {
           originalQueue: def.name,
           originalJobId: job.id,

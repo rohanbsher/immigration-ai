@@ -171,5 +171,45 @@ describe('getClientIp', () => {
 
       expect(getClientIp(request)).toBe('127.0.0.1');
     });
+
+    it('should accept a full IPv6 address in X-Real-IP', () => {
+      const request = createRequest({
+        'x-real-ip': '2001:0db8:85a3:0000:0000:8a2e:0370:7334',
+      });
+
+      expect(getClientIp(request)).toBe('2001:0db8:85a3:0000:0000:8a2e:0370:7334');
+    });
+
+    it('should return "anonymous" for digit-only string that looks like an IP but has no dots', () => {
+      const request = createRequest({
+        'x-forwarded-for': '1234567890',
+      });
+
+      expect(getClientIp(request)).toBe('anonymous');
+    });
+
+    it('should return "anonymous" for dots-only string', () => {
+      const request = createRequest({
+        'x-forwarded-for': '...',
+      });
+
+      expect(getClientIp(request)).toBe('anonymous');
+    });
+
+    it('should return "anonymous" for colons-only string', () => {
+      const request = createRequest({
+        'x-forwarded-for': '::::',
+      });
+
+      expect(getClientIp(request)).toBe('anonymous');
+    });
+
+    it('should return "anonymous" for hex-only string without colons', () => {
+      const request = createRequest({
+        'x-forwarded-for': 'aFaFaFaF',
+      });
+
+      expect(getClientIp(request)).toBe('anonymous');
+    });
   });
 });

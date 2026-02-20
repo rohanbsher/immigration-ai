@@ -88,7 +88,7 @@ export function SuccessScoreBadge({
           </p>
           {(data.riskFactors?.length ?? 0) > 0 && (
             <p className="text-xs text-destructive mt-1">
-              {data.riskFactors.length} risk factor(s)
+              {data.riskFactors?.length} risk factor(s)
             </p>
           )}
         </TooltipContent>

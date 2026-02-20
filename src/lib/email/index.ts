@@ -140,7 +140,9 @@ export async function sendEmail(
   }
 
   try {
-    const { data, error } = await withRetry(
+    // withRetry either returns successfully or throws.
+    // Retryable errors (429, 5xx) are retried; non-retryable errors (e.g. 400) are thrown immediately.
+    const { data } = await withRetry(
       async () => {
         const result = await resend.emails.send({
           from: EMAIL_CONFIG.from,
@@ -155,14 +157,10 @@ export async function sendEmail(
           tags: options.tags,
         });
 
-        // Throw retryable errors so withRetry can catch them
         if (result.error) {
-          const statusCode = result.error.statusCode;
-          if (statusCode === 429 || (statusCode !== null && statusCode >= 500)) {
-            throw Object.assign(new Error(result.error.message), {
-              statusCode,
-            });
-          }
+          throw Object.assign(new Error(result.error.message), {
+            statusCode: result.error.statusCode,
+          });
         }
 
         return result;
@@ -174,23 +172,6 @@ export async function sendEmail(
         },
       }
     );
-
-    if (error) {
-      log.logError('Resend error', error);
-      if (emailLog) {
-        await supabase
-          .from('email_log')
-          .update({
-            status: 'failed',
-            error_message: error.message,
-          })
-          .eq('id', emailLog.id);
-      }
-      return {
-        success: false,
-        error: error.message,
-      };
-    }
 
     if (emailLog && data?.id) {
       await supabase

@@ -37,13 +37,13 @@ All three implementation plans have been verified as 100% complete.
 
 ---
 
-## Current State (2026-02-19 evening)
+## Current State (2026-02-19 23:30)
 
 ```
-Tests:  2,587 passed | 4 skipped | 0 failures (97 test files)
+Tests:  2,532 passed | 4 skipped | 0 failures (93 test files)
 Build:  Passes (tsc clean, Vercel production Ready)
 Coverage: 86%+ statements, 70.42% branches
-Migrations: 58 SQL files (all applied to production)
+Migrations: 62 SQL files (all applied to production — DB audit PASSED)
 Production: Deployed to https://immigration-ai-topaz.vercel.app
 Worker: Deployed to https://immigration-ai-production.up.railway.app (E2E verified)
 PDF Service: Deployed to https://pdf-service-production-abc5.up.railway.app (9 templates)
@@ -52,9 +52,64 @@ CI: ALL 6 JOBS GREEN
 PDF Fields: 697 AcroForm field mappings (9 forms — added I-129 + I-539)
 AI Mappings: 50+ field mappings across 6 forms
 Citations: Two-pass architecture complete (AI_CITATIONS_ENABLED feature flag)
+DB Audit: 41 tables, 141 constraints, 42 triggers, all RLS enabled, 0 orphaned rows
 ```
 
 > **Full launch tracker: `.claude/LAUNCH_TRACKER.md`**
+
+---
+
+## NEXT SESSION: Implementation Plan
+
+Priority order for the next agent session. User is handling custom domain purchase in parallel.
+
+### Sprint 1: PDF Polish (estimate: ~1 session)
+These are the last 3 tasks blocking "filing-ready" PDF output:
+
+1. **PDF-4: USCIS Formatting** — Handle MM/DD/YYYY dates, checkbox fields, continuation sheets
+   - Files: `src/lib/pdf/index.ts`, `src/lib/pdf/uscis-fields/*.ts`
+   - Pattern: Look at existing field maps, add date formatters and checkbox handling
+
+2. **PDF-5: Remove DRAFT Watermark** — Make PDFs filing-ready
+   - Files: `services/pdf-service/main.py` (pikepdf), `src/lib/pdf/index.ts`
+   - Note: DRAFT watermark is currently added by the pdf-service; need to make it conditional or remove
+
+3. **PDF-9c: I-20 + DS-160 Field Maps** — Add remaining 2 form field maps
+   - Files: `src/lib/pdf/uscis-fields/i-20.ts` (new), `src/lib/pdf/uscis-fields/ds-160.ts` (new)
+   - Pattern: Follow existing i-129.ts / i-539.ts as templates
+
+### Sprint 2: Test Coverage (estimate: ~2 sessions, parallelizable)
+
+4. **WS-TESTS-P1: Security-Critical Route Tests** (HIGH)
+   - 2FA routes: setup, verify, status, backup-codes, disable (5 endpoints)
+   - Admin routes: stats, users, user detail, suspend, unsuspend (5 endpoints)
+   - Billing routes: checkout, portal, cancel, resume, subscription, quota, webhooks (7 endpoints)
+   - Files: `src/app/api/2fa/**/*.test.ts`, `src/app/api/admin/**/*.test.ts`, `src/app/api/billing/**/*.test.ts`
+   - Use existing test patterns from `src/app/api/cases/cases.test.ts`
+
+5. **WS-TESTS-P2: Feature Route Tests** (MEDIUM)
+   - Chat, Notification, Cron, Health, Profile, Task, Document-request routes
+   - Files: `src/app/api/chat/*.test.ts`, etc.
+
+6. **WS-TESTS-P3: Frontend Tests** (LOW)
+   - Top 20 critical components + top 10 hooks
+   - Biggest coverage gap: 94 components at ~1%, 25/27 hooks untested
+
+### Sprint 3: Hardening (can be done alongside tests)
+
+7. **Rate-limit user.id migration** — Change ~38 post-auth endpoints from IP-based to user.id-based rate limiting
+   - Files: All API routes under `src/app/api/`
+   - Pattern: Change `rateLimit({ identifier: ip })` to `rateLimit({ identifier: user.id })`
+
+8. **GDPR data export expansion** — Include documents and AI conversations
+   - Files: `src/lib/db/` (get_user_export_data RPC)
+
+9. **Enable AI_CITATIONS_ENABLED=true** on Vercel (just a flag flip via `vercel env add`)
+
+### User is handling:
+- Custom domain purchase → update NEXT_PUBLIC_APP_URL + SITE_URL
+- Resend DNS verification (after custom domain)
+- Stripe live mode activation (when ready for billing)
 
 ---
 

@@ -1,0 +1,32 @@
+name: Claude Security Review
+
+on:
+  pull_request:
+    branches: [main, develop]
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  claude-security-review:
+    runs-on: ubuntu-latest
+    # Only run on trusted PRs (not from forks) to avoid prompt injection
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 2
+
+      - name: Claude Code Security Review
+        uses: anthropics/claude-code-security-review@main
+        with:
+          comment-pr: true
+          claude-api-key: ${{ secrets.CLAUDE_API_KEY }}
+          claude-model: claude-sonnet-4-6
+          exclude-directories: node_modules,.next,coverage,playwright-report,test-results
+          custom-security-scan-instructions: .github/security-scan-instructions.md

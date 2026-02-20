@@ -453,6 +453,11 @@ describe('Cases API Routes', () => {
         ATTORNEY_ID,
         undefined
       );
+      expect(mockActivitiesService.logCaseCreated).toHaveBeenCalledWith(
+        CASE_ID,
+        validCaseData.title,
+        ATTORNEY_ID
+      );
     });
 
     it('should return 401 for unauthenticated user', async () => {
@@ -591,6 +596,32 @@ describe('Cases API Routes', () => {
       expect(response.status).toBe(200);
       expect(mockCasesService.updateCase).toHaveBeenCalledWith(CASE_ID, updateData);
       expect(data.title).toBe('Updated Title');
+      // Status changed from 'intake' to 'in_review'
+      expect(mockActivitiesService.logStatusChanged).toHaveBeenCalledWith(
+        CASE_ID,
+        'intake',
+        'in_review',
+        ATTORNEY_ID
+      );
+    });
+
+    it('should log general update when status does not change', async () => {
+      const titleOnlyUpdate = { title: 'New Title' };
+      const { PATCH } = await import('./[id]/route');
+      const request = createMockRequest(`http://localhost:3000/api/cases/${CASE_ID}`, {
+        method: 'PATCH',
+        body: titleOnlyUpdate,
+      });
+
+      const response = await PATCH(request, { params: Promise.resolve({ id: CASE_ID }) });
+
+      expect(response.status).toBe(200);
+      expect(mockActivitiesService.logCaseUpdated).toHaveBeenCalledWith(
+        CASE_ID,
+        'Updated: title',
+        ATTORNEY_ID
+      );
+      expect(mockActivitiesService.logStatusChanged).not.toHaveBeenCalled();
     });
 
     it('should return 403 for client trying to update', async () => {
@@ -886,6 +917,12 @@ describe('Cases API Routes', () => {
         form_type: 'I-129',
         form_data: { field1: 'value1' },
       });
+      expect(mockActivitiesService.logFormCreated).toHaveBeenCalledWith(
+        CASE_ID,
+        'I-129',
+        FORM_ID,
+        ATTORNEY_ID
+      );
     });
 
     it('should return 403 when client tries to create form', async () => {

@@ -82,6 +82,19 @@ vi.mock('@/lib/rate-limit', () => ({
   createRateLimiter: vi.fn().mockReturnValue(mockRateLimiter),
 }));
 
+// Mock api-helpers (requireAiConsent + safeParseBody)
+vi.mock('@/lib/auth/api-helpers', () => ({
+  requireAiConsent: vi.fn().mockResolvedValue(null),
+  safeParseBody: vi.fn().mockImplementation(async (req: Request) => {
+    try {
+      const data = await req.json();
+      return { success: true, data };
+    } catch {
+      return { success: true, data: {} };
+    }
+  }),
+}));
+
 // Mock logger
 vi.mock('@/lib/logger', () => ({
   createLogger: vi.fn().mockReturnValue({

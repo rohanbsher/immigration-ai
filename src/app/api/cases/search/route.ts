@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { naturalLanguageSearch } from '@/lib/ai/natural-search';
 import { createRateLimiter, RATE_LIMITS } from '@/lib/rate-limit';
 import { createLogger } from '@/lib/logger';
-import { safeParseBody } from '@/lib/auth/api-helpers';
+import { safeParseBody, requireAiConsent } from '@/lib/auth/api-helpers';
 import { logAIRequest } from '@/lib/audit/ai-audit';
 import { trackUsage } from '@/lib/billing/quota';
 import { CLAUDE_MODEL } from '@/lib/ai/client';
@@ -56,6 +56,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     if (!limitResult.allowed) {
       return limitResult.response;
     }
+
+    // AI consent check
+    const consentError = await requireAiConsent(user.id);
+    if (consentError) return consentError;
 
     // Parse request body
     const parsed = await safeParseBody(request);

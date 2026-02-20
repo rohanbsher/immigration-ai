@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { getDetailedRedisHealth } from '@/lib/rate-limit/health';
 import { safeCompareSecrets } from '@/lib/security/timing-safe';
+import { createRateLimiter, RATE_LIMITS } from '@/lib/rate-limit';
 
 // NOTE: Health checks intentionally use process.env directly (not serverEnv)
 // to diagnose configuration issues. If serverEnv validation fails, we still
@@ -31,7 +32,15 @@ interface HealthCheck {
 // Track server start time for uptime calculation
 const serverStartTime = Date.now();
 
+const healthRateLimiter = createRateLimiter({ ...RATE_LIMITS.STANDARD, maxRequests: 60 });
+
 export async function GET(request: NextRequest) {
+  // Rate limit to prevent DoS (IP-based since health checks are unauthenticated)
+  const rateLimitResult = await healthRateLimiter.limit(request);
+  if (!rateLimitResult.allowed) {
+    return rateLimitResult.response;
+  }
+
   const isDetailedCheck = request.headers.get('x-health-detail') === 'true';
 
   // Basic health check for load balancers - minimal info, no auth required

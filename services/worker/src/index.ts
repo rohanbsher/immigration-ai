@@ -95,15 +95,18 @@ async function main(): Promise<void> {
     (name) => new Queue(name, { connection })
   );
 
+  // DLQ queue — exhausted jobs are forwarded here for manual inspection/replay
+  const dlqQueue = new Queue(QUEUE_NAMES.DLQ, { connection });
+
   // Register queue cleanup on shutdown
   registerCleanup(async () => {
     console.log('Closing queue connections...');
-    await Promise.all(queues.map((q) => q.close()));
+    await Promise.all([...queues, dlqQueue].map((q) => q.close()));
     console.log('Queue connections closed.');
   });
 
-  // Start health/admin server
-  startHealthServer(queues);
+  // Start health/admin server (include DLQ in queue list for dashboard visibility)
+  startHealthServer([...queues]);
 
   // Register BullMQ workers for each AI queue
   const concurrency = workerConfig.WORKER_CONCURRENCY;
@@ -141,15 +144,32 @@ async function main(): Promise<void> {
     });
 
     worker.on('completed', (job) => {
-      console.log(`[${def.name}] Job ${job.id} completed`);
+      const reqId = job.data?.requestId;
+      console.log(`[${def.name}] Job ${job.id} completed${reqId ? ` (requestId: ${reqId})` : ''}`);
     });
 
     worker.on('failed', (job, err) => {
-      console.error(`[${def.name}] Job ${job?.id} failed:`, err.message);
+      const reqId = job?.data?.requestId;
+      console.error(`[${def.name}] Job ${job?.id} failed${reqId ? ` (requestId: ${reqId})` : ''}:`, err.message);
       Sentry.captureException(err, {
-        tags: { queue: def.name, jobId: job?.id },
+        tags: { queue: def.name, jobId: job?.id, requestId: reqId },
         extra: { jobData: job?.data },
       });
+
+      // Forward exhausted jobs (all retries spent) to DLQ for manual inspection
+      const maxAttempts = job?.opts?.attempts ?? 1;
+      if (job && job.attemptsMade >= maxAttempts) {
+        dlqQueue.add('failed', {
+          originalQueue: def.name,
+          originalJobId: job.id,
+          data: job.data,
+          error: err.message,
+          failedAt: new Date().toISOString(),
+          attemptsMade: job.attemptsMade,
+        }).catch((dlqErr) => {
+          console.error(`[DLQ] Failed to enqueue exhausted job ${job.id}:`, dlqErr);
+        });
+      }
     });
 
     workers.push(worker);

@@ -4,8 +4,26 @@ import type { ReactElement } from 'react';
 import { createLogger } from '@/lib/logger';
 import { features } from '@/lib/config';
 import { enqueueEmail } from '@/lib/jobs/queues';
+import { withRetry, isNetworkError } from '@/lib/utils/retry';
+import type { RetryOptions } from '@/lib/utils/retry';
 
 const log = createLogger('email');
+
+/** Retry options for synchronous email sends via Resend */
+export const EMAIL_RETRY_OPTIONS: RetryOptions = {
+  maxRetries: 2,
+  initialDelayMs: 1000,
+  backoffMultiplier: 2,
+  maxDelayMs: 5000,
+  isRetryable: (error: unknown) => {
+    if (isNetworkError(error)) return true;
+    if (error && typeof error === 'object' && 'statusCode' in error) {
+      const statusCode = (error as { statusCode: number }).statusCode;
+      return statusCode === 429 || statusCode >= 500;
+    }
+    return false;
+  },
+};
 
 export { EMAIL_CONFIG } from './client';
 
@@ -122,18 +140,40 @@ export async function sendEmail(
   }
 
   try {
-    const { data, error } = await resend.emails.send({
-      from: EMAIL_CONFIG.from,
-      to: options.to,
-      subject: options.subject,
-      html: options.html,
-      react: options.react,
-      text: options.text,
-      replyTo: options.replyTo || EMAIL_CONFIG.replyTo,
-      cc: options.cc,
-      bcc: options.bcc,
-      tags: options.tags,
-    });
+    const { data, error } = await withRetry(
+      async () => {
+        const result = await resend.emails.send({
+          from: EMAIL_CONFIG.from,
+          to: options.to,
+          subject: options.subject,
+          html: options.html,
+          react: options.react,
+          text: options.text,
+          replyTo: options.replyTo || EMAIL_CONFIG.replyTo,
+          cc: options.cc,
+          bcc: options.bcc,
+          tags: options.tags,
+        });
+
+        // Throw retryable errors so withRetry can catch them
+        if (result.error) {
+          const statusCode = result.error.statusCode;
+          if (statusCode === 429 || (statusCode !== null && statusCode >= 500)) {
+            throw Object.assign(new Error(result.error.message), {
+              statusCode,
+            });
+          }
+        }
+
+        return result;
+      },
+      {
+        ...EMAIL_RETRY_OPTIONS,
+        onRetry: (err, attempt, delayMs) => {
+          log.warn(`Email send retry ${attempt} after ${delayMs}ms`, { error: err });
+        },
+      }
+    );
 
     if (error) {
       log.logError('Resend error', error);

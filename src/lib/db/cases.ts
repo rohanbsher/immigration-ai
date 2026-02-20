@@ -5,6 +5,7 @@ export interface Case {
   id: string;
   attorney_id: string;
   client_id: string;
+  firm_id: string | null;
   visa_type: VisaType;
   status: CaseStatus;
   title: string;

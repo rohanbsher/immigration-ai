@@ -298,6 +298,7 @@ export async function GET(
           caseId,
           userId: user.id,
           visaType: caseData.visa_type || 'unknown',
+          requestId: request.headers.get('x-request-id') ?? undefined,
         });
 
         trackUsage(user.id, 'ai_requests').catch((err) => {

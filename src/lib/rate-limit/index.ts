@@ -68,15 +68,32 @@ interface InMemoryEntry {
 const inMemoryStore = new Map<string, InMemoryEntry>();
 
 // Clean up old in-memory entries periodically
-const CLEANUP_INTERVAL_MS = 5 * 60 * 1000;
+const CLEANUP_INTERVAL_MS = 2 * 60 * 1000; // 2 minutes
+const ENTRY_EXPIRY_MS = 15 * 60 * 1000; // 15 minutes (down from 1 hour)
+const MAX_IN_MEMORY_ENTRIES = 10_000;
 let cleanupInterval: NodeJS.Timeout | null = null;
 
 function cleanupOldEntries(): void {
   const now = Date.now();
   for (const [key, entry] of inMemoryStore.entries()) {
-    if (now - entry.lastCleanup > 60 * 60 * 1000) {
+    if (now - entry.lastCleanup > ENTRY_EXPIRY_MS) {
       inMemoryStore.delete(key);
     }
+  }
+}
+
+/** Evict oldest entries when store exceeds max size (Map preserves insertion order). */
+function evictIfOverLimit(): void {
+  if (inMemoryStore.size <= MAX_IN_MEMORY_ENTRIES) return;
+  cleanupOldEntries();
+  if (inMemoryStore.size <= MAX_IN_MEMORY_ENTRIES) return;
+  // Still over limit — evict oldest entries (first inserted)
+  const toDelete = inMemoryStore.size - MAX_IN_MEMORY_ENTRIES;
+  let deleted = 0;
+  for (const key of inMemoryStore.keys()) {
+    if (deleted >= toDelete) break;
+    inMemoryStore.delete(key);
+    deleted++;
   }
 }
 
@@ -133,6 +150,7 @@ function checkRateLimitInMemory(key: string, config: RateLimitConfig): RateLimit
   }
 
   entry.timestamps.push(now);
+  evictIfOverLimit();
 
   return {
     success: true,

@@ -153,6 +153,7 @@ export async function POST(
           caseId: document.case_id,
           documentType: document.document_type,
           storagePath: document.file_url,
+          requestId: request.headers.get('x-request-id') ?? undefined,
         });
 
         trackUsage(user.id, 'ai_requests').catch((err) => {

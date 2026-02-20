@@ -1,15 +1,25 @@
 /**
  * Shared password validation rules.
  *
- * Used by: register page, reset-password page, settings page.
- * The backend register route (`api/auth/register/route.ts`) has its own
- * Zod schema with identical rules as a server-side guard.
- *
- * If you change rules here, update the Zod schema in the register route too.
+ * Used by: register page, reset-password page, settings page,
+ * and the backend register route (via `passwordSchema`).
  */
+
+import { z } from 'zod';
 
 export const PASSWORD_MIN_LENGTH = 8;
 export const SPECIAL_CHARS_REGEX = /[!@#$%^&*(),.?":{}|<>]/;
+
+/**
+ * Zod schema for password validation — single source of truth.
+ * Import this in any route or form that validates passwords.
+ */
+export const passwordSchema = z.string()
+  .min(PASSWORD_MIN_LENGTH, `Password must be at least ${PASSWORD_MIN_LENGTH} characters`)
+  .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+  .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
+  .regex(/[0-9]/, 'Password must contain at least one number')
+  .regex(SPECIAL_CHARS_REGEX, 'Password must contain at least one special character');
 
 export interface PasswordChecks {
   minLength: boolean;

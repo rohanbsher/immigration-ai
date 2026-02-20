@@ -60,6 +60,28 @@ export async function POST(
       );
     }
 
+    // Defense-in-depth: verify case belongs to the attorney's firm
+    if (caseData.firm_id) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('firm_id')
+        .eq('id', user.id)
+        .single();
+
+      if (profile && profile.firm_id && profile.firm_id !== caseData.firm_id) {
+        log.warn('Firm ID mismatch on form review', {
+          userId: user.id,
+          caseId: form.case_id,
+          userFirmId: profile.firm_id,
+          caseFirmId: caseData.firm_id,
+        });
+        return NextResponse.json(
+          { error: 'Access denied' },
+          { status: 403 }
+        );
+      }
+    }
+
     const parsed = await safeParseBody(request);
     if (!parsed.success) return parsed.response;
     const body = parsed.data;

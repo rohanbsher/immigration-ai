@@ -119,6 +119,7 @@ export async function POST(
           userId: user.id,
           caseId: form.case_id,
           formType: form.form_type,
+          requestId: request.headers.get('x-request-id') ?? undefined,
         });
 
         // NOTE: Do NOT call trackUsage here — the worker processor calls it

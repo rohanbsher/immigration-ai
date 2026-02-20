@@ -3,10 +3,19 @@
  */
 
 // =============================================================================
+// Base Payload (common fields for all jobs)
+// =============================================================================
+
+export interface BaseJobPayload {
+  /** Correlates worker logs with the originating API request */
+  requestId?: string;
+}
+
+// =============================================================================
 // AI Job Payloads
 // =============================================================================
 
-export interface DocumentAnalysisJob {
+export interface DocumentAnalysisJob extends BaseJobPayload {
   documentId: string;
   userId: string;
   caseId: string;
@@ -14,25 +23,25 @@ export interface DocumentAnalysisJob {
   storagePath: string; // Worker generates signed URL just-in-time
 }
 
-export interface FormAutofillJob {
+export interface FormAutofillJob extends BaseJobPayload {
   formId: string;
   userId: string;
   caseId: string;
   formType: string;
 }
 
-export interface RecommendationsJob {
+export interface RecommendationsJob extends BaseJobPayload {
   caseId: string;
   userId: string;
   visaType: string;
 }
 
-export interface CompletenessJob {
+export interface CompletenessJob extends BaseJobPayload {
   caseId: string;
   userId: string;
 }
 
-export interface SuccessScoreJob {
+export interface SuccessScoreJob extends BaseJobPayload {
   caseId: string;
   userId: string;
 }
@@ -41,7 +50,7 @@ export interface SuccessScoreJob {
 // Utility Job Payloads
 // =============================================================================
 
-export interface EmailJob {
+export interface EmailJob extends BaseJobPayload {
   to: string | string[];
   subject: string;
   templateName: string;
@@ -81,6 +90,7 @@ export const QUEUE_NAMES = {
   COMPLETENESS: 'ai-completeness',
   SUCCESS_SCORE: 'ai-success-score',
   EMAIL: 'util-email',
+  DLQ: 'dlq-failed-jobs',
 } as const;
 
 export type QueueName = (typeof QUEUE_NAMES)[keyof typeof QUEUE_NAMES];
@@ -108,4 +118,5 @@ export const EMAIL_JOB_DEFAULTS = {
   },
   removeOnComplete: { age: 24 * 3600, count: 5000 },
   removeOnFail: { age: 7 * 24 * 3600, count: 5000 },
+  timeout: 30_000, // 30s — prevents worker starvation on hung email sends
 };

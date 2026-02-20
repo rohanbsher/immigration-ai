@@ -109,6 +109,7 @@ export async function GET(
         const job = await enqueueSuccessScore({
           caseId,
           userId: user.id,
+          requestId: request.headers.get('x-request-id') ?? undefined,
         });
 
         trackUsage(user.id, 'ai_requests').catch((err) => {

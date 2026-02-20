@@ -62,7 +62,7 @@ export function NextStepsPanel({
   // Show empty state for errors or degraded results
   const isDegraded = error || (data as (typeof data) & { degraded?: boolean })?.degraded;
 
-  if (isDegraded || !data || data.recommendations.length === 0) {
+  if (isDegraded || !data || !data.recommendations || data.recommendations.length === 0) {
     return (
       <EmptyState caseId={caseId} onRefresh={refetch} className={className} />
     );

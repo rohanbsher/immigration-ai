@@ -169,46 +169,16 @@ class CasesService extends BaseService {
     }, 'getCase', { caseId: id });
   }
 
-  async createCase(data: CreateCaseData): Promise<Case> {
+  async createCase(data: CreateCaseData, userId: string, firmId?: string | null): Promise<Case> {
     return this.withErrorHandling(async () => {
       const supabase = await this.getSupabaseClient();
-
-      const { data: { user } } = await supabase.auth.getUser();
-
-      if (!user) {
-        throw new Error('Unauthorized');
-      }
-
-      // Look up attorney's firm for multi-tenant isolation.
-      // Priority: primary_firm_id on profile > first firm_members entry.
-      let firmId: string | null = null;
-
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('primary_firm_id')
-        .eq('id', user.id)
-        .single();
-
-      firmId = profile?.primary_firm_id || null;
-
-      if (!firmId) {
-        // Fallback: check firm_members table
-        const { data: membership } = await supabase
-          .from('firm_members')
-          .select('firm_id')
-          .eq('user_id', user.id)
-          .limit(1)
-          .single();
-
-        firmId = membership?.firm_id || null;
-      }
 
       const { data: newCase, error } = await supabase
         .from('cases')
         .insert({
           ...data,
-          attorney_id: user.id,
-          firm_id: firmId,
+          attorney_id: userId,
+          firm_id: firmId ?? null,
           status: 'intake',
         })
         .select()

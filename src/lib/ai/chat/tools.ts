@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { analyzeDocumentCompleteness } from '@/lib/ai/document-completeness';
-import { calculateSuccessScore } from '@/lib/scoring/success-probability';
+import { calculateSuccessScore } from '@/lib/ai/success-probability';
 import { getRecommendations } from '@/lib/db/recommendations';
 import { getUpcomingDeadlines } from '@/lib/deadline';
 import { sanitizeSearchInput } from '@/lib/db/base-service';

@@ -41,19 +41,7 @@ const VisaTypeChart = dynamic(
   }
 );
 import type { CaseStatus } from '@/types';
-
-const STATUS_COLORS: Record<string, string> = {
-  intake: '#6b7280',
-  document_collection: '#f59e0b',
-  in_review: '#8b5cf6',
-  forms_preparation: '#3b82f6',
-  ready_for_filing: '#06b6d4',
-  filed: '#2563eb',
-  pending_response: '#f97316',
-  approved: '#22c55e',
-  denied: '#ef4444',
-  closed: '#9ca3af',
-};
+import { STATUS_COLORS } from '@/lib/constants/status-colors';
 
 const VISA_TYPE_COLORS = [
   '#3b82f6', '#8b5cf6', '#06b6d4', '#22c55e', '#f59e0b',

@@ -25,7 +25,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import type { ScoringFactor } from '@/lib/scoring/success-probability';
+import type { ScoringFactor } from '@/lib/ai/success-probability';
 
 interface SuccessScoreBreakdownProps {
   caseId: string;

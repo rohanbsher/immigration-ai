@@ -850,7 +850,7 @@ describe('Rate Limit Module (Redis enabled)', () => {
       env: {},
     }));
 
-    vi.doMock('@/lib/redis', () => ({
+    vi.doMock('./redis', () => ({
       getRedisClient: vi.fn().mockReturnValue(options.redisClient),
     }));
 

@@ -6,6 +6,12 @@ vi.mock('@/lib/supabase/server', () => ({
   createClient: vi.fn(),
 }));
 
+// Mock getProfileAsAdmin (used by withAuth in logout route)
+const mockGetProfileAsAdmin = vi.fn();
+vi.mock('@/lib/supabase/admin', () => ({
+  getProfileAsAdmin: (...args: unknown[]) => mockGetProfileAsAdmin(...args),
+}));
+
 // Mock rate limiter
 vi.mock('@/lib/rate-limit', () => ({
   rateLimit: vi.fn().mockResolvedValue({ success: true }),
@@ -656,36 +662,46 @@ describe('Auth API Routes', () => {
   });
 
   describe('POST /api/auth/logout', () => {
+    // The logout route uses withAuth wrapper, so we need to pass a request + context.
+    // withAuth calls authenticate() which uses getUser + getProfileAsAdmin.
+    const logoutRequest = () =>
+      createMockRequest({
+        method: 'POST',
+        url: 'http://localhost:3000/api/auth/logout',
+      });
+
     it('should successfully log out a user', async () => {
       mockGetUser.mockResolvedValue({ data: { user: mockUser }, error: null });
+      mockGetProfileAsAdmin.mockResolvedValue({ profile: mockProfile, error: null });
       mockSignOut.mockResolvedValue({ error: null });
 
-      const response = await logoutHandler();
+      const response = await logoutHandler(logoutRequest(), {});
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data.message).toBe('Logged out successfully');
+      expect(data.data.message).toBe('Logged out successfully');
       expect(mockSignOut).toHaveBeenCalled();
     });
 
     it('should return 401 when not authenticated', async () => {
       mockGetUser.mockResolvedValue({ data: { user: null }, error: null });
 
-      const response = await logoutHandler();
+      const response = await logoutHandler(logoutRequest(), {});
       const data = await response.json();
 
       expect(response.status).toBe(401);
-      expect(data.error).toBe('Not authenticated');
+      expect(data.error).toBe('Unauthorized');
       expect(mockSignOut).not.toHaveBeenCalled();
     });
 
     it('should return 400 for Supabase sign out errors', async () => {
       mockGetUser.mockResolvedValue({ data: { user: mockUser }, error: null });
+      mockGetProfileAsAdmin.mockResolvedValue({ profile: mockProfile, error: null });
       mockSignOut.mockResolvedValue({
         error: { message: 'Session not found' },
       });
 
-      const response = await logoutHandler();
+      const response = await logoutHandler(logoutRequest(), {});
       const data = await response.json();
 
       expect(response.status).toBe(400);
@@ -694,9 +710,10 @@ describe('Auth API Routes', () => {
 
     it('should return 500 for unexpected errors', async () => {
       mockGetUser.mockResolvedValue({ data: { user: mockUser }, error: null });
+      mockGetProfileAsAdmin.mockResolvedValue({ profile: mockProfile, error: null });
       mockSignOut.mockRejectedValue(new Error('Connection reset'));
 
-      const response = await logoutHandler();
+      const response = await logoutHandler(logoutRequest(), {});
       const data = await response.json();
 
       expect(response.status).toBe(500);

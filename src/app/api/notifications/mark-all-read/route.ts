@@ -1,34 +1,16 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { withAuth, successResponse, errorResponse } from '@/lib/auth/api-helpers';
 import { notificationsService } from '@/lib/db';
-import { createClient } from '@/lib/supabase/server';
-import { standardRateLimiter } from '@/lib/rate-limit';
 import { createLogger } from '@/lib/logger';
 
 const log = createLogger('api:notifications-mark-all-read');
 
-export async function POST(request: NextRequest) {
+export const POST = withAuth(async (_request, _context, auth) => {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    await notificationsService.markAllAsRead(auth.user.id);
 
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Rate limit check
-    const rateLimitResult = await standardRateLimiter.limit(request, user.id);
-    if (!rateLimitResult.allowed) {
-      return rateLimitResult.response;
-    }
-
-    await notificationsService.markAllAsRead(user.id);
-
-    return NextResponse.json({ success: true });
+    return successResponse({ marked: true });
   } catch (error) {
     log.logError('Error marking all notifications as read', error);
-    return NextResponse.json(
-      { error: 'Failed to mark all notifications as read' },
-      { status: 500 }
-    );
+    return errorResponse('Failed to mark all notifications as read', 500);
   }
-}
+});

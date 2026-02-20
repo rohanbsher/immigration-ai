@@ -19,7 +19,7 @@ describe('Redis Client Module', () => {
       Redis: vi.fn(),
     }));
 
-    const { getRedisClient } = await import('./index');
+    const { getRedisClient } = await import('./redis');
     expect(getRedisClient()).toBeNull();
   });
 
@@ -36,7 +36,7 @@ describe('Redis Client Module', () => {
       Redis: vi.fn(),
     }));
 
-    const { getRedisClient } = await import('./index');
+    const { getRedisClient } = await import('./redis');
     expect(getRedisClient()).toBeNull();
   });
 
@@ -53,7 +53,7 @@ describe('Redis Client Module', () => {
       Redis: vi.fn(),
     }));
 
-    const { getRedisClient } = await import('./index');
+    const { getRedisClient } = await import('./redis');
     expect(getRedisClient()).toBeNull();
   });
 
@@ -78,7 +78,7 @@ describe('Redis Client Module', () => {
       },
     }));
 
-    const { getRedisClient } = await import('./index');
+    const { getRedisClient } = await import('./redis');
     const client = getRedisClient();
 
     expect(client).not.toBeNull();
@@ -107,7 +107,7 @@ describe('Redis Client Module', () => {
       },
     }));
 
-    const { getRedisClient } = await import('./index');
+    const { getRedisClient } = await import('./redis');
 
     const first = getRedisClient();
     const second = getRedisClient();
@@ -132,7 +132,7 @@ describe('Redis Client Module', () => {
       },
     }));
 
-    const { isRedisAvailable } = await import('./index');
+    const { isRedisAvailable } = await import('./redis');
     expect(isRedisAvailable()).toBe(true);
   });
 
@@ -146,7 +146,7 @@ describe('Redis Client Module', () => {
       Redis: vi.fn(),
     }));
 
-    const { isRedisAvailable } = await import('./index');
+    const { isRedisAvailable } = await import('./redis');
     expect(isRedisAvailable()).toBe(false);
   });
 });

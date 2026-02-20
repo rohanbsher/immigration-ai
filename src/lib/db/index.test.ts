@@ -380,7 +380,7 @@ describe('Database Services', () => {
           description: 'Test description',
         };
 
-        const result = await casesService.createCase(createData);
+        const result = await casesService.createCase(createData, mockUser.id, null);
 
         expect(mockSupabase.from).toHaveBeenCalledWith('cases');
         expect(queryBuilder.insert).toHaveBeenCalledWith({
@@ -392,17 +392,25 @@ describe('Database Services', () => {
         expect(result).toBeDefined();
       });
 
-      it('should throw error when user not authenticated', async () => {
-        mockSupabase.auth.getUser.mockResolvedValueOnce({
-          data: { user: null },
-          error: null,
-        });
+      it('should use provided firmId', async () => {
+        const mockCase = createMockCase();
+        const queryBuilder = createMockQueryBuilder([mockCase]);
+        mockSupabase.from.mockReturnValue(queryBuilder);
 
-        await expect(casesService.createCase({
+        const createData = {
           client_id: 'client-789',
-          visa_type: 'H1B',
-          title: 'Test',
-        })).rejects.toThrow('Unauthorized');
+          visa_type: 'H1B' as const,
+          title: 'New H1B Case',
+        };
+
+        await casesService.createCase(createData, mockUser.id, 'firm-123');
+
+        expect(queryBuilder.insert).toHaveBeenCalledWith({
+          ...createData,
+          attorney_id: mockUser.id,
+          firm_id: 'firm-123',
+          status: 'intake',
+        });
       });
 
       it('should throw error when insert fails', async () => {
@@ -417,7 +425,7 @@ describe('Database Services', () => {
           client_id: 'client-789',
           visa_type: 'H1B',
           title: 'Test',
-        })).rejects.toThrow();
+        }, mockUser.id)).rejects.toThrow();
       });
     });
 
@@ -561,7 +569,7 @@ describe('Database Services', () => {
         const casesQueryBuilder = createMockQueryBuilder(mockCasesWithClients);
         mockSupabase.from.mockReturnValue(casesQueryBuilder);
 
-        const result = await clientsService.getClients();
+        const result = await clientsService.getClients({}, mockUser.id);
 
         expect(result.data).toHaveLength(2);
         expect(result.total).toBe(2);
@@ -580,18 +588,13 @@ describe('Database Services', () => {
         const casesQueryBuilder = createMockQueryBuilder([]);
         mockSupabase.from.mockReturnValue(casesQueryBuilder);
 
-        const result = await clientsService.getClients();
+        const result = await clientsService.getClients({}, mockUser.id);
 
         expect(result).toEqual({ data: [], total: 0 });
       });
 
-      it('should throw error when user not authenticated', async () => {
-        mockSupabase.auth.getUser.mockResolvedValueOnce({
-          data: { user: null },
-          error: null,
-        });
-
-        await expect(clientsService.getClients()).rejects.toThrow('Unauthorized');
+      it('should throw error when userId not provided', async () => {
+        await expect(clientsService.getClients()).rejects.toThrow('userId is required');
       });
     });
 
@@ -612,7 +615,7 @@ describe('Database Services', () => {
           .mockReturnValueOnce(casesQueryBuilder)
           .mockReturnValueOnce(profileQueryBuilder);
 
-        const result = await clientsService.getClientById('client-123');
+        const result = await clientsService.getClientById('client-123', mockUser.id);
 
         expect(result).not.toBeNull();
         expect(result?.cases_count).toBe(3);
@@ -624,7 +627,7 @@ describe('Database Services', () => {
         const casesQueryBuilder = createMockQueryBuilder([]);
         mockSupabase.from.mockReturnValueOnce(casesQueryBuilder);
 
-        const result = await clientsService.getClientById('non-existent');
+        const result = await clientsService.getClientById('non-existent', mockUser.id);
 
         expect(result).toBeNull();
       });
@@ -665,7 +668,7 @@ describe('Database Services', () => {
         const result = await clientsService.updateClient('client-123', {
           first_name: 'Updated',
           phone: '555-9999',
-        });
+        }, mockUser.id);
 
         expect(mockSupabase.from).toHaveBeenCalledWith('profiles');
         expect(queryBuilder.update).toHaveBeenCalledWith({
@@ -686,25 +689,23 @@ describe('Database Services', () => {
         const matchedProfiles = [
           createMockProfile({ id: 'client-1', first_name: 'Test', role: 'client' }),
         ];
-        const anyCaseRows = [{ client_id: 'client-1' }];
-
-        // Admin client calls in order:
-        // 1. profiles .single() -> attorney profile with primary_firm_id
+        // Admin client calls in order (searchClientsByFirm):
+        // 1. profiles .single() -> attorney profile with primary_firm_id (resolveFirmId)
         const profileQB = createMockQueryBuilder([{ primary_firm_id: 'firm-abc' }]);
-        // 2. cases (firm cases) -> awaited array
+        // 2. cases (firm cases) -> client_ids from firm's cases
         const firmCasesQB = createMockQueryBuilder(firmCaseRows);
-        // 3. profiles (search) -> awaited array
+        // 3. profiles (case client search) -> matched profiles in firm cases
         const searchQB = createMockQueryBuilder(matchedProfiles);
-        // 4. cases (any cases check) -> awaited array
-        const anyCasesQB = createMockQueryBuilder(anyCaseRows);
+        // 4. profiles (caseless firm client search via primary_firm_id) -> no additional
+        const caselessQB = createMockQueryBuilder([]);
 
         mockAdminClient.from
           .mockReturnValueOnce(profileQB)
           .mockReturnValueOnce(firmCasesQB)
           .mockReturnValueOnce(searchQB)
-          .mockReturnValueOnce(anyCasesQB);
+          .mockReturnValueOnce(caselessQB);
 
-        const result = await clientsService.searchClients('Test');
+        const result = await clientsService.searchClients('Test', mockUser.id);
 
         expect(result).toHaveLength(1);
         expect(result[0].first_name).toBe('Test');
@@ -712,27 +713,28 @@ describe('Database Services', () => {
 
       it('should include newly created clients with no cases', async () => {
         const firmCaseRows = [{ client_id: 'client-1' }];
-        const matchedProfiles = [
+        const caseMatchedProfiles = [
           createMockProfile({ id: 'client-1', first_name: 'Existing', role: 'client' }),
+        ];
+        // client-new has no cases but belongs to the firm via primary_firm_id
+        const caselessFirmProfiles = [
           createMockProfile({ id: 'client-new', first_name: 'NewClient', role: 'client' }),
         ];
-        // Only client-1 has cases; client-new has none
-        const anyCaseRows = [{ client_id: 'client-1' }];
 
         const profileQB = createMockQueryBuilder([{ primary_firm_id: 'firm-abc' }]);
         const firmCasesQB = createMockQueryBuilder(firmCaseRows);
-        const searchQB = createMockQueryBuilder(matchedProfiles);
-        const anyCasesQB = createMockQueryBuilder(anyCaseRows);
+        const searchQB = createMockQueryBuilder(caseMatchedProfiles);
+        const caselessQB = createMockQueryBuilder(caselessFirmProfiles);
 
         mockAdminClient.from
           .mockReturnValueOnce(profileQB)
           .mockReturnValueOnce(firmCasesQB)
           .mockReturnValueOnce(searchQB)
-          .mockReturnValueOnce(anyCasesQB);
+          .mockReturnValueOnce(caselessQB);
 
-        const result = await clientsService.searchClients('Client');
+        const result = await clientsService.searchClients('Client', mockUser.id);
 
-        // Both: client-1 (in firm cases) and client-new (no cases at all)
+        // Both: client-1 (in firm cases) and client-new (caseless firm client)
         expect(result).toHaveLength(2);
       });
 
@@ -756,13 +758,13 @@ describe('Database Services', () => {
           .mockReturnValueOnce(casesQueryBuilder)
           .mockReturnValueOnce(profilesQueryBuilder);
 
-        const result = await clientsService.searchClients('Test');
+        const result = await clientsService.searchClients('Test', mockUser.id);
 
         expect(result).toHaveLength(1);
       });
 
       it('should return empty array for empty sanitized query', async () => {
-        const result = await clientsService.searchClients('');
+        const result = await clientsService.searchClients('', mockUser.id);
         expect(result).toEqual([]);
       });
     });
@@ -841,7 +843,7 @@ describe('Database Services', () => {
           mime_type: 'application/pdf',
         };
 
-        const result = await documentsService.createDocument(createData);
+        const result = await documentsService.createDocument(createData, mockUser.id);
 
         expect(queryBuilder.insert).toHaveBeenCalledWith({
           ...createData,
@@ -851,20 +853,23 @@ describe('Database Services', () => {
         expect(result).toBeDefined();
       });
 
-      it('should throw error when user not authenticated', async () => {
-        mockSupabase.auth.getUser.mockResolvedValueOnce({
-          data: { user: null },
-          error: null,
-        });
+      it('should use the provided userId for uploaded_by', async () => {
+        const mockDoc = createMockDocument();
+        const queryBuilder = createMockQueryBuilder([mockDoc]);
+        mockSupabase.from.mockReturnValue(queryBuilder);
 
-        await expect(documentsService.createDocument({
+        await documentsService.createDocument({
           case_id: 'case-123',
           document_type: 'passport',
           file_name: 'test.pdf',
           file_url: 'https://example.com/test.pdf',
           file_size: 1024,
           mime_type: 'application/pdf',
-        })).rejects.toThrow('Unauthorized');
+        }, 'custom-user-id');
+
+        expect(queryBuilder.insert).toHaveBeenCalledWith(
+          expect.objectContaining({ uploaded_by: 'custom-user-id' })
+        );
       });
     });
 
@@ -893,7 +898,7 @@ describe('Database Services', () => {
         const queryBuilder = createMockQueryBuilder([verifiedDoc]);
         mockSupabase.from.mockReturnValue(queryBuilder);
 
-        const result = await documentsService.verifyDocument('doc-123');
+        const result = await documentsService.verifyDocument('doc-123', mockUser.id);
 
         expect(queryBuilder.update).toHaveBeenCalledWith(
           expect.objectContaining({
@@ -905,13 +910,16 @@ describe('Database Services', () => {
         expect(result).toBeDefined();
       });
 
-      it('should throw error when user not authenticated', async () => {
-        mockSupabase.auth.getUser.mockResolvedValueOnce({
-          data: { user: null },
-          error: null,
-        });
+      it('should use the provided userId for verified_by', async () => {
+        const verifiedDoc = createMockDocument({ status: 'verified' });
+        const queryBuilder = createMockQueryBuilder([verifiedDoc]);
+        mockSupabase.from.mockReturnValue(queryBuilder);
 
-        await expect(documentsService.verifyDocument('doc-123')).rejects.toThrow('Unauthorized');
+        await documentsService.verifyDocument('doc-123', 'custom-verifier-id');
+
+        expect(queryBuilder.update).toHaveBeenCalledWith(
+          expect.objectContaining({ verified_by: 'custom-verifier-id' })
+        );
       });
     });
 
@@ -1131,7 +1139,7 @@ describe('Database Services', () => {
         const queryBuilder = createMockQueryBuilder([reviewedForm]);
         mockSupabase.from.mockReturnValue(queryBuilder);
 
-        const result = await formsService.reviewForm('form-123', 'Looks good');
+        const result = await formsService.reviewForm('form-123', 'Looks good', mockUser.id);
 
         expect(queryBuilder.update).toHaveBeenCalledWith(
           expect.objectContaining({
@@ -1144,14 +1152,9 @@ describe('Database Services', () => {
         expect(result).toBeDefined();
       });
 
-      it('should throw error when user not authenticated', async () => {
-        mockSupabase.auth.getUser.mockResolvedValueOnce({
-          data: { user: null },
-          error: null,
-        });
-
+      it('should throw error when userId not provided', async () => {
         await expect(formsService.reviewForm('form-123', 'Test'))
-          .rejects.toThrow('Unauthorized');
+          .rejects.toThrow('userId is required');
       });
     });
 
@@ -1238,19 +1241,13 @@ describe('Database Services', () => {
         const queryBuilder = createMockQueryBuilder([mockProfile]);
         mockSupabase.from.mockReturnValue(queryBuilder);
 
-        const result = await profilesService.getCurrentProfile();
+        const result = await profilesService.getCurrentProfile(mockUser.id);
 
-        expect(mockSupabase.auth.getUser).toHaveBeenCalled();
         expect(queryBuilder.eq).toHaveBeenCalledWith('id', mockUser.id);
         expect(result).toBeDefined();
       });
 
-      it('should return null when user not authenticated', async () => {
-        mockSupabase.auth.getUser.mockResolvedValueOnce({
-          data: { user: null },
-          error: null,
-        });
-
+      it('should return null when userId not provided', async () => {
         const result = await profilesService.getCurrentProfile();
 
         expect(result).toBeNull();
@@ -1686,7 +1683,7 @@ describe('Database Services', () => {
           case_id: 'case-123',
           activity_type: 'case_created',
           description: 'Case was created',
-        });
+        }, mockUser.id);
 
         expect(queryBuilder.insert).toHaveBeenCalledWith({
           case_id: 'case-123',
@@ -1697,17 +1694,12 @@ describe('Database Services', () => {
         expect(result).toBeDefined();
       });
 
-      it('should throw error when user not authenticated', async () => {
-        mockSupabase.auth.getUser.mockResolvedValueOnce({
-          data: { user: null },
-          error: null,
-        });
-
+      it('should throw error when userId not provided', async () => {
         await expect(activitiesService.createActivity({
           case_id: 'case-123',
           activity_type: 'case_created',
           description: 'Test',
-        })).rejects.toThrow('Unauthorized');
+        })).rejects.toThrow('userId is required');
       });
     });
 
@@ -1717,7 +1709,7 @@ describe('Database Services', () => {
         const queryBuilder = createMockQueryBuilder([mockActivity]);
         mockSupabase.from.mockReturnValue(queryBuilder);
 
-        await activitiesService.logCaseCreated('case-123', 'Test Case');
+        await activitiesService.logCaseCreated('case-123', 'Test Case', mockUser.id);
 
         expect(queryBuilder.insert).toHaveBeenCalledWith(
           expect.objectContaining({
@@ -1732,7 +1724,7 @@ describe('Database Services', () => {
         const queryBuilder = createMockQueryBuilder([mockActivity]);
         mockSupabase.from.mockReturnValue(queryBuilder);
 
-        await activitiesService.logCaseUpdated('case-123', 'Title was changed');
+        await activitiesService.logCaseUpdated('case-123', 'Title was changed', mockUser.id);
 
         expect(queryBuilder.insert).toHaveBeenCalledWith(
           expect.objectContaining({
@@ -1747,7 +1739,7 @@ describe('Database Services', () => {
         const queryBuilder = createMockQueryBuilder([mockActivity]);
         mockSupabase.from.mockReturnValue(queryBuilder);
 
-        await activitiesService.logStatusChanged('case-123', 'intake', 'in_review');
+        await activitiesService.logStatusChanged('case-123', 'intake', 'in_review', mockUser.id);
 
         expect(queryBuilder.insert).toHaveBeenCalledWith(
           expect.objectContaining({
@@ -1762,7 +1754,7 @@ describe('Database Services', () => {
         const queryBuilder = createMockQueryBuilder([mockActivity]);
         mockSupabase.from.mockReturnValue(queryBuilder);
 
-        await activitiesService.logDocumentUploaded('case-123', 'passport.pdf', 'doc-123');
+        await activitiesService.logDocumentUploaded('case-123', 'passport.pdf', 'doc-123', mockUser.id);
 
         expect(queryBuilder.insert).toHaveBeenCalledWith(
           expect.objectContaining({
@@ -1777,7 +1769,7 @@ describe('Database Services', () => {
         const queryBuilder = createMockQueryBuilder([mockActivity]);
         mockSupabase.from.mockReturnValue(queryBuilder);
 
-        await activitiesService.logDocumentAnalyzed('case-123', 'passport.pdf', 'doc-123');
+        await activitiesService.logDocumentAnalyzed('case-123', 'passport.pdf', 'doc-123', mockUser.id);
 
         expect(queryBuilder.insert).toHaveBeenCalledWith(
           expect.objectContaining({
@@ -1791,7 +1783,7 @@ describe('Database Services', () => {
         const queryBuilder = createMockQueryBuilder([mockActivity]);
         mockSupabase.from.mockReturnValue(queryBuilder);
 
-        await activitiesService.logDocumentVerified('case-123', 'passport.pdf', 'doc-123');
+        await activitiesService.logDocumentVerified('case-123', 'passport.pdf', 'doc-123', mockUser.id);
 
         expect(queryBuilder.insert).toHaveBeenCalledWith(
           expect.objectContaining({
@@ -1805,7 +1797,7 @@ describe('Database Services', () => {
         const queryBuilder = createMockQueryBuilder([mockActivity]);
         mockSupabase.from.mockReturnValue(queryBuilder);
 
-        await activitiesService.logFormCreated('case-123', 'I-130', 'form-123');
+        await activitiesService.logFormCreated('case-123', 'I-130', 'form-123', mockUser.id);
 
         expect(queryBuilder.insert).toHaveBeenCalledWith(
           expect.objectContaining({
@@ -1820,7 +1812,7 @@ describe('Database Services', () => {
         const queryBuilder = createMockQueryBuilder([mockActivity]);
         mockSupabase.from.mockReturnValue(queryBuilder);
 
-        await activitiesService.logFormAiFilled('case-123', 'I-130', 'form-123');
+        await activitiesService.logFormAiFilled('case-123', 'I-130', 'form-123', mockUser.id);
 
         expect(queryBuilder.insert).toHaveBeenCalledWith(
           expect.objectContaining({
@@ -1834,7 +1826,7 @@ describe('Database Services', () => {
         const queryBuilder = createMockQueryBuilder([mockActivity]);
         mockSupabase.from.mockReturnValue(queryBuilder);
 
-        await activitiesService.logFormReviewed('case-123', 'I-130', 'form-123');
+        await activitiesService.logFormReviewed('case-123', 'I-130', 'form-123', mockUser.id);
 
         expect(queryBuilder.insert).toHaveBeenCalledWith(
           expect.objectContaining({
@@ -1848,7 +1840,7 @@ describe('Database Services', () => {
         const queryBuilder = createMockQueryBuilder([mockActivity]);
         mockSupabase.from.mockReturnValue(queryBuilder);
 
-        await activitiesService.logFormFiled('case-123', 'I-130', 'form-123');
+        await activitiesService.logFormFiled('case-123', 'I-130', 'form-123', mockUser.id);
 
         expect(queryBuilder.insert).toHaveBeenCalledWith(
           expect.objectContaining({

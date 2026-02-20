@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import type { SuccessScore } from '@/lib/scoring/success-probability';
+import type { SuccessScore } from '@/lib/ai/success-probability';
 import { fetchJobAware } from '@/lib/api/job-aware-fetch';
 
 /**

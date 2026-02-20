@@ -84,10 +84,10 @@ vi.mock('@/lib/db', () => ({
 }));
 
 // ---------------------------------------------------------------------------
-// Mock @/lib/api (withAuth wrapper used by GET /api/notifications)
+// Mock @/lib/auth/api-helpers (withAuth wrapper used by notifications routes)
 // ---------------------------------------------------------------------------
 
-vi.mock('@/lib/api', () => {
+vi.mock('@/lib/auth/api-helpers', () => {
   const authenticateFn = vi.fn();
 
   const withAuth = (handler: any, options?: any) => {
@@ -97,13 +97,7 @@ vi.mock('@/lib/api', () => {
         return auth.response;
       }
       try {
-        const result = await handler(request, context, auth);
-        // The handler returns { data: ... } — wrap in NextResponse
-        if (result && typeof result === 'object' && !('status' in result)) {
-          const { NextResponse } = await import('next/server');
-          return NextResponse.json({ success: true, ...result });
-        }
-        return result;
+        return await handler(request, context, auth);
       } catch (error: any) {
         const { NextResponse } = await import('next/server');
         return NextResponse.json(
@@ -114,10 +108,32 @@ vi.mock('@/lib/api', () => {
     };
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { NextResponse } = require('next/server');
+
   return {
+    authenticate: authenticateFn,
     withAuth,
     withAttorneyAuth: (handler: any) => withAuth(handler, { roles: ['attorney'] }),
-    apiHandler: (handler: any) => handler,
+    withAdminAuth: (handler: any) => withAuth(handler, { roles: ['admin'] }),
+    errorResponse: (error: string, status: number) =>
+      NextResponse.json({ success: false, error }, { status }),
+    successResponse: (data: any, status = 200) =>
+      NextResponse.json({ success: true, data }, { status }),
+    safeParseBody: async (request: any) => {
+      try {
+        const data = await request.json();
+        return { success: true, data };
+      } catch {
+        return {
+          success: false,
+          response: NextResponse.json(
+            { error: 'Invalid JSON in request body' },
+            { status: 400 }
+          ),
+        };
+      }
+    },
     _authenticate: authenticateFn,
   };
 });
@@ -191,8 +207,8 @@ import { serverAuth } from '@/lib/auth';
 import { getNotificationPreferences, updateNotificationPreferences } from '@/lib/email';
 import { rateLimit } from '@/lib/rate-limit';
 
-// Access the internal authenticate mock from @/lib/api
-const { _authenticate } = await import('@/lib/api') as any;
+// Access the internal authenticate mock from @/lib/auth/api-helpers
+const { _authenticate } = await import('@/lib/auth/api-helpers') as any;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -579,10 +595,7 @@ describe('Notifications API Routes', () => {
   // ==========================================================================
   describe('GET /api/notifications/count', () => {
     it('should return 401 when not authenticated', async () => {
-      mockSupabaseClient.auth.getUser.mockResolvedValue({
-        data: { user: null },
-        error: null,
-      });
+      _authenticate.mockResolvedValue(mockAuthFailure());
 
       const request = createRequest('GET', '/api/notifications/count');
       const response = await getNotificationCount(request);
@@ -593,13 +606,7 @@ describe('Notifications API Routes', () => {
     });
 
     it('should return 429 when rate limited', async () => {
-      vi.mocked(standardRateLimiter.limit).mockResolvedValue({
-        allowed: false,
-        response: new Response(JSON.stringify({ error: 'Too Many Requests' }), {
-          status: 429,
-          headers: { 'Content-Type': 'application/json' },
-        }),
-      } as any);
+      _authenticate.mockResolvedValue(mockAuthFailure(429, 'Too Many Requests'));
 
       const request = createRequest('GET', '/api/notifications/count');
       const response = await getNotificationCount(request);
@@ -608,6 +615,7 @@ describe('Notifications API Routes', () => {
     });
 
     it('should return 200 with unread count', async () => {
+      _authenticate.mockResolvedValue(mockAuthSuccess());
       vi.mocked(notificationsService.getUnreadCount).mockResolvedValue(5);
 
       const request = createRequest('GET', '/api/notifications/count');
@@ -615,10 +623,11 @@ describe('Notifications API Routes', () => {
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data.count).toBe(5);
+      expect(data.data.count).toBe(5);
     });
 
     it('should return 500 on error', async () => {
+      _authenticate.mockResolvedValue(mockAuthSuccess());
       vi.mocked(notificationsService.getUnreadCount).mockRejectedValue(new Error('DB error'));
 
       const request = createRequest('GET', '/api/notifications/count');
@@ -635,10 +644,7 @@ describe('Notifications API Routes', () => {
   // ==========================================================================
   describe('POST /api/notifications/mark-all-read', () => {
     it('should return 401 when not authenticated', async () => {
-      mockSupabaseClient.auth.getUser.mockResolvedValue({
-        data: { user: null },
-        error: null,
-      });
+      _authenticate.mockResolvedValue(mockAuthFailure());
 
       const request = createRequest('POST', '/api/notifications/mark-all-read');
       const response = await markAllRead(request);
@@ -649,6 +655,7 @@ describe('Notifications API Routes', () => {
     });
 
     it('should return 200 on success', async () => {
+      _authenticate.mockResolvedValue(mockAuthSuccess());
       vi.mocked(notificationsService.markAllAsRead).mockResolvedValue(undefined);
 
       const request = createRequest('POST', '/api/notifications/mark-all-read');
@@ -661,6 +668,7 @@ describe('Notifications API Routes', () => {
     });
 
     it('should return 500 on error', async () => {
+      _authenticate.mockResolvedValue(mockAuthSuccess());
       vi.mocked(notificationsService.markAllAsRead).mockRejectedValue(new Error('DB fail'));
 
       const request = createRequest('POST', '/api/notifications/mark-all-read');

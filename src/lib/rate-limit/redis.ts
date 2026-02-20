@@ -9,7 +9,7 @@
  *
  * @example
  * ```typescript
- * import { getRedisClient, isRedisAvailable } from '@/lib/redis';
+ * import { getRedisClient, isRedisAvailable } from '@/lib/rate-limit/redis';
  *
  * if (isRedisAvailable()) {
  *   const redis = getRedisClient()!;

@@ -48,6 +48,7 @@ export interface ProfileRow {
   phone: string | null;
   mfa_enabled: boolean;
   ai_consent_granted_at: string | null;
+  primary_firm_id: string | null;
   created_at: string;
   updated_at: string;
 }

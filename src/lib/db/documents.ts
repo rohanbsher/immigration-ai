@@ -6,12 +6,15 @@ import {
 } from '@/lib/crypto';
 import { auditService } from '@/lib/audit';
 
+export type ScanStatus = 'clean' | 'degraded' | 'pending' | 'infected';
+
 export interface Document {
   id: string;
   case_id: string;
   uploaded_by: string;
   document_type: DocumentType;
   status: DocumentStatus;
+  scan_status: ScanStatus | null;
   file_name: string;
   file_url: string;
   file_size: number;
@@ -46,6 +49,7 @@ export interface CreateDocumentData {
   file_url: string;
   file_size: number;
   mime_type: string;
+  scan_status?: ScanStatus;
   expiration_date?: string;
   notes?: string;
 }
@@ -130,21 +134,15 @@ class DocumentsService extends BaseService {
     }, 'getDocument', { documentId: id });
   }
 
-  async createDocument(data: CreateDocumentData): Promise<Document> {
+  async createDocument(data: CreateDocumentData, userId: string): Promise<Document> {
     return this.withErrorHandling(async () => {
       const supabase = await this.getSupabaseClient();
-
-      const { data: { user } } = await supabase.auth.getUser();
-
-      if (!user) {
-        throw new Error('Unauthorized');
-      }
 
       const { data: newDocument, error } = await supabase
         .from('documents')
         .insert({
           ...data,
-          uploaded_by: user.id,
+          uploaded_by: userId,
           status: 'uploaded',
         })
         .select()
@@ -190,21 +188,15 @@ class DocumentsService extends BaseService {
     }, 'updateDocument', { documentId: id });
   }
 
-  async verifyDocument(id: string): Promise<Document> {
+  async verifyDocument(id: string, userId: string): Promise<Document> {
     return this.withErrorHandling(async () => {
       const supabase = await this.getSupabaseClient();
-
-      const { data: { user } } = await supabase.auth.getUser();
-
-      if (!user) {
-        throw new Error('Unauthorized');
-      }
 
       const { data: updatedDocument, error } = await supabase
         .from('documents')
         .update({
           status: 'verified',
-          verified_by: user.id,
+          verified_by: userId,
           verified_at: new Date().toISOString(),
         })
         .eq('id', id)

@@ -12,6 +12,7 @@ import {
   Loader2,
   Sparkles,
   AlertCircle,
+  FileDown,
 } from 'lucide-react';
 import { useForm, useUpdateForm, useAutofillForm } from '@/hooks/use-forms';
 import { getFormDefinition } from '@/lib/forms/definitions';
@@ -43,6 +44,7 @@ export default function FormDetailPage({ params }: { params: Promise<{ id: strin
   const [isInitialized, setIsInitialized] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [activeTab, setActiveTab] = useState('edit');
+  const [isDownloading, setIsDownloading] = useState(false);
 
   useEffect(() => {
     if (form?.form_data && !isInitialized) {
@@ -100,6 +102,31 @@ export default function FormDetailPage({ params }: { params: Promise<{ id: strin
         toast.error(err.message || 'Failed to autofill form');
       },
     });
+  };
+
+  const handleDownloadPDF = async () => {
+    setIsDownloading(true);
+    try {
+      const response = await fetch(`/api/forms/${id}/pdf`);
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: 'Failed to generate PDF' }));
+        throw new Error(error.error || 'Failed to generate PDF');
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = response.headers.get('Content-Disposition')?.match(/filename="(.+)"/)?.[1] || `${form?.form_type || 'form'}_form.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success('PDF downloaded successfully');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to download PDF');
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   if (isLoading) {
@@ -206,6 +233,19 @@ export default function FormDetailPage({ params }: { params: Promise<{ id: strin
             )}
             {isAutofilling ? 'Autofilling...' : 'AI Autofill'}
           </Button>
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={handleDownloadPDF}
+            disabled={isDownloading}
+          >
+            {isDownloading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <FileDown size={16} />
+            )}
+            {isDownloading ? 'Generating...' : 'Download PDF'}
+          </Button>
           <Button onClick={handleSave} disabled={!hasChanges || isSaving || isAutofilling} className="gap-2">
             {isSaving ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -259,7 +299,7 @@ export default function FormDetailPage({ params }: { params: Promise<{ id: strin
         </TabsContent>
 
         <TabsContent value="preview" className="mt-6">
-          <FormPreviewTab formDefinition={formDefinition} formValues={formValues} />
+          <FormPreviewTab formDefinition={formDefinition} formValues={formValues} formId={id} />
         </TabsContent>
 
         <TabsContent value="instructions" className="mt-6">

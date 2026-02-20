@@ -15,6 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/use-auth';
 import { useUnreadCount, useNotifications } from '@/hooks/use-notifications';
 import { toast } from 'sonner';
+import { logger } from '@/lib/logger';
 import { AISearchInput } from '@/components/search/ai-search-input';
 
 interface HeaderProps {
@@ -37,7 +38,7 @@ export function Header({ title, onMenuClick, user }: HeaderProps) {
       await signOut();
       toast.success('Logged out successfully');
     } catch (error) {
-      console.error('Sign out failed:', error);
+      logger.error('Sign out failed', { error });
       toast.error('Failed to log out');
     }
   };

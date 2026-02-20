@@ -4,9 +4,10 @@ import { createClient } from '@/lib/supabase/server';
 import { analyzeDocument, type DocumentAnalysisResult } from '@/lib/ai';
 import { aiRateLimiter } from '@/lib/rate-limit';
 import { createLogger } from '@/lib/logger';
-import { enforceQuota, trackUsage, QuotaExceededError } from '@/lib/billing/quota';
+import { enforceQuota, trackUsage } from '@/lib/billing/quota';
+import { handleQuotaError } from '@/lib/billing/quota-error';
 import { validateStorageUrl } from '@/lib/security';
-import { isValidTransition, getValidNextStates } from '@/lib/documents/state-machine';
+import { isValidTransition, getValidNextStates } from '@/lib/db/document-state-machine';
 import { SIGNED_URL_EXPIRATION } from '@/lib/storage';
 import { logAIRequest } from '@/lib/audit/ai-audit';
 import { requireAiConsent } from '@/lib/auth/api-helpers';
@@ -52,12 +53,8 @@ export async function POST(
     try {
       await enforceQuota(user.id, 'ai_requests');
     } catch (error) {
-      if (error instanceof QuotaExceededError) {
-        return NextResponse.json(
-          { error: 'AI request limit reached. Please upgrade your plan.', code: 'QUOTA_EXCEEDED' },
-          { status: 402 }
-        );
-      }
+      const qr = handleQuotaError(error, 'ai_requests');
+      if (qr) return qr;
       throw error;
     }
 
@@ -78,6 +75,15 @@ export async function POST(
     // Only the attorney can trigger document analysis
     if (caseData.attorney_id !== user.id) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    // Block analysis for documents with degraded scan status
+    if (document.scan_status === 'degraded') {
+      log.warn('Analysis blocked for scan-degraded document', { documentId: id, userId: user.id });
+      return NextResponse.json(
+        { error: 'This document is pending security scan and cannot be analyzed yet.' },
+        { status: 403 }
+      );
     }
 
     // Check if document has expired (either by status or by expiration_date)

@@ -3,6 +3,7 @@
 import { cn } from '@/lib/utils';
 import { User, Sparkles } from 'lucide-react';
 import { memo } from 'react';
+import { logger } from '@/lib/logger';
 
 interface ChatMessageProps {
   role: 'user' | 'assistant';
@@ -89,7 +90,7 @@ function formatTime(timestamp: string): string {
       minute: '2-digit',
     });
   } catch (error) {
-    console.warn('Failed to format timestamp:', error);
+    logger.warn('Failed to format timestamp', { error });
     return '';
   }
 }

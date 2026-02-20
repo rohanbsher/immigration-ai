@@ -6,7 +6,7 @@
  */
 
 import { createLogger } from '@/lib/logger';
-import { getRedisClient } from '@/lib/redis';
+import { getRedisClient } from '@/lib/rate-limit/redis';
 
 const logger = createLogger('db:recommendations');
 

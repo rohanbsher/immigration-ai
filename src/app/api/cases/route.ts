@@ -9,7 +9,8 @@ import {
   safeParseBody,
 } from '@/lib/auth/api-helpers';
 import { createLogger } from '@/lib/logger';
-import { enforceQuota, QuotaExceededError } from '@/lib/billing/quota';
+import { enforceQuota } from '@/lib/billing/quota';
+import { handleQuotaError } from '@/lib/billing/quota-error';
 import { VISA_TYPES } from '@/lib/validation';
 
 const log = createLogger('api:cases');
@@ -84,17 +85,15 @@ export const POST = withAttorneyAuth(async (request, _context, auth) => {
     const validatedData = createCaseSchema.parse(body);
 
     const newCase = await casesService.createCase(
-      validatedData as Parameters<typeof casesService.createCase>[0]
+      validatedData as Parameters<typeof casesService.createCase>[0],
+      auth.user.id,
+      auth.profile?.primary_firm_id
     );
 
     return successResponse(newCase, 201);
   } catch (error) {
-    if (error instanceof QuotaExceededError) {
-      return NextResponse.json(
-        { error: 'You have reached your case limit. Please upgrade your plan to create more cases.', code: 'QUOTA_EXCEEDED' },
-        { status: 402 }
-      );
-    }
+    const qr = handleQuotaError(error, 'cases');
+    if (qr) return qr;
 
     if (error instanceof z.ZodError) {
       return errorResponse(error.issues[0].message, 400);

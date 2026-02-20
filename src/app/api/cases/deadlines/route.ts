@@ -1,7 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { NextRequest } from 'next/server';
+import { withAuth, successResponse, errorResponse } from '@/lib/auth/api-helpers';
 import { getUpcomingDeadlines } from '@/lib/deadline';
-import { standardRateLimiter } from '@/lib/rate-limit';
 import { createLogger } from '@/lib/logger';
 
 const log = createLogger('api:deadlines');
@@ -14,35 +13,12 @@ const log = createLogger('api:deadlines');
  * Query params:
  * - days: Number of days to look ahead (default 60)
  */
-export async function GET(request: NextRequest): Promise<NextResponse> {
+export const GET = withAuth(async (request, _context, auth) => {
   try {
-    const supabase = await createClient();
-
-    // Authenticate user
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Unauthorized', message: 'Please log in to continue' },
-        { status: 401 }
-      );
-    }
-
-    // Rate limit check
-    const rateLimitResult = await standardRateLimiter.limit(request, user.id);
-    if (!rateLimitResult.allowed) {
-      return rateLimitResult.response;
-    }
-
-    // Parse query params
     const days = parseInt(request.nextUrl.searchParams.get('days') || '60', 10);
     const validDays = Math.min(Math.max(days, 1), 365);
 
-    // Get upcoming deadlines
-    const deadlines = await getUpcomingDeadlines(user.id, validDays);
+    const deadlines = await getUpcomingDeadlines(auth.user.id, validDays);
 
     // Group by severity
     const critical = deadlines.filter((d) => d.severity === 'critical' && !d.acknowledged);
@@ -50,7 +26,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const info = deadlines.filter((d) => d.severity === 'info' && !d.acknowledged);
     const acknowledged = deadlines.filter((d) => d.acknowledged);
 
-    return NextResponse.json({
+    return successResponse({
       deadlines,
       summary: {
         total: deadlines.length,
@@ -68,10 +44,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     });
   } catch (error) {
     log.logError('Error fetching deadlines', error);
-
-    return NextResponse.json(
-      { error: 'Internal Server Error', message: 'Failed to fetch deadlines' },
-      { status: 500 }
-    );
+    return errorResponse('Failed to fetch deadlines', 500);
   }
-}
+});

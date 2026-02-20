@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { analyzeDocumentCompleteness } from '@/lib/ai/document-completeness';
-import { calculateSuccessScore } from '@/lib/scoring/success-probability';
+import { calculateSuccessScore } from '@/lib/ai/success-probability';
 
 /**
  * Chat context types.

@@ -3,9 +3,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { mockUser, resetMocks } from '@/__mocks__/supabase';
 
 // Mock CSRF module
-vi.mock('@/lib/csrf', () => ({
-  validateCsrf: vi.fn().mockReturnValue({ valid: true }),
-}));
+vi.mock('@/lib/security', async (importOriginal) => {
+  const actual = await importOriginal<Record<string, unknown>>();
+  return {
+    ...actual,
+    validateCsrf: vi.fn().mockReturnValue({ valid: true }),
+  };
+});
 
 // Mock Supabase SSR
 const mockSupabaseClient = {
@@ -28,7 +32,7 @@ vi.mock('@supabase/ssr', () => ({
 
 import { proxy, config } from './proxy';
 import { updateSession } from '@/lib/supabase/middleware';
-import { validateCsrf } from '@/lib/csrf';
+import { validateCsrf } from '@/lib/security';
 import { createServerClient } from '@supabase/ssr';
 
 function createMockRequest(

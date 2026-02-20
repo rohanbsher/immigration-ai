@@ -2,6 +2,7 @@
 
 import { cn } from '@/lib/utils';
 import { useChat } from '@/hooks/use-chat';
+import { logger } from '@/lib/logger';
 import { ChatMessage as ChatMessageComponent, TypingIndicator } from './chat-message';
 import { AIBadge, AIConsentModal } from '@/components/ai';
 import { useAiConsent } from '@/hooks/use-ai-consent';
@@ -430,7 +431,7 @@ function formatRelativeTime(timestamp: string): string {
 
     return date.toLocaleDateString();
   } catch (error) {
-    console.warn('Failed to format relative date:', error);
+    logger.warn('Failed to format relative date', { error });
     return '';
   }
 }

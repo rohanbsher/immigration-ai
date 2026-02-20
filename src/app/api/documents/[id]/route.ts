@@ -80,6 +80,17 @@ export async function GET(
       return NextResponse.json({ error: 'Document not found' }, { status: 404 });
     }
 
+    // Block download/preview for documents with degraded scan status.
+    // These documents were uploaded when the virus scanner was unavailable
+    // and should not be accessible until a full scan completes.
+    if (accessResult.document?.scan_status === 'degraded') {
+      log.warn('Download blocked for scan-degraded document', { documentId: id, userId: user.id });
+      return NextResponse.json(
+        { error: 'This document is pending security scan and cannot be downloaded yet.' },
+        { status: 403 }
+      );
+    }
+
     // Log document access for compliance audit trail
     await auditService.logAccess('documents', id, {
       ip_address: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || undefined,

@@ -1,6 +1,6 @@
 # Immigration AI - Features
 
-> Last updated: 2026-02-16 (Feature inventory update)
+> Last updated: 2026-02-19 (Runtime hardening, AbortSignal polyfill, worker shutdown hooks)
 
 ## Shipped Features
 
@@ -49,13 +49,13 @@
 | SEO | Sitemap, robots.txt, Open Graph metadata | `src/app/sitemap.ts`, `src/app/robots.ts` | 2026-02-06 |
 | Session Expiry Warning | 5-min countdown + extend option | `src/components/session/session-expiry-warning.tsx` | 2026-02-06 |
 | Forgot Password | Password reset flow | `src/app/(auth)/forgot-password/` | 2026-01 |
-| Case Success Scoring | Probability scoring for case approval | `src/lib/scoring/success-probability.ts` | 2026-02 |
+| Case Success Scoring | Probability scoring for case approval | `src/lib/ai/success-probability.ts` | 2026-02 |
 | Processing Time Estimates | USCIS processing time estimates per form type | `src/lib/deadline/processing-times.ts` | 2026-02 |
 | Natural Language Search | AI-powered semantic search across cases | `src/lib/ai/natural-search.ts` | 2026-02 |
 | Document Completeness | AI analysis of case document sufficiency | `src/lib/ai/document-completeness.ts` | 2026-02 |
-| Document State Machine | Status transition logic for document workflow | `src/lib/documents/state-machine.ts` | 2026-02 |
+| Document State Machine | Status transition logic for document workflow | `src/lib/db/document-state-machine.ts` | 2026-02 |
 | Background Cleanup Jobs | Scheduled cleanup of stale data | `src/lib/jobs/cleanup.ts` | 2026-02 |
-| CSRF Protection | Cross-site request forgery prevention | `src/lib/csrf/index.ts` | 2026-02 |
+| CSRF Protection | Cross-site request forgery prevention | `src/lib/security/csrf.ts` | 2026-02 |
 | XFA PDF Filler | Railway microservice for official USCIS PDF filling | `services/pdf-service/main.py`, `src/lib/pdf/xfa-filler.ts` | 2026-02 |
 | Case Recommendations | AI-powered next-step recommendations for cases | `src/app/api/cases/[id]/recommendations/route.ts` | 2026-02 |
 | Case Completeness API | Document completeness check endpoint | `src/app/api/cases/[id]/completeness/route.ts` | 2026-02 |
@@ -64,6 +64,9 @@
 | Form Attorney Review | Attorney review workflow for AI-filled forms | `src/app/api/forms/[id]/review/route.ts` | 2026-02 |
 | USCIS Field Mappings | AcroForm field maps for 7 USCIS forms (141 fields total) | `src/lib/pdf/uscis-fields/` | 2026-02 |
 | Timing-Safe Comparisons | Constant-time secret comparison utility | `src/lib/security/timing-safe.ts` | 2026-02 |
+| AbortSignal Polyfill | `mergeAbortSignals()` for browsers without `AbortSignal.any()` | `src/lib/api/fetch-with-timeout.ts` | 2026-02-19 |
+| Worker Shutdown Hooks | SIGTERM/SIGINT handlers for clean Redis disconnect | `src/lib/jobs/queues.ts` | 2026-02-19 |
+| Utility Bill Extraction | AI extraction prompt for utility bills | `src/lib/ai/document-analysis.ts` | 2026-02-19 |
 
 ## Planned
 
@@ -79,9 +82,11 @@ _No features currently planned. All 50+ features shipped._
 
 ---
 
-## Verified Quality (2026-02-16)
+## Verified Quality (2026-02-19)
 
-- Tests: 2,182+ passing
+- Tests: 2,289+ passing
+- Branch coverage: 70.42%
+- CI: All 6 jobs green (test, security, secrets-scan, build, build-worker, e2e)
 
 ### Bug Fixes Verified
 - updateMessage metadata: Atomic JSONB merge (PROVEN)

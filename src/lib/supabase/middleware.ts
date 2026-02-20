@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
-import { validateCsrf } from '@/lib/csrf';
+import { createHmac } from 'crypto';
+import { validateCsrf } from '@/lib/security';
 import { createLogger } from '@/lib/logger';
 
 const log = createLogger('middleware');
@@ -8,6 +9,59 @@ const log = createLogger('middleware');
 /** Idle timeout: 30 minutes of inactivity triggers logout for security. */
 const IDLE_TIMEOUT_MS = 30 * 60 * 1000;
 const IDLE_COOKIE_NAME = 'last_activity';
+
+/**
+ * HMAC-sign a timestamp to prevent client-side cookie tampering.
+ * Uses ENCRYPTION_KEY as the HMAC secret.
+ */
+function signTimestamp(timestamp: string): string {
+  const secret = process.env.ENCRYPTION_KEY;
+  if (!secret) {
+    // In development without ENCRYPTION_KEY, fall back to unsigned
+    return timestamp;
+  }
+  const signature = createHmac('sha256', secret).update(timestamp).digest('hex');
+  return `${timestamp}.${signature}`;
+}
+
+/**
+ * Verify and extract the timestamp from an HMAC-signed cookie value.
+ * Returns the timestamp if valid, or null if tampered/invalid.
+ */
+function verifyTimestamp(cookieValue: string): string | null {
+  const secret = process.env.ENCRYPTION_KEY;
+  if (!secret) {
+    // In development without ENCRYPTION_KEY, accept unsigned values
+    return cookieValue;
+  }
+
+  const dotIndex = cookieValue.indexOf('.');
+  if (dotIndex === -1) {
+    // No signature -- likely a pre-upgrade cookie or tampered value
+    return null;
+  }
+
+  const timestamp = cookieValue.substring(0, dotIndex);
+  const providedSignature = cookieValue.substring(dotIndex + 1);
+
+  const expectedSignature = createHmac('sha256', secret).update(timestamp).digest('hex');
+
+  // Timing-safe comparison to prevent timing attacks
+  if (providedSignature.length !== expectedSignature.length) {
+    return null;
+  }
+
+  let mismatch = 0;
+  for (let i = 0; i < expectedSignature.length; i++) {
+    mismatch |= providedSignature.charCodeAt(i) ^ expectedSignature.charCodeAt(i);
+  }
+
+  if (mismatch !== 0) {
+    return null;
+  }
+
+  return timestamp;
+}
 
 /** Max request body size: 5 MB for API routes (document uploads use storage directly). */
 const MAX_BODY_SIZE = 5 * 1024 * 1024;
@@ -105,14 +159,22 @@ export async function updateSession(request: NextRequest) {
   // Idle timeout: check if the user has been inactive too long.
   // For authenticated users on protected routes, enforce a 30-minute idle timeout.
   if (user) {
-    const lastActivity = request.cookies.get(IDLE_COOKIE_NAME)?.value;
+    const rawCookieValue = request.cookies.get(IDLE_COOKIE_NAME)?.value;
     const now = Date.now();
 
-    if (lastActivity) {
-      const lastActivityTime = parseInt(lastActivity, 10);
-      if (!isNaN(lastActivityTime) && (now - lastActivityTime) > IDLE_TIMEOUT_MS) {
-        // Session has been idle too long — sign out and redirect to login
-        log.info('Session idle timeout exceeded', { requestId, userId: user.id });
+    if (rawCookieValue) {
+      // Verify HMAC signature before trusting the timestamp.
+      // If verification fails, treat as expired (force re-auth).
+      const verifiedTimestamp = verifyTimestamp(rawCookieValue);
+
+      if (!verifiedTimestamp) {
+        log.warn('Idle timeout cookie signature verification failed', { requestId, userId: user.id });
+      }
+
+      const lastActivityTime = verifiedTimestamp ? parseInt(verifiedTimestamp, 10) : NaN;
+      if (!verifiedTimestamp || (!isNaN(lastActivityTime) && (now - lastActivityTime) > IDLE_TIMEOUT_MS)) {
+        // Session has been idle too long or cookie was tampered — sign out and redirect
+        log.info('Session idle timeout exceeded', { requestId, userId: user.id, tampered: !verifiedTimestamp });
         try {
           await supabase.auth.signOut();
         } catch (signOutError) {
@@ -142,8 +204,9 @@ export async function updateSession(request: NextRequest) {
       }
     }
 
-    // Update last activity timestamp
-    supabaseResponse.cookies.set(IDLE_COOKIE_NAME, now.toString(), {
+    // Update last activity timestamp with HMAC signature
+    const signedValue = signTimestamp(now.toString());
+    supabaseResponse.cookies.set(IDLE_COOKIE_NAME, signedValue, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',

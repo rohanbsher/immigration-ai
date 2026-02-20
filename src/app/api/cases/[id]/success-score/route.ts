@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { calculateSuccessScore } from '@/lib/scoring/success-probability';
+import { calculateSuccessScore } from '@/lib/ai/success-probability';
 import { createRateLimiter, RATE_LIMITS } from '@/lib/rate-limit';
 import { createLogger } from '@/lib/logger';
 import { requireAiConsent } from '@/lib/auth/api-helpers';
 import { features } from '@/lib/config';
 import { enqueueSuccessScore } from '@/lib/jobs/queues';
-import { enforceQuota, trackUsage, QuotaExceededError } from '@/lib/billing/quota';
+import { enforceQuota, trackUsage } from '@/lib/billing/quota';
+import { handleQuotaError } from '@/lib/billing/quota-error';
 
 const log = createLogger('api:success-score');
 
@@ -99,12 +100,8 @@ export async function GET(
       try {
         await enforceQuota(user.id, 'ai_requests');
       } catch (error) {
-        if (error instanceof QuotaExceededError) {
-          return NextResponse.json(
-            { error: 'AI request limit reached. Please upgrade your plan.', code: 'QUOTA_EXCEEDED' },
-            { status: 402 }
-          );
-        }
+        const qr = handleQuotaError(error, 'ai_requests');
+        if (qr) return qr;
         throw error;
       }
 

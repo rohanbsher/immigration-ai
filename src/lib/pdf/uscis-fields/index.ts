@@ -14,6 +14,8 @@ import { I765_ACRO_FIELDS } from './i-765';
 import { I131_ACRO_FIELDS } from './i-131';
 import { N400_ACRO_FIELDS } from './n-400';
 import { I140_ACRO_FIELDS } from './i-140';
+import { I129_ACRO_FIELDS } from './i-129';
+import { I539_ACRO_FIELDS } from './i-539';
 
 export { G1145_ACRO_FIELDS } from './g-1145';
 export { I130_ACRO_FIELDS } from './i-130';
@@ -22,6 +24,8 @@ export { I765_ACRO_FIELDS } from './i-765';
 export { I131_ACRO_FIELDS } from './i-131';
 export { N400_ACRO_FIELDS } from './n-400';
 export { I140_ACRO_FIELDS } from './i-140';
+export { I129_ACRO_FIELDS } from './i-129';
+export { I539_ACRO_FIELDS } from './i-539';
 
 const FIELD_MAP_REGISTRY: Partial<Record<FormType, AcroFormFieldMap[]>> = {
   'G-1145': G1145_ACRO_FIELDS,
@@ -31,6 +35,8 @@ const FIELD_MAP_REGISTRY: Partial<Record<FormType, AcroFormFieldMap[]>> = {
   'I-131': I131_ACRO_FIELDS,
   'N-400': N400_ACRO_FIELDS,
   'I-140': I140_ACRO_FIELDS,
+  'I-129': I129_ACRO_FIELDS,
+  'I-539': I539_ACRO_FIELDS,
 };
 
 /**

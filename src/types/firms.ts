@@ -115,13 +115,6 @@ export const FIRM_ROLE_LABELS: Record<FirmRole, string> = {
   staff: 'Staff',
 };
 
-export const FIRM_ROLE_PERMISSIONS: Record<FirmRole, string[]> = {
-  owner: ['*'],
-  admin: ['manage_members', 'manage_cases', 'manage_settings', 'view_billing'],
-  attorney: ['manage_cases', 'view_cases', 'upload_documents'],
-  staff: ['view_assigned_cases', 'upload_documents'],
-};
-
 export function canManageMembers(role: FirmRole): boolean {
   return role === 'owner' || role === 'admin';
 }

@@ -8,6 +8,7 @@ import { Loader2, Check, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { fetchWithTimeout } from '@/lib/api/fetch-with-timeout';
+import { logger } from '@/lib/logger';
 
 interface Preferences {
   email_case_updates: boolean;
@@ -91,7 +92,7 @@ export function NotificationPreferences() {
           }
         }
       } catch (error) {
-        console.error('Failed to load notification preferences:', error);
+        logger.error('Failed to load notification preferences', { error });
         setError('Failed to load notification preferences');
       } finally {
         setIsLoading(false);
@@ -118,7 +119,7 @@ export function NotificationPreferences() {
 
       toast.success('Notification preference updated');
     } catch (error) {
-      console.error('Failed to update notification preference:', error);
+      logger.error('Failed to update notification preference', { error });
       setPreferences((prev) => ({ ...prev, [key]: previousValue }));
       toast.error('Failed to update notification preference');
     }

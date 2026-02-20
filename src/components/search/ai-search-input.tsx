@@ -3,6 +3,7 @@
 import { cn } from '@/lib/utils';
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useNaturalSearch } from '@/hooks/use-natural-search';
+import { logger } from '@/lib/logger';
 import { AILoading } from '@/components/ai';
 import {
   Search,
@@ -42,7 +43,7 @@ export function AISearchInput({
       const parsed = JSON.parse(stored);
       return Array.isArray(parsed) ? parsed.slice(0, 5) : [];
     } catch (error) {
-      console.warn('Failed to parse recent searches from localStorage:', error);
+      logger.warn('Failed to parse recent searches from localStorage', { error });
       return [];
     }
   });

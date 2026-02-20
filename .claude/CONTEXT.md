@@ -1,6 +1,6 @@
 # Immigration AI - Current Project State
 
-> Last updated: 2026-02-19 by Context Sync
+> Last updated: 2026-02-19 21:00 by Session Sync
 
 ## Project Overview
 
@@ -18,8 +18,8 @@ AI-powered immigration case management platform for attorneys. Built with Next.j
 | Architecture | A | Well-organized, proper separation, unified RBAC |
 | Security | A- | 0 critical, 0 high, 3 medium findings |
 | Reliability | 88/100 | Strong error handling, Upstash Redis in production |
-| Testing | 86%+ | 2,182+ unit tests, 86 E2E tests passing in CI |
-| Infrastructure | 90/100 | Deployed to Vercel, all core services configured |
+| Testing | 86%+ | 2,444 unit tests, 86 E2E tests passing in CI |
+| Infrastructure | 93/100 | Vercel + Railway worker + Railway PDF service, all deployed |
 
 ## What's Working (Verified 2026-02-05)
 
@@ -30,7 +30,7 @@ AI-powered immigration case management platform for attorneys. Built with Next.j
 - Case management with 16 visa types and 10 status stages
 - Document vault with drag-drop upload, magic bytes validation, virus scanning
 - AI document analysis (GPT-4 Vision OCR) with confidence scoring
-- AI form autofill (Claude) with cross-document consistency checking
+- AI form autofill (Claude) with cross-document consistency checking + two-pass citations
 - AI chat with SSE streaming, tool use, and conversation history
 - Stripe billing integration (Free/Pro/Enterprise) with quota enforcement
 - Multi-tenancy with firm management and team invitations
@@ -104,17 +104,21 @@ AI-powered immigration case management platform for attorneys. Built with Next.j
 
 ### Test & Build Status (2026-02-19)
 ```
-Tests:  2,289+ passed | 4 skipped | 0 failures (unit)
+Tests:  2,542 passed | 4 skipped | 0 failures (96 test files)
         86 passed | 67 skipped | 0 failures (E2E in CI)
 Build:  Passes (69 routes, no TypeScript errors)
 Lint:   0 errors | 0 warnings
 Console: 0 statements in production code
+Coverage: 86%+ statements, 70.42% branches (up from 68.82%)
+CI:     ALL 6 JOBS GREEN (test, security, secrets-scan, build, build-worker, e2e)
 Production: Deployed, homepage 200, health OK, auth guards working
 Backend Worker: All 4 phases complete (merged to main)
+PDF Fields: 697 AcroForm field mappings across 9 USCIS forms
 ```
 
-### Test Coverage Gaps (as of 2026-02-16)
-- **Overall coverage:** 86%+ statements (up from 82.96%)
+### Test Coverage (as of 2026-02-19)
+- **Overall coverage:** 86%+ statements, 70.42% branches (up from 68.82%)
+- **Branch coverage improved by:** New tests for rate-limit, redis, and stripe subscriptions
 - **API routes:** Significant expansion — many previously untested routes now covered
 - **Frontend components:** Still ~1% coverage (94 components largely untested)
 - **Hooks:** 7.4% (25/27 hooks untested)
@@ -319,12 +323,17 @@ Hybrid architecture: 65+ CRUD routes stay in Next.js, 11 long-running operations
 - Round 2: 6 fixes (config validation, worker shutdown, health endpoint)
 - Round 3: 8 fixes (stale jobId dedup, quota enforcement, SSRF validation, audit logging, single-queue lookup, sanitizeResult whitelist, migration squash)
 
-### Deployment (PENDING)
-Worker code is ready. Deploy to Railway when ready to go live:
-1. Deploy worker to Railway (root dir = monorepo root)
-2. Set Railway env vars (REDIS_URL, Supabase, AI keys)
-3. Apply migrations #054-055 to production Supabase
-4. Set `WORKER_ENABLED=true` on Vercel
+### Deployment (COMPLETE — 2026-02-19)
+Worker deployed to Railway and verified end-to-end.
+
+### Runtime Hardening (2026-02-19)
+- Worker zod downgraded to v3 (openai@4.x peer dep conflict fixed)
+- SIGTERM/SIGINT shutdown hooks added to queue instances (clean Redis disconnect)
+- AbortSignal.any() polyfill for older browsers (mergeAbortSignals())
+- Structured output system type narrowed (prevents silent prompt caching breakage)
+- Chat route variable scoping fixed (title accessible after validation)
+- useMemo hook ordering fixed (Rules of Hooks compliance)
+- CI build-worker job fixed (root dependency installation for shared source resolution)
 
 ---
 
@@ -336,10 +345,12 @@ Worker code is ready. Deploy to Railway when ready to go live:
 - **Plan-and-Fix Round (2026-02-09):** 8 source files fixed (JSON parsing, assertions, error leaks, type guards)
 - **E2E Tests Stabilized:** networkidle overhead eliminated, timeouts tuned, CI-passing
 
-### WS-PDF: PDF Filling Deployment
-- XFA PDF filling engine built and working locally
-- Railway PDF microservice added
-- Needs production deployment and integration testing
+### WS-PDF: PDF Generation (MOSTLY COMPLETE)
+- XFA PDF filling engine built and deployed to Railway (9 templates)
+- 697 AcroForm field mappings across 9 forms (G-1145, I-130, I-131, I-140, I-485, I-765, N-400, I-129, I-539)
+- PDF download button + iframe preview in form detail UI
+- 196 tests across 4 test files
+- Remaining: USCIS formatting polish (PDF-4), DRAFT watermark removal (PDF-5), I-20 + DS-160 field maps (PDF-9c)
 
 ### WS-AI-MAPPING: AI Coverage Expansion
 - 2/18 document types still missing extraction prompts

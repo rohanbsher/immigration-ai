@@ -85,3 +85,12 @@ export {
   DOCUMENT_ANALYSIS_SYSTEM_PROMPT,
   FORM_AUTOFILL_SYSTEM_PROMPT,
 } from './prompts';
+
+// Success probability scoring
+export {
+  calculateSuccessScore,
+  getSuccessScoreColor,
+  getSuccessScoreLabel,
+  type SuccessScore,
+  type ScoringFactor,
+} from './success-probability';

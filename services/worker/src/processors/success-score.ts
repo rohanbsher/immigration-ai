@@ -7,7 +7,7 @@
 
 import { Job } from 'bullmq';
 import type { SuccessScoreJob } from '@/lib/jobs/types';
-import { calculateSuccessScore } from '@/lib/scoring/success-probability';
+import { calculateSuccessScore } from '@/lib/ai/success-probability';
 import { getWorkerSupabase } from '../supabase';
 import { trackUsage } from '../track-usage';
 

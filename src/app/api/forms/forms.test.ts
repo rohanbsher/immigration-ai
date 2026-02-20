@@ -776,7 +776,7 @@ describe('Forms API Routes', () => {
       expect(response.status).toBe(200);
       expect(data.status).toBe('approved');
       expect(data.review_notes).toBe('Looks good');
-      expect(formsService.reviewForm).toHaveBeenCalledWith(mockFormId, 'Looks good');
+      expect(formsService.reviewForm).toHaveBeenCalledWith(mockFormId, 'Looks good', mockAttorneyId);
     });
 
     it('should review form with empty notes', async () => {

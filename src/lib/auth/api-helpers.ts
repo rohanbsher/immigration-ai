@@ -40,6 +40,7 @@ export interface Profile {
   last_name: string | null;
   phone: string | null;
   mfa_enabled: boolean;
+  primary_firm_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -82,6 +83,7 @@ export interface CaseAccessResult {
     id: string;
     attorney_id: string;
     client_id: string;
+    firm_id: string | null;
   };
   access: ResourceAccess;
 }
@@ -97,6 +99,7 @@ export interface DocumentAccessResult {
     id: string;
     attorney_id: string;
     client_id: string;
+    firm_id: string | null;
   };
   access: ResourceAccess;
 }
@@ -111,6 +114,7 @@ export interface FormAccessResult {
     id: string;
     attorney_id: string;
     client_id: string;
+    firm_id: string | null;
   };
   access: ResourceAccess;
 }
@@ -335,6 +339,65 @@ export async function requireAiConsent(userId: string): Promise<NextResponse | n
 // =============================================================================
 
 /**
+ * Resolve the user's firm_id from their profile or firm_members fallback.
+ * Returns null if no firm association exists.
+ */
+async function resolveUserFirmId(userId: string): Promise<string | null> {
+  const { profile } = await getProfileAsAdmin(userId);
+  if (profile?.primary_firm_id) {
+    return profile.primary_firm_id;
+  }
+
+  // Fallback: check firm_members table
+  const supabase = await createClient();
+  const { data: membership } = await supabase
+    .from('firm_members')
+    .select('firm_id')
+    .eq('user_id', userId)
+    .limit(1)
+    .single();
+
+  return (membership as { firm_id: string } | null)?.firm_id ?? null;
+}
+
+/**
+ * Defense-in-depth: verify the case's firm_id matches the user's firm.
+ * This is a SOFT check: if either side is null (legacy data), access is
+ * allowed with a warning log. Only applies to attorney/admin roles.
+ */
+function checkFirmIdMatch(
+  caseFirmId: string | null,
+  userFirmId: string | null,
+  userId: string,
+  resourceType: string,
+  resourceId: string
+): boolean {
+  if (!caseFirmId || !userFirmId) {
+    log.warn('firm_id check skipped — null value (legacy data)', {
+      userId,
+      resourceType,
+      resourceId,
+      caseFirmId,
+      userFirmId,
+    });
+    return true; // Allow access for legacy data
+  }
+
+  if (caseFirmId !== userFirmId) {
+    log.warn('firm_id mismatch detected — blocking access', {
+      userId,
+      resourceType,
+      resourceId,
+      caseFirmId,
+      userFirmId,
+    });
+    return false;
+  }
+
+  return true;
+}
+
+/**
  * Verify user has access to a case.
  * Returns access flags indicating what operations are permitted.
  */
@@ -346,7 +409,7 @@ export async function verifyCaseAccess(
 
   const { data: caseData, error } = await supabase
     .from('cases')
-    .select('id, attorney_id, client_id')
+    .select('id, attorney_id, client_id, firm_id')
     .eq('id', caseId)
     .is('deleted_at', null)
     .single();
@@ -360,6 +423,15 @@ export async function verifyCaseAccess(
 
   if (!isAttorney && !isClient) {
     return { success: false, error: 'Access denied', status: 403 };
+  }
+
+  // Defense-in-depth: firm_id check for attorney/admin roles only.
+  // Client role accesses their own case; firm_id is not applicable.
+  if (isAttorney) {
+    const userFirmId = await resolveUserFirmId(userId);
+    if (!checkFirmIdMatch(caseData.firm_id, userFirmId, userId, 'case', caseId)) {
+      return { success: false, error: 'Access denied', status: 403 };
+    }
   }
 
   return {
@@ -400,7 +472,7 @@ export async function verifyDocumentAccess(
   // Get case to verify access
   const { data: caseData, error: caseError } = await supabase
     .from('cases')
-    .select('id, attorney_id, client_id')
+    .select('id, attorney_id, client_id, firm_id')
     .eq('id', document.case_id)
     .is('deleted_at', null)
     .single();
@@ -415,6 +487,14 @@ export async function verifyDocumentAccess(
 
   if (!isAttorney && !isClient) {
     return { success: false, error: 'Access denied', status: 403 };
+  }
+
+  // Defense-in-depth: firm_id check for attorney/admin roles only
+  if (isAttorney) {
+    const userFirmId = await resolveUserFirmId(userId);
+    if (!checkFirmIdMatch(caseData.firm_id, userFirmId, userId, 'document', documentId)) {
+      return { success: false, error: 'Access denied', status: 403 };
+    }
   }
 
   return {
@@ -456,7 +536,7 @@ export async function verifyFormAccess(
   // Get case to verify access
   const { data: caseData, error: caseError } = await supabase
     .from('cases')
-    .select('id, attorney_id, client_id')
+    .select('id, attorney_id, client_id, firm_id')
     .eq('id', form.case_id)
     .is('deleted_at', null)
     .single();
@@ -470,6 +550,14 @@ export async function verifyFormAccess(
 
   if (!isAttorney && !isClient) {
     return { success: false, error: 'Access denied', status: 403 };
+  }
+
+  // Defense-in-depth: firm_id check for attorney/admin roles only
+  if (isAttorney) {
+    const userFirmId = await resolveUserFirmId(userId);
+    if (!checkFirmIdMatch(caseData.firm_id, userFirmId, userId, 'form', formId)) {
+      return { success: false, error: 'Access denied', status: 403 };
+    }
   }
 
   return {

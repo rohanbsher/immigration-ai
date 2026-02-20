@@ -1,16 +1,24 @@
-import { NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
 import { notificationsService } from '@/lib/db';
-import { withAuth } from '@/lib/api';
+import { withAuth, successResponse, errorResponse } from '@/lib/auth/api-helpers';
+import { createLogger } from '@/lib/logger';
 
-export const GET = withAuth(async (request: NextRequest, _context, auth) => {
-  const { searchParams } = new URL(request.url);
-  const unreadOnly = searchParams.get('unread') === 'true';
-  const limit = Math.min(parseInt(searchParams.get('limit') || '50', 10) || 50, 100);
+const log = createLogger('api:notifications');
 
-  const notifications = await notificationsService.getNotifications(auth.user.id, {
-    unreadOnly,
-    limit,
-  });
+export const GET = withAuth(async (request, _context, auth) => {
+  try {
+    const { searchParams } = new URL(request.url);
+    const unreadOnly = searchParams.get('unread') === 'true';
+    const limit = Math.min(parseInt(searchParams.get('limit') || '50', 10) || 50, 100);
 
-  return { data: notifications };
+    const notifications = await notificationsService.getNotifications(auth.user.id, {
+      unreadOnly,
+      limit,
+    });
+
+    return successResponse(notifications);
+  } catch (error) {
+    log.logError('Failed to fetch notifications', error);
+    return errorResponse('Failed to fetch notifications', 500);
+  }
 });

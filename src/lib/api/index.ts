@@ -1,35 +1,23 @@
 /**
  * API utilities for route handlers.
  *
+ * IMPORTANT: For auth wrappers (withAuth, withAttorneyAuth, withAdminAuth),
+ * always import from '@/lib/auth/api-helpers' -- the canonical source.
+ * This barrel exports only non-auth utilities like apiHandler.
+ *
  * @example
  * ```typescript
- * import { apiHandler, withAuth, withAttorneyAuth } from '@/lib/api';
+ * import { apiHandler } from '@/lib/api';
  *
- * // Simple handler with automatic error handling
+ * // Simple unauthenticated handler with automatic error handling
  * export const GET = apiHandler(async (request) => {
  *   const data = await fetchData();
  *   return { data };
  * });
- *
- * // With authentication
- * export const POST = withAuth(async (request, context, auth) => {
- *   return { data: { userId: auth.user.id } };
- * });
- *
- * // With attorney role requirement
- * export const DELETE = withAttorneyAuth(async (request, context, auth) => {
- *   return { data: { deleted: true } };
- * });
  * ```
  */
 
-export {
-  apiHandler,
-  withAuth,
-  withAttorneyAuth,
-  withAdminAuth,
-  withAttorneyOrAdminAuth,
-} from './handler';
+export { apiHandler } from './handler';
 
 export type {
   RouteContext,

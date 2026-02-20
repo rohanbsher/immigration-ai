@@ -438,7 +438,11 @@ describe('Cases API Routes', () => {
 
       expect(response.status).toBe(201);
       expect(data.success).toBe(true);
-      expect(mockCasesService.createCase).toHaveBeenCalledWith(validCaseData);
+      expect(mockCasesService.createCase).toHaveBeenCalledWith(
+        validCaseData,
+        ATTORNEY_ID,
+        undefined
+      );
     });
 
     it('should return 401 for unauthenticated user', async () => {

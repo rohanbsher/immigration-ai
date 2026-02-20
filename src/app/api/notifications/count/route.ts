@@ -1,34 +1,16 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { withAuth, successResponse, errorResponse } from '@/lib/auth/api-helpers';
 import { notificationsService } from '@/lib/db';
-import { createClient } from '@/lib/supabase/server';
-import { standardRateLimiter } from '@/lib/rate-limit';
 import { createLogger } from '@/lib/logger';
 
 const log = createLogger('api:notifications-count');
 
-export async function GET(request: NextRequest) {
+export const GET = withAuth(async (_request, _context, auth) => {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const count = await notificationsService.getUnreadCount(auth.user.id);
 
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Rate limit check
-    const rateLimitResult = await standardRateLimiter.limit(request, user.id);
-    if (!rateLimitResult.allowed) {
-      return rateLimitResult.response;
-    }
-
-    const count = await notificationsService.getUnreadCount(user.id);
-
-    return NextResponse.json({ count });
+    return successResponse({ count });
   } catch (error) {
     log.logError('Error fetching notification count', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch notification count' },
-      { status: 500 }
-    );
+    return errorResponse('Failed to fetch notification count', 500);
   }
-}
+});

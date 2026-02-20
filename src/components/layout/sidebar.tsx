@@ -32,6 +32,7 @@ import {
 import { useMemo, useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { toast } from 'sonner';
+import { logger } from '@/lib/logger';
 import { getNavItemsForRole, MAIN_NAV_ITEMS, BOTTOM_NAV_ITEMS } from '@/lib/rbac';
 import { FirmSwitcher } from '@/components/firm/firm-switcher';
 import { NAV_SHORTCUT_HINTS } from '@/hooks/use-keyboard-shortcuts';
@@ -164,7 +165,7 @@ export function Sidebar({ user }: SidebarProps) {
       await signOut();
       toast.success('Logged out successfully');
     } catch (error) {
-      console.error('Sign out failed:', error);
+      logger.error('Sign out failed', { error });
       toast.error('Failed to log out');
     }
   };

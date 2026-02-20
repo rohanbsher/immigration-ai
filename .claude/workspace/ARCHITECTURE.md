@@ -34,6 +34,9 @@ supabase/
 | PDF Generation | `/src/lib/pdf/` | USCIS form PDF export |
 | RBAC | `/src/lib/rbac/` | Role-based access control |
 | Sentry | `/src/lib/sentry/` | Error tracking |
+| Job Queues | `/src/lib/jobs/` | BullMQ queues with shutdown hooks |
+| Fetch Timeout | `/src/lib/api/fetch-with-timeout.ts` | Request timeouts + AbortSignal polyfill |
+| Circuit Breaker | `/src/lib/ai/circuit-breaker.ts` | AI provider failure isolation |
 
 ### Database Tables
 - `profiles` - User profiles

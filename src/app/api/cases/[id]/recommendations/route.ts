@@ -15,7 +15,8 @@ import {
 import { createRateLimiter, RATE_LIMITS } from '@/lib/rate-limit';
 import { withAIFallback } from '@/lib/ai/utils';
 import { createLogger } from '@/lib/logger';
-import { enforceQuota, trackUsage, QuotaExceededError } from '@/lib/billing/quota';
+import { enforceQuota, trackUsage } from '@/lib/billing/quota';
+import { handleQuotaError } from '@/lib/billing/quota-error';
 import { requireAiConsent, safeParseBody } from '@/lib/auth/api-helpers';
 import { features } from '@/lib/config';
 import { enqueueRecommendations } from '@/lib/jobs/queues';
@@ -287,12 +288,8 @@ export async function GET(
       try {
         await enforceQuota(user.id, 'ai_requests');
       } catch (error) {
-        if (error instanceof QuotaExceededError) {
-          return NextResponse.json(
-            { error: 'AI request limit reached. Please upgrade your plan.', code: 'QUOTA_EXCEEDED' },
-            { status: 402 }
-          );
-        }
+        const qr = handleQuotaError(error, 'ai_requests');
+        if (qr) return qr;
         throw error;
       }
 
@@ -323,12 +320,8 @@ export async function GET(
     try {
       await enforceQuota(user.id, 'ai_requests');
     } catch (error) {
-      if (error instanceof QuotaExceededError) {
-        return NextResponse.json(
-          { error: 'AI request limit reached. Please upgrade your plan.', code: 'QUOTA_EXCEEDED' },
-          { status: 402 }
-        );
-      }
+      const qr = handleQuotaError(error, 'ai_requests');
+      if (qr) return qr;
       throw error;
     }
 

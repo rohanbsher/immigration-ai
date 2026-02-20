@@ -6,7 +6,7 @@ import {
   withCsrfProtection,
   generateCsrfToken,
   CSRF_COOKIE_CONFIG,
-} from './index';
+} from './csrf';
 
 function createMockRequest(
   method: string,

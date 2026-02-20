@@ -146,6 +146,64 @@ describe('XFA Filler Engine', () => {
       expect(flat.address_history_0_city).toBe('Boston');
       expect(flat).not.toHaveProperty('address_history_0_apt');
     });
+
+    test('flattens education_history array', () => {
+      const data = {
+        education_history: [
+          { school: 'MIT', degree: 'MS Computer Science', year: '2020' },
+          { school: 'Stanford', degree: 'BS Math', year: '2018' },
+        ],
+      };
+      const flat = flattenRepeatingFields(data);
+      expect(flat.education_history_0_school).toBe('MIT');
+      expect(flat.education_history_0_degree).toBe('MS Computer Science');
+      expect(flat.education_history_1_school).toBe('Stanford');
+      expect(flat.education_history_1_year).toBe('2018');
+    });
+
+    test('preserves non-array data alongside flattened arrays', () => {
+      const data = {
+        name: 'John',
+        email: 'john@example.com',
+        address_history: [
+          { street: '123 Main St', city: 'Boston' },
+        ],
+        employment_history: [
+          { employer_name: 'Acme Corp' },
+        ],
+      };
+      const flat = flattenRepeatingFields(data);
+      expect(flat.name).toBe('John');
+      expect(flat.email).toBe('john@example.com');
+      expect(flat.address_history_0_street).toBe('123 Main St');
+      expect(flat.employment_history_0_employer_name).toBe('Acme Corp');
+    });
+
+    test('handles non-array values for known array keys gracefully', () => {
+      const data = {
+        address_history: 'not an array',
+        name: 'John',
+      };
+      const flat = flattenRepeatingFields(data);
+      expect(flat.name).toBe('John');
+      // Non-array should be skipped without error
+      expect(flat.address_history).toBe('not an array');
+    });
+
+    test('handles multiple entries in same array', () => {
+      const data = {
+        address_history: [
+          { street: 'First St', city: 'A' },
+          { street: 'Second St', city: 'B' },
+          { street: 'Third St', city: 'C' },
+        ],
+      };
+      const flat = flattenRepeatingFields(data);
+      expect(flat.address_history_0_street).toBe('First St');
+      expect(flat.address_history_1_street).toBe('Second St');
+      expect(flat.address_history_2_street).toBe('Third St');
+      expect(flat.address_history_2_city).toBe('C');
+    });
   });
 
   // -----------------------------------------------------------------------
@@ -241,6 +299,166 @@ describe('XFA Filler Engine', () => {
   });
 
   // -----------------------------------------------------------------------
+  // buildFieldData — I-129 specific field mapping
+  // -----------------------------------------------------------------------
+  describe('buildFieldData — I-129 field maps', () => {
+    test('maps I-129 petitioner and beneficiary data correctly', async () => {
+      const { getUSCISFieldMap } = await import('./uscis-fields/index');
+      const i129Fields = getUSCISFieldMap('I-129' as import('@/types').FormType)!;
+
+      const sampleI129Data = {
+        petitioner: {
+          companyName: 'Acme Technologies Inc',
+          ein: '12-3456789',
+          ssn: '111223333',
+          address: {
+            street: '100 Tech Blvd',
+            apt: 'Suite 500',
+            city: 'San Jose',
+            state: 'CA',
+            zipCode: '95134',
+          },
+          numEmployees: 250,
+          phone: '4085551234',
+          email: 'hr@acme.com',
+        },
+        classification: 'H-1B',
+        beneficiary: {
+          lastName: 'Kumar',
+          firstName: 'Raj',
+          middleName: 'Singh',
+          dateOfBirth: '1992-03-20',
+          countryOfBirth: 'India',
+          nationality: 'India',
+          alienNumber: '123456789',
+          passportNumber: 'P1234567',
+        },
+        job: {
+          title: 'Software Engineer',
+          socCode: '15-1256',
+          description: 'Full stack development',
+          offeredWage: 150000,
+          prevailingWage: 130000,
+        },
+        requestedStartDate: '2026-04-01',
+      };
+
+      const { fieldData, skippedFields } = buildFieldData(i129Fields, sampleI129Data);
+
+      // Petitioner fields
+      expect(fieldData['form1.Pt1Line1_CompanyName']).toBe('ACME TECHNOLOGIES INC');
+      expect(fieldData['form1.Pt1Line2_TaxNumber']).toBe('12-3456789');
+      expect(fieldData['form1.Pt1Line3_SSN']).toBe('111-22-3333');
+      expect(fieldData['form1.Pt1Line4_CityOrTown']).toBe('SAN JOSE');
+      expect(fieldData['form1.Pt7Line1_DaytimePhoneNumber']).toBe('(408) 555-1234');
+      expect(fieldData['form1.Pt7Line3_Email']).toBe('hr@acme.com'); // custom formatter preserves case
+
+      // Beneficiary fields
+      expect(fieldData['form1.Pt3Line1a_FamilyName']).toBe('KUMAR');
+      expect(fieldData['form1.Pt3Line1b_GivenName']).toBe('RAJ');
+      expect(fieldData['form1.Pt3Line2_DateOfBirth']).toBe('03/20/1992');
+      expect(fieldData['form1.Pt3Line5_AlienNumber']).toBe('A-123456789');
+
+      // Classification checkbox — H-1B should be "1" in fieldData
+      expect(fieldData['form1.Pt2Line1_H1B']).toBe('1');
+      // Non-matching checkboxes return '' from format, which buildFieldData
+      // treats as "empty" and moves to skippedFields
+      expect(fieldData['form1.Pt2Line1_L1A']).toBeUndefined();
+      expect(skippedFields).toContain('form1.Pt2Line1_L1A');
+      expect(fieldData['form1.Pt2Line1_O1A']).toBeUndefined();
+      expect(skippedFields).toContain('form1.Pt2Line1_O1A');
+
+      // Job fields
+      expect(fieldData['form1.Pt5Line1_JobTitle']).toBe('SOFTWARE ENGINEER');
+
+      // Dates
+      expect(fieldData['form1.Pt5Line8_StartDate']).toBe('04/01/2026');
+
+      // Skipped fields should include fields with no data
+      expect(skippedFields.length).toBeGreaterThan(0);
+      expect(skippedFields).toContain('form1.Pt5Line9_EndDate'); // no requestedEndDate
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // buildFieldData — I-539 specific field mapping
+  // -----------------------------------------------------------------------
+  describe('buildFieldData — I-539 field maps', () => {
+    test('maps I-539 applicant data correctly', async () => {
+      const { getUSCISFieldMap } = await import('./uscis-fields/index');
+      const i539Fields = getUSCISFieldMap('I-539' as import('@/types').FormType)!;
+
+      const sampleI539Data = {
+        applicant: {
+          lastName: 'Chen',
+          firstName: 'Wei',
+          middleName: 'Li',
+          alienNumber: '987654321',
+          ssn: '999887777',
+          dateOfBirth: '1988-11-05',
+          countryOfBirth: 'China',
+          nationality: 'China',
+          phone: '2125559876',
+          email: 'wei.chen@email.com',
+          passportNumber: 'E12345678',
+          passportCountry: 'China',
+          passportExpiry: '2030-06-15',
+        },
+        mailingAddress: {
+          street: '456 Park Ave',
+          city: 'New York',
+          state: 'NY',
+          zipCode: '10022',
+        },
+        applicationType: 'extend',
+        currentStatus: 'H-4',
+        requestedStatus: 'H-4',
+        statusExpires: '2026-06-30',
+        requestedStayFrom: '2026-07-01',
+        requestedStayUntil: '2029-06-30',
+      };
+
+      const { fieldData, skippedFields } = buildFieldData(i539Fields, sampleI539Data);
+
+      // Applicant identity
+      expect(fieldData['form1.Pt1Line4a_FamilyName']).toBe('CHEN');
+      expect(fieldData['form1.Pt1Line4b_GivenName']).toBe('WEI');
+      expect(fieldData['form1.Pt1Line1_AlienNumber']).toBe('A-987654321');
+      expect(fieldData['form1.Pt1Line3_SSN']).toBe('999-88-7777');
+      expect(fieldData['form1.Pt1Line5_DateOfBirth']).toBe('11/05/1988');
+
+      // Address
+      expect(fieldData['form1.Pt1Line8_StreetNumberName']).toBe('456 PARK AVE');
+      expect(fieldData['form1.Pt1Line8_CityOrTown']).toBe('NEW YORK');
+
+      // Application type checkboxes — 'extend' matches, 'change' does not
+      expect(fieldData['form1.Pt2Line1_Extend']).toBe('1');
+      // Non-matching checkbox returns '' from format, so it goes to skippedFields
+      expect(fieldData['form1.Pt2Line1_Change']).toBeUndefined();
+      expect(skippedFields).toContain('form1.Pt2Line1_Change');
+
+      // Status
+      expect(fieldData['form1.Pt2Line2_CurrentStatus']).toBe('H-4');
+      expect(fieldData['form1.Pt2Line3_RequestedStatus']).toBe('H-4');
+      expect(fieldData['form1.Pt2Line4_StatusExpires']).toBe('06/30/2026');
+
+      // Stay dates
+      expect(fieldData['form1.Pt2Line5_RequestedStayFrom']).toBe('07/01/2026');
+      expect(fieldData['form1.Pt2Line6_RequestedStayUntil']).toBe('06/30/2029');
+
+      // Phone and email
+      expect(fieldData['form1.Pt5Line1_DaytimePhoneNumber']).toBe('(212) 555-9876');
+      expect(fieldData['form1.Pt5Line3_Email']).toBe('wei.chen@email.com');
+
+      // Passport
+      expect(fieldData['form1.Pt3Line7_PassportExpiry']).toBe('06/15/2030');
+
+      // Skipped fields
+      expect(skippedFields.length).toBeGreaterThan(0);
+    });
+  });
+
+  // -----------------------------------------------------------------------
   // deriveFormType — edge case tests
   // -----------------------------------------------------------------------
   describe('deriveFormType', () => {
@@ -271,6 +489,18 @@ describe('XFA Filler Engine', () => {
 
     test('handles path with no directory', () => {
       expect(deriveFormType('i-131.pdf')).toBe('I-131');
+    });
+
+    test('derives I-129 from standard path without warning', () => {
+      expect(deriveFormType('/path/to/templates/i-129.pdf')).toBe('I-129');
+    });
+
+    test('derives I-539 from standard path without warning', () => {
+      expect(deriveFormType('/path/to/templates/i-539.pdf')).toBe('I-539');
+    });
+
+    test('derives I-140 from standard path', () => {
+      expect(deriveFormType('/path/to/templates/i-140.pdf')).toBe('I-140');
     });
   });
 

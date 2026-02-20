@@ -80,3 +80,11 @@ export type {
   MessageStatus,
   GetConversationsOptions,
 } from './conversations';
+
+export {
+  isValidTransition,
+  getValidNextStates,
+  assertValidTransition,
+  isTerminalState,
+  TERMINAL_STATES,
+} from './document-state-machine';

@@ -156,14 +156,12 @@ class FormsService extends BaseService {
     }, 'updateForm', { formId: id });
   }
 
-  async reviewForm(id: string, notes: string): Promise<Form> {
+  async reviewForm(id: string, notes: string, userId?: string): Promise<Form> {
     return this.withErrorHandling(async () => {
       const supabase = await this.getSupabaseClient();
 
-      const { data: { user } } = await supabase.auth.getUser();
-
-      if (!user) {
-        throw new Error('Unauthorized');
+      if (!userId) {
+        throw new Error('userId is required');
       }
 
       // CAS guard: only allow review from valid pre-approval states
@@ -172,7 +170,7 @@ class FormsService extends BaseService {
         .update({
           status: 'approved',
           review_notes: notes,
-          reviewed_by: user.id,
+          reviewed_by: userId,
           reviewed_at: new Date().toISOString(),
         })
         .eq('id', id)

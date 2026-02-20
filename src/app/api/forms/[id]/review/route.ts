@@ -58,7 +58,7 @@ export async function POST(
     const body = parsed.data;
     const { notes } = reviewSchema.parse(body);
 
-    const reviewedForm = await formsService.reviewForm(id, notes);
+    const reviewedForm = await formsService.reviewForm(id, notes, user.id);
 
     return NextResponse.json(reviewedForm);
   } catch (error) {

@@ -58,18 +58,11 @@ class ProfilesService extends BaseService {
     }, 'getProfile', { userId });
   }
 
-  async getCurrentProfile(): Promise<Profile | null> {
-    return this.withErrorHandling(async () => {
-      const supabase = await this.getSupabaseClient();
-
-      const { data: { user } } = await supabase.auth.getUser();
-
-      if (!user) {
-        return null;
-      }
-
-      return this.getProfile(user.id);
-    }, 'getCurrentProfile');
+  async getCurrentProfile(userId?: string): Promise<Profile | null> {
+    if (!userId) {
+      return null;
+    }
+    return this.getProfile(userId);
   }
 
   async updateProfile(userId: string, data: UpdateProfileData): Promise<Profile | null> {

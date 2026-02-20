@@ -86,7 +86,7 @@ export function buildFieldData(
 }
 
 /** Known USCIS form types the PDF service supports. */
-const KNOWN_FORM_TYPES = ['I-130', 'I-485', 'I-765', 'I-131', 'I-140', 'N-400', 'G-1145'] as const;
+const KNOWN_FORM_TYPES = ['I-130', 'I-485', 'I-765', 'I-131', 'I-140', 'I-129', 'I-539', 'N-400', 'G-1145'] as const;
 
 /**
  * Derive the USCIS form type identifier (e.g. "I-130") from a template

@@ -3,7 +3,7 @@
  * Provides detailed metrics and health status for rate limiting infrastructure.
  */
 
-import { getRedisClient } from '@/lib/redis';
+import { getRedisClient } from './redis';
 import { features } from '@/lib/config';
 
 export interface RedisHealthMetrics {

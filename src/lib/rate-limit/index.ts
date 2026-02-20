@@ -18,7 +18,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Ratelimit } from '@upstash/ratelimit';
 import { createLogger } from '@/lib/logger';
 import { features } from '@/lib/config';
-import { getRedisClient } from '@/lib/redis';
+import { getRedisClient } from './redis';
 import { getClientIp } from '@/lib/utils/get-client-ip';
 
 const log = createLogger('rate-limit');

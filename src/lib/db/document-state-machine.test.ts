@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isValidTransition, getValidNextStates, assertValidTransition, isTerminalState, TERMINAL_STATES } from './state-machine';
+import { isValidTransition, getValidNextStates, assertValidTransition, isTerminalState, TERMINAL_STATES } from './document-state-machine';
 
 describe('Document State Machine', () => {
   describe('isValidTransition', () => {

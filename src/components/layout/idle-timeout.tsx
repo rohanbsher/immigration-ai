@@ -3,6 +3,7 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
+import { logger } from '@/lib/logger';
 
 const IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 const WARNING_BEFORE_MS = 2 * 60 * 1000; // Show warning 2 minutes before logout
@@ -32,7 +33,7 @@ export function IdleTimeoutProvider({ children }: { children: React.ReactNode })
       await supabase.auth.signOut();
       router.push('/login?reason=idle');
     } catch (error) {
-      console.error('Idle logout failed:', error);
+      logger.error('Idle logout failed', { error });
       // Reset guard so the next interval tick retries logout
       logoutTriggeredRef.current = false;
     }

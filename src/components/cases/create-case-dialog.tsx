@@ -20,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Loader2, X } from 'lucide-react';
+import { AlertCircle, Loader2, X } from 'lucide-react';
 import { FieldHelp } from '@/components/workflow/contextual-help';
 import { useCreateCase } from '@/hooks/use-cases';
 import { useSearchClients } from '@/hooks/use-clients';
@@ -61,6 +61,7 @@ export function CreateCaseDialog({ open, onOpenChange }: CreateCaseDialogProps) 
   const { mutate: createCase, isPending } = useCreateCase();
   const { data: caseQuota } = useQuota('cases');
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     title: '',
     client_id: '',
@@ -118,6 +119,7 @@ export function CreateCaseDialog({ open, onOpenChange }: CreateCaseDialogProps) 
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setFormError(null);
 
     if (isAtLimit) {
       setShowUpgradeDialog(true);
@@ -125,7 +127,7 @@ export function CreateCaseDialog({ open, onOpenChange }: CreateCaseDialogProps) 
     }
 
     if (!formData.title || !formData.client_id || !formData.visa_type) {
-      toast.error('Please fill in all required fields');
+      setFormError('Please fill in all required fields');
       return;
     }
 
@@ -147,7 +149,7 @@ export function CreateCaseDialog({ open, onOpenChange }: CreateCaseDialogProps) 
           if (error.message?.includes('quota') || error.message?.includes('limit')) {
             setShowUpgradeDialog(true);
           } else {
-            toast.error(error.message || 'Failed to create case');
+            setFormError(error.message || 'Failed to create case. Please try again.');
           }
         },
       }
@@ -340,6 +342,13 @@ export function CreateCaseDialog({ open, onOpenChange }: CreateCaseDialogProps) 
               disabled={isPending}
             />
           </div>
+
+          {formError && (
+            <div className="flex items-start gap-2 rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>{formError}</span>
+            </div>
+          )}
 
           <div className="flex justify-end gap-3 pt-4">
             <Button

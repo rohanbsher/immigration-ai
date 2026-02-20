@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
+  AlertCircle,
   ArrowLeft,
   ArrowRight,
   Check,
@@ -48,6 +49,7 @@ export default function NewCasePage() {
   const { data: caseQuota, isLoading: isQuotaLoading } = useQuota('cases');
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
 
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [step, setStep] = useState<Step>('client');
   const [clientSearch, setClientSearch] = useState('');
   const { data: searchResults, isLoading: isSearching } = useSearchClients(clientSearch);
@@ -112,13 +114,15 @@ export default function NewCasePage() {
   };
 
   const handleSubmit = async () => {
+    setSubmitError(null);
+
     if (isAtLimit) {
       setShowUpgradeDialog(true);
       return;
     }
 
     if (!formData.visa_type || !formData.title) {
-      toast.error('Please complete all required fields');
+      setSubmitError('Please complete all required fields');
       return;
     }
 
@@ -126,7 +130,7 @@ export default function NewCasePage() {
 
     if (formData.is_new_client && !clientId) {
       if (!formData.client_email || !formData.client_first_name || !formData.client_last_name) {
-        toast.error('Please provide client name and email');
+        setSubmitError('Please provide client name and email');
         return;
       }
 
@@ -138,13 +142,13 @@ export default function NewCasePage() {
         });
         clientId = newClient.id;
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : 'Failed to create client');
+        setSubmitError(error instanceof Error ? error.message : 'Failed to create client');
         return;
       }
     }
 
     if (!clientId) {
-      toast.error('Please select or create a client');
+      setSubmitError('Please select or create a client');
       return;
     }
 
@@ -164,7 +168,7 @@ export default function NewCasePage() {
           router.push(`/dashboard/cases/${data.id}`);
         },
         onError: (error) => {
-          toast.error(error.message || 'Failed to create case');
+          setSubmitError(error.message || 'Failed to create case. Please try again.');
         },
       }
     );
@@ -278,6 +282,14 @@ export default function NewCasePage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Error Banner */}
+      {submitError && step === 'review' && (
+        <div className="flex items-start gap-2 rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>{submitError}</span>
+        </div>
+      )}
 
       {/* Navigation */}
       <div className="flex justify-between">

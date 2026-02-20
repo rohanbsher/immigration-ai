@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ArrowLeft, Save, Loader2 } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Save, Loader2 } from 'lucide-react';
 import { useCreateClient } from '@/hooks/use-clients';
 import { useRoleGuard } from '@/hooks/use-role-guard';
 import { toast } from 'sonner';
@@ -18,6 +18,7 @@ export default function NewClientPage() {
     requiredRoles: ['attorney', 'admin'],
   });
 
+  const [formError, setFormError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     email: '',
     first_name: '',
@@ -30,9 +31,10 @@ export default function NewClientPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setFormError(null);
 
     if (!formData.email || !formData.first_name || !formData.last_name) {
-      toast.error('Please fill in all required fields');
+      setFormError('Please fill in all required fields');
       return;
     }
 
@@ -53,7 +55,7 @@ export default function NewClientPage() {
         router.push(`/dashboard/clients/${client.id}`);
       },
       onError: (error) => {
-        toast.error(error.message || 'Failed to create client');
+        setFormError(error.message || 'Failed to create client. Please try again.');
       },
     });
   };
@@ -169,6 +171,14 @@ export default function NewClientPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Error Banner */}
+        {formError && (
+          <div className="mb-6 flex items-start gap-2 rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>{formError}</span>
+          </div>
+        )}
 
         {/* Actions */}
         <div className="flex justify-end gap-3">

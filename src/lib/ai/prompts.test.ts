@@ -2,7 +2,17 @@ import { describe, it, expect } from 'vitest';
 import {
   getExtractionPrompt,
   getAutofillPrompt,
+  DOCUMENT_ANALYSIS_SYSTEM_PROMPT,
   GENERIC_DOCUMENT_EXTRACTION_PROMPT,
+  PASSPORT_EXTRACTION_PROMPT,
+  BIRTH_CERTIFICATE_EXTRACTION_PROMPT,
+  MARRIAGE_CERTIFICATE_EXTRACTION_PROMPT,
+  EMPLOYMENT_LETTER_EXTRACTION_PROMPT,
+  BANK_STATEMENT_EXTRACTION_PROMPT,
+  TAX_RETURN_EXTRACTION_PROMPT,
+  MEDICAL_EXAM_EXTRACTION_PROMPT,
+  POLICE_CLEARANCE_EXTRACTION_PROMPT,
+  DIVORCE_CERTIFICATE_EXTRACTION_PROMPT,
   I94_EXTRACTION_PROMPT,
   W2_EXTRACTION_PROMPT,
   PAY_STUB_EXTRACTION_PROMPT,
@@ -10,6 +20,7 @@ import {
   TRANSCRIPT_EXTRACTION_PROMPT,
   RECOMMENDATION_LETTER_EXTRACTION_PROMPT,
   PHOTO_VALIDATION_PROMPT,
+  UTILITY_BILL_EXTRACTION_PROMPT,
   FORM_AUTOFILL_SYSTEM_PROMPT,
   I129_AUTOFILL_PROMPT,
   I130_AUTOFILL_PROMPT,
@@ -48,7 +59,7 @@ describe('Extraction Prompts', () => {
     );
   });
 
-  describe('7 new extraction prompts are correctly registered', () => {
+  describe('8 new extraction prompts are correctly registered', () => {
     it('getExtractionPrompt("i94") returns I94_EXTRACTION_PROMPT', () => {
       expect(getExtractionPrompt('i94')).toBe(I94_EXTRACTION_PROMPT);
       expect(getExtractionPrompt('i94')).not.toBe(GENERIC_DOCUMENT_EXTRACTION_PROMPT);
@@ -83,19 +94,24 @@ describe('Extraction Prompts', () => {
       expect(getExtractionPrompt('photo')).toBe(PHOTO_VALIDATION_PROMPT);
       expect(getExtractionPrompt('photo')).not.toBe(GENERIC_DOCUMENT_EXTRACTION_PROMPT);
     });
+
+    it('getExtractionPrompt("utility_bill") returns UTILITY_BILL_EXTRACTION_PROMPT', () => {
+      expect(getExtractionPrompt('utility_bill')).toBe(UTILITY_BILL_EXTRACTION_PROMPT);
+      expect(getExtractionPrompt('utility_bill')).not.toBe(GENERIC_DOCUMENT_EXTRACTION_PROMPT);
+    });
   });
 
   describe('total extraction prompt count', () => {
-    it('has exactly 16 registered extraction prompts (9 original + 7 new)', () => {
+    it('has exactly 17 registered extraction prompts (9 original + 8 new)', () => {
       const allDocTypes = [
         'passport', 'birth_certificate', 'marriage_certificate',
         'employment_letter', 'bank_statement', 'tax_return',
         'medical_exam', 'police_clearance', 'divorce_certificate',
         'i94', 'w2', 'pay_stub', 'diploma', 'transcript',
-        'recommendation_letter', 'photo',
+        'recommendation_letter', 'photo', 'utility_bill',
       ];
 
-      expect(allDocTypes).toHaveLength(16);
+      expect(allDocTypes).toHaveLength(17);
 
       for (const docType of allDocTypes) {
         const prompt = getExtractionPrompt(docType);
@@ -199,6 +215,7 @@ describe('Autofill Prompts', () => {
       expect(TRANSCRIPT_EXTRACTION_PROMPT).toContain('transcript');
       expect(RECOMMENDATION_LETTER_EXTRACTION_PROMPT).toContain('recommendation');
       expect(PHOTO_VALIDATION_PROMPT).toContain('photograph');
+      expect(UTILITY_BILL_EXTRACTION_PROMPT).toContain('utility bill');
     });
 
     it('each autofill prompt mentions its form type', () => {
@@ -207,6 +224,122 @@ describe('Autofill Prompts', () => {
       expect(I20_AUTOFILL_PROMPT).toContain('I-20');
       expect(DS160_AUTOFILL_PROMPT).toContain('DS-160');
       expect(G1145_AUTOFILL_PROMPT).toContain('G-1145');
+    });
+  });
+
+  describe('extraction prompts include required field names', () => {
+    it('passport prompt includes key fields', () => {
+      const prompt = getExtractionPrompt('passport');
+      expect(prompt).toContain('full_name');
+      expect(prompt).toContain('passport_number');
+      expect(prompt).toContain('expiry_date');
+      expect(prompt).toContain('date_of_birth');
+      expect(prompt).toContain('nationality');
+    });
+
+    it('birth_certificate prompt includes key fields', () => {
+      const prompt = getExtractionPrompt('birth_certificate');
+      expect(prompt).toContain('full_name');
+      expect(prompt).toContain('date_of_birth');
+      expect(prompt).toContain('father_name');
+      expect(prompt).toContain('mother_name');
+    });
+
+    it('marriage_certificate prompt includes key fields', () => {
+      const prompt = getExtractionPrompt('marriage_certificate');
+      expect(prompt).toContain('spouse_1_name');
+      expect(prompt).toContain('spouse_2_name');
+      expect(prompt).toContain('date_of_marriage');
+    });
+
+    it('employment_letter prompt includes key fields', () => {
+      const prompt = getExtractionPrompt('employment_letter');
+      expect(prompt).toContain('employee_name');
+      expect(prompt).toContain('employer_name');
+      expect(prompt).toContain('job_title');
+      expect(prompt).toContain('salary');
+    });
+
+    it('bank_statement prompt includes key fields', () => {
+      const prompt = getExtractionPrompt('bank_statement');
+      expect(prompt).toContain('account_holder');
+      expect(prompt).toContain('bank_name');
+      expect(prompt).toContain('ending_balance');
+    });
+
+    it('tax_return prompt includes key fields', () => {
+      const prompt = getExtractionPrompt('tax_return');
+      expect(prompt).toContain('taxpayer_name');
+      expect(prompt).toContain('total_income');
+      expect(prompt).toContain('tax_year');
+    });
+
+    it('w2 prompt includes key fields', () => {
+      const prompt = getExtractionPrompt('w2');
+      expect(prompt).toContain('employee_name');
+      expect(prompt).toContain('employer_name');
+      expect(prompt).toContain('wages_tips');
+    });
+
+    it('utility_bill prompt includes key fields', () => {
+      const prompt = getExtractionPrompt('utility_bill');
+      expect(prompt).toContain('account_holder_name');
+      expect(prompt).toContain('service_address_street');
+      expect(prompt).toContain('bill_date');
+    });
+  });
+
+  describe('all extraction prompts request structured output', () => {
+    const allDocTypes = [
+      'passport', 'birth_certificate', 'marriage_certificate',
+      'employment_letter', 'bank_statement', 'tax_return',
+      'medical_exam', 'police_clearance', 'divorce_certificate',
+      'i94', 'w2', 'pay_stub', 'diploma', 'transcript',
+      'recommendation_letter', 'photo', 'utility_bill',
+    ];
+
+    it.each(allDocTypes)('"%s" prompt contains confidence score instruction', (docType) => {
+      const prompt = getExtractionPrompt(docType);
+      expect(prompt).toContain('confidence');
+    });
+
+    it.each(allDocTypes)('"%s" prompt contains JSON response structure', (docType) => {
+      const prompt = getExtractionPrompt(docType);
+      expect(prompt).toContain('document_type');
+    });
+  });
+
+  describe('system prompts', () => {
+    it('DOCUMENT_ANALYSIS_SYSTEM_PROMPT contains key instructions', () => {
+      expect(DOCUMENT_ANALYSIS_SYSTEM_PROMPT).toContain('immigration');
+      expect(DOCUMENT_ANALYSIS_SYSTEM_PROMPT).toContain('confidence');
+      expect(DOCUMENT_ANALYSIS_SYSTEM_PROMPT).toContain('tool');
+    });
+
+    it('FORM_AUTOFILL_SYSTEM_PROMPT lists common form types', () => {
+      expect(FORM_AUTOFILL_SYSTEM_PROMPT).toContain('I-130');
+      expect(FORM_AUTOFILL_SYSTEM_PROMPT).toContain('I-485');
+      expect(FORM_AUTOFILL_SYSTEM_PROMPT).toContain('N-400');
+      expect(FORM_AUTOFILL_SYSTEM_PROMPT).toContain('USCIS');
+    });
+  });
+
+  describe('autofill prompts request structured JSON output', () => {
+    const allFormTypes = [
+      'I-129', 'I-130', 'I-131', 'I-140', 'I-485',
+      'I-539', 'I-765', 'I-20', 'DS-160', 'N-400', 'G-1145',
+    ];
+
+    it.each(allFormTypes)('"%s" prompt requests JSON with form_type', (formType) => {
+      const prompt = getAutofillPrompt(formType);
+      expect(prompt).toContain('form_type');
+      expect(prompt).toContain('fields');
+      expect(prompt).toContain('confidence');
+    });
+
+    it.each(allFormTypes)('"%s" prompt includes missing_documents field', (formType) => {
+      const prompt = getAutofillPrompt(formType);
+      expect(prompt).toContain('missing_documents');
     });
   });
 });

@@ -1038,5 +1038,424 @@ describe('Auth API Validation Edge Cases', () => {
 
       expect(response.status).toBe(200);
     });
+
+    it('should return 400 for password missing uppercase letter', async () => {
+      const request = createMockRequest({
+        url: 'http://localhost:3000/api/auth/register',
+        body: {
+          email: 'test@example.com',
+          password: 'lowercase1!',
+          firstName: 'John',
+          lastName: 'Doe',
+          role: 'client',
+        },
+      });
+
+      const response = await registerHandler(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.error).toContain('uppercase');
+    });
+
+    it('should return 400 for password missing lowercase letter', async () => {
+      const request = createMockRequest({
+        url: 'http://localhost:3000/api/auth/register',
+        body: {
+          email: 'test@example.com',
+          password: 'UPPERCASE1!',
+          firstName: 'John',
+          lastName: 'Doe',
+          role: 'client',
+        },
+      });
+
+      const response = await registerHandler(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.error).toContain('lowercase');
+    });
+
+    it('should return 400 for password missing number', async () => {
+      const request = createMockRequest({
+        url: 'http://localhost:3000/api/auth/register',
+        body: {
+          email: 'test@example.com',
+          password: 'NoNumbers!@',
+          firstName: 'John',
+          lastName: 'Doe',
+          role: 'client',
+        },
+      });
+
+      const response = await registerHandler(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.error).toContain('number');
+    });
+
+    it('should return 400 for password missing special character', async () => {
+      const request = createMockRequest({
+        url: 'http://localhost:3000/api/auth/register',
+        body: {
+          email: 'test@example.com',
+          password: 'NoSpecial1A',
+          firstName: 'John',
+          lastName: 'Doe',
+          role: 'client',
+        },
+      });
+
+      const response = await registerHandler(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.error).toContain('special');
+    });
+
+    it('should handle malformed JSON in register request', async () => {
+      const request = new NextRequest('http://localhost:3000/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: 'not valid json',
+      });
+
+      const response = await registerHandler(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.error).toBe('Invalid JSON in request body');
+    });
+  });
+});
+
+describe('Auth API Coverage - Login Timeout & Profile Upsert Errors', () => {
+  let mockSignInWithPassword: ReturnType<typeof vi.fn>;
+  let mockGetSession: ReturnType<typeof vi.fn>;
+  let mockFromSelect: ReturnType<typeof vi.fn>;
+  let mockUpsertSelect: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+
+    mockSignInWithPassword = vi.fn();
+    mockGetSession = vi.fn();
+    mockFromSelect = vi.fn();
+    mockUpsertSelect = vi.fn().mockResolvedValue({ data: null, error: null });
+
+    mockedCreateClient.mockResolvedValue({
+      auth: {
+        signInWithPassword: mockSignInWithPassword,
+        signUp: vi.fn(),
+        signOut: vi.fn(),
+        exchangeCodeForSession: vi.fn(),
+        getSession: mockGetSession,
+        getUser: vi.fn().mockResolvedValue({ data: { user: mockUser }, error: null }),
+      },
+      from: vi.fn(() => ({
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            single: mockFromSelect,
+          })),
+        })),
+        upsert: vi.fn(() => ({
+          select: vi.fn(() => ({
+            single: mockUpsertSelect,
+          })),
+        })),
+      })),
+    } as unknown as Awaited<ReturnType<typeof createClient>>);
+
+    mockedAuthRateLimiter.limit.mockResolvedValue({ allowed: true } as { allowed: true });
+  });
+
+  it('should return 504 when login times out', async () => {
+    // Make signInWithPassword never resolve (simulate timeout)
+    mockSignInWithPassword.mockImplementation(
+      () => new Promise((resolve) => setTimeout(resolve, 60000))
+    );
+
+    // We need to mock the timeout to be very short
+    // Since LOGIN_TIMEOUT_MS is 15s, we'll use fake timers
+    vi.useFakeTimers();
+
+    const request = createMockRequest({
+      body: {
+        email: 'test@example.com',
+        password: 'validPassword123',
+      },
+    });
+
+    const responsePromise = loginHandler(request);
+
+    // Advance timers past the timeout
+    await vi.advanceTimersByTimeAsync(16000);
+
+    const response = await responsePromise;
+    const data = await response.json();
+
+    expect(response.status).toBe(504);
+    expect(data.error).toBe('Login timed out. Please try again.');
+
+    vi.useRealTimers();
+  });
+
+  it('should handle profile upsert error during on-the-fly creation', async () => {
+    mockSignInWithPassword.mockResolvedValue({
+      data: { user: mockUser, session: mockSession },
+      error: null,
+    });
+    mockGetSession.mockResolvedValue({ data: { session: mockSession }, error: null });
+    // Profile fetch returns null (missing profile)
+    mockFromSelect.mockResolvedValue({ data: null, error: null });
+    // Upsert fails
+    mockUpsertSelect.mockResolvedValue({
+      data: null,
+      error: { message: 'Database constraint violation' },
+    });
+
+    const request = createMockRequest({
+      body: {
+        email: 'test@example.com',
+        password: 'validPassword123',
+      },
+    });
+
+    const response = await loginHandler(request);
+    const data = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(data.message).toBe('Login successful');
+    // Profile should be null when upsert fails
+    expect(data.profile).toBeNull();
+  });
+});
+
+describe('Auth API Coverage - Callback Edge Cases', () => {
+  let mockExchangeCodeForSession: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+
+    mockExchangeCodeForSession = vi.fn();
+
+    mockedCreateClient.mockResolvedValue({
+      auth: {
+        signInWithPassword: vi.fn(),
+        signUp: vi.fn(),
+        signOut: vi.fn(),
+        exchangeCodeForSession: mockExchangeCodeForSession,
+        getSession: vi.fn(),
+        getUser: vi.fn(),
+      },
+      from: vi.fn(),
+    } as unknown as Awaited<ReturnType<typeof createClient>>);
+  });
+
+  it('should redirect to origin in production without forwarded host', async () => {
+    const originalNodeEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
+
+    mockExchangeCodeForSession.mockResolvedValue({ error: null });
+
+    const request = createMockRequest({
+      method: 'GET',
+      url: 'http://localhost:3000/api/auth/callback?code=valid-code',
+    });
+
+    const response = await callbackHandler(request);
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get('Location')).toBe('http://localhost:3000/dashboard');
+
+    process.env.NODE_ENV = originalNodeEnv;
+  });
+
+  it('should sanitize next path with backslash characters', async () => {
+    mockExchangeCodeForSession.mockResolvedValue({ error: null });
+
+    const request = createMockRequest({
+      method: 'GET',
+      url: 'http://localhost:3000/api/auth/callback?code=valid-code&next=/dashboard\\..\\admin',
+    });
+
+    const response = await callbackHandler(request);
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get('Location')).toBe('http://localhost:3000/dashboard');
+  });
+
+  it('should sanitize next path with query string on allowed path', async () => {
+    mockExchangeCodeForSession.mockResolvedValue({ error: null });
+
+    const request = createMockRequest({
+      method: 'GET',
+      url: 'http://localhost:3000/api/auth/callback?code=valid-code&next=/dashboard?tab=settings',
+    });
+
+    const response = await callbackHandler(request);
+
+    expect(response.status).toBe(307);
+    // The path includes query string and it should be allowed
+    expect(response.headers.get('Location')).toBe('http://localhost:3000/dashboard?tab=settings');
+  });
+
+  it('should handle next path with hash fragment (stripped by URL parser)', async () => {
+    mockExchangeCodeForSession.mockResolvedValue({ error: null });
+
+    // Note: hash fragments (#security) are stripped by new URL() parsing,
+    // so the next param becomes just '/settings'
+    const request = createMockRequest({
+      method: 'GET',
+      url: 'http://localhost:3000/api/auth/callback?code=valid-code&next=/settings#security',
+    });
+
+    const response = await callbackHandler(request);
+
+    expect(response.status).toBe(307);
+    // Hash fragment is stripped before it reaches the route handler
+    expect(response.headers.get('Location')).toBe('http://localhost:3000/settings');
+  });
+
+  it('should reject next path that does not start with /', async () => {
+    mockExchangeCodeForSession.mockResolvedValue({ error: null });
+
+    const request = createMockRequest({
+      method: 'GET',
+      url: 'http://localhost:3000/api/auth/callback?code=valid-code&next=dashboard',
+    });
+
+    const response = await callbackHandler(request);
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get('Location')).toBe('http://localhost:3000/dashboard');
+  });
+
+  it('should reject next path containing :// protocol indicator', async () => {
+    mockExchangeCodeForSession.mockResolvedValue({ error: null });
+
+    const request = createMockRequest({
+      method: 'GET',
+      url: 'http://localhost:3000/api/auth/callback?code=valid-code&next=/javascript://evil',
+    });
+
+    const response = await callbackHandler(request);
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get('Location')).toBe('http://localhost:3000/dashboard');
+  });
+
+  it('should allow /reset-password as a valid redirect path', async () => {
+    mockExchangeCodeForSession.mockResolvedValue({ error: null });
+
+    const request = createMockRequest({
+      method: 'GET',
+      url: 'http://localhost:3000/api/auth/callback?code=valid-code&next=/reset-password',
+    });
+
+    const response = await callbackHandler(request);
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get('Location')).toBe('http://localhost:3000/reset-password');
+  });
+
+  it('should allow /profile as a valid redirect path', async () => {
+    mockExchangeCodeForSession.mockResolvedValue({ error: null });
+
+    const request = createMockRequest({
+      method: 'GET',
+      url: 'http://localhost:3000/api/auth/callback?code=valid-code&next=/profile',
+    });
+
+    const response = await callbackHandler(request);
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get('Location')).toBe('http://localhost:3000/profile');
+  });
+
+  it('should allow /forms as a valid redirect path', async () => {
+    mockExchangeCodeForSession.mockResolvedValue({ error: null });
+
+    const request = createMockRequest({
+      method: 'GET',
+      url: 'http://localhost:3000/api/auth/callback?code=valid-code&next=/forms',
+    });
+
+    const response = await callbackHandler(request);
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get('Location')).toBe('http://localhost:3000/forms');
+  });
+
+  it('should allow /documents with nested path', async () => {
+    mockExchangeCodeForSession.mockResolvedValue({ error: null });
+
+    const request = createMockRequest({
+      method: 'GET',
+      url: 'http://localhost:3000/api/auth/callback?code=valid-code&next=/documents/upload',
+    });
+
+    const response = await callbackHandler(request);
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get('Location')).toBe('http://localhost:3000/documents/upload');
+  });
+
+  it('should default to /dashboard when next param is missing', async () => {
+    mockExchangeCodeForSession.mockResolvedValue({ error: null });
+
+    const request = createMockRequest({
+      method: 'GET',
+      url: 'http://localhost:3000/api/auth/callback?code=valid-code',
+    });
+
+    const response = await callbackHandler(request);
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get('Location')).toBe('http://localhost:3000/dashboard');
+  });
+
+  it('should use origin redirect in development environment', async () => {
+    const originalNodeEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'development';
+
+    mockExchangeCodeForSession.mockResolvedValue({ error: null });
+
+    const request = createMockRequest({
+      method: 'GET',
+      url: 'http://localhost:3000/api/auth/callback?code=valid-code&next=/cases',
+    });
+
+    const response = await callbackHandler(request);
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get('Location')).toBe('http://localhost:3000/cases');
+
+    process.env.NODE_ENV = originalNodeEnv;
+  });
+
+  it('should use origin redirect in development even with forwarded host', async () => {
+    const originalNodeEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'development';
+
+    mockExchangeCodeForSession.mockResolvedValue({ error: null });
+
+    const request = createMockRequest({
+      method: 'GET',
+      url: 'http://localhost:3000/api/auth/callback?code=valid-code',
+      headers: {
+        'x-forwarded-host': 'app.example.com',
+      },
+    });
+
+    const response = await callbackHandler(request);
+
+    expect(response.status).toBe(307);
+    // In development, should use origin, not forwarded host
+    expect(response.headers.get('Location')).toBe('http://localhost:3000/dashboard');
+
+    process.env.NODE_ENV = originalNodeEnv;
   });
 });

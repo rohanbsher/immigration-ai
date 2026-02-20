@@ -30,11 +30,11 @@ supabase/
 |---------|----------|---------|
 | File Validation | `/src/lib/file-validation/` | Magic bytes + virus scanning |
 | Form Validation | `/src/lib/form-validation/` | AI confidence thresholds |
-| Rate Limiting | `/src/lib/rate-limit/` | Upstash Redis, fail-closed |
+| Rate Limiting | `/src/lib/rate-limit/` | Upstash Redis (HTTP REST), fail-closed |
 | PDF Generation | `/src/lib/pdf/` | USCIS form PDF export |
 | RBAC | `/src/lib/rbac/` | Role-based access control |
 | Sentry | `/src/lib/sentry/` | Error tracking |
-| Job Queues | `/src/lib/jobs/` | BullMQ queues with shutdown hooks |
+| Job Queues | `/src/lib/jobs/` | BullMQ queues via Railway Redis (TCP) |
 | Fetch Timeout | `/src/lib/api/fetch-with-timeout.ts` | Request timeouts + AbortSignal polyfill |
 | Circuit Breaker | `/src/lib/ai/circuit-breaker.ts` | AI provider failure isolation |
 
@@ -45,6 +45,22 @@ supabase/
 - `forms` - USCIS form data
 - `form_fields` - AI-extracted field values
 - `audit_logs` - Compliance audit trail
+
+---
+
+### Redis Architecture (Split)
+```
+Vercel (Next.js)
+  ├── Rate limiting  → Upstash Redis (HTTP REST, UPSTASH_REDIS_REST_URL)
+  └── Job enqueue    → Railway Redis (public TCP, REDIS_URL)
+
+Railway Worker
+  └── Job processing → Railway Redis (private TCP, REDIS_URL)
+```
+- **Railway Redis**: BullMQ queues, noeviction, AOF persistence, Redis 8.2
+- **Upstash Redis**: Rate limiting only, HTTP REST for Edge compatibility
+- See `src/lib/jobs/connection.ts` for BullMQ config
+- See `src/lib/rate-limit/redis.ts` for Upstash config
 
 ---
 

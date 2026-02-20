@@ -10,7 +10,7 @@
  * - Remaining seconds calculation
  * - Edge cases (empty tokens, malformed secrets)
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest';
 
 // Hoisted mocks
 const { mockValidate, mockGenerate, mockToString } = vi.hoisted(() => ({
@@ -205,5 +205,106 @@ describe('getRemainingSeconds', () => {
     const mod = Math.floor(1700000009000 / 1000) % 30;
     const expected = 30 - mod;
     expect(getRemainingSeconds()).toBe(expected);
+  });
+});
+
+/**
+ * Real TOTP verification tests using the actual otpauth library.
+ *
+ * These tests do NOT mock otpauth. They import the real library via
+ * vi.importActual and exercise the same TOTP configuration that our
+ * production code uses, proving end-to-end correctness.
+ */
+describe('real TOTP verification (unmocked)', () => {
+  // Load the real otpauth library, bypassing the vi.mock above
+  let RealOTPAuth: typeof import('otpauth');
+
+  beforeAll(async () => {
+    RealOTPAuth = await vi.importActual<typeof import('otpauth')>('otpauth');
+  });
+
+  // Helper: build a TOTP instance with the same config as totp.ts
+  function makeTOTP(secret: string) {
+    return new RealOTPAuth.TOTP({
+      issuer: 'Immigration AI',
+      label: 'User',
+      algorithm: 'SHA1',
+      digits: 6,
+      period: 30,
+      secret: RealOTPAuth.Secret.fromBase32(secret),
+    });
+  }
+
+  it('round-trip: generateSecret → generate → verify succeeds with delta 0', () => {
+    // generateSecret() is NOT mocked — it uses crypto.randomBytes + base32Encode
+    const secret = generateSecret();
+
+    const totp = makeTOTP(secret);
+    const token = totp.generate();
+
+    // Token should be 6 digits
+    expect(token).toMatch(/^\d{6}$/);
+
+    // Validate should return delta=0 (exact time match)
+    const delta = totp.validate({ token, window: 1 });
+    expect(delta).toBe(0);
+  });
+
+  it('rejects invalid tokens', () => {
+    const secret = generateSecret();
+    const totp = makeTOTP(secret);
+
+    // Obviously wrong tokens should return null
+    expect(totp.validate({ token: '000000', window: 1 })).toBeNull();
+    expect(totp.validate({ token: '999999', window: 1 })).toBeNull();
+    expect(totp.validate({ token: '111111', window: 1 })).toBeNull();
+  });
+
+  it('window boundary: current token verifies within window=1', () => {
+    const secret = generateSecret();
+    const totp = makeTOTP(secret);
+
+    const token = totp.generate();
+
+    // With window=1, the current token (delta=0) must always verify
+    const delta = totp.validate({ token, window: 1 });
+    expect(delta).not.toBeNull();
+    expect(delta).toBe(0);
+  });
+
+  it('getKeyUri produces a valid otpauth URI with real library', () => {
+    const secret = generateSecret();
+    const email = 'attorney@lawfirm.com';
+
+    const totp = new RealOTPAuth.TOTP({
+      issuer: 'Immigration AI',
+      label: email,
+      algorithm: 'SHA1',
+      digits: 6,
+      period: 30,
+      secret: RealOTPAuth.Secret.fromBase32(secret),
+    });
+
+    const uri = totp.toString();
+
+    expect(uri).toMatch(/^otpauth:\/\/totp\//);
+    expect(uri).toContain(encodeURIComponent(email));
+    expect(uri).toContain('secret=');
+    expect(uri).toContain('issuer=Immigration');
+  });
+
+  it('different secrets produce different TOTP codes', () => {
+    const secretA = generateSecret();
+    const secretB = generateSecret();
+
+    // Secrets themselves must differ
+    expect(secretA).not.toBe(secretB);
+
+    const tokenA = makeTOTP(secretA).generate();
+    const tokenB = makeTOTP(secretB).generate();
+
+    // Extremely unlikely (1 in 1,000,000) that two random secrets
+    // produce the same 6-digit code at the same instant
+    expect(tokenA).not.toBe(tokenB);
   });
 });

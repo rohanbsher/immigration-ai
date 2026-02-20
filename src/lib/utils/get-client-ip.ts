@@ -1,5 +1,12 @@
 import { NextRequest } from 'next/server';
 
+/** Basic check: value contains only characters valid in IPv4/IPv6 addresses. */
+const IP_CHARS = /^[\d.:a-fA-F]+$/;
+
+function isPlausibleIp(value: string): boolean {
+  return IP_CHARS.test(value);
+}
+
 /**
  * Extract the client IP address from a Next.js request.
  *
@@ -11,11 +18,14 @@ import { NextRequest } from 'next/server';
 export function getClientIp(request: NextRequest): string {
   const forwarded = request.headers.get('x-forwarded-for');
   if (forwarded) {
-    return forwarded.split(',')[0].trim();
+    const firstIp = forwarded.split(',')[0].trim();
+    if (firstIp && isPlausibleIp(firstIp)) {
+      return firstIp;
+    }
   }
 
-  const realIp = request.headers.get('x-real-ip');
-  if (realIp) {
+  const realIp = request.headers.get('x-real-ip')?.trim();
+  if (realIp && isPlausibleIp(realIp)) {
     return realIp;
   }
 

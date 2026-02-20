@@ -703,6 +703,124 @@ describe('Billing API - Quota Validation', () => {
   });
 });
 
+describe('Billing API - IDOR Protection', () => {
+  const USER_1 = { id: MOCK_USER_ID, email: MOCK_EMAIL };
+  const USER_2_ID = 'user-attacker-456';
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockRateLimitOk();
+    mockAuthenticated();
+    vi.mocked(standardRateLimiter.limit).mockResolvedValue({ allowed: true } as never);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('quota endpoint queries only the authenticated user\'s usage', async () => {
+    vi.mocked(checkQuota).mockResolvedValue({
+      allowed: true,
+      current: 5,
+      limit: 100,
+      remaining: 95,
+      isUnlimited: false,
+    } as never);
+
+    const req = createRequest('GET', `/api/billing/quota?metric=cases&userId=${USER_2_ID}`);
+    const res = await quotaGET(req);
+
+    expect(res.status).toBe(200);
+    expect(checkQuota).toHaveBeenCalledWith(USER_1.id, 'cases');
+    expect(checkQuota).not.toHaveBeenCalledWith(USER_2_ID, expect.anything());
+  });
+
+  it('subscription endpoint queries only the authenticated user\'s subscription', async () => {
+    vi.mocked(getStripeClient).mockReturnValue({} as never);
+    vi.mocked(getSubscriptionByUserId).mockResolvedValue(null as never);
+    vi.mocked(getCustomerWithSubscription).mockResolvedValue(null as never);
+    vi.mocked(getUserPlanLimits).mockResolvedValue({ planType: 'free', maxCases: 100 } as never);
+    vi.mocked(getAllPlanLimits).mockResolvedValue([] as never);
+
+    const req = createRequest('GET', `/api/billing/subscription?userId=${USER_2_ID}`);
+    const res = await subscriptionGET(req);
+
+    expect(res.status).toBe(200);
+    expect(getSubscriptionByUserId).toHaveBeenCalledWith(USER_1.id);
+    expect(getSubscriptionByUserId).not.toHaveBeenCalledWith(USER_2_ID);
+    expect(getUserPlanLimits).toHaveBeenCalledWith(USER_1.id);
+    expect(getUserPlanLimits).not.toHaveBeenCalledWith(USER_2_ID);
+    expect(getCustomerWithSubscription).toHaveBeenCalledWith(USER_1.id);
+    expect(getCustomerWithSubscription).not.toHaveBeenCalledWith(USER_2_ID);
+  });
+
+  it('checkout creates session for authenticated user only, ignoring userId in body', async () => {
+    vi.mocked(safeParseBody).mockResolvedValue({
+      success: true,
+      data: { planType: 'pro', billingPeriod: 'monthly' },
+    } as never);
+    vi.mocked(createCheckoutSession).mockResolvedValue({
+      id: 'cs_test',
+      url: 'https://checkout.stripe.com/test',
+    } as never);
+
+    const req = createRequest('POST', '/api/billing/checkout', {
+      planType: 'pro',
+      billingPeriod: 'monthly',
+      userId: USER_2_ID,
+    });
+    const res = await checkoutPOST(req);
+
+    expect(res.status).toBe(200);
+    expect(createCheckoutSession).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: USER_1.id })
+    );
+    expect(createCheckoutSession).not.toHaveBeenCalledWith(
+      expect.objectContaining({ userId: USER_2_ID })
+    );
+  });
+
+  it('cancel operates on authenticated user\'s subscription only', async () => {
+    vi.mocked(getUserSubscription).mockResolvedValue({
+      stripe_subscription_id: 'sub_user1',
+    } as never);
+    vi.mocked(cancelSubscription).mockResolvedValue({
+      status: 'canceled',
+      cancel_at_period_end: false,
+    } as never);
+
+    const req = createRequest('POST', '/api/billing/cancel', {
+      immediately: true,
+      userId: USER_2_ID,
+    });
+    const res = await cancelPOST(req);
+
+    expect(res.status).toBe(200);
+    expect(getUserSubscription).toHaveBeenCalledWith(USER_1.id);
+    expect(getUserSubscription).not.toHaveBeenCalledWith(USER_2_ID);
+  });
+
+  it('resume operates on authenticated user\'s subscription only', async () => {
+    vi.mocked(getUserSubscription).mockResolvedValue({
+      stripe_subscription_id: 'sub_user1',
+      cancel_at_period_end: true,
+    } as never);
+    vi.mocked(resumeSubscription).mockResolvedValue({
+      status: 'active',
+      cancel_at_period_end: false,
+    } as never);
+
+    const req = createRequest('POST', '/api/billing/resume', {
+      userId: USER_2_ID,
+    });
+    const res = await resumePOST(req);
+
+    expect(res.status).toBe(200);
+    expect(getUserSubscription).toHaveBeenCalledWith(USER_1.id);
+    expect(getUserSubscription).not.toHaveBeenCalledWith(USER_2_ID);
+  });
+});
+
 describe('Billing API - Cross-cutting Auth', () => {
   beforeEach(() => {
     vi.clearAllMocks();

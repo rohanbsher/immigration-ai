@@ -521,6 +521,137 @@ describe('2FA Routes - Security Edge Cases', () => {
     });
   });
 
+  // ─── IDOR Protection ─────────────────────────────────────────────────
+  describe('IDOR protection', () => {
+    const USER_1 = { id: 'user-1', email: 'user1@example.com' };
+    const USER_2_ID = 'user-2';
+
+    it('status endpoint only queries the authenticated user\'s data', async () => {
+      vi.mocked(serverAuth.getUser).mockResolvedValue(USER_1 as never);
+      vi.mocked(getTwoFactorStatus).mockResolvedValue({
+        enabled: true,
+        verified: true,
+        lastUsedAt: '2026-01-01T00:00:00Z',
+        backupCodesRemaining: 5,
+      });
+
+      const req = createRequest('GET', '/api/2fa/status');
+      const res = await statusHandler(req);
+
+      expect(res.status).toBe(200);
+      expect(getTwoFactorStatus).toHaveBeenCalledWith(USER_1.id);
+      expect(getTwoFactorStatus).not.toHaveBeenCalledWith(USER_2_ID);
+    });
+
+    it('setup endpoint scopes TOTP secret creation to authenticated user', async () => {
+      vi.mocked(serverAuth.getUser).mockResolvedValue(USER_1 as never);
+      vi.mocked(setupTwoFactor).mockResolvedValue({
+        secret: 'SECRET',
+        qrCodeDataUrl: 'data:image/png;base64,abc',
+        backupCodes: ['code1'],
+      });
+
+      const req = createRequest('POST', '/api/2fa/setup');
+      const res = await setupHandler(req);
+
+      expect(res.status).toBe(200);
+      expect(setupTwoFactor).toHaveBeenCalledWith(USER_1.id, USER_1.email);
+      expect(setupTwoFactor).not.toHaveBeenCalledWith(USER_2_ID, expect.anything());
+    });
+
+    it('verify endpoint derives user ID from session, not request body', async () => {
+      vi.mocked(serverAuth.getUser).mockResolvedValue(USER_1 as never);
+      vi.mocked(safeParseBody).mockResolvedValue({
+        success: true,
+        data: { token: '123456', isSetup: false },
+      } as never);
+      vi.mocked(verifyTwoFactorToken).mockResolvedValue(true);
+
+      const req = createRequest('POST', '/api/2fa/verify', {
+        token: '123456',
+        userId: USER_2_ID,
+      });
+      const res = await verifyHandler(req);
+
+      expect(res.status).toBe(200);
+      expect(verifyTwoFactorToken).toHaveBeenCalledWith(USER_1.id, '123456');
+      expect(verifyTwoFactorToken).not.toHaveBeenCalledWith(USER_2_ID, expect.anything());
+    });
+
+    it('verify+setup endpoint derives user ID from session, not request body', async () => {
+      vi.mocked(serverAuth.getUser).mockResolvedValue(USER_1 as never);
+      vi.mocked(safeParseBody).mockResolvedValue({
+        success: true,
+        data: { token: '654321', isSetup: true },
+      } as never);
+      vi.mocked(verifyAndEnableTwoFactor).mockResolvedValue(true);
+
+      const req = createRequest('POST', '/api/2fa/verify', {
+        token: '654321',
+        isSetup: true,
+        userId: USER_2_ID,
+      });
+      const res = await verifyHandler(req);
+
+      expect(res.status).toBe(200);
+      expect(verifyAndEnableTwoFactor).toHaveBeenCalledWith(USER_1.id, '654321');
+      expect(verifyAndEnableTwoFactor).not.toHaveBeenCalledWith(USER_2_ID, expect.anything());
+    });
+
+    it('disable endpoint scopes 2FA removal to authenticated user', async () => {
+      vi.mocked(serverAuth.getUser).mockResolvedValue(USER_1 as never);
+      vi.mocked(safeParseBody).mockResolvedValue({
+        success: true,
+        data: { token: '123456' },
+      } as never);
+      vi.mocked(disableTwoFactor).mockResolvedValue(true);
+
+      const req = createRequest('POST', '/api/2fa/disable', {
+        token: '123456',
+        userId: USER_2_ID,
+      });
+      const res = await disableHandler(req);
+
+      expect(res.status).toBe(200);
+      expect(disableTwoFactor).toHaveBeenCalledWith(USER_1.id, '123456');
+      expect(disableTwoFactor).not.toHaveBeenCalledWith(USER_2_ID, expect.anything());
+    });
+
+    it('backup-codes endpoint scopes regeneration to authenticated user', async () => {
+      vi.mocked(serverAuth.getUser).mockResolvedValue(USER_1 as never);
+      vi.mocked(safeParseBody).mockResolvedValue({
+        success: true,
+        data: { token: '123456' },
+      } as never);
+      vi.mocked(regenerateBackupCodes).mockResolvedValue(['new1', 'new2']);
+
+      const req = createRequest('POST', '/api/2fa/backup-codes', {
+        token: '123456',
+        userId: USER_2_ID,
+      });
+      const res = await backupCodesHandler(req);
+
+      expect(res.status).toBe(200);
+      expect(regenerateBackupCodes).toHaveBeenCalledWith(USER_1.id, '123456');
+      expect(regenerateBackupCodes).not.toHaveBeenCalledWith(USER_2_ID, expect.anything());
+    });
+
+    it('all 2FA operations use session user ID even when body contains a different userId', async () => {
+      vi.mocked(serverAuth.getUser).mockResolvedValue(USER_1 as never);
+
+      vi.mocked(setupTwoFactor).mockResolvedValue({
+        secret: 's',
+        qrCodeDataUrl: 'data:image/png;base64,abc',
+        backupCodes: [],
+      });
+
+      const req = createRequest('POST', '/api/2fa/setup', { userId: USER_2_ID });
+      await setupHandler(req);
+
+      expect(setupTwoFactor).toHaveBeenCalledWith(USER_1.id, USER_1.email);
+    });
+  });
+
   // ─── Cross-cutting Auth Security ──────────────────────────────────────
   describe('cross-cutting auth checks', () => {
     const routes = [

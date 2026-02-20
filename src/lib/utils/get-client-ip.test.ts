@@ -92,6 +92,68 @@ describe('getClientIp', () => {
     });
   });
 
+  describe('X-Real-IP trimming', () => {
+    it('should trim whitespace from X-Real-IP', () => {
+      const request = createRequest({ 'x-real-ip': ' 192.168.1.1 ' });
+
+      expect(getClientIp(request)).toBe('192.168.1.1');
+    });
+  });
+
+  describe('empty / whitespace X-Forwarded-For', () => {
+    it('should return "anonymous" when X-Forwarded-For is only commas', () => {
+      const request = createRequest({ 'x-forwarded-for': ',' });
+
+      expect(getClientIp(request)).toBe('anonymous');
+    });
+
+    it('should return "anonymous" when X-Forwarded-For is empty string', () => {
+      const request = createRequest({ 'x-forwarded-for': '' });
+
+      expect(getClientIp(request)).toBe('anonymous');
+    });
+
+    it('should return "anonymous" when X-Forwarded-For is only whitespace', () => {
+      const request = createRequest({ 'x-forwarded-for': '   ' });
+
+      expect(getClientIp(request)).toBe('anonymous');
+    });
+  });
+
+  describe('sanitization / non-IP values', () => {
+    it('should return "anonymous" for XSS payload in X-Forwarded-For', () => {
+      const request = createRequest({
+        'x-forwarded-for': '<script>alert(1)</script>',
+      });
+
+      expect(getClientIp(request)).toBe('anonymous');
+    });
+
+    it('should return first valid IP even if later entries are invalid', () => {
+      const request = createRequest({
+        'x-forwarded-for': '192.168.1.1, <script>',
+      });
+
+      expect(getClientIp(request)).toBe('192.168.1.1');
+    });
+
+    it('should return "anonymous" for non-IP string in X-Forwarded-For', () => {
+      const request = createRequest({
+        'x-forwarded-for': 'not-an-ip',
+      });
+
+      expect(getClientIp(request)).toBe('anonymous');
+    });
+
+    it('should return "anonymous" for non-IP string in X-Real-IP', () => {
+      const request = createRequest({
+        'x-real-ip': 'not-an-ip',
+      });
+
+      expect(getClientIp(request)).toBe('anonymous');
+    });
+  });
+
   describe('edge cases', () => {
     it('should handle X-Forwarded-For with single space-separated IP', () => {
       // Split is on comma, so a single entry with no comma returns whole string

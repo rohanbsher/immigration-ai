@@ -1,4 +1,3 @@
-import { NextResponse } from 'next/server';
 import { casesService, activitiesService } from '@/lib/db';
 import { z } from 'zod';
 import {
@@ -63,7 +62,7 @@ export const GET = withAuth(async (request, _context, auth) => {
       pagination
     );
 
-    return NextResponse.json(result);
+    return successResponse(result);
   } catch (error) {
     log.logError('Failed to fetch cases', error);
     return errorResponse('Failed to fetch cases', 500);

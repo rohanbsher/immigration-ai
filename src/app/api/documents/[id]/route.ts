@@ -1,13 +1,12 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { documentsService, casesService } from '@/lib/db';
 import { createClient } from '@/lib/supabase/server';
 import { z } from 'zod';
-import { sensitiveRateLimiter } from '@/lib/rate-limit';
 import { auditService } from '@/lib/audit';
 import { createLogger } from '@/lib/logger';
 import { SIGNED_URL_EXPIRATION } from '@/lib/storage';
 import { DOCUMENT_TYPES, DOCUMENT_STATUSES } from '@/lib/validation';
-import { safeParseBody } from '@/lib/auth/api-helpers';
+import { withAuth, successResponse, errorResponse, safeParseBody } from '@/lib/auth/api-helpers';
 
 const log = createLogger('api:documents');
 
@@ -55,207 +54,148 @@ async function getDocumentWithAccess(userId: string, documentId: string): Promis
   };
 }
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const { id } = await params;
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+export const GET = withAuth(async (request: NextRequest, context, auth) => {
+  const { id } = await context.params!;
+  const supabase = await createClient();
 
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+  const accessResult = await getDocumentWithAccess(auth.user.id, id);
 
-    // Rate limiting: 20 requests per minute (prevent document scraping)
-    const rateLimitResult = await sensitiveRateLimiter.limit(request, user.id);
-    if (!rateLimitResult.allowed) {
-      return rateLimitResult.response;
-    }
-
-    const accessResult = await getDocumentWithAccess(user.id, id);
-
-    if (!accessResult) {
-      return NextResponse.json({ error: 'Document not found' }, { status: 404 });
-    }
-
-    // Block download/preview for documents with degraded scan status.
-    // These documents were uploaded when the virus scanner was unavailable
-    // and should not be accessible until a full scan completes.
-    if (accessResult.document?.scan_status === 'degraded') {
-      log.warn('Download blocked for scan-degraded document', { documentId: id, userId: user.id });
-      return NextResponse.json(
-        { error: 'This document is pending security scan and cannot be downloaded yet.' },
-        { status: 403 }
-      );
-    }
-
-    // Log document access for compliance audit trail
-    await auditService.logAccess('documents', id, {
-      ip_address: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || undefined,
-      user_agent: request.headers.get('user-agent') || undefined,
-      additional_context: {
-        document_type: accessResult.document?.document_type,
-        case_id: accessResult.document?.case_id,
-      },
-    });
-
-    // Generate a signed URL so the client can access the file securely
-    const document = { ...accessResult.document };
-    if (document.file_url) {
-      try {
-        const { data, error: signedUrlError } = await supabase.storage
-          .from('documents')
-          .createSignedUrl(document.file_url, SIGNED_URL_EXPIRATION.PREVIEW);
-        if (!signedUrlError && data) {
-          document.file_url = data.signedUrl;
-        }
-      } catch {
-        log.warn('Failed to generate signed URL for document', { documentId: id });
-      }
-    }
-
-    return NextResponse.json(document);
-  } catch (error) {
-    log.logError('Error fetching document', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch document' },
-      { status: 500 }
-    );
+  if (!accessResult) {
+    return errorResponse('Document not found', 404);
   }
-}
 
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+  // Block download/preview for documents with degraded scan status.
+  // These documents were uploaded when the virus scanner was unavailable
+  // and should not be accessible until a full scan completes.
+  if (accessResult.document?.scan_status === 'degraded') {
+    log.warn('Download blocked for scan-degraded document', { documentId: id, userId: auth.user.id });
+    return errorResponse('This document is pending security scan and cannot be downloaded yet.', 403);
+  }
+
+  // Log document access for compliance audit trail
+  await auditService.logAccess('documents', id, {
+    ip_address: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || undefined,
+    user_agent: request.headers.get('user-agent') || undefined,
+    additional_context: {
+      document_type: accessResult.document?.document_type,
+      case_id: accessResult.document?.case_id,
+    },
+  });
+
+  // Generate a signed URL so the client can access the file securely
+  const document = { ...accessResult.document };
+  if (document.file_url) {
+    try {
+      const { data, error: signedUrlError } = await supabase.storage
+        .from('documents')
+        .createSignedUrl(document.file_url, SIGNED_URL_EXPIRATION.PREVIEW);
+      if (!signedUrlError && data) {
+        document.file_url = data.signedUrl;
+      }
+    } catch {
+      log.warn('Failed to generate signed URL for document', { documentId: id });
+    }
+  }
+
+  return successResponse(document);
+}, { rateLimit: 'SENSITIVE' });
+
+export const PATCH = withAuth(async (request: NextRequest, context, auth) => {
+  const { id } = await context.params!;
+
+  const accessResult = await getDocumentWithAccess(auth.user.id, id);
+
+  if (!accessResult) {
+    return errorResponse('Document not found', 404);
+  }
+
+  if (!accessResult.canModify) {
+    return errorResponse('Forbidden', 403);
+  }
+
+  const parsed = await safeParseBody(request);
+  if (!parsed.success) return parsed.response;
+  const body = parsed.data;
+
   try {
-    const { id } = await params;
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const accessResult = await getDocumentWithAccess(user.id, id);
-
-    if (!accessResult) {
-      return NextResponse.json({ error: 'Document not found' }, { status: 404 });
-    }
-
-    if (!accessResult.canModify) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
-    const parsed = await safeParseBody(request);
-    if (!parsed.success) return parsed.response;
-    const body = parsed.data;
     const validatedData = updateDocumentSchema.parse(body);
-
     const updatedDocument = await documentsService.updateDocument(id, validatedData as Parameters<typeof documentsService.updateDocument>[1]);
-
-    return NextResponse.json(updatedDocument);
+    return successResponse(updatedDocument);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: error.issues[0].message },
-        { status: 400 }
-      );
+      return errorResponse(error.issues[0].message, 400);
     }
-
-    log.logError('Error updating document', error);
-    return NextResponse.json(
-      { error: 'Failed to update document' },
-      { status: 500 }
-    );
+    throw error;
   }
-}
+}, { rateLimit: 'SENSITIVE' });
 
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export const DELETE = withAuth(async (request: NextRequest, context, auth) => {
+  const { id } = await context.params!;
+  const supabase = await createClient();
+
+  const accessResult = await getDocumentWithAccess(auth.user.id, id);
+
+  if (!accessResult) {
+    return errorResponse('Document not found', 404);
+  }
+
+  if (!accessResult.canDelete) {
+    return errorResponse('Forbidden', 403);
+  }
+
+  // Delete file from storage using the stored path directly
   try {
-    const { id } = await params;
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const storagePath = accessResult.document?.file_url;
+    if (storagePath) {
+      await supabase.storage.from('documents').remove([storagePath]);
     }
-
-    const accessResult = await getDocumentWithAccess(user.id, id);
-
-    if (!accessResult) {
-      return NextResponse.json({ error: 'Document not found' }, { status: 404 });
-    }
-
-    if (!accessResult.canDelete) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
-    // Delete file from storage using the stored path directly
-    try {
-      const storagePath = accessResult.document?.file_url;
-      if (storagePath) {
-        await supabase.storage.from('documents').remove([storagePath]);
-      }
-    } catch (storageError) {
-      log.logError('Error deleting file from storage', storageError);
-      // Continue with document deletion even if storage deletion fails
-    }
-
-    await documentsService.deleteDocument(id);
-
-    // Flag AI-filled forms in the same case as needing re-review.
-    // When a source document is deleted, AI-extracted data in forms may be stale.
-    try {
-      const caseId = accessResult.document?.case_id;
-      if (caseId) {
-        // Only flag forms that can transition to needs_review per the state
-        // machine. Exclude 'approved' and 'filed' — those require explicit
-        // attorney action to regress.
-        const { data: affectedForms } = await supabase
-          .from('forms')
-          .select('id, status')
-          .eq('case_id', caseId)
-          .is('deleted_at', null)
-          .in('status', ['ai_filled', 'in_review'])
-          .not('ai_filled_data', 'is', null);
-
-        if (affectedForms && affectedForms.length > 0) {
-          const formIds = affectedForms.map(f => f.id);
-          await supabase
-            .from('forms')
-            .update({
-              status: 'needs_review',
-              review_notes: `Source document deleted on ${new Date().toISOString().split('T')[0]}. Please verify AI-filled data.`,
-            })
-            .in('id', formIds);
-
-          log.info('Flagged forms for re-review after document deletion', {
-            documentId: id,
-            caseId,
-            affectedFormIds: formIds,
-          });
-        }
-      }
-    } catch (formUpdateError) {
-      // Non-critical: don't fail document deletion if form flagging fails
-      log.warn('Failed to flag forms after document deletion', {
-        documentId: id,
-        error: formUpdateError instanceof Error ? formUpdateError.message : String(formUpdateError),
-      });
-    }
-
-    return NextResponse.json({ message: 'Document deleted successfully' });
-  } catch (error) {
-    log.logError('Error deleting document', error);
-    return NextResponse.json(
-      { error: 'Failed to delete document' },
-      { status: 500 }
-    );
+  } catch (storageError) {
+    log.logError('Error deleting file from storage', storageError);
+    // Continue with document deletion even if storage deletion fails
   }
-}
+
+  await documentsService.deleteDocument(id);
+
+  // Flag AI-filled forms in the same case as needing re-review.
+  // When a source document is deleted, AI-extracted data in forms may be stale.
+  try {
+    const caseId = accessResult.document?.case_id;
+    if (caseId) {
+      // Only flag forms that can transition to needs_review per the state
+      // machine. Exclude 'approved' and 'filed' — those require explicit
+      // attorney action to regress.
+      const { data: affectedForms } = await supabase
+        .from('forms')
+        .select('id, status')
+        .eq('case_id', caseId)
+        .is('deleted_at', null)
+        .in('status', ['ai_filled', 'in_review'])
+        .not('ai_filled_data', 'is', null);
+
+      if (affectedForms && affectedForms.length > 0) {
+        const formIds = affectedForms.map(f => f.id);
+        await supabase
+          .from('forms')
+          .update({
+            status: 'needs_review',
+            review_notes: `Source document deleted on ${new Date().toISOString().split('T')[0]}. Please verify AI-filled data.`,
+          })
+          .in('id', formIds);
+
+        log.info('Flagged forms for re-review after document deletion', {
+          documentId: id,
+          caseId,
+          affectedFormIds: formIds,
+        });
+      }
+    }
+  } catch (formUpdateError) {
+    // Non-critical: don't fail document deletion if form flagging fails
+    log.warn('Failed to flag forms after document deletion', {
+      documentId: id,
+      error: formUpdateError instanceof Error ? formUpdateError.message : String(formUpdateError),
+    });
+  }
+
+  return successResponse({ message: 'Document deleted successfully' });
+}, { rateLimit: 'SENSITIVE' });

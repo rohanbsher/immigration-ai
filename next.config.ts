@@ -82,6 +82,8 @@ const securityHeaders = [
       "form-action 'self'",
       // Base URI restriction
       "base-uri 'self'",
+      // CSP violation reporting
+      "report-uri /api/csp-report",
       // Object sources
       "object-src 'none'",
       // Worker sources

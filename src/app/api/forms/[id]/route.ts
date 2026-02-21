@@ -1,14 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { formsService, casesService } from '@/lib/db';
 import { createClient } from '@/lib/supabase/server';
 import { auditService } from '@/lib/audit';
 import { z } from 'zod';
-import { standardRateLimiter, sensitiveRateLimiter } from '@/lib/rate-limit';
-import { createLogger } from '@/lib/logger';
 import { FORM_STATUSES, isValidFormTransition, type FormStatusType } from '@/lib/validation';
-import { safeParseBody } from '@/lib/auth/api-helpers';
-
-const log = createLogger('api:forms-detail');
+import { withAuth, successResponse, errorResponse, safeParseBody } from '@/lib/auth/api-helpers';
 
 const updateFormSchema = z.object({
   status: z.enum(FORM_STATUSES, { message: 'Invalid form status' }).optional(),
@@ -52,73 +48,37 @@ async function getFormWithAccess(userId: string, formId: string): Promise<{
   };
 }
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const { id } = await params;
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+export const GET = withAuth(async (_request: NextRequest, context, auth) => {
+  const { id } = await context.params!;
 
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+  const accessResult = await getFormWithAccess(auth.user.id, id);
 
-    // Rate limit check
-    const rateLimitResult = await standardRateLimiter.limit(request, user.id);
-    if (!rateLimitResult.allowed) {
-      return rateLimitResult.response;
-    }
-
-    const accessResult = await getFormWithAccess(user.id, id);
-
-    if (!accessResult) {
-      return NextResponse.json({ error: 'Form not found' }, { status: 404 });
-    }
-
-    return NextResponse.json(accessResult.form);
-  } catch (error) {
-    log.logError('Error fetching form', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch form' },
-      { status: 500 }
-    );
+  if (!accessResult) {
+    return errorResponse('Form not found', 404);
   }
-}
 
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+  return successResponse(accessResult.form);
+}, { rateLimit: 'STANDARD' });
+
+export const PATCH = withAuth(async (request: NextRequest, context, auth) => {
+  const { id } = await context.params!;
+  const supabase = await createClient();
+
+  const accessResult = await getFormWithAccess(auth.user.id, id);
+
+  if (!accessResult) {
+    return errorResponse('Form not found', 404);
+  }
+
+  if (!accessResult.canModify) {
+    return errorResponse('Forbidden', 403);
+  }
+
+  const parsed = await safeParseBody(request);
+  if (!parsed.success) return parsed.response;
+  const body = parsed.data;
+
   try {
-    const { id } = await params;
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Rate limit check
-    const rateLimitResult = await standardRateLimiter.limit(request, user.id);
-    if (!rateLimitResult.allowed) {
-      return rateLimitResult.response;
-    }
-
-    const accessResult = await getFormWithAccess(user.id, id);
-
-    if (!accessResult) {
-      return NextResponse.json({ error: 'Form not found' }, { status: 404 });
-    }
-
-    if (!accessResult.canModify) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
-    const parsed = await safeParseBody(request);
-    if (!parsed.success) return parsed.response;
-    const body = parsed.data;
     const validatedData = updateFormSchema.parse(body);
 
     // Get the current form state for audit comparison
@@ -129,10 +89,7 @@ export async function PATCH(
       const currentStatus = currentForm.status as FormStatusType;
       const newStatus = validatedData.status as FormStatusType;
       if (!isValidFormTransition(currentStatus, newStatus)) {
-        return NextResponse.json(
-          { error: `Invalid status transition from '${currentStatus}' to '${newStatus}'` },
-          { status: 400 }
-        );
+        return errorResponse(`Invalid status transition from '${currentStatus}' to '${newStatus}'`, 400);
       }
     }
 
@@ -182,10 +139,7 @@ export async function PATCH(
         .single();
 
       if (casError || !casResult) {
-        return NextResponse.json(
-          { error: 'Form status changed concurrently. Please refresh and try again.' },
-          { status: 409 }
-        );
+        return errorResponse('Form status changed concurrently. Please refresh and try again.', 409);
       }
       updatedForm = casResult;
     } else {
@@ -214,67 +168,36 @@ export async function PATCH(
       });
     }
 
-    return NextResponse.json(updatedForm);
+    return successResponse(updatedForm);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: error.issues[0].message },
-        { status: 400 }
-      );
+      return errorResponse(error.issues[0].message, 400);
     }
-
-    log.logError('Error updating form', error);
-    return NextResponse.json(
-      { error: 'Failed to update form' },
-      { status: 500 }
-    );
+    throw error;
   }
-}
+}, { rateLimit: 'STANDARD' });
 
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const { id } = await params;
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+export const DELETE = withAuth(async (_request: NextRequest, context, auth) => {
+  const { id } = await context.params!;
 
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+  const accessResult = await getFormWithAccess(auth.user.id, id);
 
-    // Rate limit check (using sensitive for destructive actions)
-    const rateLimitResult = await sensitiveRateLimiter.limit(request, user.id);
-    if (!rateLimitResult.allowed) {
-      return rateLimitResult.response;
-    }
-
-    const accessResult = await getFormWithAccess(user.id, id);
-
-    if (!accessResult) {
-      return NextResponse.json({ error: 'Form not found' }, { status: 404 });
-    }
-
-    if (!accessResult.canModify) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
-    // Log deletion in audit trail before deleting
-    await auditService.logDelete('forms', id, {
-      form_type: accessResult.form?.form_type,
-      form_status: accessResult.form?.status,
-      case_id: accessResult.form?.case_id,
-    });
-
-    await formsService.deleteForm(id);
-
-    return NextResponse.json({ message: 'Form deleted successfully' });
-  } catch (error) {
-    log.logError('Error deleting form', error);
-    return NextResponse.json(
-      { error: 'Failed to delete form' },
-      { status: 500 }
-    );
+  if (!accessResult) {
+    return errorResponse('Form not found', 404);
   }
-}
+
+  if (!accessResult.canModify) {
+    return errorResponse('Forbidden', 403);
+  }
+
+  // Log deletion in audit trail before deleting
+  await auditService.logDelete('forms', id, {
+    form_type: accessResult.form?.form_type,
+    form_status: accessResult.form?.status,
+    case_id: accessResult.form?.case_id,
+  });
+
+  await formsService.deleteForm(id);
+
+  return successResponse({ message: 'Form deleted successfully' });
+}, { rateLimit: 'SENSITIVE' });

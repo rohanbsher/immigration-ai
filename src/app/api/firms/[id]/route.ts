@@ -6,13 +6,14 @@ import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 import { canManageMembers, canDeleteFirm } from '@/types/firms';
 import { createLogger } from '@/lib/logger';
 import { safeParseBody } from '@/lib/auth/api-helpers';
+import { safeUrlSchema } from '@/lib/validation/safe-url';
 
 const log = createLogger('api:firms-detail');
 
 const updateFirmSchema = z.object({
   name: z.string().min(2).max(100).optional(),
-  logoUrl: z.string().url().optional(),
-  website: z.string().url().optional(),
+  logoUrl: safeUrlSchema.optional(),
+  website: safeUrlSchema.optional(),
   phone: z.string().optional(),
   address: z.object({
     street: z.string().optional(),

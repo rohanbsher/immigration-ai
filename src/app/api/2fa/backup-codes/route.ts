@@ -1,58 +1,26 @@
-import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { serverAuth } from '@/lib/auth';
+import { withAuth, successResponse, errorResponse, safeParseBody } from '@/lib/auth/api-helpers';
 import { regenerateBackupCodes } from '@/lib/2fa';
-import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit';
-import { createLogger } from '@/lib/logger';
-import { safeParseBody } from '@/lib/api/safe-parse-body';
-
-const log = createLogger('api:2fa-backup-codes');
 
 const regenerateSchema = z.object({
   token: z.string().min(6).max(6),
 });
 
-export async function POST(request: NextRequest) {
-  try {
-    const ip = request.headers.get('x-forwarded-for') || 'unknown';
-    const rateLimitResult = await rateLimit(RATE_LIMITS.AUTH, ip);
+export const POST = withAuth(async (request, _context, auth) => {
+  const parsed = await safeParseBody(request);
+  if (!parsed.success) return parsed.response;
+  const body = parsed.data;
+  const validation = regenerateSchema.safeParse(body);
 
-    if (!rateLimitResult.success) {
-      return NextResponse.json(
-        { error: 'Too many requests. Please try again later.' },
-        { status: 429, headers: { 'Retry-After': rateLimitResult.retryAfter?.toString() || '60' } }
-      );
-    }
-
-    const user = await serverAuth.getUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const parsed = await safeParseBody(request);
-    if (!parsed.success) return parsed.response;
-    const body = parsed.data;
-    const validation = regenerateSchema.safeParse(body);
-
-    if (!validation.success) {
-      return NextResponse.json(
-        { error: 'Invalid request', details: validation.error.flatten() },
-        { status: 400 }
-      );
-    }
-
-    const { token } = validation.data;
-    const backupCodes = await regenerateBackupCodes(user.id, token);
-
-    return NextResponse.json({
-      success: true,
-      data: {
-        backupCodes,
-        message: 'New backup codes generated. Previous codes are now invalid.',
-      },
-    });
-  } catch (error) {
-    log.logError('Backup codes regeneration error', error);
-    return NextResponse.json({ error: 'Failed to regenerate backup codes' }, { status: 500 });
+  if (!validation.success) {
+    return errorResponse('Invalid request', 400, validation.error.flatten() as Record<string, unknown>);
   }
-}
+
+  const { token } = validation.data;
+  const backupCodes = await regenerateBackupCodes(auth.user.id, token);
+
+  return successResponse({
+    backupCodes,
+    message: 'New backup codes generated. Previous codes are now invalid.',
+  });
+}, { rateLimit: 'AUTH' });

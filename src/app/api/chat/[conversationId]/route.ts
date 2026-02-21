@@ -1,219 +1,104 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { z } from 'zod';
 import {
   getConversation,
   getConversationMessages,
   deleteConversation,
   updateConversationTitle,
 } from '@/lib/db/conversations';
-import { standardRateLimiter, sensitiveRateLimiter } from '@/lib/rate-limit';
-import { createLogger } from '@/lib/logger';
-import { safeParseBody } from '@/lib/auth/api-helpers';
-import { z } from 'zod';
+import { withAuth, successResponse, errorResponse, safeParseBody } from '@/lib/auth/api-helpers';
 
 const updateConversationSchema = z.object({
   title: z.string().min(1).max(200).trim(),
 });
-
-const log = createLogger('api:chat-conversation');
-
-interface RouteParams {
-  params: Promise<{ conversationId: string }>;
-}
 
 /**
  * GET /api/chat/[conversationId]
  *
  * Get a conversation and its messages.
  */
-export async function GET(
-  request: NextRequest,
-  { params }: RouteParams
-): Promise<NextResponse> {
-  try {
-    const { conversationId } = await params;
-    const supabase = await createClient();
+export const GET = withAuth(async (_request, context, auth) => {
+  const { conversationId } = await context.params!;
 
-    // Authenticate user
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Unauthorized', message: 'Please log in to continue' },
-        { status: 401 }
-      );
-    }
-
-    // Rate limit check
-    const rateLimitResult = await standardRateLimiter.limit(request, user.id);
-    if (!rateLimitResult.allowed) {
-      return rateLimitResult.response;
-    }
-
-    // Get conversation
-    const conversation = await getConversation(conversationId, user.id);
-    if (!conversation) {
-      return NextResponse.json(
-        { error: 'Not Found', message: 'Conversation not found' },
-        { status: 404 }
-      );
-    }
-
-    // Get messages
-    const messages = await getConversationMessages(conversationId, user.id);
-
-    return NextResponse.json({
-      conversation: {
-        id: conversation.id,
-        caseId: conversation.caseId,
-        title: conversation.title,
-        createdAt: conversation.createdAt,
-        updatedAt: conversation.updatedAt,
-      },
-      messages: messages.map(m => ({
-        id: m.id,
-        role: m.role,
-        content: m.content,
-        createdAt: m.createdAt,
-      })),
-    });
-  } catch (error) {
-    log.logError('Error fetching conversation', error);
-
-    return NextResponse.json(
-      { error: 'Internal Server Error', message: 'Failed to fetch conversation' },
-      { status: 500 }
-    );
+  // Get conversation
+  const conversation = await getConversation(conversationId, auth.user.id);
+  if (!conversation) {
+    return errorResponse('Conversation not found', 404);
   }
-}
+
+  // Get messages
+  const messages = await getConversationMessages(conversationId, auth.user.id);
+
+  return successResponse({
+    conversation: {
+      id: conversation.id,
+      caseId: conversation.caseId,
+      title: conversation.title,
+      createdAt: conversation.createdAt,
+      updatedAt: conversation.updatedAt,
+    },
+    messages: messages.map(m => ({
+      id: m.id,
+      role: m.role,
+      content: m.content,
+      createdAt: m.createdAt,
+    })),
+  });
+}, { rateLimit: 'STANDARD' });
 
 /**
  * PATCH /api/chat/[conversationId]
  *
  * Update conversation (e.g., title).
  */
-export async function PATCH(
-  request: NextRequest,
-  { params }: RouteParams
-): Promise<NextResponse> {
+export const PATCH = withAuth(async (request, context, auth) => {
+  const { conversationId } = await context.params!;
+
+  const parsed = await safeParseBody(request);
+  if (!parsed.success) return parsed.response;
+  const body = parsed.data;
+
+  let validated;
   try {
-    const { conversationId } = await params;
-    const supabase = await createClient();
-
-    // Authenticate user
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Unauthorized', message: 'Please log in to continue' },
-        { status: 401 }
-      );
+    validated = updateConversationSchema.parse(body);
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      return errorResponse(err.issues[0].message, 400);
     }
-
-    // Rate limit check
-    const rateLimitResult = await standardRateLimiter.limit(request, user.id);
-    if (!rateLimitResult.allowed) {
-      return rateLimitResult.response;
-    }
-
-    const parsed = await safeParseBody(request);
-    if (!parsed.success) return parsed.response;
-    const body = parsed.data;
-
-    let validated;
-    try {
-      validated = updateConversationSchema.parse(body);
-    } catch (err) {
-      if (err instanceof z.ZodError) {
-        return NextResponse.json(
-          { error: 'Validation Error', message: err.issues[0].message },
-          { status: 400 }
-        );
-      }
-      throw err;
-    }
-
-    // Verify conversation exists and belongs to user BEFORE writing
-    const existing = await getConversation(conversationId, user.id);
-    if (!existing) {
-      return NextResponse.json(
-        { error: 'Not Found', message: 'Conversation not found' },
-        { status: 404 }
-      );
-    }
-
-    await updateConversationTitle(conversationId, user.id, validated.title);
-
-    // Re-fetch to get the updated title and timestamps
-    const updated = await getConversation(conversationId, user.id);
-    const conversation = updated ?? existing;
-
-    return NextResponse.json({
-      conversation: {
-        id: conversation.id,
-        caseId: conversation.caseId,
-        title: conversation.title,
-        createdAt: conversation.createdAt,
-        updatedAt: conversation.updatedAt,
-      },
-    });
-  } catch (error) {
-    log.logError('Error updating conversation', error);
-
-    return NextResponse.json(
-      { error: 'Internal Server Error', message: 'Failed to update conversation' },
-      { status: 500 }
-    );
+    throw err;
   }
-}
+
+  // Verify conversation exists and belongs to user BEFORE writing
+  const existing = await getConversation(conversationId, auth.user.id);
+  if (!existing) {
+    return errorResponse('Conversation not found', 404);
+  }
+
+  await updateConversationTitle(conversationId, auth.user.id, validated.title);
+
+  // Re-fetch to get the updated title and timestamps
+  const updated = await getConversation(conversationId, auth.user.id);
+  const conversation = updated ?? existing;
+
+  return successResponse({
+    conversation: {
+      id: conversation.id,
+      caseId: conversation.caseId,
+      title: conversation.title,
+      createdAt: conversation.createdAt,
+      updatedAt: conversation.updatedAt,
+    },
+  });
+}, { rateLimit: 'STANDARD' });
 
 /**
  * DELETE /api/chat/[conversationId]
  *
  * Delete a conversation.
  */
-export async function DELETE(
-  request: NextRequest,
-  { params }: RouteParams
-): Promise<NextResponse> {
-  try {
-    const { conversationId } = await params;
-    const supabase = await createClient();
+export const DELETE = withAuth(async (_request, context, auth) => {
+  const { conversationId } = await context.params!;
 
-    // Authenticate user
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
+  await deleteConversation(conversationId, auth.user.id);
 
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Unauthorized', message: 'Please log in to continue' },
-        { status: 401 }
-      );
-    }
-
-    // Rate limit check (using sensitive for destructive actions)
-    const rateLimitResult = await sensitiveRateLimiter.limit(request, user.id);
-    if (!rateLimitResult.allowed) {
-      return rateLimitResult.response;
-    }
-
-    await deleteConversation(conversationId, user.id);
-
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    log.logError('Error deleting conversation', error);
-
-    return NextResponse.json(
-      { error: 'Internal Server Error', message: 'Failed to delete conversation' },
-      { status: 500 }
-    );
-  }
-}
+  return successResponse({ deleted: true });
+}, { rateLimit: 'SENSITIVE' });

@@ -23,6 +23,7 @@ export function getStripeClient(): Stripe | null {
     stripeInstance = new Stripe(serverEnv.STRIPE_SECRET_KEY!, {
       apiVersion: '2025-12-15.clover',
       typescript: true,
+      timeout: 30_000,
     });
   }
   return stripeInstance;

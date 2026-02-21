@@ -1,131 +1,78 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { serverAuth } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
-import { sensitiveRateLimiter } from '@/lib/rate-limit';
 import { createLogger } from '@/lib/logger';
+import { withAuth, successResponse, errorResponse } from '@/lib/auth/api-helpers';
 
 const log = createLogger('api:gdpr-export');
 
-export async function GET(request: NextRequest) {
-  try {
-    const user = await serverAuth.getUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+export const GET = withAuth(async (_request, _context, auth) => {
+  const supabase = await createClient();
 
-    const limitResult = await sensitiveRateLimiter.limit(request, user.id);
-    if (!limitResult.allowed) return limitResult.response;
+  const { data: jobs, error } = await supabase
+    .from('gdpr_export_jobs')
+    .select('*')
+    .eq('user_id', auth.user.id)
+    .order('created_at', { ascending: false })
+    .limit(5);
 
-    const supabase = await createClient();
-
-    const { data: jobs, error } = await supabase
-      .from('gdpr_export_jobs')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(5);
-
-    if (error) {
-      log.logError('Failed to fetch export jobs', error);
-      return NextResponse.json(
-        { error: 'Failed to fetch export history' },
-        { status: 500 }
-      );
-    }
-
-    return NextResponse.json({
-      success: true,
-      data: jobs || [],
-    });
-  } catch (error) {
-    log.logError('GDPR export list error', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch export history' },
-      { status: 500 }
-    );
+  if (error) {
+    log.logError('Failed to fetch export jobs', error);
+    return errorResponse('Failed to fetch export history', 500);
   }
-}
 
-export async function POST(request: NextRequest) {
-  try {
-    const user = await serverAuth.getUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+  return successResponse(jobs || []);
+}, { rateLimit: 'SENSITIVE' });
 
-    const limitResult = await sensitiveRateLimiter.limit(request, user.id);
-    if (!limitResult.allowed) return limitResult.response;
+export const POST = withAuth(async (_request, _context, auth) => {
+  const supabase = await createClient();
 
-    const supabase = await createClient();
+  const { data: existingJob, error: checkError } = await supabase
+    .from('gdpr_export_jobs')
+    .select('*')
+    .eq('user_id', auth.user.id)
+    .in('status', ['pending', 'processing'])
+    .single();
 
-    const { data: existingJob, error: checkError } = await supabase
-      .from('gdpr_export_jobs')
-      .select('*')
-      .eq('user_id', user.id)
-      .in('status', ['pending', 'processing'])
-      .single();
-
-    if (checkError && checkError.code !== 'PGRST116') {
-      log.logError('Failed to check existing jobs', checkError);
-      return NextResponse.json(
-        { error: 'Failed to create export. Please try again later.' },
-        { status: 500 }
-      );
-    }
-
-    if (existingJob) {
-      return NextResponse.json(
-        { error: 'An export job is already in progress' },
-        { status: 400 }
-      );
-    }
-
-    const { data: job, error: createError } = await supabase.rpc('create_gdpr_export_job', {
-      p_user_id: user.id,
-    });
-
-    if (createError) {
-      log.logError('Failed to create export job', createError);
-      return NextResponse.json(
-        { error: 'Failed to create export. Please try again later.' },
-        { status: 500 }
-      );
-    }
-
-    const { data: exportData, error: exportError } = await supabase.rpc('get_user_export_data', {
-      p_user_id: user.id,
-    });
-
-    if (exportError) {
-      log.logError('Failed to generate export data', exportError);
-      return NextResponse.json(
-        { error: 'Failed to create export. Please try again later.' },
-        { status: 500 }
-      );
-    }
-
-    const { error: updateError } = await supabase
-      .from('gdpr_export_jobs')
-      .update({
-        status: 'completed',
-        completed_at: new Date().toISOString(),
-      })
-      .eq('id', job.id);
-
-    if (updateError) {
-      log.logError('Failed to update export job status', updateError);
-    }
-
-    return NextResponse.json({
-      success: true,
-      data: {
-        jobId: job.id,
-        exportData,
-      },
-    });
-  } catch (error) {
-    log.logError('GDPR export error', error);
-    const message = 'Failed to create export. Please try again later.';
-    return NextResponse.json({ error: message }, { status: 500 });
+  if (checkError && checkError.code !== 'PGRST116') {
+    log.logError('Failed to check existing jobs', checkError);
+    return errorResponse('Failed to create export. Please try again later.', 500);
   }
-}
+
+  if (existingJob) {
+    return errorResponse('An export job is already in progress', 400);
+  }
+
+  const { data: job, error: createError } = await supabase.rpc('create_gdpr_export_job', {
+    p_user_id: auth.user.id,
+  });
+
+  if (createError) {
+    log.logError('Failed to create export job', createError);
+    return errorResponse('Failed to create export. Please try again later.', 500);
+  }
+
+  const { data: exportData, error: exportError } = await supabase.rpc('get_user_export_data', {
+    p_user_id: auth.user.id,
+  });
+
+  if (exportError) {
+    log.logError('Failed to generate export data', exportError);
+    return errorResponse('Failed to create export. Please try again later.', 500);
+  }
+
+  const { error: updateError } = await supabase
+    .from('gdpr_export_jobs')
+    .update({
+      status: 'completed',
+      completed_at: new Date().toISOString(),
+    })
+    .eq('id', job.id);
+
+  if (updateError) {
+    log.logError('Failed to update export job status', updateError);
+  }
+
+  return successResponse({
+    jobId: job.id,
+    exportData,
+  });
+}, { rateLimit: 'SENSITIVE' });

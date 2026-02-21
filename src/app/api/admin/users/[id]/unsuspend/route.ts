@@ -1,69 +1,35 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { serverAuth } from '@/lib/auth';
+import { withAuth, successResponse, errorResponse } from '@/lib/auth/api-helpers';
 import { getAdminClient } from '@/lib/supabase/admin';
-import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 import { createLogger } from '@/lib/logger';
 import { schemas } from '@/lib/validation';
 
 const log = createLogger('api:admin-users-unsuspend');
 
-interface Params {
-  params: Promise<{ id: string }>;
-}
+export const POST = withAuth(async (_request, context, auth) => {
+  const { id } = await context.params!;
 
-export async function POST(request: NextRequest, { params }: Params) {
-  try {
-    const { id } = await params;
-    const ip = request.headers.get('x-forwarded-for') || 'unknown';
-    const rateLimitResult = await rateLimit(RATE_LIMITS.SENSITIVE, ip);
-
-    if (!rateLimitResult.success) {
-      return NextResponse.json(
-        { error: 'Too many requests' },
-        { status: 429, headers: { 'Retry-After': rateLimitResult.retryAfter?.toString() || '60' } }
-      );
-    }
-
-    const profile = await serverAuth.getProfile();
-    if (!profile || profile.role !== 'admin') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
-    const uuidResult = schemas.uuid.safeParse(id);
-    if (!uuidResult.success) {
-      return NextResponse.json({ error: 'Invalid user ID' }, { status: 400 });
-    }
-
-    const adminClient = getAdminClient();
-
-    const { data: targetUser, error: getUserError } = await adminClient.auth.admin.getUserById(id);
-    if (getUserError || !targetUser?.user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
-
-    const { error: unbanError } = await adminClient.auth.admin.updateUserById(id, {
-      ban_duration: 'none',
-    });
-
-    if (unbanError) {
-      log.logError('Failed to unsuspend user', { userId: id, error: unbanError.message });
-      return NextResponse.json(
-        { error: 'Failed to unsuspend user' },
-        { status: 500 }
-      );
-    }
-
-    log.info('User unsuspended', { userId: id, adminId: profile.id });
-
-    return NextResponse.json({
-      success: true,
-      message: 'User unsuspended',
-    });
-  } catch (error) {
-    log.logError('Admin unsuspend user error', error);
-    return NextResponse.json(
-      { error: 'Failed to unsuspend user' },
-      { status: 500 }
-    );
+  const uuidResult = schemas.uuid.safeParse(id);
+  if (!uuidResult.success) {
+    return errorResponse('Invalid user ID', 400);
   }
-}
+
+  const adminClient = getAdminClient();
+
+  const { data: targetUser, error: getUserError } = await adminClient.auth.admin.getUserById(id);
+  if (getUserError || !targetUser?.user) {
+    return errorResponse('User not found', 404);
+  }
+
+  const { error: unbanError } = await adminClient.auth.admin.updateUserById(id, {
+    ban_duration: 'none',
+  });
+
+  if (unbanError) {
+    log.logError('Failed to unsuspend user', { userId: id, error: unbanError.message });
+    return errorResponse('Failed to unsuspend user', 500);
+  }
+
+  log.info('User unsuspended', { userId: id, adminId: auth.profile.id });
+
+  return successResponse({ message: 'User unsuspended' });
+}, { roles: ['admin'], rateLimit: 'SENSITIVE' });

@@ -1,78 +1,46 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { formsService, casesService } from '@/lib/db';
-import { createClient } from '@/lib/supabase/server';
 import { z } from 'zod';
-import { standardRateLimiter } from '@/lib/rate-limit';
-import { createLogger } from '@/lib/logger';
-import { safeParseBody } from '@/lib/auth/api-helpers';
-
-const log = createLogger('api:forms-review');
+import { withAuth, successResponse, errorResponse, safeParseBody } from '@/lib/auth/api-helpers';
 
 const reviewSchema = z.object({
   notes: z.string().optional().default(''),
 });
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export const POST = withAuth(async (request: NextRequest, context, auth) => {
+  const { id } = await context.params!;
+
+  // Get the form
+  const form = await formsService.getForm(id);
+
+  if (!form) {
+    return errorResponse('Form not found', 404);
+  }
+
+  // Get the case to verify attorney has access
+  const caseData = await casesService.getCase(form.case_id);
+
+  if (!caseData) {
+    return errorResponse('Case not found', 404);
+  }
+
+  // Only the attorney assigned to this case can review forms
+  if (caseData.attorney_id !== auth.user.id) {
+    return errorResponse('Only the assigned attorney can review forms', 403);
+  }
+
+  const parsed = await safeParseBody(request);
+  if (!parsed.success) return parsed.response;
+  const body = parsed.data;
+
   try {
-    const { id } = await params;
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Rate limit check
-    const rateLimitResult = await standardRateLimiter.limit(request, user.id);
-    if (!rateLimitResult.allowed) {
-      return rateLimitResult.response;
-    }
-
-    // Get the form
-    const form = await formsService.getForm(id);
-
-    if (!form) {
-      return NextResponse.json({ error: 'Form not found' }, { status: 404 });
-    }
-
-    // Get the case to verify attorney has access
-    const caseData = await casesService.getCase(form.case_id);
-
-    if (!caseData) {
-      return NextResponse.json({ error: 'Case not found' }, { status: 404 });
-    }
-
-    // Only the attorney assigned to this case can review forms
-    if (caseData.attorney_id !== user.id) {
-      return NextResponse.json(
-        { error: 'Only the assigned attorney can review forms' },
-        { status: 403 }
-      );
-    }
-
-    const parsed = await safeParseBody(request);
-    if (!parsed.success) return parsed.response;
-    const body = parsed.data;
     const { notes } = reviewSchema.parse(body);
-
-    const reviewedForm = await formsService.reviewForm(id, notes, user.id);
-
-    return NextResponse.json(reviewedForm);
+    const reviewedForm = await formsService.reviewForm(id, notes, auth.user.id);
+    return successResponse(reviewedForm);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: error.issues[0].message },
-        { status: 400 }
-      );
+      return errorResponse(error.issues[0].message, 400);
     }
-
-    log.logError('Error reviewing form', error);
-    return NextResponse.json(
-      { error: 'Failed to review form' },
-      { status: 500 }
-    );
+    throw error;
   }
-}
+}, { rateLimit: 'STANDARD' });

@@ -6,6 +6,7 @@ import { standardRateLimiter } from '@/lib/rate-limit';
 import { createLogger } from '@/lib/logger';
 import { encryptSensitiveFields } from '@/lib/crypto';
 import { safeParseBody } from '@/lib/auth/api-helpers';
+import { safeUrlSchema } from '@/lib/validation/safe-url';
 
 const log = createLogger('api:profile');
 
@@ -13,7 +14,7 @@ const updateProfileSchema = z.object({
   first_name: z.string().min(1).optional(),
   last_name: z.string().min(1).optional(),
   phone: z.string().nullable().optional(),
-  avatar_url: z.string().url().nullable().optional(),
+  avatar_url: safeUrlSchema.nullable().optional(),
   bar_number: z.string().nullable().optional(),
   firm_name: z.string().nullable().optional(),
   specializations: z.array(z.string()).nullable().optional(),

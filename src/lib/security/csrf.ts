@@ -85,9 +85,10 @@ export function validateCsrf(request: NextRequest): {
     // Allow webhook endpoints that verify their own signatures (e.g., Stripe webhooks)
     const pathname = request.nextUrl?.pathname || '';
     const isWebhookPath = pathname === '/api/billing/webhooks';
+    const isCspReportPath = pathname === '/api/csp-report';
 
-    if (isWebhookPath) {
-      return { valid: true, reason: 'webhook' };
+    if (isWebhookPath || isCspReportPath) {
+      return { valid: true, reason: isWebhookPath ? 'webhook' : 'csp-report' };
     }
 
     // Reject requests without Origin/Referer

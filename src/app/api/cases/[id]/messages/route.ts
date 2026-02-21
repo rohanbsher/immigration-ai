@@ -1,11 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
 import { caseMessagesService, casesService } from '@/lib/db';
-import { createClient } from '@/lib/supabase/server';
 import { z } from 'zod';
 import { createLogger } from '@/lib/logger';
-import { standardRateLimiter } from '@/lib/rate-limit';
 import { sendCaseUpdateEmail } from '@/lib/email/notifications';
-import { safeParseBody } from '@/lib/auth/api-helpers';
+import { withAuth, successResponse, errorResponse, safeParseBody } from '@/lib/auth/api-helpers';
 
 const log = createLogger('api:case-messages');
 
@@ -26,117 +23,69 @@ async function verifyCaseAccess(userId: string, caseId: string): Promise<boolean
 /**
  * GET /api/cases/[id]/messages - Get all messages for a case
  */
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const { id: caseId } = await params;
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+export const GET = withAuth(async (request, context, auth) => {
+  const { id: caseId } = await context.params!;
 
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Rate limit check
-    const rateLimitResult = await standardRateLimiter.limit(request, user.id);
-    if (!rateLimitResult.allowed) {
-      return rateLimitResult.response;
-    }
-
-    // Verify user has access to this case
-    const hasAccess = await verifyCaseAccess(user.id, caseId);
-    if (!hasAccess) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
-    // Get pagination params
-    const { searchParams } = new URL(request.url);
-    const limit = Math.min(parseInt(searchParams.get('limit') || '50', 10) || 50, 100);
-    const offset = Math.max(parseInt(searchParams.get('offset') || '0', 10) || 0, 0);
-
-    const { data: messages, total } = await caseMessagesService.getMessages(caseId, {
-      limit,
-      offset,
-    });
-
-    // Mark messages as read for the current user
-    await caseMessagesService.markAllAsRead(caseId, user.id);
-
-    return NextResponse.json({
-      data: messages,
-      total,
-      limit,
-      offset,
-    });
-  } catch (error) {
-    log.logError('Failed to fetch messages', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch messages' },
-      { status: 500 }
-    );
+  // Verify user has access to this case
+  const hasAccess = await verifyCaseAccess(auth.user.id, caseId);
+  if (!hasAccess) {
+    return errorResponse('Forbidden', 403);
   }
-}
+
+  // Get pagination params
+  const { searchParams } = new URL(request.url);
+  const limit = Math.min(parseInt(searchParams.get('limit') || '50', 10) || 50, 100);
+  const offset = Math.max(parseInt(searchParams.get('offset') || '0', 10) || 0, 0);
+
+  const { data: messages, total } = await caseMessagesService.getMessages(caseId, {
+    limit,
+    offset,
+  });
+
+  // Mark messages as read for the current user
+  await caseMessagesService.markAllAsRead(caseId, auth.user.id);
+
+  return successResponse({
+    data: messages,
+    total,
+    limit,
+    offset,
+  });
+}, { rateLimit: 'STANDARD' });
 
 /**
  * POST /api/cases/[id]/messages - Send a new message
  */
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const { id: caseId } = await params;
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+export const POST = withAuth(async (request, context, auth) => {
+  const { id: caseId } = await context.params!;
 
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Rate limit check
-    const rateLimitResult = await standardRateLimiter.limit(request, user.id);
-    if (!rateLimitResult.allowed) {
-      return rateLimitResult.response;
-    }
-
-    // Verify user has access to this case
-    const hasAccess = await verifyCaseAccess(user.id, caseId);
-    if (!hasAccess) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
-    const parsed = await safeParseBody(request);
-    if (!parsed.success) return parsed.response;
-    const body = parsed.data;
-    const validatedData = createMessageSchema.parse(body);
-
-    const message = await caseMessagesService.createMessage({
-      case_id: caseId,
-      sender_id: user.id,
-      content: validatedData.content,
-    });
-
-    log.info('Message sent', { caseId, senderId: user.id, messageId: message.id });
-
-    // Notify the other party (fire-and-forget)
-    sendCaseUpdateEmail(caseId, 'note_added', 'New message received', user.id)
-      .catch((err) => log.logError('Failed to send message notification', err));
-
-    return NextResponse.json(message, { status: 201 });
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: error.issues[0].message },
-        { status: 400 }
-      );
-    }
-
-    log.logError('Failed to send message', error);
-    return NextResponse.json(
-      { error: 'Failed to send message' },
-      { status: 500 }
-    );
+  // Verify user has access to this case
+  const hasAccess = await verifyCaseAccess(auth.user.id, caseId);
+  if (!hasAccess) {
+    return errorResponse('Forbidden', 403);
   }
-}
+
+  const parsed = await safeParseBody(request);
+  if (!parsed.success) return parsed.response;
+  const body = parsed.data;
+
+  const parseResult = createMessageSchema.safeParse(body);
+  if (!parseResult.success) {
+    return errorResponse(parseResult.error.issues[0].message, 400);
+  }
+  const validatedData = parseResult.data;
+
+  const message = await caseMessagesService.createMessage({
+    case_id: caseId,
+    sender_id: auth.user.id,
+    content: validatedData.content,
+  });
+
+  log.info('Message sent', { caseId, senderId: auth.user.id, messageId: message.id });
+
+  // Notify the other party (fire-and-forget)
+  sendCaseUpdateEmail(caseId, 'note_added', 'New message received', auth.user.id)
+    .catch((err) => log.logError('Failed to send message notification', err));
+
+  return successResponse(message, 201);
+}, { rateLimit: 'STANDARD' });

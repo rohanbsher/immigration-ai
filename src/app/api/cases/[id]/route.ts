@@ -1,12 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
 import { casesService, activitiesService } from '@/lib/db';
-import { createClient } from '@/lib/supabase/server';
 import { z } from 'zod';
 import { sendCaseUpdateEmail } from '@/lib/email/notifications';
-import { standardRateLimiter } from '@/lib/rate-limit';
 import { createLogger } from '@/lib/logger';
 import { VISA_TYPES, CASE_STATUSES } from '@/lib/validation';
-import { safeParseBody } from '@/lib/auth/api-helpers';
+import { withAuth, successResponse, errorResponse, safeParseBody } from '@/lib/auth/api-helpers';
 
 const log = createLogger('api:case');
 
@@ -50,179 +47,103 @@ async function getCaseWithAccess(userId: string, caseId: string): Promise<{
   };
 }
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const { id } = await params;
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+export const GET = withAuth(async (request, context, auth) => {
+  const { id } = await context.params!;
 
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+  const accessResult = await getCaseWithAccess(auth.user.id, id);
 
-    // Rate limit check
-    const rateLimitResult = await standardRateLimiter.limit(request, user.id);
-    if (!rateLimitResult.allowed) {
-      return rateLimitResult.response;
-    }
-
-    const accessResult = await getCaseWithAccess(user.id, id);
-
-    if (!accessResult) {
-      return NextResponse.json({ error: 'Case not found' }, { status: 404 });
-    }
-
-    return NextResponse.json(accessResult.case);
-  } catch (error) {
-    log.logError('Error fetching case', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch case' },
-      { status: 500 }
-    );
+  if (!accessResult) {
+    return errorResponse('Case not found', 404);
   }
-}
 
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const { id } = await params;
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+  return successResponse(accessResult.case);
+}, { rateLimit: 'STANDARD' });
 
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+export const PATCH = withAuth(async (request, context, auth) => {
+  const { id } = await context.params!;
 
-    // Rate limit check
-    const rateLimitResult = await standardRateLimiter.limit(request, user.id);
-    if (!rateLimitResult.allowed) {
-      return rateLimitResult.response;
-    }
+  const accessResult = await getCaseWithAccess(auth.user.id, id);
 
-    const accessResult = await getCaseWithAccess(user.id, id);
+  if (!accessResult) {
+    return errorResponse('Case not found', 404);
+  }
 
-    if (!accessResult) {
-      return NextResponse.json({ error: 'Case not found' }, { status: 404 });
-    }
+  if (!accessResult.canModify) {
+    return errorResponse('Forbidden', 403);
+  }
 
-    if (!accessResult.canModify) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+  const parsed = await safeParseBody(request);
+  if (!parsed.success) return parsed.response;
+  const body = parsed.data;
 
-    const parsed = await safeParseBody(request);
-    if (!parsed.success) return parsed.response;
-    const body = parsed.data;
-    const validatedData = updateCaseSchema.parse(body);
+  const parseResult = updateCaseSchema.safeParse(body);
+  if (!parseResult.success) {
+    return errorResponse(parseResult.error.issues[0].message, 400);
+  }
+  const validatedData = parseResult.data;
 
-    // Optimistic locking: reject stale updates when expected_updated_at is provided
-    const caseData = accessResult.case;
-    if (validatedData.expected_updated_at && caseData) {
-      const currentUpdatedAt = caseData.updated_at;
-      if (currentUpdatedAt && validatedData.expected_updated_at !== currentUpdatedAt) {
-        return NextResponse.json(
-          {
-            error: 'This case has been modified by another user. Please refresh and try again.',
-            code: 'CONFLICT',
-            current_updated_at: currentUpdatedAt,
-          },
-          { status: 409 }
-        );
-      }
-    }
-
-    // Strip expected_updated_at before passing to the service (not a real column)
-    const { expected_updated_at: _unused, ...updatePayload } = validatedData;
-
-    // Track if status changed for email notification
-    const previousStatus = caseData?.status;
-    const statusChanged = updatePayload.status && updatePayload.status !== previousStatus;
-
-    const updatedCase = await casesService.updateCase(id, updatePayload as Parameters<typeof casesService.updateCase>[1]);
-
-    // Send email notification on status change (fire and forget)
-    if (statusChanged && validatedData.status) {
-      sendCaseUpdateEmail(
-        id,
-        'status_change',
-        `Case status changed from "${previousStatus}" to "${validatedData.status}"`,
-        user.id
-      ).catch((err) => {
-        log.logError('Failed to send case update email', err);
-      });
-    }
-
-    // Log activity (fire and forget)
-    if (statusChanged && validatedData.status) {
-      activitiesService.logStatusChanged(id, previousStatus!, validatedData.status, user.id).catch(err => {
-        log.warn('Activity log failed', { error: err });
-      });
-    } else {
-      const changes = Object.keys(updatePayload).join(', ');
-      activitiesService.logCaseUpdated(id, `Updated: ${changes}`, user.id).catch(err => {
-        log.warn('Activity log failed', { error: err });
-      });
-    }
-
-    return NextResponse.json(updatedCase);
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: error.issues[0].message },
-        { status: 400 }
+  // Optimistic locking: reject stale updates when expected_updated_at is provided
+  const caseData = accessResult.case;
+  if (validatedData.expected_updated_at && caseData) {
+    const currentUpdatedAt = caseData.updated_at;
+    if (currentUpdatedAt && validatedData.expected_updated_at !== currentUpdatedAt) {
+      return errorResponse(
+        'This case has been modified by another user. Please refresh and try again.',
+        409
       );
     }
-
-    log.logError('Error updating case', error);
-    return NextResponse.json(
-      { error: 'Failed to update case' },
-      { status: 500 }
-    );
   }
-}
 
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const { id } = await params;
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+  // Strip expected_updated_at before passing to the service (not a real column)
+  const { expected_updated_at: _unused, ...updatePayload } = validatedData;
 
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+  // Track if status changed for email notification
+  const previousStatus = caseData?.status;
+  const statusChanged = updatePayload.status && updatePayload.status !== previousStatus;
 
-    // Rate limit check (using sensitive for destructive actions)
-    const { sensitiveRateLimiter } = await import('@/lib/rate-limit');
-    const rateLimitResult = await sensitiveRateLimiter.limit(request, user.id);
-    if (!rateLimitResult.allowed) {
-      return rateLimitResult.response;
-    }
+  const updatedCase = await casesService.updateCase(id, updatePayload as Parameters<typeof casesService.updateCase>[1]);
 
-    const accessResult = await getCaseWithAccess(user.id, id);
-
-    if (!accessResult) {
-      return NextResponse.json({ error: 'Case not found' }, { status: 404 });
-    }
-
-    if (!accessResult.canModify) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
-    await casesService.deleteCase(id);
-
-    return NextResponse.json({ message: 'Case deleted successfully' });
-  } catch (error) {
-    log.logError('Error deleting case', error);
-    return NextResponse.json(
-      { error: 'Failed to delete case' },
-      { status: 500 }
-    );
+  // Send email notification on status change (fire and forget)
+  if (statusChanged && validatedData.status) {
+    sendCaseUpdateEmail(
+      id,
+      'status_change',
+      `Case status changed from "${previousStatus}" to "${validatedData.status}"`,
+      auth.user.id
+    ).catch((err) => {
+      log.logError('Failed to send case update email', err);
+    });
   }
-}
+
+  // Log activity (fire and forget)
+  if (statusChanged && validatedData.status) {
+    activitiesService.logStatusChanged(id, previousStatus!, validatedData.status, auth.user.id).catch(err => {
+      log.warn('Activity log failed', { error: err });
+    });
+  } else {
+    const changes = Object.keys(updatePayload).join(', ');
+    activitiesService.logCaseUpdated(id, `Updated: ${changes}`, auth.user.id).catch(err => {
+      log.warn('Activity log failed', { error: err });
+    });
+  }
+
+  return successResponse(updatedCase);
+}, { rateLimit: 'STANDARD' });
+
+export const DELETE = withAuth(async (request, context, auth) => {
+  const { id } = await context.params!;
+
+  const accessResult = await getCaseWithAccess(auth.user.id, id);
+
+  if (!accessResult) {
+    return errorResponse('Case not found', 404);
+  }
+
+  if (!accessResult.canModify) {
+    return errorResponse('Forbidden', 403);
+  }
+
+  await casesService.deleteCase(id);
+
+  return successResponse({ message: 'Case deleted successfully' });
+}, { rateLimit: 'SENSITIVE' });

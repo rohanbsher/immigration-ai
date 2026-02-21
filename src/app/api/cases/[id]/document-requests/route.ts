@@ -1,11 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
 import { documentRequestsService, casesService } from '@/lib/db';
 import { createClient } from '@/lib/supabase/server';
 import { z } from 'zod';
 import { createLogger } from '@/lib/logger';
 import { DOCUMENT_TYPES } from '@/lib/validation';
-import { standardRateLimiter } from '@/lib/rate-limit';
-import { safeParseBody } from '@/lib/auth/api-helpers';
+import { withAuth, successResponse, errorResponse, safeParseBody } from '@/lib/auth/api-helpers';
 
 const log = createLogger('api:document-requests');
 
@@ -49,108 +47,57 @@ async function verifyCaseAccess(
 /**
  * GET /api/cases/[id]/document-requests - Get all document requests for a case
  */
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const { id: caseId } = await params;
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+export const GET = withAuth(async (request, context, auth) => {
+  const { id: caseId } = await context.params!;
 
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Rate limit check
-    const rateLimitResult = await standardRateLimiter.limit(request, user.id);
-    if (!rateLimitResult.allowed) {
-      return rateLimitResult.response;
-    }
-
-    const { hasAccess } = await verifyCaseAccess(user.id, caseId);
-    if (!hasAccess) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
-    const { searchParams } = new URL(request.url);
-    const pendingOnly = searchParams.get('pending') === 'true';
-
-    const requests = pendingOnly
-      ? await documentRequestsService.getPendingRequestsByCase(caseId)
-      : await documentRequestsService.getRequestsByCase(caseId);
-
-    return NextResponse.json({ data: requests });
-  } catch (error) {
-    log.logError('Failed to fetch document requests', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch document requests' },
-      { status: 500 }
-    );
+  const { hasAccess } = await verifyCaseAccess(auth.user.id, caseId);
+  if (!hasAccess) {
+    return errorResponse('Forbidden', 403);
   }
-}
+
+  const { searchParams } = new URL(request.url);
+  const pendingOnly = searchParams.get('pending') === 'true';
+
+  const requests = pendingOnly
+    ? await documentRequestsService.getPendingRequestsByCase(caseId)
+    : await documentRequestsService.getRequestsByCase(caseId);
+
+  return successResponse({ data: requests });
+}, { rateLimit: 'STANDARD' });
 
 /**
  * POST /api/cases/[id]/document-requests - Create a new document request
  */
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const { id: caseId } = await params;
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+export const POST = withAuth(async (request, context, auth) => {
+  const { id: caseId } = await context.params!;
 
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Rate limit check
-    const rateLimitResult = await standardRateLimiter.limit(request, user.id);
-    if (!rateLimitResult.allowed) {
-      return rateLimitResult.response;
-    }
-
-    const { hasAccess, isAttorney } = await verifyCaseAccess(user.id, caseId);
-    if (!hasAccess) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
-    // Only attorneys can create requests
-    if (!isAttorney) {
-      return NextResponse.json(
-        { error: 'Only attorneys can create document requests' },
-        { status: 403 }
-      );
-    }
-
-    const parsed = await safeParseBody(request);
-    if (!parsed.success) return parsed.response;
-    const body = parsed.data;
-    const validatedData = createRequestSchema.parse(body);
-
-    const documentRequest = await documentRequestsService.createRequest({
-      case_id: caseId,
-      requested_by: user.id,
-      ...validatedData,
-    });
-
-    log.info('Document request created', { caseId, requestId: documentRequest.id });
-
-    return NextResponse.json(documentRequest, { status: 201 });
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: error.issues[0].message },
-        { status: 400 }
-      );
-    }
-
-    log.logError('Failed to create document request', error);
-    return NextResponse.json(
-      { error: 'Failed to create document request' },
-      { status: 500 }
-    );
+  const { hasAccess, isAttorney } = await verifyCaseAccess(auth.user.id, caseId);
+  if (!hasAccess) {
+    return errorResponse('Forbidden', 403);
   }
-}
+
+  // Only attorneys can create requests
+  if (!isAttorney) {
+    return errorResponse('Only attorneys can create document requests', 403);
+  }
+
+  const parsed = await safeParseBody(request);
+  if (!parsed.success) return parsed.response;
+  const body = parsed.data;
+
+  const parseResult = createRequestSchema.safeParse(body);
+  if (!parseResult.success) {
+    return errorResponse(parseResult.error.issues[0].message, 400);
+  }
+  const validatedData = parseResult.data;
+
+  const documentRequest = await documentRequestsService.createRequest({
+    case_id: caseId,
+    requested_by: auth.user.id,
+    ...validatedData,
+  });
+
+  log.info('Document request created', { caseId, requestId: documentRequest.id });
+
+  return successResponse(documentRequest, 201);
+}, { rateLimit: 'STANDARD' });

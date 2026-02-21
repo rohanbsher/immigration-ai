@@ -591,13 +591,13 @@ export async function verifyFormAccess(
 type RouteHandler = (
   request: NextRequest,
   context: { params?: Promise<Record<string, string>> }
-) => Promise<NextResponse>;
+) => Promise<Response>;
 
 type AuthenticatedRouteHandler = (
   request: NextRequest,
   context: { params?: Promise<Record<string, string>> },
   auth: AuthSuccess
-) => Promise<NextResponse>;
+) => Promise<Response>;
 
 /**
  * Higher-order function to wrap route handlers with authentication.

@@ -151,9 +151,10 @@ vi.mock('@/lib/logger', () => ({
 // Import route handler after mocks
 import { GET } from './route';
 
-function createMockRequest(): NextRequest {
+function createMockRequest(query?: string): NextRequest {
+  const qs = query ? `?${query}` : '';
   return new NextRequest(
-    `http://localhost:3000/api/forms/${mockFormId}/pdf`,
+    `http://localhost:3000/api/forms/${mockFormId}/pdf${qs}`,
     {
       method: 'GET',
       headers: {
@@ -364,5 +365,37 @@ describe('Forms [id] PDF API Route', () => {
 
     expect(response.status).toBe(500);
     expect(data.error).toBe('Failed to generate PDF');
+  });
+
+  describe('draft query parameter', () => {
+    it('should pass isDraft undefined when no draft param provided', async () => {
+      const request = createMockRequest();
+      await GET(request, createMockContext());
+
+      expect(mockGenerateFormPDF).toHaveBeenCalledWith(
+        expect.any(Object),
+        { isDraft: undefined },
+      );
+    });
+
+    it('should pass isDraft false when ?draft=false', async () => {
+      const request = createMockRequest('draft=false');
+      await GET(request, createMockContext());
+
+      expect(mockGenerateFormPDF).toHaveBeenCalledWith(
+        expect.any(Object),
+        { isDraft: false },
+      );
+    });
+
+    it('should pass isDraft true when ?draft=true', async () => {
+      const request = createMockRequest('draft=true');
+      await GET(request, createMockContext());
+
+      expect(mockGenerateFormPDF).toHaveBeenCalledWith(
+        expect.any(Object),
+        { isDraft: true },
+      );
+    });
   });
 });

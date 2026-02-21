@@ -12,7 +12,7 @@ const log = createLogger('api:forms-pdf');
  * GET /api/forms/[id]/pdf
  * Generate and download a filled PDF for the form.
  */
-export const GET = withAuth(async (_request, context, auth) => {
+export const GET = withAuth(async (request, context, auth) => {
   try {
     const { id } = await context.params!;
 
@@ -34,6 +34,10 @@ export const GET = withAuth(async (_request, context, auth) => {
       return errorResponse(`PDF generation not yet supported for form type: ${formType}`, 400);
     }
 
+    // Parse draft query param (summary PDFs default to draft; ?draft=false removes watermark)
+    const url = new URL(request.url);
+    const draftParam = url.searchParams.get('draft');
+
     // Generate the PDF
     const result = await generateFormPDF({
       id: form.id,
@@ -42,6 +46,8 @@ export const GET = withAuth(async (_request, context, auth) => {
       aiFilledData: form.ai_filled_data as Record<string, unknown> | undefined,
       createdAt: form.created_at,
       updatedAt: form.updated_at,
+    }, {
+      isDraft: draftParam != null ? draftParam !== 'false' : undefined,
     });
 
     if (!result.success || !result.pdfBytes) {

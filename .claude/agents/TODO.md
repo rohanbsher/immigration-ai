@@ -118,9 +118,9 @@ Priority order for the next agent session. User is handling custom domain purcha
 - [x] PDF-6: Add PDF download button + preview iframe in form detail UI
 - [x] PDF-9a: Add I-129 AcroForm field map (55 fields — petitioner, classification, beneficiary, job, signature)
 - [x] PDF-9b: Add I-539 AcroForm field map (37 fields — applicant, application type, processing, signature)
-- [ ] PDF-4: Handle USCIS formatting (MM/DD/YYYY dates, checkboxes, continuation sheets)
-- [ ] PDF-5: Remove "DRAFT" watermark, produce filing-ready output
-- [ ] PDF-9c: Add field maps for 2 remaining forms (I-20, DS-160)
+- [x] PDF-4: Handle USCIS formatting (MM/DD/YYYY dates, checkboxes, continuation sheets)
+- [x] PDF-5: Conditional DRAFT watermark (summary PDFs default to draft; XFA output is filing-ready)
+- [x] PDF-9c: Add field maps for 2 remaining forms (I-20, DS-160)
 
 ### WS-AI-MAPPING: Expand AI Autofill Coverage (COMPLETE — 2026-02-19)
 **Status:** COMPLETE — 50 new field mappings, history builder, gap analysis, DocumentPrompt UI

@@ -134,7 +134,7 @@ export async function generateFormPDF(
     // Fallback: generate a summary PDF
     const fieldMappings = getFieldMappings(form.formType);
     const pdfBytes = await generateSummaryPDF(form.formType, mergedData, fieldMappings, {
-      isDraft: options.isDraft ?? false,
+      isDraft: options.isDraft ?? true,
     });
 
     return {

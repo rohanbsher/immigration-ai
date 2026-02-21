@@ -32,9 +32,9 @@ export const FILE_SIGNATURES: Record<string, { signature: number[]; offset?: num
     { signature: [0x47, 0x49, 0x46, 0x38, 0x37, 0x61] },
     { signature: [0x47, 0x49, 0x46, 0x38, 0x39, 0x61] }
   ],
-  // WebP: RIFF....WEBP
+  // WebP: RIFF....WEBP (RIFF header checked here; WEBP at offset 8 verified in detectMimeTypeFromContent)
   'image/webp': [
-    { signature: [0x52, 0x49, 0x46, 0x46] } // RIFF header (also need to check for WEBP at offset 8)
+    { signature: [0x52, 0x49, 0x46, 0x46] }
   ],
   // DOCX/Office Open XML: PK (ZIP archive)
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document': [

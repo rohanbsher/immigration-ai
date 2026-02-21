@@ -1,77 +1,38 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { formsService } from '@/lib/db';
-import { createClient } from '@/lib/supabase/server';
 import { validateFormReadyForFiling } from '@/lib/form-validation';
-import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 import { createLogger } from '@/lib/logger';
-import { verifyFormAccess } from '@/lib/auth/api-helpers';
+import {
+  withAuth,
+  verifyFormAccess,
+  errorResponse,
+  successResponse,
+} from '@/lib/auth/api-helpers';
 
 const log = createLogger('api:forms-file');
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const { id } = await params;
-
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Rate limiting by user ID (not IP) to avoid shared-IP issues in law firms
-    const rateLimitResult = await rateLimit(RATE_LIMITS.SENSITIVE, user.id);
-    if (!rateLimitResult.success) {
-      return NextResponse.json(
-        { error: 'Too many requests' },
-        { status: 429, headers: { 'Retry-After': rateLimitResult.retryAfter?.toString() || '60' } }
-      );
-    }
-
-    // Check if user is an attorney
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-
-    if (profile?.role !== 'attorney') {
-      return NextResponse.json(
-        { error: 'Only attorneys can mark forms as filed' },
-        { status: 403 }
-      );
-    }
+export const POST = withAuth(
+  async (request: NextRequest, context, auth) => {
+    const { id } = await context.params!;
 
     // Verify the attorney owns the case this form belongs to
-    const formAccess = await verifyFormAccess(user.id, id);
+    const formAccess = await verifyFormAccess(auth.user.id, id);
     if (!formAccess.success) {
-      return NextResponse.json(
-        { error: formAccess.error },
-        { status: formAccess.status }
-      );
+      return errorResponse(formAccess.error, formAccess.status);
     }
     if (!formAccess.access.isAttorney) {
-      return NextResponse.json(
-        { error: 'Only the case attorney can file forms' },
-        { status: 403 }
-      );
+      return errorResponse('Only the case attorney can file forms', 403);
     }
 
     // Check if form is approved before filing
     const form = await formsService.getForm(id);
 
     if (!form) {
-      return NextResponse.json({ error: 'Form not found' }, { status: 404 });
+      return errorResponse('Form not found', 404);
     }
 
     if (form.status !== 'approved') {
-      return NextResponse.json(
-        { error: 'Form must be approved before filing' },
-        { status: 400 }
-      );
+      return errorResponse('Form must be approved before filing', 400);
     }
 
     // CRITICAL: Validate that all low-confidence AI fields have been reviewed
@@ -95,26 +56,19 @@ export async function POST(
         errors: filingValidation.errors,
       });
 
-      return NextResponse.json(
+      return errorResponse(
+        'Form cannot be filed until all required fields are reviewed',
+        422,
         {
-          error: 'Form cannot be filed until all required fields are reviewed',
-          details: {
-            unreviewedFields: filingValidation.errors,
-            message: 'Low-confidence AI-filled fields and sensitive fields must be reviewed by an attorney before filing.',
-          },
-        },
-        { status: 422 }
+          unreviewedFields: filingValidation.errors,
+          message: 'Low-confidence AI-filled fields and sensitive fields must be reviewed by an attorney before filing.',
+        }
       );
     }
 
     const filedForm = await formsService.markAsFiled(id);
 
-    return NextResponse.json(filedForm);
-  } catch (error) {
-    log.logError('Error filing form', error);
-    return NextResponse.json(
-      { error: 'Failed to mark form as filed' },
-      { status: 500 }
-    );
-  }
-}
+    return successResponse(filedForm);
+  },
+  { rateLimit: 'SENSITIVE', roles: ['attorney'] }
+);

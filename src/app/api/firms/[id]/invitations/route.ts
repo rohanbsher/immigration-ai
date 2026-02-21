@@ -14,6 +14,7 @@ import { createLogger } from '@/lib/logger';
 import { sendTeamInvitationEmail } from '@/lib/email/notifications';
 import { getFirmById } from '@/lib/db/firms';
 import { safeParseBody } from '@/lib/auth/api-helpers';
+import { checkQuota } from '@/lib/billing/quota';
 
 const log = createLogger('api:firms-invitations');
 
@@ -124,10 +125,24 @@ export async function POST(request: NextRequest, { params }: Params) {
       }
     }
 
+    // Soft enforcement: check team member quota before creating invitation.
+    // Hard enforcement happens via check_team_member_quota() DB trigger on firm_members.
+    const firm = await getFirmById(id);
+    if (firm) {
+      const quotaCheck = await checkQuota(firm.ownerId, 'team_members');
+      if (!quotaCheck.allowed) {
+        return NextResponse.json(
+          { error: quotaCheck.message || 'Team member quota exceeded. Please upgrade your plan.' },
+          { status: 403 }
+        );
+      }
+    }
+
     const invitation = await createInvitation(id, email, role, user.id);
 
     // Send invitation email (fire-and-forget)
-    const firm = await getFirmById(id);
+    // firm already fetched above for quota check; re-fetch only if null (shouldn't happen)
+    const firmForEmail = firm || await getFirmById(id);
     const inviterProfile = await supabase
       .from('profiles')
       .select('first_name, last_name')
@@ -140,7 +155,7 @@ export async function POST(request: NextRequest, { params }: Params) {
     sendTeamInvitationEmail(
       email,
       inviterName,
-      firm?.name || 'your firm',
+      firmForEmail?.name || 'your firm',
       role,
       invitation.token,
       new Date(invitation.expiresAt)

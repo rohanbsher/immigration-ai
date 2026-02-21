@@ -17,6 +17,9 @@ const IDLE_COOKIE_NAME = 'last_activity';
 function signTimestamp(timestamp: string): string {
   const secret = process.env.ENCRYPTION_KEY;
   if (!secret) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('ENCRYPTION_KEY is required in production for idle timeout security');
+    }
     // In development without ENCRYPTION_KEY, fall back to unsigned
     return timestamp;
   }
@@ -31,6 +34,9 @@ function signTimestamp(timestamp: string): string {
 function verifyTimestamp(cookieValue: string): string | null {
   const secret = process.env.ENCRYPTION_KEY;
   if (!secret) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('ENCRYPTION_KEY is required in production for idle timeout security');
+    }
     // In development without ENCRYPTION_KEY, accept unsigned values
     return cookieValue;
   }

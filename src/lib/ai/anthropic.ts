@@ -42,13 +42,18 @@ export async function generateFormAutofill(
     ? filterPiiFromRecord(input.existingFormData)
     : undefined;
 
+  // Filter PII from case context before sending to external AI API
+  const safeCaseContext = input.caseContext
+    ? filterPiiFromRecord(input.caseContext as Record<string, string>)
+    : undefined;
+
   // Build the data context for Claude
   const dataContext = `
 ## Extracted Document Data
 ${JSON.stringify(safeExtractedData, null, 2)}
 
 ## Case Context
-${input.caseContext ? JSON.stringify(input.caseContext, null, 2) : 'No additional context provided'}
+${safeCaseContext ? JSON.stringify(safeCaseContext, null, 2) : 'No additional context provided'}
 
 ## Existing Form Data
 ${safeExistingFormData ? JSON.stringify(safeExistingFormData, null, 2) : 'No existing data'}
@@ -105,6 +110,7 @@ export async function validateFormData(
 }> {
   // Filter PII before sending to external AI API
   const safeFormData = filterPiiFromRecord(formData);
+  const safeCaseCtx = caseContext ? filterPiiFromRecord(caseContext) : undefined;
 
   try {
     return await callClaudeStructured({
@@ -124,7 +130,7 @@ Form Data:
 ${JSON.stringify(safeFormData, null, 2)}
 
 Case Context:
-${caseContext ? JSON.stringify(caseContext, null, 2) : 'None provided'}
+${safeCaseCtx ? JSON.stringify(safeCaseCtx, null, 2) : 'None provided'}
 
 Identify:
 1. Errors: Critical issues that would cause form rejection

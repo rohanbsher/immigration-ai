@@ -150,8 +150,11 @@ export function useAuth() {
       // custom API login, leaving isLoading stuck true if redirect is slow.
       setState(prev => ({ ...prev, isLoading: false }));
 
-      // Redirect to returnUrl if provided, otherwise dashboard
-      const redirectTo = data.returnUrl || '/dashboard';
+      // Redirect to returnUrl if provided, otherwise dashboard.
+      // Validate that returnUrl is a relative path to prevent open redirect attacks.
+      const rawRedirect = data.returnUrl || '/dashboard';
+      const isSafeRedirect = rawRedirect.startsWith('/') && !rawRedirect.startsWith('//');
+      const redirectTo = isSafeRedirect ? rawRedirect : '/dashboard';
       router.push(redirectTo);
       router.refresh();
       return { success: true };

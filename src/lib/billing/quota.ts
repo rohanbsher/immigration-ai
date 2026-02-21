@@ -298,6 +298,61 @@ export async function enforceQuota(
   }
 }
 
+/**
+ * Atomically checks quota and increments usage in a single database call.
+ * Uses the check_and_increment_usage RPC to prevent TOCTOU race conditions
+ * between checking quota and tracking usage.
+ *
+ * @returns QuotaCheck with the result of the atomic operation
+ * @throws QuotaExceededError if quota would be exceeded
+ */
+export async function enforceAndTrackUsage(
+  userId: string,
+  metric: QuotaMetric,
+  amount = 1
+): Promise<QuotaCheck> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase.rpc('check_and_increment_usage', {
+    p_user_id: userId,
+    p_metric_name: metric,
+    p_quantity: amount,
+  });
+
+  if (error) {
+    // Fall back to non-atomic check if RPC doesn't exist yet
+    logger.warn('Atomic quota RPC not available, falling back to separate check', {
+      userId,
+      metric,
+      error: error.message,
+    });
+    const check = await checkQuota(userId, metric, amount);
+    if (!check.allowed) {
+      throw new QuotaExceededError(metric, check.limit, check.current);
+    }
+    await trackUsage(userId, metric, amount);
+    return check;
+  }
+
+  const result = data as { allowed: boolean; current_usage: number; max_allowed: number; new_usage: number } | null;
+
+  if (!result) {
+    return { allowed: true, current: 0, limit: -1, remaining: -1, isUnlimited: true };
+  }
+
+  if (!result.allowed) {
+    throw new QuotaExceededError(metric, result.max_allowed, result.current_usage);
+  }
+
+  return {
+    allowed: true,
+    current: result.new_usage,
+    limit: result.max_allowed,
+    remaining: Math.max(0, result.max_allowed - result.new_usage),
+    isUnlimited: result.max_allowed === -1,
+  };
+}
+
 export class QuotaExceededError extends Error {
   constructor(
     public metric: QuotaMetric,

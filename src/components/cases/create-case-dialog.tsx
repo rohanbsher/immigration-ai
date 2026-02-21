@@ -79,10 +79,11 @@ export function CreateCaseDialog({ open, onOpenChange }: CreateCaseDialogProps) 
 
   const { data: searchResults, isLoading: isSearching } = useSearchClients(debouncedSearch);
 
+  // Reset form error when dialog opens
   useEffect(() => {
-    if (open) {
-      setFormError(null);
-    }
+    if (!open) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setFormError(null);
   }, [open]);
 
   // Debounce the search input by 300ms (only when dialog is open)

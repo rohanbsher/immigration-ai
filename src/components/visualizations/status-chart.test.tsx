@@ -16,13 +16,16 @@ vi.mock('recharts', () => ({
 }));
 
 // Mock motion/react
-vi.mock('motion/react', () => {
+vi.mock('motion/react', async () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const React = require('react');
+  const MockDiv = React.forwardRef(({ children, initial, animate, transition, className, ...props }: any, ref: any) => (
+    <div ref={ref} className={className} {...props}>{children}</div>
+  ));
+  MockDiv.displayName = 'MockMotionDiv';
   return {
     motion: {
-      div: React.forwardRef(({ children, initial, animate, transition, className, ...props }: any, ref: any) => (
-        <div ref={ref} className={className} {...props}>{children}</div>
-      )),
+      div: MockDiv,
     },
     useInView: () => true,
   };

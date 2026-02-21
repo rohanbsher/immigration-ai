@@ -3,19 +3,26 @@ import { render, screen } from '@testing-library/react';
 import { AnimatedCounter } from './animated-counter';
 
 // Mock motion/react to avoid animation complexities in tests
-vi.mock('motion/react', () => {
+vi.mock('motion/react', async () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const React = require('react');
+  const MockSpan = React.forwardRef(({ children, initial, animate, transition, className, ...props }: any, ref: any) => (
+    <span ref={ref} className={className} {...props}>{children}</span>
+  ));
+  MockSpan.displayName = 'MockMotionSpan';
+  const MockDiv = React.forwardRef(({ children, initial, animate, transition, className, ...props }: any, ref: any) => (
+    <div ref={ref} className={className} {...props}>{children}</div>
+  ));
+  MockDiv.displayName = 'MockMotionDiv';
+  const MockCircle = React.forwardRef(({ children, style, ...props }: any, ref: any) => (
+    <circle ref={ref} {...props}>{children}</circle>
+  ));
+  MockCircle.displayName = 'MockMotionCircle';
   return {
     motion: {
-      span: React.forwardRef(({ children, initial, animate, transition, className, ...props }: any, ref: any) => (
-        <span ref={ref} className={className} {...props}>{children}</span>
-      )),
-      div: React.forwardRef(({ children, initial, animate, transition, className, ...props }: any, ref: any) => (
-        <div ref={ref} className={className} {...props}>{children}</div>
-      )),
-      circle: React.forwardRef(({ children, style, ...props }: any, ref: any) => (
-        <circle ref={ref} {...props}>{children}</circle>
-      )),
+      span: MockSpan,
+      div: MockDiv,
+      circle: MockCircle,
     },
     useInView: () => true,
     useSpring: (initial: number) => {

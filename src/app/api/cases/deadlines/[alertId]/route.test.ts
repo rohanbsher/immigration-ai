@@ -6,13 +6,18 @@ const ATTORNEY_ID = '550e8400-e29b-41d4-a716-446655440000';
 const ALERT_ID = '550e8400-e29b-41d4-a716-446655440010';
 
 // Mock Supabase client
-const mockGetUser = vi.fn();
 const mockSupabaseClient = {
-  auth: { getUser: mockGetUser },
+  auth: {
+    getUser: vi.fn(),
+  },
 };
 
 vi.mock('@/lib/supabase/server', () => ({
-  createClient: vi.fn().mockImplementation(() => Promise.resolve(mockSupabaseClient)),
+  createClient: vi.fn(() => Promise.resolve(mockSupabaseClient)),
+}));
+
+vi.mock('@/lib/supabase/admin', () => ({
+  getProfileAsAdmin: vi.fn(),
 }));
 
 // Mock deadline functions
@@ -65,27 +70,8 @@ vi.mock('@/lib/logger', () => ({
   }),
 }));
 
-// Mock safeParseBody
-vi.mock('@/lib/auth/api-helpers', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { NextResponse } = require('next/server');
-  return {
-    safeParseBody: async (request: { json: () => Promise<unknown> }) => {
-      try {
-        const data = await request.json();
-        return { success: true, data };
-      } catch {
-        return {
-          success: false,
-          response: NextResponse.json(
-            { error: 'Invalid JSON in request body' },
-            { status: 400 }
-          ),
-        };
-      }
-    },
-  };
-});
+import { getProfileAsAdmin } from '@/lib/supabase/admin';
+import { rateLimit } from '@/lib/rate-limit';
 
 function createMockRequest(
   url: string,
@@ -106,14 +92,18 @@ function createMockRequest(
 }
 
 function setAuthenticatedUser(userId: string) {
-  mockGetUser.mockResolvedValue({
+  mockSupabaseClient.auth.getUser.mockResolvedValue({
     data: { user: { id: userId, email: `${userId}@example.com` } },
     error: null,
   });
+  vi.mocked(getProfileAsAdmin).mockResolvedValue({
+    profile: { id: userId, role: 'attorney', full_name: 'Test User', email: `${userId}@example.com` },
+    error: null,
+  } as any);
 }
 
 function setUnauthenticated() {
-  mockGetUser.mockResolvedValue({
+  mockSupabaseClient.auth.getUser.mockResolvedValue({
     data: { user: null },
     error: { message: 'Not authenticated' },
   });
@@ -123,6 +113,7 @@ describe('PATCH /api/cases/deadlines/[alertId]', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     setAuthenticatedUser(ATTORNEY_ID);
+    vi.mocked(rateLimit).mockResolvedValue({ success: true });
   });
 
   afterEach(() => {
@@ -154,8 +145,7 @@ describe('PATCH /api/cases/deadlines/[alertId]', () => {
 
     expect(response.status).toBe(400);
     const data = await response.json();
-    expect(data.error).toBe('Bad Request');
-    expect(data.message).toContain('acknowledge');
+    expect(data.error).toContain('acknowledge');
   });
 
   it('should return 400 when action is missing', async () => {
@@ -181,7 +171,7 @@ describe('PATCH /api/cases/deadlines/[alertId]', () => {
 
     expect(response.status).toBe(404);
     const data = await response.json();
-    expect(data.error).toBe('Not Found');
+    expect(data.error).toContain('not found');
   });
 
   it('should return 200 on successful acknowledge', async () => {
@@ -195,10 +185,11 @@ describe('PATCH /api/cases/deadlines/[alertId]', () => {
     const response = await PATCH(request, { params: Promise.resolve({ alertId: ALERT_ID }) });
 
     expect(response.status).toBe(200);
-    const data = await response.json();
-    expect(data.success).toBe(true);
-    expect(data.action).toBe('acknowledge');
-    expect(data.alertId).toBe(ALERT_ID);
+    const json = await response.json();
+    // successResponse wraps in { success, data }
+    expect(json.success).toBe(true);
+    expect(json.data.action).toBe('acknowledge');
+    expect(json.data.alertId).toBe(ALERT_ID);
     expect(mockAcknowledgeAlert).toHaveBeenCalledWith(ALERT_ID, ATTORNEY_ID);
   });
 
@@ -213,9 +204,9 @@ describe('PATCH /api/cases/deadlines/[alertId]', () => {
     const response = await PATCH(request, { params: Promise.resolve({ alertId: ALERT_ID }) });
 
     expect(response.status).toBe(200);
-    const data = await response.json();
-    expect(data.success).toBe(true);
-    expect(data.action).toBe('snooze');
+    const json = await response.json();
+    expect(json.success).toBe(true);
+    expect(json.data.action).toBe('snooze');
     expect(mockSnoozeAlert).toHaveBeenCalledWith(ALERT_ID, ATTORNEY_ID, 1);
   });
 
@@ -273,7 +264,7 @@ describe('PATCH /api/cases/deadlines/[alertId]', () => {
 
     expect(response.status).toBe(404);
     const data = await response.json();
-    expect(data.error).toBe('Not Found');
+    expect(data.error).toContain('not found');
   });
 
   it('should return 500 on unexpected error', async () => {
@@ -288,6 +279,6 @@ describe('PATCH /api/cases/deadlines/[alertId]', () => {
 
     expect(response.status).toBe(500);
     const data = await response.json();
-    expect(data.error).toBe('Internal Server Error');
+    expect(data.error).toBe('Internal server error');
   });
 });

@@ -101,6 +101,26 @@ vi.mock('@/lib/supabase/server', () => ({
   createClient: vi.fn(() => Promise.resolve(mockSupabaseClient)),
 }));
 
+// Mock logger
+vi.mock('@/lib/logger', () => ({
+  createLogger: vi.fn().mockReturnValue({
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    logError: vi.fn(),
+  }),
+}));
+
+// Mock audit service
+vi.mock('@/lib/audit', () => ({
+  auditService: {
+    log: vi.fn().mockResolvedValue(undefined),
+    logAccess: vi.fn().mockResolvedValue(undefined),
+    logDelete: vi.fn().mockResolvedValue(undefined),
+  },
+}));
+
 // Mock db services
 vi.mock('@/lib/db', () => ({
   formsService: {
@@ -175,11 +195,13 @@ vi.mock('@/lib/rate-limit', () => ({
   isRedisRateLimitingEnabled: vi.fn().mockReturnValue(false),
 }));
 
-// Mock auth helpers (verifyFormAccess used in file route)
-vi.mock('@/lib/auth/api-helpers', () => {
+// Mock auth helpers: keep real withAuth/successResponse/errorResponse, mock verifyFormAccess/requireAiConsent/safeParseBody
+vi.mock('@/lib/auth/api-helpers', async (importOriginal) => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { NextResponse } = require('next/server');
+  const actual = await importOriginal<typeof import('@/lib/auth/api-helpers')>();
   return {
+    ...actual,
     verifyFormAccess: vi.fn().mockResolvedValue({
       success: true,
       access: { isAttorney: true, isClient: false },
@@ -202,6 +224,11 @@ vi.mock('@/lib/auth/api-helpers', () => {
   };
 });
 
+// Mock admin client for profile lookup
+vi.mock('@/lib/supabase/admin', () => ({
+  getProfileAsAdmin: vi.fn(),
+}));
+
 // Import handlers after mocks are set up
 import { GET, PATCH, DELETE } from './[id]/route';
 import { POST as autofillPOST } from './[id]/autofill/route';
@@ -211,6 +238,7 @@ import { formsService, casesService, documentsService } from '@/lib/db';
 import { autofillForm } from '@/lib/ai';
 import { aiRateLimiter } from '@/lib/rate-limit';
 import { requireAiConsent } from '@/lib/auth/api-helpers';
+import { getProfileAsAdmin } from '@/lib/supabase/admin';
 
 // Helper to create mock NextRequest
 function createMockRequest(
@@ -255,10 +283,28 @@ describe('Forms API Routes', () => {
       data: { user: { id: mockAttorneyId, email: 'attorney@example.com' } },
       error: null,
     });
+
+    // Default: profile lookup succeeds
+    vi.mocked(getProfileAsAdmin).mockResolvedValue({
+      profile: {
+        id: mockAttorneyId,
+        role: 'attorney',
+        email: 'attorney@example.com',
+        first_name: 'Attorney',
+        last_name: 'User',
+        phone: null,
+        mfa_enabled: false,
+        ai_consent_granted_at: '2024-01-01T00:00:00Z',
+        primary_firm_id: null,
+        created_at: '2024-01-01T00:00:00Z',
+        updated_at: '2024-01-01T00:00:00Z',
+      },
+      error: null,
+    });
   });
 
   afterEach(() => {
-    vi.restoreAllMocks();
+    vi.clearAllMocks();
   });
 
   // ==========================================================================
@@ -327,8 +373,8 @@ describe('Forms API Routes', () => {
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data.id).toBe(mockFormId);
-      expect(data.form_type).toBe('I-130');
+      expect(data.data.id).toBe(mockFormId);
+      expect(data.data.form_type).toBe('I-130');
     });
 
     it('should return form when client has access', async () => {
@@ -345,7 +391,7 @@ describe('Forms API Routes', () => {
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data.id).toBe(mockFormId);
+      expect(data.data.id).toBe(mockFormId);
     });
   });
 
@@ -426,7 +472,7 @@ describe('Forms API Routes', () => {
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data.status).toBe('in_review');
+      expect(data.data.status).toBe('in_review');
       expect(mockUpdate).toHaveBeenCalledWith({ status: 'in_review' });
       expect(mockEq1).toHaveBeenCalledWith('id', mockFormId);
       expect(mockEq2).toHaveBeenCalledWith('status', 'draft');
@@ -481,7 +527,7 @@ describe('Forms API Routes', () => {
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data.form_data).toEqual(newFormData);
+      expect(data.data.form_data).toEqual(newFormData);
     });
   });
 
@@ -541,7 +587,7 @@ describe('Forms API Routes', () => {
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data.message).toBe('Form deleted successfully');
+      expect(data.data.message).toBe('Form deleted successfully');
       expect(formsService.deleteForm).toHaveBeenCalledWith(mockFormId);
     });
   });
@@ -774,8 +820,8 @@ describe('Forms API Routes', () => {
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data.status).toBe('approved');
-      expect(data.review_notes).toBe('Looks good');
+      expect(data.data.status).toBe('approved');
+      expect(data.data.review_notes).toBe('Looks good');
       expect(formsService.reviewForm).toHaveBeenCalledWith(mockFormId, 'Looks good', mockAttorneyId);
     });
 
@@ -795,7 +841,7 @@ describe('Forms API Routes', () => {
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data.status).toBe('approved');
+      expect(data.data.status).toBe('approved');
     });
   });
 
@@ -905,7 +951,7 @@ describe('Forms API Routes', () => {
       const data = await response.json();
 
       expect(response.status).toBe(500);
-      expect(data.error).toBe('Failed to fetch form');
+      expect(data.error).toBe('Internal server error');
     });
 
     it('should handle update database errors gracefully', async () => {
@@ -918,7 +964,7 @@ describe('Forms API Routes', () => {
       const data = await response.json();
 
       expect(response.status).toBe(500);
-      expect(data.error).toBe('Failed to update form');
+      expect(data.error).toBe('Internal server error');
     });
 
     it('should handle delete database errors gracefully', async () => {
@@ -931,7 +977,7 @@ describe('Forms API Routes', () => {
       const data = await response.json();
 
       expect(response.status).toBe(500);
-      expect(data.error).toBe('Failed to delete form');
+      expect(data.error).toBe('Internal server error');
     });
   });
 });

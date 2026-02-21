@@ -120,6 +120,7 @@ vi.mock('@/lib/supabase/admin', () => ({
   getAdminClient: vi.fn(() => ({
     from: vi.fn(() => mockAdminQueryBuilder),
   })),
+  getProfileAsAdmin: vi.fn(),
 }));
 
 // Mock db services
@@ -137,6 +138,12 @@ vi.mock('@/lib/db/profiles', () => ({
   profilesService: {
     getProfile: vi.fn(),
   },
+}));
+
+// Mock crypto for PATCH route
+vi.mock('@/lib/crypto', () => ({
+  encrypt: vi.fn((val: string) => `encrypted:${val}`),
+  decrypt: vi.fn((val: string) => val.replace('encrypted:', '')),
 }));
 
 // Mock auth helpers - need to mock authenticate and the wrapper functions
@@ -239,6 +246,17 @@ vi.mock('@/lib/rate-limit', () => ({
   isRedisRateLimitingEnabled: vi.fn().mockReturnValue(false),
 }));
 
+// Mock logger
+vi.mock('@/lib/logger', () => ({
+  createLogger: vi.fn().mockReturnValue({
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    logError: vi.fn(),
+  }),
+}));
+
 // Import handlers after mocks are set up
 import { GET as getClients } from './route';
 import { GET as searchClients } from './search/route';
@@ -247,7 +265,7 @@ import { GET as getClientCases } from './[id]/cases/route';
 import { clientsService } from '@/lib/db/clients';
 import { profilesService } from '@/lib/db/profiles';
 import { authenticate } from '@/lib/auth/api-helpers';
-import { sensitiveRateLimiter } from '@/lib/rate-limit';
+import { standardRateLimiter } from '@/lib/rate-limit';
 
 // Helper to create mock NextRequest
 function createMockRequest(
@@ -302,7 +320,7 @@ describe('Clients API Routes', () => {
   });
 
   afterEach(() => {
-    vi.restoreAllMocks();
+    vi.clearAllMocks();
   });
 
   // ==========================================================================
@@ -594,9 +612,20 @@ describe('Clients API Routes', () => {
 
   // ==========================================================================
   // GET /api/clients/[id]
+  // Note: This route does NOT use authenticate mock - it uses withAuth which
+  // calls authenticate. But [id]/route.ts uses createClient() for canAccessClient
+  // and resolveUserFirmId. We mock authenticate to control auth state, and mock
+  // mockSupabaseClient.from for the case access check in canAccessClient.
   // ==========================================================================
   describe('GET /api/clients/[id]', () => {
     beforeEach(() => {
+      // Default: authenticated as attorney
+      vi.mocked(authenticate).mockResolvedValue({
+        success: true,
+        user: { id: mockAttorneyId, email: 'attorney@example.com' } as any,
+        profile: mockAttorneyProfile as any,
+      });
+
       // Mock case query for access check (canAccessClient adds .is('deleted_at', null))
       mockSupabaseClient.from.mockReturnValue({
         select: vi.fn().mockReturnThis(),
@@ -610,9 +639,13 @@ describe('Clients API Routes', () => {
     });
 
     it('should return 401 when not authenticated', async () => {
-      mockSupabaseClient.auth.getUser.mockResolvedValue({
-        data: { user: null },
-        error: null,
+      vi.mocked(authenticate).mockResolvedValue({
+        success: false,
+        error: 'Unauthorized',
+        response: new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), {
+          status: 401,
+          headers: { 'Content-Type': 'application/json' },
+        }) as any,
       });
 
       const request = createMockRequest('GET', `/api/clients/${mockClientId}`);
@@ -661,15 +694,17 @@ describe('Clients API Routes', () => {
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data.id).toBe(mockClientId);
-      expect(data.first_name).toBe('John');
+      // successResponse wraps in { success, data }
+      expect(data.data.id).toBe(mockClientId);
+      expect(data.data.first_name).toBe('John');
       expect(clientsService.getClientById).toHaveBeenCalledWith(mockClientId, mockAttorneyId);
     });
 
     it('should return client when client views own profile', async () => {
-      mockSupabaseClient.auth.getUser.mockResolvedValue({
-        data: { user: { id: mockClientId, email: 'john.doe@example.com' } },
-        error: null,
+      vi.mocked(authenticate).mockResolvedValue({
+        success: true,
+        user: { id: mockClientId, email: 'john.doe@example.com' } as any,
+        profile: mockClientProfile as any,
       });
 
       vi.mocked(clientsService.getClientById).mockResolvedValue(mockClient as any);
@@ -679,7 +714,7 @@ describe('Clients API Routes', () => {
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data.id).toBe(mockClientId);
+      expect(data.data.id).toBe(mockClientId);
     });
   });
 
@@ -688,6 +723,13 @@ describe('Clients API Routes', () => {
   // ==========================================================================
   describe('PATCH /api/clients/[id]', () => {
     beforeEach(() => {
+      // Default: authenticated as attorney
+      vi.mocked(authenticate).mockResolvedValue({
+        success: true,
+        user: { id: mockAttorneyId, email: 'attorney@example.com' } as any,
+        profile: mockAttorneyProfile as any,
+      });
+
       // Mock case query for access check (canAccessClient adds .is('deleted_at', null))
       mockSupabaseClient.from.mockReturnValue({
         select: vi.fn().mockReturnThis(),
@@ -701,9 +743,13 @@ describe('Clients API Routes', () => {
     });
 
     it('should return 401 when not authenticated', async () => {
-      mockSupabaseClient.auth.getUser.mockResolvedValue({
-        data: { user: null },
-        error: null,
+      vi.mocked(authenticate).mockResolvedValue({
+        success: false,
+        error: 'Unauthorized',
+        response: new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), {
+          status: 401,
+          headers: { 'Content-Type': 'application/json' },
+        }) as any,
       });
 
       const request = createMockRequest('PATCH', `/api/clients/${mockClientId}`, {
@@ -738,13 +784,14 @@ describe('Clients API Routes', () => {
     });
 
     it('should return 403 when client tries to update other client', async () => {
-      mockSupabaseClient.auth.getUser.mockResolvedValue({
-        data: { user: { id: mockClientId, email: 'john.doe@example.com' } },
-        error: null,
+      vi.mocked(authenticate).mockResolvedValue({
+        success: true,
+        user: { id: mockClientId, email: 'john.doe@example.com' } as any,
+        profile: mockClientProfile as any,
       });
       vi.mocked(profilesService.getProfile).mockResolvedValue(mockClientProfile as any);
 
-      // Client can access their own profile
+      // Client can access their own profile but not other clients
       mockSupabaseClient.from.mockReturnValue({
         select: vi.fn().mockReturnThis(),
         eq: vi.fn().mockReturnThis(),
@@ -792,14 +839,16 @@ describe('Clients API Routes', () => {
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data.first_name).toBe('Johnny');
+      // successResponse wraps in { success, data }
+      expect(data.data.first_name).toBe('Johnny');
       expect(clientsService.updateClient).toHaveBeenCalledWith(mockClientId, { first_name: 'Johnny' }, mockAttorneyId);
     });
 
     it('should allow client to update own profile', async () => {
-      mockSupabaseClient.auth.getUser.mockResolvedValue({
-        data: { user: { id: mockClientId, email: 'john.doe@example.com' } },
-        error: null,
+      vi.mocked(authenticate).mockResolvedValue({
+        success: true,
+        user: { id: mockClientId, email: 'john.doe@example.com' } as any,
+        profile: mockClientProfile as any,
       });
       vi.mocked(profilesService.getProfile).mockResolvedValue(mockClientProfile as any);
       vi.mocked(clientsService.updateClient).mockResolvedValue({
@@ -807,6 +856,7 @@ describe('Clients API Routes', () => {
         phone: '+1111111111',
       } as any);
 
+      // canAccessClient: userId === clientId => true (no Supabase query needed)
       const request = createMockRequest('PATCH', `/api/clients/${mockClientId}`, {
         phone: '+1111111111',
       });
@@ -814,7 +864,7 @@ describe('Clients API Routes', () => {
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data.phone).toBe('+1111111111');
+      expect(data.data.phone).toBe('+1111111111');
     });
 
     it('should handle update errors gracefully', async () => {
@@ -828,7 +878,8 @@ describe('Clients API Routes', () => {
       const data = await response.json();
 
       expect(response.status).toBe(500);
-      expect(data.error).toBe('Failed to update client');
+      // The mock withAuth catches the error and returns error.message
+      expect(data.error).toBe('Update error');
     });
   });
 
@@ -914,6 +965,7 @@ describe('Clients API Routes', () => {
       const data = await response.json();
 
       expect(response.status).toBe(200);
+      // successResponse wraps in { success, data }
       expect(data.data).toHaveLength(2);
       expect(data.data[0].visa_type).toBe('H-1B');
       expect(clientsService.getClientCases).toHaveBeenCalledWith(mockClientId);
@@ -967,6 +1019,15 @@ describe('Clients API Routes', () => {
   // Edge cases and security tests
   // ==========================================================================
   describe('Security and edge cases', () => {
+    beforeEach(() => {
+      // Default: authenticated as attorney
+      vi.mocked(authenticate).mockResolvedValue({
+        success: true,
+        user: { id: mockAttorneyId, email: 'attorney@example.com' } as any,
+        profile: mockAttorneyProfile as any,
+      });
+    });
+
     it('should not leak client data in error messages', async () => {
       mockSupabaseClient.from.mockReturnValue({
         select: vi.fn().mockReturnThis(),
@@ -1041,8 +1102,9 @@ describe('Clients API Routes', () => {
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data.phone).toBeNull();
-      expect(data.date_of_birth).toBeNull();
+      // successResponse wraps in { success, data }
+      expect(data.data.phone).toBeNull();
+      expect(data.data.date_of_birth).toBeNull();
     });
   });
 });

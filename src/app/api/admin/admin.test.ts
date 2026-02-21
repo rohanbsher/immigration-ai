@@ -1,21 +1,20 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { NextRequest } from 'next/server';
 
-// Mock dependencies before imports
-vi.mock('@/lib/auth', () => ({
-  serverAuth: {
+// Mock Supabase client used by withAuth (for auth.getUser()) AND by route handlers (for from())
+const mockSupabaseClient = {
+  auth: {
     getUser: vi.fn(),
-    getProfile: vi.fn(),
-    getSession: vi.fn(),
-    requireAuth: vi.fn(),
   },
-}));
+  from: vi.fn(),
+};
 
 vi.mock('@/lib/supabase/server', () => ({
-  createClient: vi.fn(),
+  createClient: vi.fn(() => Promise.resolve(mockSupabaseClient)),
 }));
 
 vi.mock('@/lib/supabase/admin', () => ({
+  getProfileAsAdmin: vi.fn(),
   getAdminClient: vi.fn(),
 }));
 
@@ -68,9 +67,7 @@ import { POST as suspendHandler } from './users/[id]/suspend/route';
 import { POST as unsuspendHandler } from './users/[id]/unsuspend/route';
 import { GET as statsHandler } from './stats/route';
 
-import { serverAuth } from '@/lib/auth';
-import { createClient } from '@/lib/supabase/server';
-import { getAdminClient } from '@/lib/supabase/admin';
+import { getProfileAsAdmin, getAdminClient } from '@/lib/supabase/admin';
 import { rateLimit } from '@/lib/rate-limit';
 import { getStripeClient } from '@/lib/stripe/client';
 
@@ -102,7 +99,6 @@ const VALID_UUID = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
 const ADMIN_UUID = 'b2c3d4e5-f6a7-8901-bcde-f12345678901';
 
 describe('Admin API Routes', () => {
-  let mockFrom: ReturnType<typeof vi.fn>;
   let mockAdminClient: {
     auth: {
       admin: {
@@ -115,20 +111,33 @@ describe('Admin API Routes', () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    // Default: rate limit allows, admin profile
-    vi.mocked(rateLimit).mockResolvedValue({ success: true, remaining: 10 });
-    vi.mocked(serverAuth.getProfile).mockResolvedValue({
-      id: ADMIN_UUID,
-      role: 'admin',
-      email: 'admin@example.com',
+    // Default: authenticated admin user
+    mockSupabaseClient.auth.getUser.mockResolvedValue({
+      data: { user: { id: ADMIN_UUID, email: 'admin@example.com' } },
+      error: null,
+    });
+
+    // Default: admin profile
+    vi.mocked(getProfileAsAdmin).mockResolvedValue({
+      profile: {
+        id: ADMIN_UUID,
+        role: 'admin',
+        email: 'admin@example.com',
+        first_name: 'Admin',
+        last_name: 'User',
+      },
+      error: null,
     } as never);
 
-    // Default Supabase mock
-    mockFrom = vi.fn();
-    vi.mocked(createClient).mockResolvedValue({
-      from: mockFrom,
-      auth: { getUser: vi.fn() },
-    } as never);
+    // Default: rate limit allows
+    vi.mocked(rateLimit).mockResolvedValue({ success: true, remaining: 10 });
+
+    // Default Supabase mock for from() (used by route handlers for DB queries)
+    mockSupabaseClient.from.mockReturnValue({
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      single: vi.fn().mockResolvedValue({ data: null, error: null }),
+    });
 
     // Default: Stripe not configured (returns null)
     vi.mocked(getStripeClient).mockReturnValue(null);
@@ -146,7 +155,7 @@ describe('Admin API Routes', () => {
   });
 
   afterEach(() => {
-    vi.restoreAllMocks();
+    vi.clearAllMocks();
   });
 
   // ─── GET /api/admin/users ──────────────────────────────────────────
@@ -163,7 +172,7 @@ describe('Admin API Routes', () => {
         order: vi.fn().mockReturnThis(),
         range: vi.fn().mockResolvedValue({ data: users, count, error }),
       };
-      mockFrom.mockReturnValue(chainable);
+      mockSupabaseClient.from.mockReturnValue(chainable);
       return chainable;
     }
 
@@ -179,29 +188,31 @@ describe('Admin API Routes', () => {
     });
 
     it('returns 403 when non-admin user', async () => {
-      vi.mocked(serverAuth.getProfile).mockResolvedValue({
-        id: 'user-1',
-        role: 'attorney',
-        email: 'attorney@example.com',
+      vi.mocked(getProfileAsAdmin).mockResolvedValue({
+        profile: {
+          id: 'user-1',
+          role: 'attorney',
+          email: 'attorney@example.com',
+        },
+        error: null,
       } as never);
 
       const req = createRequest('GET', '/api/admin/users');
       const res = await usersListHandler(req);
-      const json = await res.json();
 
       expect(res.status).toBe(403);
-      expect(json.error).toBe('Forbidden');
     });
 
-    it('returns 403 when profile is null', async () => {
-      vi.mocked(serverAuth.getProfile).mockResolvedValue(null as never);
+    it('returns 401 when profile is null', async () => {
+      vi.mocked(getProfileAsAdmin).mockResolvedValue({
+        profile: null,
+        error: new Error('No profile'),
+      } as never);
 
       const req = createRequest('GET', '/api/admin/users');
       const res = await usersListHandler(req);
-      const json = await res.json();
 
-      expect(res.status).toBe(403);
-      expect(json.error).toBe('Forbidden');
+      expect(res.status).toBe(401);
     });
 
     it('returns 200 with paginated users', async () => {
@@ -332,22 +343,23 @@ describe('Admin API Routes', () => {
     });
 
     it('returns 403 when non-admin', async () => {
-      vi.mocked(serverAuth.getProfile).mockResolvedValue({
-        id: 'user-1',
-        role: 'attorney',
+      vi.mocked(getProfileAsAdmin).mockResolvedValue({
+        profile: {
+          id: 'user-1',
+          role: 'attorney',
+        },
+        error: null,
       } as never);
 
       const req = createRequest('GET', `/api/admin/users/${VALID_UUID}`);
       const res = await userDetailHandler(req, createParamsContext(VALID_UUID));
-      const json = await res.json();
 
       expect(res.status).toBe(403);
-      expect(json.error).toBe('Forbidden');
     });
 
     it('returns 404 when user not found', async () => {
       const singleFn = vi.fn().mockResolvedValue({ data: null, error: { message: 'Not found' } });
-      mockFrom.mockReturnValue({
+      mockSupabaseClient.from.mockReturnValue({
         select: vi.fn().mockReturnThis(),
         eq: vi.fn().mockReturnValue({ single: singleFn }),
       });
@@ -379,7 +391,7 @@ describe('Admin API Routes', () => {
       // The route calls supabase.from('profiles').select('*').eq('id', id).single()
       // then Promise.all for cases and subscriptions
       let fromCallCount = 0;
-      mockFrom.mockImplementation((table: string) => {
+      mockSupabaseClient.from.mockImplementation((table: string) => {
         if (table === 'profiles' && fromCallCount === 0) {
           fromCallCount++;
           return {
@@ -431,7 +443,7 @@ describe('Admin API Routes', () => {
     });
 
     it('returns 500 on error', async () => {
-      mockFrom.mockImplementation(() => {
+      mockSupabaseClient.from.mockImplementation(() => {
         throw new Error('Unexpected error');
       });
 
@@ -440,7 +452,8 @@ describe('Admin API Routes', () => {
       const json = await res.json();
 
       expect(res.status).toBe(500);
-      expect(json.error).toBe('Failed to fetch user');
+      // withAuth catch block returns 'Internal server error', not the handler-specific message
+      expect(json.error).toBe('Internal server error');
     });
   });
 
@@ -462,17 +475,18 @@ describe('Admin API Routes', () => {
     });
 
     it('returns 403 when non-admin', async () => {
-      vi.mocked(serverAuth.getProfile).mockResolvedValue({
-        id: 'user-1',
-        role: 'client',
+      vi.mocked(getProfileAsAdmin).mockResolvedValue({
+        profile: {
+          id: 'user-1',
+          role: 'client',
+        },
+        error: null,
       } as never);
 
       const req = createRequest('POST', `/api/admin/users/${VALID_UUID}/suspend`);
       const res = await suspendHandler(req, createParamsContext(VALID_UUID));
-      const json = await res.json();
 
       expect(res.status).toBe(403);
-      expect(json.error).toBe('Forbidden');
     });
 
     it('returns 400 for invalid UUID', async () => {
@@ -537,7 +551,7 @@ describe('Admin API Routes', () => {
 
       expect(res.status).toBe(200);
       expect(json.success).toBe(true);
-      expect(json.message).toBe('User suspended');
+      expect(json.data.message).toBe('User suspended');
       expect(mockAdminClient.auth.admin.updateUserById).toHaveBeenCalledWith(VALID_UUID, {
         ban_duration: '876000h',
       });
@@ -569,7 +583,8 @@ describe('Admin API Routes', () => {
       const json = await res.json();
 
       expect(res.status).toBe(500);
-      expect(json.error).toBe('Failed to suspend user');
+      // withAuth catch block returns 'Internal server error' for unhandled exceptions
+      expect(json.error).toBe('Internal server error');
     });
   });
 
@@ -590,15 +605,17 @@ describe('Admin API Routes', () => {
       expect(json.error).toBe('Too many requests');
     });
 
-    it('returns 403 when non-admin', async () => {
-      vi.mocked(serverAuth.getProfile).mockResolvedValue(null as never);
+    it('returns 401 when profile is null', async () => {
+      vi.mocked(getProfileAsAdmin).mockResolvedValue({
+        profile: null,
+        error: new Error('No profile'),
+      } as never);
 
       const req = createRequest('POST', `/api/admin/users/${VALID_UUID}/unsuspend`);
       const res = await unsuspendHandler(req, createParamsContext(VALID_UUID));
       const json = await res.json();
 
-      expect(res.status).toBe(403);
-      expect(json.error).toBe('Forbidden');
+      expect(res.status).toBe(401);
     });
 
     it('returns 400 for invalid UUID', async () => {
@@ -640,7 +657,7 @@ describe('Admin API Routes', () => {
 
       expect(res.status).toBe(200);
       expect(json.success).toBe(true);
-      expect(json.message).toBe('User unsuspended');
+      expect(json.data.message).toBe('User unsuspended');
       expect(mockAdminClient.auth.admin.updateUserById).toHaveBeenCalledWith(VALID_UUID, {
         ban_duration: 'none',
       });
@@ -672,7 +689,8 @@ describe('Admin API Routes', () => {
       const json = await res.json();
 
       expect(res.status).toBe(500);
-      expect(json.error).toBe('Failed to unsuspend user');
+      // withAuth catch block returns 'Internal server error' for unhandled exceptions
+      expect(json.error).toBe('Internal server error');
     });
   });
 
@@ -690,50 +708,35 @@ describe('Admin API Routes', () => {
     });
 
     it('returns 403 when non-admin', async () => {
-      vi.mocked(serverAuth.getProfile).mockResolvedValue({
-        id: 'user-1',
-        role: 'client',
+      vi.mocked(getProfileAsAdmin).mockResolvedValue({
+        profile: {
+          id: 'user-1',
+          role: 'client',
+        },
+        error: null,
       } as never);
 
       const req = createRequest('GET', '/api/admin/stats');
       const res = await statsHandler(req);
-      const json = await res.json();
 
       expect(res.status).toBe(403);
-      expect(json.error).toBe('Forbidden');
     });
 
-    it('returns 403 when profile is null', async () => {
-      vi.mocked(serverAuth.getProfile).mockResolvedValue(null as never);
+    it('returns 401 when profile is null', async () => {
+      vi.mocked(getProfileAsAdmin).mockResolvedValue({
+        profile: null,
+        error: new Error('No profile'),
+      } as never);
 
       const req = createRequest('GET', '/api/admin/stats');
       const res = await statsHandler(req);
-      const json = await res.json();
 
-      expect(res.status).toBe(403);
-      expect(json.error).toBe('Forbidden');
+      expect(res.status).toBe(401);
     });
 
     it('returns 200 with system stats', async () => {
-      // The stats route calls supabase.from() 8 times via Promise.all
-      // Each returns { count, error: null }
-      mockFrom.mockReturnValue({
-        select: vi.fn().mockReturnValue({
-          gte: vi.fn().mockReturnValue({
-            lt: vi.fn().mockResolvedValue({ count: 3, error: null }),
-          }),
-          is: vi.fn().mockReturnValue({
-            not: vi.fn().mockResolvedValue({ count: 8, error: null }),
-          }),
-          in: vi.fn().mockResolvedValue({ count: 2, error: null }),
-          // For the simple count queries (no chained filters after select)
-          then: undefined,
-        }),
-      });
-
       // We need a more granular mock since different tables have different chains.
-      // Let's override with mockImplementation for proper handling.
-      mockFrom.mockImplementation((table: string) => {
+      mockSupabaseClient.from.mockImplementation((table: string) => {
         const baseSelect = vi.fn();
 
         if (table === 'profiles') {
@@ -806,7 +809,7 @@ describe('Admin API Routes', () => {
       // Stripe returns null (not configured)
       vi.mocked(getStripeClient).mockReturnValue(null);
 
-      mockFrom.mockImplementation((table: string) => {
+      mockSupabaseClient.from.mockImplementation((table: string) => {
         const baseSelect = vi.fn();
         if (table === 'profiles') {
           baseSelect.mockReturnValue({
@@ -875,7 +878,7 @@ describe('Admin API Routes', () => {
       };
       vi.mocked(getStripeClient).mockReturnValue(mockStripe as never);
 
-      mockFrom.mockImplementation((table: string) => {
+      mockSupabaseClient.from.mockImplementation((table: string) => {
         const baseSelect = vi.fn();
         if (table === 'profiles') {
           baseSelect.mockReturnValue({
@@ -939,7 +942,7 @@ describe('Admin API Routes', () => {
       };
       vi.mocked(getStripeClient).mockReturnValue(mockStripe as never);
 
-      mockFrom.mockImplementation((table: string) => {
+      mockSupabaseClient.from.mockImplementation((table: string) => {
         const baseSelect = vi.fn();
         if (table === 'profiles') {
           baseSelect.mockReturnValue({
@@ -995,7 +998,7 @@ describe('Admin API Routes', () => {
       };
       vi.mocked(getStripeClient).mockReturnValue(mockStripe as never);
 
-      mockFrom.mockImplementation((table: string) => {
+      mockSupabaseClient.from.mockImplementation((table: string) => {
         const baseSelect = vi.fn();
         if (table === 'profiles') {
           baseSelect.mockReturnValue({
@@ -1042,7 +1045,7 @@ describe('Admin API Routes', () => {
     });
 
     it('returns 500 on error', async () => {
-      mockFrom.mockImplementation(() => {
+      mockSupabaseClient.from.mockImplementation(() => {
         throw new Error('DB crash');
       });
 
@@ -1051,7 +1054,8 @@ describe('Admin API Routes', () => {
       const json = await res.json();
 
       expect(res.status).toBe(500);
-      expect(json.error).toBe('Failed to fetch admin stats');
+      // withAuth catch block wraps unhandled errors as 'Internal server error'
+      expect(json.error).toBe('Internal server error');
     });
   });
 });

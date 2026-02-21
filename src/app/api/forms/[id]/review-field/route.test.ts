@@ -32,11 +32,16 @@ const mockCase = {
 };
 
 // Mock Supabase client
+const mockProfileQuery = {
+  select: vi.fn().mockReturnThis(),
+  eq: vi.fn().mockReturnThis(),
+  single: vi.fn().mockResolvedValue({ data: null, error: null }),
+};
 const mockSupabaseClient = {
   auth: {
     getUser: vi.fn(),
   },
-  from: vi.fn(),
+  from: vi.fn().mockReturnValue(mockProfileQuery),
 };
 
 vi.mock('@/lib/supabase/server', () => ({
@@ -122,31 +127,18 @@ vi.mock('@/lib/logger', () => ({
   }),
 }));
 
-// Mock safeParseBody
-vi.mock('@/lib/auth/api-helpers', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { NextResponse } = require('next/server');
+// Mock api-helpers: use importOriginal to keep withAuth, successResponse, errorResponse, etc.
+vi.mock('@/lib/auth/api-helpers', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/auth/api-helpers')>();
   return {
-    safeParseBody: async (request: NextRequest) => {
-      try {
-        const data = await request.json();
-        return { success: true, data };
-      } catch {
-        return {
-          success: false,
-          response: NextResponse.json(
-            { error: 'Invalid JSON in request body' },
-            { status: 400 }
-          ),
-        };
-      }
-    },
+    ...actual,
   };
 });
 
 // Import after mocks
 import { POST } from './route';
-import { standardRateLimiter } from '@/lib/rate-limit';
+import { getProfileAsAdmin } from '@/lib/supabase/admin';
+import { rateLimit } from '@/lib/rate-limit';
 
 function createMockRequest(
   body?: Record<string, unknown>,
@@ -187,11 +179,17 @@ describe('Forms [id] Review-Field API Route', () => {
       error: null,
     });
 
+    // withAuth calls getProfileAsAdmin after auth
+    vi.mocked(getProfileAsAdmin).mockResolvedValue({
+      profile: { id: mockAttorneyId, role: 'attorney', full_name: 'Test Attorney', email: 'attorney@example.com' },
+      error: null,
+    } as any);
+
     mockGetForm.mockResolvedValue(mockForm);
     mockGetCase.mockResolvedValue(mockCase);
 
-    // Reset rate limiter to allowed
-    vi.mocked(standardRateLimiter.limit).mockResolvedValue({ allowed: true } as { allowed: true });
+    // Reset rate limiter to allowed (withAuth uses rateLimit, not standardRateLimiter.limit)
+    vi.mocked(rateLimit).mockResolvedValue({ success: true });
   });
 
   afterEach(() => {
@@ -310,10 +308,10 @@ describe('Forms [id] Review-Field API Route', () => {
 
     expect(response.status).toBe(200);
     expect(data.success).toBe(true);
-    expect(data.message).toContain('ssn');
-    expect(data.reviewRecord).toBeDefined();
-    expect(data.reviewRecord.reviewed_by).toBe(mockAttorneyId);
-    expect(data.reviewRecord.accepted_value).toBe('123-45-6789');
+    expect(data.data.message).toContain('ssn');
+    expect(data.data.reviewRecord).toBeDefined();
+    expect(data.data.reviewRecord.reviewed_by).toBe(mockAttorneyId);
+    expect(data.data.reviewRecord.accepted_value).toBe('123-45-6789');
   });
 
   it('should log review in audit trail', async () => {
@@ -342,14 +340,7 @@ describe('Forms [id] Review-Field API Route', () => {
   });
 
   it('should return 429 when rate limited', async () => {
-    const rateLimitResponse = new Response(
-      JSON.stringify({ error: 'Too Many Requests' }),
-      { status: 429 }
-    );
-    vi.mocked(standardRateLimiter.limit).mockResolvedValue({
-      allowed: false,
-      response: rateLimitResponse,
-    } as { allowed: false; response: Response });
+    vi.mocked(rateLimit).mockResolvedValue({ success: false, retryAfter: 60 });
 
     const request = createMockRequest({ fieldName: 'ssn', acceptedValue: '123' });
     const response = await POST(request, { params: createMockParams() });
@@ -368,6 +359,6 @@ describe('Forms [id] Review-Field API Route', () => {
     const data = await response.json();
 
     expect(response.status).toBe(500);
-    expect(data.error).toBe('Failed to review form field');
+    expect(data.error).toBe('Internal server error');
   });
 });

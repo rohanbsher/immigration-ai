@@ -16,6 +16,7 @@ import type { VisionAnalysisInput } from './claude-vision';
 import { DocumentAnalysisResult, ExtractedField, AnalysisOptions } from './types';
 import { features } from '@/lib/config';
 import { createLogger } from '@/lib/logger';
+import { isSensitiveField, maskSensitiveValue } from '@/lib/crypto';
 
 const log = createLogger('ai:document-analysis');
 
@@ -365,8 +366,15 @@ export async function compareDocuments(
     if (!field2) {
       differences.push(`Field "${field1.field_name}" missing in second document`);
     } else if (field1.value !== field2.value) {
+      // Mask sensitive field values (SSN, passport, etc.) in diff output
+      const val1 = isSensitiveField(field1.field_name)
+        ? maskSensitiveValue(String(field1.value))
+        : String(field1.value);
+      const val2 = isSensitiveField(field1.field_name)
+        ? maskSensitiveValue(String(field2.value))
+        : String(field2.value);
       differences.push(
-        `Field "${field1.field_name}" differs: "${field1.value}" vs "${field2.value}"`
+        `Field "${field1.field_name}" differs: "${val1}" vs "${val2}"`
       );
     } else {
       matchingFields++;

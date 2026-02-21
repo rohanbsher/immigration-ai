@@ -58,6 +58,31 @@ vi.mock('@/lib/supabase/server', () => ({
   createClient: vi.fn().mockImplementation(() => Promise.resolve(mockSupabaseClient)),
 }));
 
+// Mock getProfileAsAdmin for withAuth
+vi.mock('@/lib/supabase/admin', () => ({
+  getProfileAsAdmin: vi.fn().mockImplementation((userId: string) => {
+    if (userId === ATTORNEY_ID) {
+      return Promise.resolve({
+        profile: { id: ATTORNEY_ID, role: 'attorney', email: 'attorney@example.com' },
+        error: null,
+      });
+    }
+    if (userId === CLIENT_ID) {
+      return Promise.resolve({
+        profile: { id: CLIENT_ID, role: 'client', email: 'client@example.com' },
+        error: null,
+      });
+    }
+    if (userId === UNAUTHORIZED_USER_ID) {
+      return Promise.resolve({
+        profile: { id: UNAUTHORIZED_USER_ID, role: 'client', email: 'other@example.com' },
+        error: null,
+      });
+    }
+    return Promise.resolve({ profile: null, error: new Error('Profile not found') });
+  }),
+}));
+
 // Mock db services
 const mockDocumentRequestsService = {
   getRequestsByCase: vi.fn().mockResolvedValue([mockDocumentRequest]),
@@ -199,10 +224,11 @@ describe('Document Requests API Routes', () => {
       );
 
       const response = await GET(request, { params: Promise.resolve({ id: CASE_ID }) });
-      const data = await response.json();
+      const json = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data.data).toHaveLength(1);
+      // successResponse({ data: requests }) produces { success: true, data: { data: [...] } }
+      expect(json.data.data).toHaveLength(1);
       expect(mockDocumentRequestsService.getRequestsByCase).toHaveBeenCalledWith(CASE_ID);
     });
 
@@ -368,7 +394,8 @@ describe('Document Requests API Routes', () => {
       const data = await response.json();
 
       expect(response.status).toBe(201);
-      expect(data.id).toBe(REQUEST_ID);
+      // successResponse wraps: { success: true, data: <documentRequest> }
+      expect(data.data.id).toBe(REQUEST_ID);
       expect(mockDocumentRequestsService.createRequest).toHaveBeenCalledWith({
         case_id: CASE_ID,
         requested_by: ATTORNEY_ID,

@@ -38,13 +38,21 @@ const mockMember = {
   role: 'attorney',
 };
 
-// Mock the serverAuth
+// Mock Supabase client for withAuth
 let mockAuthUser: typeof mockUser | null = mockUser;
 
-vi.mock('@/lib/auth', () => ({
-  serverAuth: {
-    getUser: vi.fn().mockImplementation(() => Promise.resolve(mockAuthUser)),
+const mockSupabaseClient = {
+  auth: {
+    getUser: vi.fn(),
   },
+};
+
+vi.mock('@/lib/supabase/server', () => ({
+  createClient: vi.fn(() => Promise.resolve(mockSupabaseClient)),
+}));
+
+vi.mock('@/lib/supabase/admin', () => ({
+  getProfileAsAdmin: vi.fn(),
 }));
 
 // Mock the firms DB functions
@@ -76,8 +84,13 @@ vi.mock('@/lib/logger', () => ({
   }),
 }));
 
+import { getProfileAsAdmin } from '@/lib/supabase/admin';
+import { rateLimit } from '@/lib/rate-limit';
+
 function createMockRequest(url: string, options: RequestInit = {}): NextRequest {
-  return new NextRequest(new URL(url, 'http://localhost:3000'), options);
+  const defaultHeaders = { 'x-forwarded-for': '127.0.0.1' };
+  const mergedHeaders = { ...defaultHeaders, ...(options.headers as Record<string, string> || {}) };
+  return new NextRequest(new URL(url, 'http://localhost:3000'), { ...options, headers: mergedHeaders });
 }
 
 describe('POST /api/firms/invitations/[token]', () => {
@@ -86,6 +99,22 @@ describe('POST /api/firms/invitations/[token]', () => {
     mockAuthUser = mockUser;
     mockGetInvitationByToken.mockResolvedValue(mockInvitation);
     mockAcceptInvitation.mockResolvedValue(mockMember);
+
+    // withAuth uses supabase.auth.getUser + getProfileAsAdmin + rateLimit
+    // Use mockImplementation so it reads mockAuthUser at call time (not setup time)
+    mockSupabaseClient.auth.getUser.mockImplementation(() =>
+      Promise.resolve({
+        data: { user: mockAuthUser },
+        error: mockAuthUser ? null : new Error('Not authenticated'),
+      })
+    );
+    vi.mocked(getProfileAsAdmin).mockImplementation((userId: string) =>
+      Promise.resolve({
+        profile: { id: userId, role: 'attorney', full_name: 'Test User', email: mockAuthUser?.email || 'invited@example.com' },
+        error: null,
+      } as any)
+    );
+    vi.mocked(rateLimit).mockResolvedValue({ success: true });
   });
 
   afterEach(() => {
@@ -326,6 +355,7 @@ describe('GET /api/firms/invitations/[token]', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetInvitationByToken.mockResolvedValue(mockInvitation);
+    vi.mocked(rateLimit).mockResolvedValue({ success: true });
   });
 
   it('should return invitation details for valid token', async () => {

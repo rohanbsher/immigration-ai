@@ -371,8 +371,8 @@ describe('Cases API Routes', () => {
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data.cases).toHaveLength(1);
-      expect(data.total).toBe(1);
+      expect(data.data.cases).toHaveLength(1);
+      expect(data.data.total).toBe(1);
       expect(mockCasesService.getCases).toHaveBeenCalled();
     });
 
@@ -527,7 +527,7 @@ describe('Cases API Routes', () => {
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data.id).toBe(CASE_ID);
+      expect(data.data.id).toBe(CASE_ID);
     });
 
     it('should return case for client on the case', async () => {
@@ -540,7 +540,7 @@ describe('Cases API Routes', () => {
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data.id).toBe(CASE_ID);
+      expect(data.data.id).toBe(CASE_ID);
     });
 
     it('should return 401 for unauthenticated user', async () => {
@@ -595,7 +595,7 @@ describe('Cases API Routes', () => {
 
       expect(response.status).toBe(200);
       expect(mockCasesService.updateCase).toHaveBeenCalledWith(CASE_ID, updateData);
-      expect(data.title).toBe('Updated Title');
+      expect(data.data.title).toBe('Updated Title');
       // Status changed from 'intake' to 'in_review'
       expect(mockActivitiesService.logStatusChanged).toHaveBeenCalledWith(
         CASE_ID,
@@ -676,7 +676,7 @@ describe('Cases API Routes', () => {
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data.message).toBe('Case deleted successfully');
+      expect(data.data.message).toBe('Case deleted successfully');
       expect(mockCasesService.deleteCase).toHaveBeenCalledWith(CASE_ID);
     });
 
@@ -854,8 +854,8 @@ describe('Cases API Routes', () => {
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data).toHaveLength(1);
-      expect(data[0].id).toBe(FORM_ID);
+      expect(data.data).toHaveLength(1);
+      expect(data.data[0].id).toBe(FORM_ID);
     });
 
     it('should return forms for case client', async () => {
@@ -868,7 +868,7 @@ describe('Cases API Routes', () => {
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data).toHaveLength(1);
+      expect(data.data).toHaveLength(1);
     });
 
     it('should return 401 for unauthenticated user', async () => {
@@ -911,7 +911,7 @@ describe('Cases API Routes', () => {
       const data = await response.json();
 
       expect(response.status).toBe(201);
-      expect(data.id).toBe(FORM_ID);
+      expect(data.data.id).toBe(FORM_ID);
       expect(mockFormsService.createForm).toHaveBeenCalledWith({
         case_id: CASE_ID,
         form_type: 'I-129',

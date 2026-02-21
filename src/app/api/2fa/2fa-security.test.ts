@@ -12,14 +12,24 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { NextRequest } from 'next/server';
 
-vi.mock('@/lib/auth', () => ({
-  serverAuth: {
+// withAuth uses createClient() from @/lib/supabase/server
+const mockSupabaseClient = {
+  auth: {
     getUser: vi.fn(),
   },
+};
+
+vi.mock('@/lib/supabase/server', () => ({
+  createClient: vi.fn(() => Promise.resolve(mockSupabaseClient)),
+}));
+
+// withAuth uses getProfileAsAdmin() from @/lib/supabase/admin
+vi.mock('@/lib/supabase/admin', () => ({
+  getProfileAsAdmin: vi.fn(),
 }));
 
 vi.mock('@/lib/rate-limit', () => ({
-  rateLimit: vi.fn().mockResolvedValue({ success: true, remaining: 10 }),
+  rateLimit: vi.fn().mockResolvedValue({ success: true }),
   RATE_LIMITS: {
     STANDARD: { maxRequests: 100, windowMs: 60000, keyPrefix: 'standard' },
     AUTH: { maxRequests: 5, windowMs: 60000, keyPrefix: 'auth' },
@@ -57,7 +67,7 @@ import { POST as disableHandler } from './disable/route';
 import { POST as backupCodesHandler } from './backup-codes/route';
 import { GET as statusHandler } from './status/route';
 
-import { serverAuth } from '@/lib/auth';
+import { getProfileAsAdmin } from '@/lib/supabase/admin';
 import { rateLimit } from '@/lib/rate-limit';
 import {
   setupTwoFactor,
@@ -94,15 +104,22 @@ function createRequest(
 describe('2FA Routes - Security Edge Cases', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(rateLimit).mockResolvedValue({ success: true, remaining: 10 });
-    vi.mocked(serverAuth.getUser).mockResolvedValue({
-      id: 'user-1',
-      email: 'test@example.com',
-    } as never);
+    // Default: authenticated user
+    mockSupabaseClient.auth.getUser.mockResolvedValue({
+      data: { user: { id: 'user-1', email: 'test@example.com' } },
+      error: null,
+    });
+    // Default: profile found
+    vi.mocked(getProfileAsAdmin).mockResolvedValue({
+      profile: { id: 'user-1', role: 'attorney', full_name: 'Test User', email: 'test@example.com' },
+      error: null,
+    });
+    // Default: rate limit allows
+    vi.mocked(rateLimit).mockResolvedValue({ success: true });
   });
 
   afterEach(() => {
-    vi.restoreAllMocks();
+    vi.clearAllMocks();
   });
 
   // ─── Setup Route Security ─────────────────────────────────────────────
@@ -115,7 +132,7 @@ describe('2FA Routes - Security Edge Cases', () => {
       });
 
       const req = createRequest('POST', '/api/2fa/setup');
-      const res = await setupHandler(req);
+      const res = await setupHandler(req, { params: Promise.resolve({}) });
       const json = await res.json();
 
       expect(res.status).toBe(200);
@@ -124,26 +141,26 @@ describe('2FA Routes - Security Edge Cases', () => {
     });
 
     it('includes Retry-After header when rate limited', async () => {
-      vi.mocked(rateLimit).mockResolvedValue({ success: false, remaining: 0, retryAfter: 45 });
+      vi.mocked(rateLimit).mockResolvedValue({ success: false, retryAfter: 45 });
 
       const req = createRequest('POST', '/api/2fa/setup');
-      const res = await setupHandler(req);
+      const res = await setupHandler(req, { params: Promise.resolve({}) });
 
       expect(res.status).toBe(429);
       expect(res.headers.get('Retry-After')).toBe('45');
     });
 
     it('defaults Retry-After to 60 when retryAfter is undefined', async () => {
-      vi.mocked(rateLimit).mockResolvedValue({ success: false, remaining: 0 });
+      vi.mocked(rateLimit).mockResolvedValue({ success: false });
 
       const req = createRequest('POST', '/api/2fa/setup');
-      const res = await setupHandler(req);
+      const res = await setupHandler(req, { params: Promise.resolve({}) });
 
       expect(res.status).toBe(429);
       expect(res.headers.get('Retry-After')).toBe('60');
     });
 
-    it('extracts IP from x-forwarded-for header', async () => {
+    it('rate limits authenticated user by user ID', async () => {
       vi.mocked(setupTwoFactor).mockResolvedValue({
         secret: 's',
         qrCodeDataUrl: 'data:image/png;base64,abc',
@@ -151,7 +168,23 @@ describe('2FA Routes - Security Edge Cases', () => {
       });
 
       const req = createRequest('POST', '/api/2fa/setup');
-      await setupHandler(req);
+      await setupHandler(req, { params: Promise.resolve({}) });
+
+      // withAuth rate limits by user.id for authenticated requests
+      expect(rateLimit).toHaveBeenCalledWith(
+        expect.objectContaining({ keyPrefix: 'sensitive' }),
+        'user-1'
+      );
+    });
+
+    it('rate limits unauthenticated requests by IP', async () => {
+      mockSupabaseClient.auth.getUser.mockResolvedValue({
+        data: { user: null },
+        error: null,
+      });
+
+      const req = createRequest('POST', '/api/2fa/setup');
+      await setupHandler(req, { params: Promise.resolve({}) });
 
       expect(rateLimit).toHaveBeenCalledWith(
         expect.objectContaining({ keyPrefix: 'sensitive' }),
@@ -159,27 +192,26 @@ describe('2FA Routes - Security Edge Cases', () => {
       );
     });
 
-    it('uses "unknown" IP when x-forwarded-for is missing', async () => {
-      vi.mocked(setupTwoFactor).mockResolvedValue({
-        secret: 's',
-        qrCodeDataUrl: 'data:image/png;base64,abc',
-        backupCodes: [],
+    it('uses "anonymous" IP when x-forwarded-for is missing', async () => {
+      mockSupabaseClient.auth.getUser.mockResolvedValue({
+        data: { user: null },
+        error: null,
       });
 
       const req = new NextRequest('http://localhost:3000/api/2fa/setup', {
         method: 'POST',
         headers: new Headers({ 'Content-Type': 'application/json' }),
       });
-      await setupHandler(req);
+      await setupHandler(req, { params: Promise.resolve({}) });
 
-      expect(rateLimit).toHaveBeenCalledWith(expect.anything(), 'unknown');
+      expect(rateLimit).toHaveBeenCalledWith(expect.anything(), 'anonymous');
     });
 
     it('handles user with empty email', async () => {
-      vi.mocked(serverAuth.getUser).mockResolvedValue({
-        id: 'user-1',
-        email: undefined,
-      } as never);
+      mockSupabaseClient.auth.getUser.mockResolvedValue({
+        data: { user: { id: 'user-1', email: undefined } },
+        error: null,
+      });
 
       vi.mocked(setupTwoFactor).mockResolvedValue({
         secret: 's',
@@ -188,7 +220,7 @@ describe('2FA Routes - Security Edge Cases', () => {
       });
 
       const req = createRequest('POST', '/api/2fa/setup');
-      const res = await setupHandler(req);
+      const res = await setupHandler(req, { params: Promise.resolve({}) });
 
       expect(res.status).toBe(200);
       expect(setupTwoFactor).toHaveBeenCalledWith('user-1', '');
@@ -207,7 +239,7 @@ describe('2FA Routes - Security Edge Cases', () => {
       } as never);
 
       const req = createRequest('POST', '/api/2fa/verify');
-      const res = await verifyHandler(req);
+      const res = await verifyHandler(req, { params: Promise.resolve({}) });
 
       expect(res.status).toBe(400);
     });
@@ -220,7 +252,7 @@ describe('2FA Routes - Security Edge Cases', () => {
       vi.mocked(verifyTwoFactorToken).mockResolvedValue(true);
 
       const req = createRequest('POST', '/api/2fa/verify', { token: '123456' });
-      const res = await verifyHandler(req);
+      const res = await verifyHandler(req, { params: Promise.resolve({}) });
       const json = await res.json();
 
       expect(res.status).toBe(200);
@@ -235,7 +267,7 @@ describe('2FA Routes - Security Edge Cases', () => {
       vi.mocked(verifyTwoFactorToken).mockResolvedValue(true);
 
       const req = createRequest('POST', '/api/2fa/verify', { token: '12345678' });
-      const res = await verifyHandler(req);
+      const res = await verifyHandler(req, { params: Promise.resolve({}) });
       const json = await res.json();
 
       expect(res.status).toBe(200);
@@ -249,7 +281,7 @@ describe('2FA Routes - Security Edge Cases', () => {
       } as never);
 
       const req = createRequest('POST', '/api/2fa/verify', { token: '12345' });
-      const res = await verifyHandler(req);
+      const res = await verifyHandler(req, { params: Promise.resolve({}) });
 
       expect(res.status).toBe(400);
     });
@@ -261,7 +293,7 @@ describe('2FA Routes - Security Edge Cases', () => {
       } as never);
 
       const req = createRequest('POST', '/api/2fa/verify', { token: '123456789' });
-      const res = await verifyHandler(req);
+      const res = await verifyHandler(req, { params: Promise.resolve({}) });
 
       expect(res.status).toBe(400);
     });
@@ -274,7 +306,7 @@ describe('2FA Routes - Security Edge Cases', () => {
       vi.mocked(verifyTwoFactorToken).mockResolvedValue(true);
 
       const req = createRequest('POST', '/api/2fa/verify', { token: '123456' });
-      const res = await verifyHandler(req);
+      const res = await verifyHandler(req, { params: Promise.resolve({}) });
       const json = await res.json();
 
       expect(res.status).toBe(200);
@@ -290,7 +322,7 @@ describe('2FA Routes - Security Edge Cases', () => {
       vi.mocked(verifyAndEnableTwoFactor).mockResolvedValue(true);
 
       const req = createRequest('POST', '/api/2fa/verify', { token: '123456', isSetup: true });
-      const res = await verifyHandler(req);
+      const res = await verifyHandler(req, { params: Promise.resolve({}) });
       const json = await res.json();
 
       expect(res.status).toBe(200);
@@ -299,10 +331,10 @@ describe('2FA Routes - Security Edge Cases', () => {
     });
 
     it('includes Retry-After header on rate limit', async () => {
-      vi.mocked(rateLimit).mockResolvedValue({ success: false, remaining: 0, retryAfter: 120 });
+      vi.mocked(rateLimit).mockResolvedValue({ success: false, retryAfter: 120 });
 
       const req = createRequest('POST', '/api/2fa/verify', { token: '123456' });
-      const res = await verifyHandler(req);
+      const res = await verifyHandler(req, { params: Promise.resolve({}) });
 
       expect(res.status).toBe(429);
       expect(res.headers.get('Retry-After')).toBe('120');
@@ -315,7 +347,7 @@ describe('2FA Routes - Security Edge Cases', () => {
       } as never);
 
       const req = createRequest('POST', '/api/2fa/verify', {});
-      const res = await verifyHandler(req);
+      const res = await verifyHandler(req, { params: Promise.resolve({}) });
 
       expect(res.status).toBe(400);
     });
@@ -333,7 +365,7 @@ describe('2FA Routes - Security Edge Cases', () => {
       } as never);
 
       const req = createRequest('POST', '/api/2fa/disable');
-      const res = await disableHandler(req);
+      const res = await disableHandler(req, { params: Promise.resolve({}) });
 
       expect(res.status).toBe(400);
     });
@@ -346,7 +378,7 @@ describe('2FA Routes - Security Edge Cases', () => {
       vi.mocked(disableTwoFactor).mockResolvedValue(true);
 
       const req = createRequest('POST', '/api/2fa/disable', { token: '123456' });
-      const res = await disableHandler(req);
+      const res = await disableHandler(req, { params: Promise.resolve({}) });
 
       expect(res.status).toBe(200);
     });
@@ -359,7 +391,7 @@ describe('2FA Routes - Security Edge Cases', () => {
       vi.mocked(disableTwoFactor).mockResolvedValue(true);
 
       const req = createRequest('POST', '/api/2fa/disable', { token: '12345678' });
-      const res = await disableHandler(req);
+      const res = await disableHandler(req, { params: Promise.resolve({}) });
 
       expect(res.status).toBe(200);
     });
@@ -371,7 +403,7 @@ describe('2FA Routes - Security Edge Cases', () => {
       } as never);
 
       const req = createRequest('POST', '/api/2fa/disable', { token: '12345' });
-      const res = await disableHandler(req);
+      const res = await disableHandler(req, { params: Promise.resolve({}) });
 
       expect(res.status).toBe(400);
     });
@@ -383,7 +415,7 @@ describe('2FA Routes - Security Edge Cases', () => {
       } as never);
 
       const req = createRequest('POST', '/api/2fa/disable', { token: '123456789' });
-      const res = await disableHandler(req);
+      const res = await disableHandler(req, { params: Promise.resolve({}) });
 
       expect(res.status).toBe(400);
     });
@@ -401,7 +433,7 @@ describe('2FA Routes - Security Edge Cases', () => {
       } as never);
 
       const req = createRequest('POST', '/api/2fa/backup-codes');
-      const res = await backupCodesHandler(req);
+      const res = await backupCodesHandler(req, { params: Promise.resolve({}) });
 
       expect(res.status).toBe(400);
     });
@@ -414,7 +446,7 @@ describe('2FA Routes - Security Edge Cases', () => {
       } as never);
 
       const req = createRequest('POST', '/api/2fa/backup-codes', { token: '1234567' });
-      const res = await backupCodesHandler(req);
+      const res = await backupCodesHandler(req, { params: Promise.resolve({}) });
       const json = await res.json();
 
       expect(res.status).toBe(400);
@@ -428,7 +460,7 @@ describe('2FA Routes - Security Edge Cases', () => {
       } as never);
 
       const req = createRequest('POST', '/api/2fa/backup-codes', { token: '12345' });
-      const res = await backupCodesHandler(req);
+      const res = await backupCodesHandler(req, { params: Promise.resolve({}) });
 
       expect(res.status).toBe(400);
     });
@@ -441,7 +473,7 @@ describe('2FA Routes - Security Edge Cases', () => {
       vi.mocked(regenerateBackupCodes).mockResolvedValue(['a', 'b', 'c']);
 
       const req = createRequest('POST', '/api/2fa/backup-codes', { token: '123456' });
-      const res = await backupCodesHandler(req);
+      const res = await backupCodesHandler(req, { params: Promise.resolve({}) });
       const json = await res.json();
 
       expect(res.status).toBe(200);
@@ -457,7 +489,7 @@ describe('2FA Routes - Security Edge Cases', () => {
       vi.mocked(regenerateBackupCodes).mockResolvedValue(['new1', 'new2']);
 
       const req = createRequest('POST', '/api/2fa/backup-codes', { token: '123456' });
-      const res = await backupCodesHandler(req);
+      const res = await backupCodesHandler(req, { params: Promise.resolve({}) });
       const json = await res.json();
 
       expect(json.data.message).toBe('New backup codes generated. Previous codes are now invalid.');
@@ -476,7 +508,7 @@ describe('2FA Routes - Security Edge Cases', () => {
       });
 
       const req = createRequest('GET', '/api/2fa/status');
-      const res = await statusHandler(req);
+      const res = await statusHandler(req, { params: Promise.resolve({}) });
       const json = await res.json();
 
       expect(res.status).toBe(200);
@@ -495,7 +527,7 @@ describe('2FA Routes - Security Edge Cases', () => {
       });
 
       const req = createRequest('GET', '/api/2fa/status');
-      const res = await statusHandler(req);
+      const res = await statusHandler(req, { params: Promise.resolve({}) });
       const json = await res.json();
 
       expect(res.status).toBe(200);
@@ -514,7 +546,7 @@ describe('2FA Routes - Security Edge Cases', () => {
       });
 
       const req = createRequest('GET', '/api/2fa/status');
-      const res = await statusHandler(req);
+      const res = await statusHandler(req, { params: Promise.resolve({}) });
       const json = await res.json();
 
       expect(json.data.backupCodesRemaining).toBe(3);
@@ -527,7 +559,10 @@ describe('2FA Routes - Security Edge Cases', () => {
     const USER_2_ID = 'user-2';
 
     it('status endpoint only queries the authenticated user\'s data', async () => {
-      vi.mocked(serverAuth.getUser).mockResolvedValue(USER_1 as never);
+      mockSupabaseClient.auth.getUser.mockResolvedValue({
+        data: { user: USER_1 },
+        error: null,
+      });
       vi.mocked(getTwoFactorStatus).mockResolvedValue({
         enabled: true,
         verified: true,
@@ -536,16 +571,19 @@ describe('2FA Routes - Security Edge Cases', () => {
       });
 
       const req = createRequest('GET', '/api/2fa/status');
-      const res = await statusHandler(req);
+      const res = await statusHandler(req, { params: Promise.resolve({}) });
 
-      expect(serverAuth.getUser).toHaveBeenCalled();
+      expect(mockSupabaseClient.auth.getUser).toHaveBeenCalled();
       expect(res.status).toBe(200);
       expect(getTwoFactorStatus).toHaveBeenCalledWith(USER_1.id);
       expect(getTwoFactorStatus).not.toHaveBeenCalledWith(USER_2_ID);
     });
 
     it('setup endpoint scopes TOTP secret creation to authenticated user', async () => {
-      vi.mocked(serverAuth.getUser).mockResolvedValue(USER_1 as never);
+      mockSupabaseClient.auth.getUser.mockResolvedValue({
+        data: { user: USER_1 },
+        error: null,
+      });
       vi.mocked(setupTwoFactor).mockResolvedValue({
         secret: 'SECRET',
         qrCodeDataUrl: 'data:image/png;base64,abc',
@@ -553,16 +591,19 @@ describe('2FA Routes - Security Edge Cases', () => {
       });
 
       const req = createRequest('POST', '/api/2fa/setup');
-      const res = await setupHandler(req);
+      const res = await setupHandler(req, { params: Promise.resolve({}) });
 
-      expect(serverAuth.getUser).toHaveBeenCalled();
+      expect(mockSupabaseClient.auth.getUser).toHaveBeenCalled();
       expect(res.status).toBe(200);
       expect(setupTwoFactor).toHaveBeenCalledWith(USER_1.id, USER_1.email);
       expect(setupTwoFactor).not.toHaveBeenCalledWith(USER_2_ID, expect.anything());
     });
 
     it('verify endpoint derives user ID from session, not request body', async () => {
-      vi.mocked(serverAuth.getUser).mockResolvedValue(USER_1 as never);
+      mockSupabaseClient.auth.getUser.mockResolvedValue({
+        data: { user: USER_1 },
+        error: null,
+      });
       vi.mocked(safeParseBody).mockResolvedValue({
         success: true,
         data: { token: '123456', isSetup: false },
@@ -573,16 +614,19 @@ describe('2FA Routes - Security Edge Cases', () => {
         token: '123456',
         userId: USER_2_ID,
       });
-      const res = await verifyHandler(req);
+      const res = await verifyHandler(req, { params: Promise.resolve({}) });
 
-      expect(serverAuth.getUser).toHaveBeenCalled();
+      expect(mockSupabaseClient.auth.getUser).toHaveBeenCalled();
       expect(res.status).toBe(200);
       expect(verifyTwoFactorToken).toHaveBeenCalledWith(USER_1.id, '123456');
       expect(verifyTwoFactorToken).not.toHaveBeenCalledWith(USER_2_ID, expect.anything());
     });
 
     it('verify+setup endpoint derives user ID from session, not request body', async () => {
-      vi.mocked(serverAuth.getUser).mockResolvedValue(USER_1 as never);
+      mockSupabaseClient.auth.getUser.mockResolvedValue({
+        data: { user: USER_1 },
+        error: null,
+      });
       vi.mocked(safeParseBody).mockResolvedValue({
         success: true,
         data: { token: '654321', isSetup: true },
@@ -594,16 +638,19 @@ describe('2FA Routes - Security Edge Cases', () => {
         isSetup: true,
         userId: USER_2_ID,
       });
-      const res = await verifyHandler(req);
+      const res = await verifyHandler(req, { params: Promise.resolve({}) });
 
-      expect(serverAuth.getUser).toHaveBeenCalled();
+      expect(mockSupabaseClient.auth.getUser).toHaveBeenCalled();
       expect(res.status).toBe(200);
       expect(verifyAndEnableTwoFactor).toHaveBeenCalledWith(USER_1.id, '654321');
       expect(verifyAndEnableTwoFactor).not.toHaveBeenCalledWith(USER_2_ID, expect.anything());
     });
 
     it('disable endpoint scopes 2FA removal to authenticated user', async () => {
-      vi.mocked(serverAuth.getUser).mockResolvedValue(USER_1 as never);
+      mockSupabaseClient.auth.getUser.mockResolvedValue({
+        data: { user: USER_1 },
+        error: null,
+      });
       vi.mocked(safeParseBody).mockResolvedValue({
         success: true,
         data: { token: '123456' },
@@ -614,16 +661,19 @@ describe('2FA Routes - Security Edge Cases', () => {
         token: '123456',
         userId: USER_2_ID,
       });
-      const res = await disableHandler(req);
+      const res = await disableHandler(req, { params: Promise.resolve({}) });
 
-      expect(serverAuth.getUser).toHaveBeenCalled();
+      expect(mockSupabaseClient.auth.getUser).toHaveBeenCalled();
       expect(res.status).toBe(200);
       expect(disableTwoFactor).toHaveBeenCalledWith(USER_1.id, '123456');
       expect(disableTwoFactor).not.toHaveBeenCalledWith(USER_2_ID, expect.anything());
     });
 
     it('backup-codes endpoint scopes regeneration to authenticated user', async () => {
-      vi.mocked(serverAuth.getUser).mockResolvedValue(USER_1 as never);
+      mockSupabaseClient.auth.getUser.mockResolvedValue({
+        data: { user: USER_1 },
+        error: null,
+      });
       vi.mocked(safeParseBody).mockResolvedValue({
         success: true,
         data: { token: '123456' },
@@ -634,16 +684,19 @@ describe('2FA Routes - Security Edge Cases', () => {
         token: '123456',
         userId: USER_2_ID,
       });
-      const res = await backupCodesHandler(req);
+      const res = await backupCodesHandler(req, { params: Promise.resolve({}) });
 
-      expect(serverAuth.getUser).toHaveBeenCalled();
+      expect(mockSupabaseClient.auth.getUser).toHaveBeenCalled();
       expect(res.status).toBe(200);
       expect(regenerateBackupCodes).toHaveBeenCalledWith(USER_1.id, '123456');
       expect(regenerateBackupCodes).not.toHaveBeenCalledWith(USER_2_ID, expect.anything());
     });
 
     it('setup endpoint ignores userId in request body', async () => {
-      vi.mocked(serverAuth.getUser).mockResolvedValue(USER_1 as never);
+      mockSupabaseClient.auth.getUser.mockResolvedValue({
+        data: { user: USER_1 },
+        error: null,
+      });
 
       vi.mocked(setupTwoFactor).mockResolvedValue({
         secret: 's',
@@ -652,9 +705,9 @@ describe('2FA Routes - Security Edge Cases', () => {
       });
 
       const req = createRequest('POST', '/api/2fa/setup', { userId: USER_2_ID });
-      await setupHandler(req);
+      await setupHandler(req, { params: Promise.resolve({}) });
 
-      expect(serverAuth.getUser).toHaveBeenCalled();
+      expect(mockSupabaseClient.auth.getUser).toHaveBeenCalled();
       expect(setupTwoFactor).toHaveBeenCalledWith(USER_1.id, USER_1.email);
     });
   });
@@ -671,10 +724,13 @@ describe('2FA Routes - Security Edge Cases', () => {
 
     for (const route of routes) {
       it(`${route.name}: rejects unauthenticated requests with 401`, async () => {
-        vi.mocked(serverAuth.getUser).mockResolvedValue(null as never);
+        mockSupabaseClient.auth.getUser.mockResolvedValue({
+          data: { user: null },
+          error: null,
+        });
 
         const req = createRequest(route.method, route.url);
-        const res = await route.handler(req);
+        const res = await route.handler(req, { params: Promise.resolve({}) });
         const json = await res.json();
 
         expect(res.status).toBe(401);
@@ -682,10 +738,10 @@ describe('2FA Routes - Security Edge Cases', () => {
       });
 
       it(`${route.name}: applies rate limiting`, async () => {
-        vi.mocked(rateLimit).mockResolvedValue({ success: false, remaining: 0, retryAfter: 30 });
+        vi.mocked(rateLimit).mockResolvedValue({ success: false, retryAfter: 30 });
 
         const req = createRequest(route.method, route.url);
-        const res = await route.handler(req);
+        const res = await route.handler(req, { params: Promise.resolve({}) });
 
         expect(res.status).toBe(429);
       });

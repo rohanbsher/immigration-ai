@@ -2,17 +2,25 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { NextRequest } from 'next/server';
 
 // Mock dependencies before imports
-vi.mock('@/lib/auth', () => ({
-  serverAuth: {
+
+// withAuth uses createClient() from @/lib/supabase/server
+const mockSupabaseClient = {
+  auth: {
     getUser: vi.fn(),
-    getProfile: vi.fn(),
-    getSession: vi.fn(),
-    requireAuth: vi.fn(),
   },
+};
+
+vi.mock('@/lib/supabase/server', () => ({
+  createClient: vi.fn(() => Promise.resolve(mockSupabaseClient)),
+}));
+
+// withAuth uses getProfileAsAdmin() from @/lib/supabase/admin
+vi.mock('@/lib/supabase/admin', () => ({
+  getProfileAsAdmin: vi.fn(),
 }));
 
 vi.mock('@/lib/rate-limit', () => ({
-  rateLimit: vi.fn().mockResolvedValue({ success: true, remaining: 10 }),
+  rateLimit: vi.fn().mockResolvedValue({ success: true }),
   RATE_LIMITS: {
     STANDARD: { maxRequests: 100, windowMs: 60000, keyPrefix: 'standard' },
     AUTH: { maxRequests: 5, windowMs: 60000, keyPrefix: 'auth' },
@@ -47,7 +55,7 @@ import { POST as disableHandler } from './disable/route';
 import { POST as backupCodesHandler } from './backup-codes/route';
 import { GET as statusHandler } from './status/route';
 
-import { serverAuth } from '@/lib/auth';
+import { getProfileAsAdmin } from '@/lib/supabase/admin';
 import { rateLimit } from '@/lib/rate-limit';
 import {
   setupTwoFactor,
@@ -83,37 +91,46 @@ function createRequest(
 describe('2FA API Routes', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Default: rate limit allows, user authenticated
-    vi.mocked(rateLimit).mockResolvedValue({ success: true, remaining: 10 });
-    vi.mocked(serverAuth.getUser).mockResolvedValue({
-      id: 'user-1',
-      email: 'test@example.com',
-    } as never);
+    // Default: authenticated user
+    mockSupabaseClient.auth.getUser.mockResolvedValue({
+      data: { user: { id: 'user-1', email: 'test@example.com' } },
+      error: null,
+    });
+    // Default: profile found
+    vi.mocked(getProfileAsAdmin).mockResolvedValue({
+      profile: { id: 'user-1', role: 'attorney', full_name: 'Test User', email: 'test@example.com' },
+      error: null,
+    });
+    // Default: rate limit allows
+    vi.mocked(rateLimit).mockResolvedValue({ success: true });
   });
 
   afterEach(() => {
-    vi.restoreAllMocks();
+    vi.clearAllMocks();
   });
 
   // ─── POST /api/2fa/setup ────────────────────────────────────────────
   describe('POST /api/2fa/setup', () => {
     it('returns 429 when rate limited', async () => {
-      vi.mocked(rateLimit).mockResolvedValue({ success: false, remaining: 0, retryAfter: 30 });
+      vi.mocked(rateLimit).mockResolvedValue({ success: false, retryAfter: 30 });
 
       const req = createRequest('POST', '/api/2fa/setup');
-      const res = await setupHandler(req);
+      const res = await setupHandler(req, { params: Promise.resolve({}) });
       const json = await res.json();
 
       expect(res.status).toBe(429);
-      expect(json.error).toBe('Too many requests. Please try again later.');
+      expect(json.error).toBe('Too many requests');
       expect(res.headers.get('Retry-After')).toBe('30');
     });
 
     it('returns 401 when not authenticated', async () => {
-      vi.mocked(serverAuth.getUser).mockResolvedValue(null as never);
+      mockSupabaseClient.auth.getUser.mockResolvedValue({
+        data: { user: null },
+        error: null,
+      });
 
       const req = createRequest('POST', '/api/2fa/setup');
-      const res = await setupHandler(req);
+      const res = await setupHandler(req, { params: Promise.resolve({}) });
       const json = await res.json();
 
       expect(res.status).toBe(401);
@@ -128,7 +145,7 @@ describe('2FA API Routes', () => {
       });
 
       const req = createRequest('POST', '/api/2fa/setup');
-      const res = await setupHandler(req);
+      const res = await setupHandler(req, { params: Promise.resolve({}) });
       const json = await res.json();
 
       expect(res.status).toBe(200);
@@ -143,32 +160,35 @@ describe('2FA API Routes', () => {
       vi.mocked(setupTwoFactor).mockRejectedValue(new Error('DB failure'));
 
       const req = createRequest('POST', '/api/2fa/setup');
-      const res = await setupHandler(req);
+      const res = await setupHandler(req, { params: Promise.resolve({}) });
       const json = await res.json();
 
       expect(res.status).toBe(500);
-      expect(json.error).toBe('Failed to setup 2FA');
+      expect(json.error).toBe('Internal server error');
     });
   });
 
   // ─── POST /api/2fa/verify ──────────────────────────────────────────
   describe('POST /api/2fa/verify', () => {
     it('returns 429 when rate limited', async () => {
-      vi.mocked(rateLimit).mockResolvedValue({ success: false, remaining: 0, retryAfter: 30 });
+      vi.mocked(rateLimit).mockResolvedValue({ success: false, retryAfter: 30 });
 
       const req = createRequest('POST', '/api/2fa/verify', { token: '123456' });
-      const res = await verifyHandler(req);
+      const res = await verifyHandler(req, { params: Promise.resolve({}) });
       const json = await res.json();
 
       expect(res.status).toBe(429);
-      expect(json.error).toBe('Too many attempts. Please try again later.');
+      expect(json.error).toBe('Too many requests');
     });
 
     it('returns 401 when not authenticated', async () => {
-      vi.mocked(serverAuth.getUser).mockResolvedValue(null as never);
+      mockSupabaseClient.auth.getUser.mockResolvedValue({
+        data: { user: null },
+        error: null,
+      });
 
       const req = createRequest('POST', '/api/2fa/verify', { token: '123456' });
-      const res = await verifyHandler(req);
+      const res = await verifyHandler(req, { params: Promise.resolve({}) });
       const json = await res.json();
 
       expect(res.status).toBe(401);
@@ -177,7 +197,7 @@ describe('2FA API Routes', () => {
 
     it('returns 400 for invalid Zod schema (token too short)', async () => {
       const req = createRequest('POST', '/api/2fa/verify', { token: '123' });
-      const res = await verifyHandler(req);
+      const res = await verifyHandler(req, { params: Promise.resolve({}) });
       const json = await res.json();
 
       expect(res.status).toBe(400);
@@ -187,7 +207,7 @@ describe('2FA API Routes', () => {
 
     it('returns 400 for invalid Zod schema (token too long)', async () => {
       const req = createRequest('POST', '/api/2fa/verify', { token: '123456789' });
-      const res = await verifyHandler(req);
+      const res = await verifyHandler(req, { params: Promise.resolve({}) });
       const json = await res.json();
 
       expect(res.status).toBe(400);
@@ -198,7 +218,7 @@ describe('2FA API Routes', () => {
       vi.mocked(verifyTwoFactorToken).mockResolvedValue(false);
 
       const req = createRequest('POST', '/api/2fa/verify', { token: '123456', isSetup: false });
-      const res = await verifyHandler(req);
+      const res = await verifyHandler(req, { params: Promise.resolve({}) });
       const json = await res.json();
 
       expect(res.status).toBe(400);
@@ -210,7 +230,7 @@ describe('2FA API Routes', () => {
       vi.mocked(verifyAndEnableTwoFactor).mockResolvedValue(false);
 
       const req = createRequest('POST', '/api/2fa/verify', { token: '123456', isSetup: true });
-      const res = await verifyHandler(req);
+      const res = await verifyHandler(req, { params: Promise.resolve({}) });
       const json = await res.json();
 
       expect(res.status).toBe(400);
@@ -222,7 +242,7 @@ describe('2FA API Routes', () => {
       vi.mocked(verifyAndEnableTwoFactor).mockResolvedValue(true);
 
       const req = createRequest('POST', '/api/2fa/verify', { token: '123456', isSetup: true });
-      const res = await verifyHandler(req);
+      const res = await verifyHandler(req, { params: Promise.resolve({}) });
       const json = await res.json();
 
       expect(res.status).toBe(200);
@@ -235,7 +255,7 @@ describe('2FA API Routes', () => {
       vi.mocked(verifyTwoFactorToken).mockResolvedValue(true);
 
       const req = createRequest('POST', '/api/2fa/verify', { token: '123456', isSetup: false });
-      const res = await verifyHandler(req);
+      const res = await verifyHandler(req, { params: Promise.resolve({}) });
       const json = await res.json();
 
       expect(res.status).toBe(200);
@@ -248,32 +268,35 @@ describe('2FA API Routes', () => {
       vi.mocked(verifyTwoFactorToken).mockRejectedValue(new Error('Unexpected'));
 
       const req = createRequest('POST', '/api/2fa/verify', { token: '123456' });
-      const res = await verifyHandler(req);
+      const res = await verifyHandler(req, { params: Promise.resolve({}) });
       const json = await res.json();
 
       expect(res.status).toBe(500);
-      expect(json.error).toBe('Verification failed');
+      expect(json.error).toBe('Internal server error');
     });
   });
 
   // ─── POST /api/2fa/disable ─────────────────────────────────────────
   describe('POST /api/2fa/disable', () => {
     it('returns 429 when rate limited', async () => {
-      vi.mocked(rateLimit).mockResolvedValue({ success: false, remaining: 0, retryAfter: 30 });
+      vi.mocked(rateLimit).mockResolvedValue({ success: false, retryAfter: 30 });
 
       const req = createRequest('POST', '/api/2fa/disable', { token: '123456' });
-      const res = await disableHandler(req);
+      const res = await disableHandler(req, { params: Promise.resolve({}) });
       const json = await res.json();
 
       expect(res.status).toBe(429);
-      expect(json.error).toBe('Too many requests. Please try again later.');
+      expect(json.error).toBe('Too many requests');
     });
 
     it('returns 401 when not authenticated', async () => {
-      vi.mocked(serverAuth.getUser).mockResolvedValue(null as never);
+      mockSupabaseClient.auth.getUser.mockResolvedValue({
+        data: { user: null },
+        error: null,
+      });
 
       const req = createRequest('POST', '/api/2fa/disable', { token: '123456' });
-      const res = await disableHandler(req);
+      const res = await disableHandler(req, { params: Promise.resolve({}) });
       const json = await res.json();
 
       expect(res.status).toBe(401);
@@ -282,7 +305,7 @@ describe('2FA API Routes', () => {
 
     it('returns 400 for invalid Zod schema (token too short)', async () => {
       const req = createRequest('POST', '/api/2fa/disable', { token: '12' });
-      const res = await disableHandler(req);
+      const res = await disableHandler(req, { params: Promise.resolve({}) });
       const json = await res.json();
 
       expect(res.status).toBe(400);
@@ -294,7 +317,7 @@ describe('2FA API Routes', () => {
       vi.mocked(disableTwoFactor).mockResolvedValue(false);
 
       const req = createRequest('POST', '/api/2fa/disable', { token: '123456' });
-      const res = await disableHandler(req);
+      const res = await disableHandler(req, { params: Promise.resolve({}) });
       const json = await res.json();
 
       expect(res.status).toBe(400);
@@ -305,7 +328,7 @@ describe('2FA API Routes', () => {
       vi.mocked(disableTwoFactor).mockResolvedValue(true);
 
       const req = createRequest('POST', '/api/2fa/disable', { token: '123456' });
-      const res = await disableHandler(req);
+      const res = await disableHandler(req, { params: Promise.resolve({}) });
       const json = await res.json();
 
       expect(res.status).toBe(200);
@@ -318,32 +341,35 @@ describe('2FA API Routes', () => {
       vi.mocked(disableTwoFactor).mockRejectedValue(new Error('DB error'));
 
       const req = createRequest('POST', '/api/2fa/disable', { token: '123456' });
-      const res = await disableHandler(req);
+      const res = await disableHandler(req, { params: Promise.resolve({}) });
       const json = await res.json();
 
       expect(res.status).toBe(500);
-      expect(json.error).toBe('Failed to disable 2FA');
+      expect(json.error).toBe('Internal server error');
     });
   });
 
   // ─── POST /api/2fa/backup-codes ────────────────────────────────────
   describe('POST /api/2fa/backup-codes', () => {
     it('returns 429 when rate limited', async () => {
-      vi.mocked(rateLimit).mockResolvedValue({ success: false, remaining: 0, retryAfter: 30 });
+      vi.mocked(rateLimit).mockResolvedValue({ success: false, retryAfter: 30 });
 
       const req = createRequest('POST', '/api/2fa/backup-codes', { token: '123456' });
-      const res = await backupCodesHandler(req);
+      const res = await backupCodesHandler(req, { params: Promise.resolve({}) });
       const json = await res.json();
 
       expect(res.status).toBe(429);
-      expect(json.error).toBe('Too many requests. Please try again later.');
+      expect(json.error).toBe('Too many requests');
     });
 
     it('returns 401 when not authenticated', async () => {
-      vi.mocked(serverAuth.getUser).mockResolvedValue(null as never);
+      mockSupabaseClient.auth.getUser.mockResolvedValue({
+        data: { user: null },
+        error: null,
+      });
 
       const req = createRequest('POST', '/api/2fa/backup-codes', { token: '123456' });
-      const res = await backupCodesHandler(req);
+      const res = await backupCodesHandler(req, { params: Promise.resolve({}) });
       const json = await res.json();
 
       expect(res.status).toBe(401);
@@ -352,7 +378,7 @@ describe('2FA API Routes', () => {
 
     it('returns 400 for invalid Zod schema (token too long)', async () => {
       const req = createRequest('POST', '/api/2fa/backup-codes', { token: '1234567' });
-      const res = await backupCodesHandler(req);
+      const res = await backupCodesHandler(req, { params: Promise.resolve({}) });
       const json = await res.json();
 
       expect(res.status).toBe(400);
@@ -362,7 +388,7 @@ describe('2FA API Routes', () => {
 
     it('returns 400 for invalid Zod schema (token too short)', async () => {
       const req = createRequest('POST', '/api/2fa/backup-codes', { token: '12345' });
-      const res = await backupCodesHandler(req);
+      const res = await backupCodesHandler(req, { params: Promise.resolve({}) });
       const json = await res.json();
 
       expect(res.status).toBe(400);
@@ -374,7 +400,7 @@ describe('2FA API Routes', () => {
       vi.mocked(regenerateBackupCodes).mockResolvedValue(newCodes);
 
       const req = createRequest('POST', '/api/2fa/backup-codes', { token: '123456' });
-      const res = await backupCodesHandler(req);
+      const res = await backupCodesHandler(req, { params: Promise.resolve({}) });
       const json = await res.json();
 
       expect(res.status).toBe(200);
@@ -387,32 +413,35 @@ describe('2FA API Routes', () => {
       vi.mocked(regenerateBackupCodes).mockRejectedValue(new Error('Failed'));
 
       const req = createRequest('POST', '/api/2fa/backup-codes', { token: '123456' });
-      const res = await backupCodesHandler(req);
+      const res = await backupCodesHandler(req, { params: Promise.resolve({}) });
       const json = await res.json();
 
       expect(res.status).toBe(500);
-      expect(json.error).toBe('Failed to regenerate backup codes');
+      expect(json.error).toBe('Internal server error');
     });
   });
 
   // ─── GET /api/2fa/status ───────────────────────────────────────────
   describe('GET /api/2fa/status', () => {
     it('returns 429 when rate limited', async () => {
-      vi.mocked(rateLimit).mockResolvedValue({ success: false, remaining: 0, retryAfter: 30 });
+      vi.mocked(rateLimit).mockResolvedValue({ success: false, retryAfter: 30 });
 
       const req = createRequest('GET', '/api/2fa/status');
-      const res = await statusHandler(req);
+      const res = await statusHandler(req, { params: Promise.resolve({}) });
       const json = await res.json();
 
       expect(res.status).toBe(429);
-      expect(json.error).toBe('Too many requests. Please try again later.');
+      expect(json.error).toBe('Too many requests');
     });
 
     it('returns 401 when not authenticated', async () => {
-      vi.mocked(serverAuth.getUser).mockResolvedValue(null as never);
+      mockSupabaseClient.auth.getUser.mockResolvedValue({
+        data: { user: null },
+        error: null,
+      });
 
       const req = createRequest('GET', '/api/2fa/status');
-      const res = await statusHandler(req);
+      const res = await statusHandler(req, { params: Promise.resolve({}) });
       const json = await res.json();
 
       expect(res.status).toBe(401);
@@ -428,7 +457,7 @@ describe('2FA API Routes', () => {
       });
 
       const req = createRequest('GET', '/api/2fa/status');
-      const res = await statusHandler(req);
+      const res = await statusHandler(req, { params: Promise.resolve({}) });
       const json = await res.json();
 
       expect(res.status).toBe(200);
@@ -447,7 +476,7 @@ describe('2FA API Routes', () => {
       });
 
       const req = createRequest('GET', '/api/2fa/status');
-      const res = await statusHandler(req);
+      const res = await statusHandler(req, { params: Promise.resolve({}) });
       const json = await res.json();
 
       expect(res.status).toBe(200);
@@ -459,11 +488,11 @@ describe('2FA API Routes', () => {
       vi.mocked(getTwoFactorStatus).mockRejectedValue(new Error('DB error'));
 
       const req = createRequest('GET', '/api/2fa/status');
-      const res = await statusHandler(req);
+      const res = await statusHandler(req, { params: Promise.resolve({}) });
       const json = await res.json();
 
       expect(res.status).toBe(500);
-      expect(json.error).toBe('Failed to get 2FA status');
+      expect(json.error).toBe('Internal server error');
     });
   });
 });

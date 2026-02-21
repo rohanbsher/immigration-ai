@@ -8,6 +8,7 @@ import {
 } from './prompts';
 import { serverEnv, features } from '@/lib/config';
 import { withRetry, AI_RETRY_OPTIONS, RetryExhaustedError } from '@/lib/utils/retry';
+import { fetchImageAsBase64 } from './claude-vision';
 
 /** OpenAI model — single source of truth (mirrors CLAUDE_MODEL in client.ts). */
 export const GPT_MODEL = 'gpt-4o';
@@ -26,6 +27,15 @@ function getOpenAIClient(): OpenAI {
     });
   }
   return openaiInstance;
+}
+
+/**
+ * Fetch a signed URL and convert to a base64 data URI for OpenAI vision.
+ * This prevents leaking signed Supabase storage URLs to OpenAI's servers.
+ */
+async function toBase64DataUri(imageUrl: string): Promise<{ dataUri: string }> {
+  const fetched = await fetchImageAsBase64(imageUrl);
+  return { dataUri: `data:${fetched.mediaType};base64,${fetched.data}` };
 }
 
 export interface VisionAnalysisInput {
@@ -47,23 +57,22 @@ export async function analyzeDocumentWithVision(
     throw new Error('Either imageUrl or imageBase64 must be provided');
   }
 
-  // Build the image content based on input type
-  const imageContent: OpenAI.Chat.Completions.ChatCompletionContentPartImage =
-    input.imageUrl
-      ? {
-          type: 'image_url',
-          image_url: {
-            url: input.imageUrl,
-            detail: input.options?.high_accuracy_mode ? 'high' : 'auto',
-          },
-        }
-      : {
-          type: 'image_url',
-          image_url: {
-            url: `data:image/jpeg;base64,${input.imageBase64}`,
-            detail: input.options?.high_accuracy_mode ? 'high' : 'auto',
-          },
-        };
+  // Convert signed URLs to base64 to avoid leaking storage URLs to OpenAI
+  let base64Data = input.imageBase64;
+  if (input.imageUrl && !base64Data) {
+    const { dataUri } = await toBase64DataUri(input.imageUrl);
+    base64Data = dataUri; // Already a full data URI
+  }
+
+  const imageContent: OpenAI.Chat.Completions.ChatCompletionContentPartImage = {
+    type: 'image_url',
+    image_url: {
+      url: base64Data!.startsWith('data:')
+        ? base64Data!
+        : `data:image/jpeg;base64,${base64Data}`,
+      detail: input.options?.high_accuracy_mode ? 'high' : 'auto',
+    },
+  };
 
   // Get the appropriate extraction prompt
   const extractionPrompt = getExtractionPrompt(
@@ -146,6 +155,9 @@ export async function analyzeDocumentWithVision(
 export async function extractTextFromImage(
   imageUrl: string
 ): Promise<{ text: string; confidence: number }> {
+  // Convert signed URL to base64 to avoid leaking storage URLs to OpenAI
+  const { dataUri } = await toBase64DataUri(imageUrl);
+
   const response = await withRetry(
     () => getOpenAIClient().chat.completions.create({
       model: GPT_MODEL,
@@ -160,7 +172,7 @@ export async function extractTextFromImage(
             {
               type: 'image_url',
               image_url: {
-                url: imageUrl,
+                url: dataUri,
                 detail: 'high',
               },
             },
@@ -187,6 +199,9 @@ export async function extractTextFromImage(
 export async function detectDocumentType(
   imageUrl: string
 ): Promise<{ type: string; confidence: number }> {
+  // Convert signed URL to base64 to avoid leaking storage URLs to OpenAI
+  const { dataUri } = await toBase64DataUri(imageUrl);
+
   const response = await withRetry(
     () => getOpenAIClient().chat.completions.create({
       model: GPT_MODEL,
@@ -218,7 +233,7 @@ Respond with JSON: { "type": "document_type", "confidence": 0.95 }`,
             {
               type: 'image_url',
               image_url: {
-                url: imageUrl,
+                url: dataUri,
                 detail: 'low',
               },
             },
@@ -259,6 +274,9 @@ export async function validateDocumentImage(
   reason?: string;
   suggestedType?: string;
 }> {
+  // Convert signed URL to base64 to avoid leaking storage URLs to OpenAI
+  const { dataUri } = await toBase64DataUri(imageUrl);
+
   const response = await withRetry(
     () => getOpenAIClient().chat.completions.create({
       model: GPT_MODEL,
@@ -287,7 +305,7 @@ Respond with JSON:
             {
               type: 'image_url',
               image_url: {
-                url: imageUrl,
+                url: dataUri,
                 detail: 'low',
               },
             },

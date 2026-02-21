@@ -10,13 +10,31 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { NextRequest } from 'next/server';
 
-vi.mock('@/lib/auth');
-vi.mock('@/lib/supabase/server');
+// Mock Supabase client — needs auth.getUser (for withAuth) plus from/rpc (for route logic)
+const mockSupabaseClient = {
+  auth: {
+    getUser: vi.fn(),
+  },
+  from: vi.fn(),
+  rpc: vi.fn(),
+};
+
+vi.mock('@/lib/supabase/server', () => ({
+  createClient: vi.fn(() => Promise.resolve(mockSupabaseClient)),
+}));
+
+vi.mock('@/lib/supabase/admin', () => ({
+  getProfileAsAdmin: vi.fn(),
+}));
+
 vi.mock('@/lib/rate-limit', () => ({
-  sensitiveRateLimiter: {
-    limit: vi.fn(),
+  rateLimit: vi.fn(),
+  RATE_LIMITS: {
+    STANDARD: { maxRequests: 100, windowMs: 60000, keyPrefix: 'standard' },
+    SENSITIVE: { maxRequests: 20, windowMs: 60000, keyPrefix: 'sensitive' },
   },
 }));
+
 vi.mock('@/lib/logger', () => ({
   createLogger: () => ({
     info: vi.fn(),
@@ -28,10 +46,9 @@ vi.mock('@/lib/logger', () => ({
 }));
 
 import { GET, POST } from './route';
-import { serverAuth } from '@/lib/auth';
-import { createClient } from '@/lib/supabase/server';
-import { sensitiveRateLimiter } from '@/lib/rate-limit';
-import { createMockChain, createMockSupabaseFrom } from '@/test-utils/mock-supabase-chain';
+import { getProfileAsAdmin } from '@/lib/supabase/admin';
+import { rateLimit } from '@/lib/rate-limit';
+import { createMockChain } from '@/test-utils/mock-supabase-chain';
 
 function createRequest(method: string, body?: Record<string, unknown>) {
   const init: RequestInit = { method, headers: { 'x-forwarded-for': '127.0.0.1' } };
@@ -43,36 +60,43 @@ function createRequest(method: string, body?: Record<string, unknown>) {
 }
 
 describe('GDPR Export API', () => {
-  let mockSupabase: ReturnType<typeof createMockSupabaseFrom>;
-
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(sensitiveRateLimiter.limit).mockResolvedValue({ allowed: true });
-    vi.mocked(serverAuth.getUser).mockResolvedValue({ id: 'user-1', email: 'test@example.com' } as never);
-    mockSupabase = createMockSupabaseFrom();
-    vi.mocked(createClient).mockResolvedValue(mockSupabase as never);
+
+    // withAuth: authenticate user via supabase.auth.getUser
+    mockSupabaseClient.auth.getUser.mockResolvedValue({
+      data: { user: { id: 'user-1', email: 'test@example.com' } },
+      error: null,
+    });
+
+    // withAuth: getProfileAsAdmin after auth
+    vi.mocked(getProfileAsAdmin).mockResolvedValue({
+      profile: { id: 'user-1', role: 'attorney', full_name: 'Test User', email: 'test@example.com' },
+      error: null,
+    } as any);
+
+    // withAuth: rateLimit
+    vi.mocked(rateLimit).mockResolvedValue({ success: true });
   });
 
   afterEach(() => {
-    vi.restoreAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('GET /api/gdpr/export', () => {
     it('returns 429 when rate limited', async () => {
-      vi.mocked(sensitiveRateLimiter.limit).mockResolvedValue({
-        allowed: false,
-        response: new Response(JSON.stringify({ error: 'Too Many Requests' }), { status: 429 }),
-      } as never);
+      vi.mocked(rateLimit).mockResolvedValue({ success: false, retryAfter: 60 });
 
       const response = await GET(createRequest('GET'));
-      const data = await response.json();
 
       expect(response.status).toBe(429);
-      expect(data.error).toContain('Too Many Requests');
     });
 
     it('returns 401 when not authenticated', async () => {
-      vi.mocked(serverAuth.getUser).mockResolvedValue(null as never);
+      mockSupabaseClient.auth.getUser.mockResolvedValue({
+        data: { user: null },
+        error: null,
+      });
 
       const response = await GET(createRequest('GET'));
       const data = await response.json();
@@ -87,7 +111,7 @@ describe('GDPR Export API', () => {
         { id: 'job-2', status: 'pending', created_at: '2026-01-02' },
       ];
       const chain = createMockChain({ data: jobs, error: null });
-      mockSupabase.from.mockReturnValue(chain);
+      mockSupabaseClient.from.mockReturnValue(chain);
 
       const response = await GET(createRequest('GET'));
       const data = await response.json();
@@ -95,12 +119,12 @@ describe('GDPR Export API', () => {
       expect(response.status).toBe(200);
       expect(data.success).toBe(true);
       expect(data.data).toEqual(jobs);
-      expect(mockSupabase.from).toHaveBeenCalledWith('gdpr_export_jobs');
+      expect(mockSupabaseClient.from).toHaveBeenCalledWith('gdpr_export_jobs');
     });
 
     it('returns 200 with empty array when no jobs', async () => {
       const chain = createMockChain({ data: [], error: null });
-      mockSupabase.from.mockReturnValue(chain);
+      mockSupabaseClient.from.mockReturnValue(chain);
 
       const response = await GET(createRequest('GET'));
       const data = await response.json();
@@ -112,7 +136,7 @@ describe('GDPR Export API', () => {
 
     it('returns 500 on DB error', async () => {
       const chain = createMockChain({ data: null, error: { message: 'connection refused' } });
-      mockSupabase.from.mockReturnValue(chain);
+      mockSupabaseClient.from.mockReturnValue(chain);
 
       const response = await GET(createRequest('GET'));
       const data = await response.json();
@@ -123,12 +147,13 @@ describe('GDPR Export API', () => {
 
     it('rate limits by user.id not IP', async () => {
       const chain = createMockChain({ data: [], error: null });
-      mockSupabase.from.mockReturnValue(chain);
+      mockSupabaseClient.from.mockReturnValue(chain);
 
       await GET(createRequest('GET'));
 
-      expect(sensitiveRateLimiter.limit).toHaveBeenCalledWith(
-        expect.any(NextRequest),
+      // withAuth calls rateLimit with the SENSITIVE config and user.id
+      expect(rateLimit).toHaveBeenCalledWith(
+        expect.objectContaining({ keyPrefix: 'sensitive' }),
         'user-1'
       );
     });
@@ -136,20 +161,18 @@ describe('GDPR Export API', () => {
 
   describe('POST /api/gdpr/export', () => {
     it('returns 429 when rate limited', async () => {
-      vi.mocked(sensitiveRateLimiter.limit).mockResolvedValue({
-        allowed: false,
-        response: new Response(JSON.stringify({ error: 'Too Many Requests' }), { status: 429 }),
-      } as never);
+      vi.mocked(rateLimit).mockResolvedValue({ success: false, retryAfter: 60 });
 
       const response = await POST(createRequest('POST'));
-      const data = await response.json();
 
       expect(response.status).toBe(429);
-      expect(data.error).toContain('Too Many Requests');
     });
 
     it('returns 401 when not authenticated', async () => {
-      vi.mocked(serverAuth.getUser).mockResolvedValue(null as never);
+      mockSupabaseClient.auth.getUser.mockResolvedValue({
+        data: { user: null },
+        error: null,
+      });
 
       const response = await POST(createRequest('POST'));
       const data = await response.json();
@@ -163,7 +186,7 @@ describe('GDPR Export API', () => {
         data: { id: 'existing-job', status: 'pending' },
         error: null,
       });
-      mockSupabase.from.mockReturnValue(checkChain);
+      mockSupabaseClient.from.mockReturnValue(checkChain);
 
       const response = await POST(createRequest('POST'));
       const data = await response.json();
@@ -179,11 +202,11 @@ describe('GDPR Export API', () => {
       });
       const updateChain = createMockChain({ data: null, error: null });
 
-      mockSupabase.from
+      mockSupabaseClient.from
         .mockReturnValueOnce(checkChain)
         .mockReturnValueOnce(updateChain);
 
-      mockSupabase.rpc
+      mockSupabaseClient.rpc
         .mockResolvedValueOnce({ data: { id: 'job-1' }, error: null })
         .mockResolvedValueOnce({ data: { profile: { name: 'Test' }, cases: [] }, error: null });
 
@@ -194,8 +217,8 @@ describe('GDPR Export API', () => {
       expect(data.success).toBe(true);
       expect(data.data.jobId).toBe('job-1');
       expect(data.data.exportData).toEqual({ profile: { name: 'Test' }, cases: [] });
-      expect(mockSupabase.rpc).toHaveBeenCalledWith('create_gdpr_export_job', { p_user_id: 'user-1' });
-      expect(mockSupabase.rpc).toHaveBeenCalledWith('get_user_export_data', { p_user_id: 'user-1' });
+      expect(mockSupabaseClient.rpc).toHaveBeenCalledWith('create_gdpr_export_job', { p_user_id: 'user-1' });
+      expect(mockSupabaseClient.rpc).toHaveBeenCalledWith('get_user_export_data', { p_user_id: 'user-1' });
     });
 
     it('returns 500 when create_gdpr_export_job RPC fails', async () => {
@@ -203,9 +226,9 @@ describe('GDPR Export API', () => {
         data: null,
         error: { code: 'PGRST116', message: 'not found' },
       });
-      mockSupabase.from.mockReturnValue(checkChain);
+      mockSupabaseClient.from.mockReturnValue(checkChain);
 
-      mockSupabase.rpc.mockResolvedValueOnce({
+      mockSupabaseClient.rpc.mockResolvedValueOnce({
         data: null,
         error: { message: 'RPC function not found' },
       });
@@ -222,9 +245,9 @@ describe('GDPR Export API', () => {
         data: null,
         error: { code: 'PGRST116', message: 'not found' },
       });
-      mockSupabase.from.mockReturnValue(checkChain);
+      mockSupabaseClient.from.mockReturnValue(checkChain);
 
-      mockSupabase.rpc
+      mockSupabaseClient.rpc
         .mockResolvedValueOnce({ data: { id: 'job-1' }, error: null })
         .mockResolvedValueOnce({ data: null, error: { message: 'export function failed' } });
 
@@ -245,11 +268,11 @@ describe('GDPR Export API', () => {
         error: { message: 'update failed' },
       });
 
-      mockSupabase.from
+      mockSupabaseClient.from
         .mockReturnValueOnce(checkChain)
         .mockReturnValueOnce(updateChain);
 
-      mockSupabase.rpc
+      mockSupabaseClient.rpc
         .mockResolvedValueOnce({ data: { id: 'job-1' }, error: null })
         .mockResolvedValueOnce({ data: { profile: {} }, error: null });
 

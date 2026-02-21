@@ -176,11 +176,13 @@ vi.mock('@/lib/validation', () => ({
   ],
 }));
 
-// Mock safeParseBody
-vi.mock('@/lib/auth/api-helpers', () => {
+// Mock api-helpers: keep real withAuth/successResponse/errorResponse, only mock safeParseBody
+vi.mock('@/lib/auth/api-helpers', async (importOriginal) => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { NextResponse } = require('next/server');
+  const actual = await importOriginal<typeof import('@/lib/auth/api-helpers')>();
   return {
+    ...actual,
     safeParseBody: async (request: NextRequest) => {
       try {
         const data = await request.json();
@@ -200,9 +202,8 @@ vi.mock('@/lib/auth/api-helpers', () => {
 
 // Import route handlers AFTER mocks
 import { GET, PATCH, DELETE } from './route';
-import { sensitiveRateLimiter } from '@/lib/rate-limit';
-
-const mockedSensitiveRateLimiter = vi.mocked(sensitiveRateLimiter);
+import { rateLimit } from '@/lib/rate-limit';
+import { getProfileAsAdmin } from '@/lib/supabase/admin';
 
 function createMockRequest(
   method: string,
@@ -244,8 +245,26 @@ describe('Documents [id] API Routes', () => {
       error: null,
     });
 
+    // Default: profile lookup succeeds
+    vi.mocked(getProfileAsAdmin).mockResolvedValue({
+      profile: {
+        id: mockAttorneyId,
+        role: 'attorney',
+        email: 'attorney@example.com',
+        first_name: 'Attorney',
+        last_name: 'User',
+        phone: null,
+        mfa_enabled: false,
+        ai_consent_granted_at: '2024-01-01T00:00:00Z',
+        primary_firm_id: null,
+        created_at: '2024-01-01T00:00:00Z',
+        updated_at: '2024-01-01T00:00:00Z',
+      },
+      error: null,
+    });
+
     // Default: rate limiter allows requests
-    mockedSensitiveRateLimiter.limit.mockResolvedValue({ allowed: true } as { allowed: true });
+    vi.mocked(rateLimit).mockResolvedValue({ success: true });
 
     // Default: document and case found with attorney access
     mockGetDocument.mockResolvedValue(mockDocument);
@@ -331,8 +350,8 @@ describe('Documents [id] API Routes', () => {
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data.id).toBe(mockDocumentId);
-      expect(data.file_url).toBe('https://example.com/signed/file.pdf');
+      expect(data.data.id).toBe(mockDocumentId);
+      expect(data.data.file_url).toBe('https://example.com/signed/file.pdf');
     });
 
     it('should return 200 with document for client', async () => {
@@ -346,7 +365,7 @@ describe('Documents [id] API Routes', () => {
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data.id).toBe(mockDocumentId);
+      expect(data.data.id).toBe(mockDocumentId);
     });
 
     it('should log document access for audit', async () => {
@@ -366,14 +385,7 @@ describe('Documents [id] API Routes', () => {
     });
 
     it('should return 429 when rate limited', async () => {
-      const rateLimitResponse = new Response(
-        JSON.stringify({ error: 'Too Many Requests' }),
-        { status: 429 }
-      );
-      vi.mocked(sensitiveRateLimiter.limit).mockResolvedValue({
-        allowed: false,
-        response: rateLimitResponse,
-      } as { allowed: false; response: Response });
+      vi.mocked(rateLimit).mockResolvedValue({ success: false, retryAfter: 60 });
 
       const request = createMockRequest('GET');
       const response = await GET(request, { params: createMockParams() });
@@ -443,7 +455,7 @@ describe('Documents [id] API Routes', () => {
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data.status).toBe('verified');
+      expect(data.data.status).toBe('verified');
       expect(mockUpdateDocument).toHaveBeenCalledWith(
         mockDocumentId,
         { status: 'verified' }
@@ -523,7 +535,7 @@ describe('Documents [id] API Routes', () => {
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data.message).toBe('Document deleted successfully');
+      expect(data.data.message).toBe('Document deleted successfully');
       expect(mockDeleteDocument).toHaveBeenCalledWith(mockDocumentId);
     });
 
@@ -545,7 +557,7 @@ describe('Documents [id] API Routes', () => {
       const data = await response.json();
 
       expect(response.status).toBe(500);
-      expect(data.error).toBe('Failed to delete document');
+      expect(data.error).toBe('Internal server error');
     });
   });
 
@@ -561,7 +573,7 @@ describe('Documents [id] API Routes', () => {
       const data = await response.json();
 
       expect(response.status).toBe(500);
-      expect(data.error).toBe('Failed to fetch document');
+      expect(data.error).toBe('Internal server error');
     });
 
     it('should handle PATCH database errors gracefully', async () => {
@@ -572,7 +584,7 @@ describe('Documents [id] API Routes', () => {
       const data = await response.json();
 
       expect(response.status).toBe(500);
-      expect(data.error).toBe('Failed to update document');
+      expect(data.error).toBe('Internal server error');
     });
   });
 });

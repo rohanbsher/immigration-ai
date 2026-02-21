@@ -26,22 +26,19 @@ const mockMessage = {
   updated_at: '2024-01-01T00:00:00Z',
 };
 
-// Mock Supabase user
-let mockSupabaseUser: { id: string; email: string } | null = {
-  id: ATTORNEY_ID,
-  email: 'attorney@example.com',
-};
-
+// Mock Supabase client
 const mockSupabaseClient = {
   auth: {
-    getUser: vi.fn().mockImplementation(() =>
-      Promise.resolve({ data: { user: mockSupabaseUser }, error: null })
-    ),
+    getUser: vi.fn(),
   },
 };
 
 vi.mock('@/lib/supabase/server', () => ({
-  createClient: vi.fn().mockImplementation(() => Promise.resolve(mockSupabaseClient)),
+  createClient: vi.fn(() => Promise.resolve(mockSupabaseClient)),
+}));
+
+vi.mock('@/lib/supabase/admin', () => ({
+  getProfileAsAdmin: vi.fn(),
 }));
 
 // Mock db services
@@ -95,8 +92,8 @@ vi.mock('@/lib/email/notifications', () => ({
   sendCaseUpdateEmail: vi.fn().mockResolvedValue(undefined),
 }));
 
-// Import the rate limiter to manipulate in tests
-import { standardRateLimiter } from '@/lib/rate-limit';
+import { getProfileAsAdmin } from '@/lib/supabase/admin';
+import { rateLimit } from '@/lib/rate-limit';
 
 function createMockRequest(
   url: string,
@@ -117,14 +114,21 @@ function createMockRequest(
   return request;
 }
 
-function setCurrentUser(user: { id: string; email: string } | null) {
-  mockSupabaseUser = user;
-}
-
 describe('Cases Messages API Routes', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    setCurrentUser({ id: ATTORNEY_ID, email: 'attorney@example.com' });
+
+    // Default: authenticated attorney
+    mockSupabaseClient.auth.getUser.mockResolvedValue({
+      data: { user: { id: ATTORNEY_ID, email: 'attorney@example.com' } },
+      error: null,
+    });
+    vi.mocked(getProfileAsAdmin).mockResolvedValue({
+      profile: { id: ATTORNEY_ID, role: 'attorney', full_name: 'Test Attorney', email: 'attorney@example.com' },
+      error: null,
+    } as any);
+    vi.mocked(rateLimit).mockResolvedValue({ success: true });
+
     mockCasesService.getCase.mockResolvedValue(mockCase);
   });
 
@@ -134,7 +138,10 @@ describe('Cases Messages API Routes', () => {
 
   describe('GET /api/cases/[id]/messages', () => {
     it('should return 401 for unauthenticated user', async () => {
-      setCurrentUser(null);
+      mockSupabaseClient.auth.getUser.mockResolvedValue({
+        data: { user: null },
+        error: null,
+      });
 
       const { GET } = await import('./route');
       const request = createMockRequest(`http://localhost:3000/api/cases/${CASE_ID}/messages`);
@@ -145,7 +152,14 @@ describe('Cases Messages API Routes', () => {
     });
 
     it('should return 403 when user has no case access', async () => {
-      setCurrentUser({ id: UNAUTHORIZED_USER_ID, email: 'other@example.com' });
+      mockSupabaseClient.auth.getUser.mockResolvedValue({
+        data: { user: { id: UNAUTHORIZED_USER_ID, email: 'other@example.com' } },
+        error: null,
+      });
+      vi.mocked(getProfileAsAdmin).mockResolvedValue({
+        profile: { id: UNAUTHORIZED_USER_ID, role: 'attorney', full_name: 'Other User', email: 'other@example.com' },
+        error: null,
+      } as any);
 
       const { GET } = await import('./route');
       const request = createMockRequest(`http://localhost:3000/api/cases/${CASE_ID}/messages`);
@@ -171,17 +185,25 @@ describe('Cases Messages API Routes', () => {
       const request = createMockRequest(`http://localhost:3000/api/cases/${CASE_ID}/messages`);
 
       const response = await GET(request, { params: Promise.resolve({ id: CASE_ID }) });
-      const data = await response.json();
+      const json = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data.data).toHaveLength(1);
-      expect(data.total).toBe(1);
-      expect(data.limit).toBe(50);
-      expect(data.offset).toBe(0);
+      // successResponse wraps in { success, data }
+      expect(json.data.data).toHaveLength(1);
+      expect(json.data.total).toBe(1);
+      expect(json.data.limit).toBe(50);
+      expect(json.data.offset).toBe(0);
     });
 
     it('should return 200 with messages for client', async () => {
-      setCurrentUser({ id: CLIENT_ID, email: 'client@example.com' });
+      mockSupabaseClient.auth.getUser.mockResolvedValue({
+        data: { user: { id: CLIENT_ID, email: 'client@example.com' } },
+        error: null,
+      });
+      vi.mocked(getProfileAsAdmin).mockResolvedValue({
+        profile: { id: CLIENT_ID, role: 'client', full_name: 'Test Client', email: 'client@example.com' },
+        error: null,
+      } as any);
 
       const { GET } = await import('./route');
       const request = createMockRequest(`http://localhost:3000/api/cases/${CASE_ID}/messages`);
@@ -229,13 +251,7 @@ describe('Cases Messages API Routes', () => {
     });
 
     it('should return rate limit response when rate limited', async () => {
-      vi.mocked(standardRateLimiter.limit).mockResolvedValueOnce({
-        allowed: false,
-        response: new Response(JSON.stringify({ error: 'Too Many Requests' }), {
-          status: 429,
-          headers: { 'Content-Type': 'application/json' },
-        }),
-      } as any);
+      vi.mocked(rateLimit).mockResolvedValueOnce({ success: false, retryAfter: 60 });
 
       const { GET } = await import('./route');
       const request = createMockRequest(`http://localhost:3000/api/cases/${CASE_ID}/messages`);
@@ -248,7 +264,10 @@ describe('Cases Messages API Routes', () => {
 
   describe('POST /api/cases/[id]/messages', () => {
     it('should return 401 for unauthenticated user', async () => {
-      setCurrentUser(null);
+      mockSupabaseClient.auth.getUser.mockResolvedValue({
+        data: { user: null },
+        error: null,
+      });
 
       const { POST } = await import('./route');
       const request = createMockRequest(`http://localhost:3000/api/cases/${CASE_ID}/messages`, {
@@ -262,7 +281,14 @@ describe('Cases Messages API Routes', () => {
     });
 
     it('should return 403 when user has no case access', async () => {
-      setCurrentUser({ id: UNAUTHORIZED_USER_ID, email: 'other@example.com' });
+      mockSupabaseClient.auth.getUser.mockResolvedValue({
+        data: { user: { id: UNAUTHORIZED_USER_ID, email: 'other@example.com' } },
+        error: null,
+      });
+      vi.mocked(getProfileAsAdmin).mockResolvedValue({
+        profile: { id: UNAUTHORIZED_USER_ID, role: 'attorney', full_name: 'Other User', email: 'other@example.com' },
+        error: null,
+      } as any);
 
       const { POST } = await import('./route');
       const request = createMockRequest(`http://localhost:3000/api/cases/${CASE_ID}/messages`, {
@@ -312,10 +338,11 @@ describe('Cases Messages API Routes', () => {
       });
 
       const response = await POST(request, { params: Promise.resolve({ id: CASE_ID }) });
-      const data = await response.json();
+      const json = await response.json();
 
       expect(response.status).toBe(201);
-      expect(data.id).toBe(MESSAGE_ID);
+      // successResponse wraps in { success, data }
+      expect(json.data.id).toBe(MESSAGE_ID);
       expect(mockCaseMessagesService.createMessage).toHaveBeenCalledWith({
         case_id: CASE_ID,
         sender_id: ATTORNEY_ID,
@@ -324,7 +351,14 @@ describe('Cases Messages API Routes', () => {
     });
 
     it('should return 201 for client sending message', async () => {
-      setCurrentUser({ id: CLIENT_ID, email: 'client@example.com' });
+      mockSupabaseClient.auth.getUser.mockResolvedValue({
+        data: { user: { id: CLIENT_ID, email: 'client@example.com' } },
+        error: null,
+      });
+      vi.mocked(getProfileAsAdmin).mockResolvedValue({
+        profile: { id: CLIENT_ID, role: 'client', full_name: 'Test Client', email: 'client@example.com' },
+        error: null,
+      } as any);
 
       const { POST } = await import('./route');
       const request = createMockRequest(`http://localhost:3000/api/cases/${CASE_ID}/messages`, {

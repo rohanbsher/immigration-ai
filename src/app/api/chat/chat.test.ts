@@ -17,15 +17,6 @@ const MOCK_EMAIL = 'test@example.com';
 const MOCK_CONV_ID = '550e8400-e29b-41d4-a716-446655440001';
 const MOCK_CASE_ID = '550e8400-e29b-41d4-a716-446655440002';
 
-// vi.hoisted() runs BEFORE vi.mock factories, so these references are available
-// when the mock factory for @/lib/rate-limit executes. The route module's
-// `const rateLimiter = createRateLimiter(...)` captures the same object.
-const { _chatLimiter, _standardLimiter, _sensitiveLimiter } = vi.hoisted(() => ({
-  _chatLimiter: { limit: vi.fn() },
-  _standardLimiter: { limit: vi.fn() },
-  _sensitiveLimiter: { limit: vi.fn() },
-}));
-
 // ---------------------------------------------------------------------------
 // Mocks
 // ---------------------------------------------------------------------------
@@ -34,15 +25,20 @@ vi.mock('@/lib/supabase/server', () => ({
   createClient: vi.fn(),
 }));
 
+vi.mock('@/lib/supabase/admin', () => ({
+  getProfileAsAdmin: vi.fn(),
+}));
+
 vi.mock('@/lib/rate-limit', () => ({
-  createRateLimiter: vi.fn(() => _chatLimiter),
+  rateLimit: vi.fn(),
+  createRateLimiter: vi.fn(),
   RATE_LIMITS: {
     AI_CHAT: { maxRequests: 50, windowMs: 3600_000, keyPrefix: 'ai:chat' },
     STANDARD: { maxRequests: 100, windowMs: 60_000, keyPrefix: 'standard' },
     SENSITIVE: { maxRequests: 20, windowMs: 60_000, keyPrefix: 'sensitive' },
   },
-  standardRateLimiter: _standardLimiter,
-  sensitiveRateLimiter: _sensitiveLimiter,
+  standardRateLimiter: { limit: vi.fn() },
+  sensitiveRateLimiter: { limit: vi.fn() },
 }));
 
 vi.mock('@/lib/ai/chat', () => ({
@@ -89,25 +85,13 @@ vi.mock('@/lib/audit/ai-audit', () => ({
   logAIRequest: vi.fn(),
 }));
 
-vi.mock('@/lib/auth/api-helpers', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { NextResponse } = require('next/server');
+// Use importOriginal to keep withAuth, successResponse, errorResponse
+// while still allowing individual mocking of requireAiConsent and safeParseBody
+vi.mock('@/lib/auth/api-helpers', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/auth/api-helpers')>();
   return {
+    ...actual,
     requireAiConsent: vi.fn().mockResolvedValue(null),
-    safeParseBody: async (request: any) => {
-      try {
-        const data = await request.json();
-        return { success: true, data };
-      } catch {
-        return {
-          success: false,
-          response: NextResponse.json(
-            { error: 'Invalid JSON in request body' },
-            { status: 400 }
-          ),
-        };
-      }
-    },
   };
 });
 
@@ -126,6 +110,8 @@ vi.mock('@/lib/logger', () => ({
 // ---------------------------------------------------------------------------
 
 import { createClient } from '@/lib/supabase/server';
+import { getProfileAsAdmin } from '@/lib/supabase/admin';
+import { rateLimit } from '@/lib/rate-limit';
 import {
   createConversation,
   getConversation,
@@ -200,10 +186,19 @@ function mockSupabaseAuth(user: { id: string; email: string } | null) {
 describe('Chat API Routes', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+
+    // Default: rateLimit allows requests (withAuth calls rateLimit internally)
+    vi.mocked(rateLimit).mockResolvedValue({ success: true });
+
+    // Default: getProfileAsAdmin returns a valid profile
+    vi.mocked(getProfileAsAdmin).mockResolvedValue({
+      profile: { id: MOCK_USER_ID, role: 'attorney', full_name: 'Test User', email: MOCK_EMAIL },
+      error: null,
+    } as any);
   });
 
   afterEach(() => {
-    vi.restoreAllMocks();
+    vi.clearAllMocks();
   });
 
   // =========================================================================
@@ -221,12 +216,10 @@ describe('Chat API Routes', () => {
 
       expect(res.status).toBe(401);
       expect(data.error).toBe('Unauthorized');
-      expect(data.message).toBe('Please log in to continue');
     });
 
     it('returns 403 when AI consent not granted', async () => {
       mockSupabaseAuth({ id: MOCK_USER_ID, email: MOCK_EMAIL });
-      _chatLimiter.limit.mockResolvedValue({ allowed: true });
       vi.mocked(requireAiConsent).mockResolvedValueOnce(
         NextResponse.json({ error: 'AI consent required' }, { status: 403 })
       );
@@ -243,13 +236,7 @@ describe('Chat API Routes', () => {
 
     it('returns 429 when rate limited', async () => {
       mockSupabaseAuth({ id: MOCK_USER_ID, email: MOCK_EMAIL });
-      _chatLimiter.limit.mockResolvedValue({
-        allowed: false,
-        response: NextResponse.json(
-          { error: 'Too Many Requests' },
-          { status: 429 }
-        ),
-      });
+      vi.mocked(rateLimit).mockResolvedValue({ success: false, retryAfter: 60 });
 
       const req = createRequest('POST', '/api/chat', {
         message: 'Hello',
@@ -261,7 +248,6 @@ describe('Chat API Routes', () => {
 
     it('returns 402 when quota exceeded', async () => {
       mockSupabaseAuth({ id: MOCK_USER_ID, email: MOCK_EMAIL });
-      _chatLimiter.limit.mockResolvedValue({ allowed: true });
       vi.mocked(enforceQuota).mockRejectedValue(
         new QuotaExceededError('ai_requests', 25, 25)
       );
@@ -279,7 +265,6 @@ describe('Chat API Routes', () => {
 
     it('returns 400 for empty message', async () => {
       mockSupabaseAuth({ id: MOCK_USER_ID, email: MOCK_EMAIL });
-      _chatLimiter.limit.mockResolvedValue({ allowed: true });
       vi.mocked(enforceQuota).mockResolvedValue(undefined);
 
       const req = createRequest('POST', '/api/chat', {
@@ -294,7 +279,6 @@ describe('Chat API Routes', () => {
 
     it('returns 400 for message exceeding max length', async () => {
       mockSupabaseAuth({ id: MOCK_USER_ID, email: MOCK_EMAIL });
-      _chatLimiter.limit.mockResolvedValue({ allowed: true });
       vi.mocked(enforceQuota).mockResolvedValue(undefined);
 
       const req = createRequest('POST', '/api/chat', {
@@ -309,7 +293,6 @@ describe('Chat API Routes', () => {
 
     it('returns 400 for invalid conversationId (not UUID)', async () => {
       mockSupabaseAuth({ id: MOCK_USER_ID, email: MOCK_EMAIL });
-      _chatLimiter.limit.mockResolvedValue({ allowed: true });
       vi.mocked(enforceQuota).mockResolvedValue(undefined);
 
       const req = createRequest('POST', '/api/chat', {
@@ -325,7 +308,6 @@ describe('Chat API Routes', () => {
 
     it('returns 400 when trimmed message is empty (whitespace only)', async () => {
       mockSupabaseAuth({ id: MOCK_USER_ID, email: MOCK_EMAIL });
-      _chatLimiter.limit.mockResolvedValue({ allowed: true });
       vi.mocked(enforceQuota).mockResolvedValue(undefined);
 
       const req = createRequest('POST', '/api/chat', {
@@ -341,7 +323,6 @@ describe('Chat API Routes', () => {
 
     it('returns 404 when conversationId does not exist', async () => {
       mockSupabaseAuth({ id: MOCK_USER_ID, email: MOCK_EMAIL });
-      _chatLimiter.limit.mockResolvedValue({ allowed: true });
       vi.mocked(enforceQuota).mockResolvedValue(undefined);
       vi.mocked(getConversation).mockResolvedValue(null);
 
@@ -359,7 +340,6 @@ describe('Chat API Routes', () => {
 
     it('creates new conversation when no conversationId provided', async () => {
       mockSupabaseAuth({ id: MOCK_USER_ID, email: MOCK_EMAIL });
-      _chatLimiter.limit.mockResolvedValue({ allowed: true });
       vi.mocked(enforceQuota).mockResolvedValue(undefined);
 
       const mockConv = {
@@ -398,7 +378,6 @@ describe('Chat API Routes', () => {
 
     it('continues existing conversation when conversationId provided', async () => {
       mockSupabaseAuth({ id: MOCK_USER_ID, email: MOCK_EMAIL });
-      _chatLimiter.limit.mockResolvedValue({ allowed: true });
       vi.mocked(enforceQuota).mockResolvedValue(undefined);
 
       const mockConv = {
@@ -488,9 +467,10 @@ describe('Chat API Routes', () => {
       const data = await res.json();
 
       expect(res.status).toBe(200);
-      expect(data.conversations).toHaveLength(1);
-      expect(data.conversations[0].id).toBe(MOCK_CONV_ID);
-      expect(data.conversations[0].title).toBe('Test Conversation');
+      // successResponse wraps in { success: true, data: { conversations: [...] } }
+      expect(data.data.conversations).toHaveLength(1);
+      expect(data.data.conversations[0].id).toBe(MOCK_CONV_ID);
+      expect(data.data.conversations[0].title).toBe('Test Conversation');
     });
 
     it('filters by caseId query param', async () => {
@@ -576,9 +556,9 @@ describe('Chat API Routes', () => {
       const res = await chatGET(req);
       const data = await res.json();
 
+      // withAuth catches thrown errors and returns errorResponse('Internal server error', 500)
       expect(res.status).toBe(500);
-      expect(data.error).toBe('Internal Server Error');
-      expect(data.message).toBe('Failed to fetch conversations. Please try again.');
+      expect(data.error).toBe('Internal server error');
     });
   });
 
@@ -601,7 +581,6 @@ describe('Chat API Routes', () => {
 
     it('returns conversation messages', async () => {
       mockSupabaseAuth({ id: MOCK_USER_ID, email: MOCK_EMAIL });
-      _standardLimiter.limit.mockResolvedValue({ allowed: true });
 
       const mockConv = {
         id: MOCK_CONV_ID,
@@ -634,14 +613,14 @@ describe('Chat API Routes', () => {
       const data = await res.json();
 
       expect(res.status).toBe(200);
-      expect(data.conversation.id).toBe(MOCK_CONV_ID);
-      expect(data.conversation.title).toBe('Test Chat');
-      expect(data.messages).toHaveLength(2);
+      // successResponse wraps in { success: true, data: { conversation, messages } }
+      expect(data.data.conversation.id).toBe(MOCK_CONV_ID);
+      expect(data.data.conversation.title).toBe('Test Chat');
+      expect(data.data.messages).toHaveLength(2);
     });
 
     it('returns 404 when conversation not found', async () => {
       mockSupabaseAuth({ id: MOCK_USER_ID, email: MOCK_EMAIL });
-      _standardLimiter.limit.mockResolvedValue({ allowed: true });
       vi.mocked(getConversation).mockResolvedValue(null);
 
       const req = createRequest('GET', `/api/chat/${MOCK_CONV_ID}`);
@@ -649,22 +628,21 @@ describe('Chat API Routes', () => {
       const data = await res.json();
 
       expect(res.status).toBe(404);
-      expect(data.error).toBe('Not Found');
-      expect(data.message).toBe('Conversation not found');
+      // errorResponse('Conversation not found', 404) -> { success: false, error: 'Conversation not found' }
+      expect(data.error).toBe('Conversation not found');
     });
 
     it('returns 500 on error', async () => {
       mockSupabaseAuth({ id: MOCK_USER_ID, email: MOCK_EMAIL });
-      _standardLimiter.limit.mockResolvedValue({ allowed: true });
       vi.mocked(getConversation).mockRejectedValue(new Error('DB error'));
 
       const req = createRequest('GET', `/api/chat/${MOCK_CONV_ID}`);
       const res = await convGET(req, routeParams);
       const data = await res.json();
 
+      // withAuth catches thrown errors and returns errorResponse('Internal server error', 500)
       expect(res.status).toBe(500);
-      expect(data.error).toBe('Internal Server Error');
-      expect(data.message).toBe('Failed to fetch conversation');
+      expect(data.error).toBe('Internal server error');
     });
   });
 
@@ -689,7 +667,6 @@ describe('Chat API Routes', () => {
 
     it('updates conversation title', async () => {
       mockSupabaseAuth({ id: MOCK_USER_ID, email: MOCK_EMAIL });
-      _standardLimiter.limit.mockResolvedValue({ allowed: true });
 
       vi.mocked(updateConversationTitle).mockResolvedValue(undefined);
       vi.mocked(getConversation).mockResolvedValue({
@@ -708,7 +685,8 @@ describe('Chat API Routes', () => {
       const data = await res.json();
 
       expect(res.status).toBe(200);
-      expect(data.conversation.title).toBe('Updated Title');
+      // successResponse wraps in { success: true, data: { conversation } }
+      expect(data.data.conversation.title).toBe('Updated Title');
       expect(updateConversationTitle).toHaveBeenCalledWith(
         MOCK_CONV_ID,
         MOCK_USER_ID,
@@ -718,7 +696,6 @@ describe('Chat API Routes', () => {
 
     it('returns 404 when conversation not found', async () => {
       mockSupabaseAuth({ id: MOCK_USER_ID, email: MOCK_EMAIL });
-      _standardLimiter.limit.mockResolvedValue({ allowed: true });
       vi.mocked(getConversation).mockResolvedValue(null);
 
       const req = createRequest('PATCH', `/api/chat/${MOCK_CONV_ID}`, {
@@ -728,13 +705,11 @@ describe('Chat API Routes', () => {
       const data = await res.json();
 
       expect(res.status).toBe(404);
-      expect(data.error).toBe('Not Found');
-      expect(data.message).toBe('Conversation not found');
+      expect(data.error).toBe('Conversation not found');
     });
 
     it('returns 500 on error', async () => {
       mockSupabaseAuth({ id: MOCK_USER_ID, email: MOCK_EMAIL });
-      _standardLimiter.limit.mockResolvedValue({ allowed: true });
       vi.mocked(getConversation).mockRejectedValue(new Error('DB error'));
 
       const req = createRequest('PATCH', `/api/chat/${MOCK_CONV_ID}`, {
@@ -744,8 +719,7 @@ describe('Chat API Routes', () => {
       const data = await res.json();
 
       expect(res.status).toBe(500);
-      expect(data.error).toBe('Internal Server Error');
-      expect(data.message).toBe('Failed to update conversation');
+      expect(data.error).toBe('Internal server error');
     });
   });
 
@@ -768,7 +742,6 @@ describe('Chat API Routes', () => {
 
     it('deletes conversation successfully', async () => {
       mockSupabaseAuth({ id: MOCK_USER_ID, email: MOCK_EMAIL });
-      _sensitiveLimiter.limit.mockResolvedValue({ allowed: true });
       vi.mocked(deleteConversation).mockResolvedValue(undefined);
 
       const req = createRequest('DELETE', `/api/chat/${MOCK_CONV_ID}`);
@@ -777,12 +750,13 @@ describe('Chat API Routes', () => {
 
       expect(res.status).toBe(200);
       expect(data.success).toBe(true);
+      // successResponse wraps: { success: true, data: { deleted: true } }
+      expect(data.data.deleted).toBe(true);
       expect(deleteConversation).toHaveBeenCalledWith(MOCK_CONV_ID, MOCK_USER_ID);
     });
 
     it('returns 500 on error', async () => {
       mockSupabaseAuth({ id: MOCK_USER_ID, email: MOCK_EMAIL });
-      _sensitiveLimiter.limit.mockResolvedValue({ allowed: true });
       vi.mocked(deleteConversation).mockRejectedValue(new Error('DB error'));
 
       const req = createRequest('DELETE', `/api/chat/${MOCK_CONV_ID}`);
@@ -790,8 +764,7 @@ describe('Chat API Routes', () => {
       const data = await res.json();
 
       expect(res.status).toBe(500);
-      expect(data.error).toBe('Internal Server Error');
-      expect(data.message).toBe('Failed to delete conversation');
+      expect(data.error).toBe('Internal server error');
     });
   });
 });

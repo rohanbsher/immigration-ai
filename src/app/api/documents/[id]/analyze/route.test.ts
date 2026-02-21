@@ -129,11 +129,15 @@ vi.mock('@/lib/ai', () => ({
 
 // Mock rate limiter
 vi.mock('@/lib/rate-limit', () => ({
+  rateLimit: vi.fn().mockResolvedValue({ success: true }),
   aiRateLimiter: {
     limit: vi.fn().mockResolvedValue({ allowed: true }),
   },
   RATE_LIMITS: {
+    STANDARD: { maxRequests: 100, windowMs: 60000, keyPrefix: 'standard' },
+    AUTH: { maxRequests: 5, windowMs: 60000, keyPrefix: 'auth' },
     AI: { maxRequests: 10, windowMs: 3600000, keyPrefix: 'ai' },
+    SENSITIVE: { maxRequests: 20, windowMs: 60000, keyPrefix: 'sensitive' },
   },
   createRateLimiter: vi.fn().mockReturnValue({
     limit: vi.fn().mockResolvedValue({ allowed: true }),
@@ -156,11 +160,13 @@ vi.mock('@/lib/security', () => ({
   validateStorageUrl: vi.fn().mockReturnValue(true),
 }));
 
-// Mock AI consent check
-vi.mock('@/lib/auth/api-helpers', () => {
+// Mock api-helpers: keep real withAuth/successResponse/errorResponse, only mock requireAiConsent/safeParseBody
+vi.mock('@/lib/auth/api-helpers', async (importOriginal) => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { NextResponse } = require('next/server');
+  const actual = await importOriginal<typeof import('@/lib/auth/api-helpers')>();
   return {
+    ...actual,
     requireAiConsent: vi.fn().mockResolvedValue(null),
     safeParseBody: async (request: any) => {
       try {
@@ -179,6 +185,11 @@ vi.mock('@/lib/auth/api-helpers', () => {
   };
 });
 
+// Mock admin client for profile lookup
+vi.mock('@/lib/supabase/admin', () => ({
+  getProfileAsAdmin: vi.fn(),
+}));
+
 // Mock billing quota
 vi.mock('@/lib/billing/quota', () => ({
   enforceQuota: vi.fn().mockResolvedValue(undefined),
@@ -195,9 +206,10 @@ vi.mock('@/lib/billing/quota', () => ({
 import { POST } from './route';
 import { documentsService, casesService } from '@/lib/db';
 import { analyzeDocument } from '@/lib/ai';
-import { aiRateLimiter } from '@/lib/rate-limit';
+import { rateLimit } from '@/lib/rate-limit';
 import { validateStorageUrl } from '@/lib/security';
 import { requireAiConsent } from '@/lib/auth/api-helpers';
+import { getProfileAsAdmin } from '@/lib/supabase/admin';
 
 // Helper to create mock NextRequest
 function createMockRequest(
@@ -256,6 +268,27 @@ describe('POST /api/documents/[id]/analyze', () => {
       error: null,
     });
 
+    // Default: profile lookup succeeds
+    vi.mocked(getProfileAsAdmin).mockResolvedValue({
+      profile: {
+        id: mockAttorneyId,
+        role: 'attorney',
+        email: 'attorney@example.com',
+        first_name: 'Attorney',
+        last_name: 'User',
+        phone: null,
+        mfa_enabled: false,
+        ai_consent_granted_at: '2024-01-01T00:00:00Z',
+        primary_firm_id: null,
+        created_at: '2024-01-01T00:00:00Z',
+        updated_at: '2024-01-01T00:00:00Z',
+      },
+      error: null,
+    });
+
+    // Default: rate limiter allows requests
+    vi.mocked(rateLimit).mockResolvedValue({ success: true });
+
     // Default: document exists and is valid
     vi.mocked(documentsService.getDocument).mockResolvedValue({ ...mockDocument } as any);
     vi.mocked(documentsService.updateDocument).mockImplementation(async (id, updates) => ({
@@ -269,15 +302,12 @@ describe('POST /api/documents/[id]/analyze', () => {
     // Default: AI analysis succeeds
     vi.mocked(analyzeDocument).mockResolvedValue({ ...mockAnalysisResult } as any);
 
-    // Default: rate limit allows
-    vi.mocked(aiRateLimiter.limit).mockResolvedValue({ allowed: true } as any);
-
     // Default: URL validation passes
     vi.mocked(validateStorageUrl).mockReturnValue(true);
   });
 
   afterEach(() => {
-    vi.restoreAllMocks();
+    vi.clearAllMocks();
   });
 
   // ==========================================================================
@@ -353,15 +383,7 @@ describe('POST /api/documents/[id]/analyze', () => {
   // ==========================================================================
   describe('rate limiting', () => {
     it('returns rate limit response when exceeded', async () => {
-      const rateLimitResponse = new Response(
-        JSON.stringify({ error: 'Too many AI requests. Please try again later.' }),
-        { status: 429 }
-      );
-
-      vi.mocked(aiRateLimiter.limit).mockResolvedValue({
-        allowed: false,
-        response: rateLimitResponse,
-      } as any);
+      vi.mocked(rateLimit).mockResolvedValue({ success: false, retryAfter: 60 });
 
       const request = createMockRequest('POST', `/api/documents/${mockDocumentId}/analyze`);
       const response = await POST(request, { params: createMockParams() });
@@ -438,9 +460,9 @@ describe('POST /api/documents/[id]/analyze', () => {
       const data = await response.json();
 
       expect(response.status).toBe(400);
-      expect(data.error).toBe('Invalid operation');
-      expect(data.message).toContain("Cannot analyze a document with status 'verified'");
-      expect(data.message).toContain('terminal state');
+      expect(data.error).toContain("Cannot analyze a document with status 'verified'");
+      expect(data.error).toContain('terminal state');
+      expect(data.details.message).toBe('Invalid operation');
     });
 
     it('rejects analysis from rejected status (terminal)', async () => {
@@ -454,7 +476,7 @@ describe('POST /api/documents/[id]/analyze', () => {
       const data = await response.json();
 
       expect(response.status).toBe(400);
-      expect(data.error).toBe('Invalid operation');
+      expect(data.details.message).toBe('Invalid operation');
     });
 
     it('rejects analysis from processing status', async () => {
@@ -468,7 +490,7 @@ describe('POST /api/documents/[id]/analyze', () => {
       const data = await response.json();
 
       expect(response.status).toBe(400);
-      expect(data.error).toBe('Invalid operation');
+      expect(data.details.message).toBe('Invalid operation');
     });
 
     it('allows analysis from uploaded status', async () => {
@@ -529,10 +551,10 @@ describe('POST /api/documents/[id]/analyze', () => {
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data.document).toBeDefined();
-      expect(data.analysis).toBeDefined();
-      expect(data.analysis.overall_confidence).toBe(0.85);
-      expect(data.analysis.fields_extracted).toBe(2);
+      expect(data.data.document).toBeDefined();
+      expect(data.data.analysis).toBeDefined();
+      expect(data.data.analysis.overall_confidence).toBe(0.85);
+      expect(data.data.analysis.fields_extracted).toBe(2);
     });
 
     it('updates document status to analyzed on success', async () => {
@@ -563,7 +585,7 @@ describe('POST /api/documents/[id]/analyze', () => {
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data.analysis.requires_manual_review).toBe(true);
+      expect(data.data.analysis.requires_manual_review).toBe(true);
       expect(documentsService.updateDocument).toHaveBeenCalledWith(
         mockDocumentId,
         expect.objectContaining({ status: 'needs_review' })
@@ -583,8 +605,8 @@ describe('POST /api/documents/[id]/analyze', () => {
       const data = await response.json();
 
       expect(response.status).toBe(500);
-      expect(data.error).toBe('AI analysis failed');
-      expect(data.message).toContain('AI service encountered an issue');
+      expect(data.error).toContain('AI service encountered an issue');
+      expect(data.details.message).toBe('AI analysis failed');
 
       // Should reset status to uploaded
       expect(documentsService.updateDocument).toHaveBeenCalledWith(
@@ -615,7 +637,7 @@ describe('POST /api/documents/[id]/analyze', () => {
       const data = await response.json();
 
       expect(response.status).toBe(500);
-      expect(data.error).toBe('AI analysis failed');
+      expect(data.details.message).toBe('AI analysis failed');
       expect(JSON.stringify(data)).not.toContain('API key');
       expect(JSON.stringify(data)).not.toContain('xyz-123');
     });
